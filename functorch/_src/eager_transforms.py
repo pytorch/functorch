@@ -24,7 +24,7 @@ def _create_differentiable(inps, level=None):
             aliased = tensor
             return aliased.requires_grad_()
         raise ValueError(f'Thing passed to transform API must be Tensor,'
-                         f'got {type(tensor_or_tuple_of_tensors)}')
+                         f'got {type(x)}')
     return tree_map(create_differentiable, inps)
 
 def _undo_create_differentiable(inps, level=None):
