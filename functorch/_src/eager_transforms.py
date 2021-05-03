@@ -20,9 +20,7 @@ from functorch._C import (
 def _create_differentiable(inps, level=None):
     def create_differentiable(x):
         if isinstance(x, torch.Tensor):
-            tensor = x
-            aliased = tensor
-            return aliased.requires_grad_()
+            return x.requires_grad_()
         raise ValueError(f'Thing passed to transform API must be Tensor,'
                          f'got {type(x)}')
     return tree_map(create_differentiable, inps)
@@ -30,7 +28,6 @@ def _create_differentiable(inps, level=None):
 def _undo_create_differentiable(inps, level=None):
     def unwrap_tensors(x):
         if isinstance(x, torch.Tensor):
-            tensor = x
             return _unwrap_for_grad(x, level)
         assert False
 
@@ -126,11 +123,11 @@ def grad_and_value(f, argnums=0, has_aux=False):
             flat_grad_input = torch.autograd.grad(
                 output, flat_diff_args, create_graph=True, allow_unused=True)
 
-            def insert_zeros(grad_arg, orig_arg):
+            def replace_none_with_zeros(grad_arg, orig_arg):
                 if grad_arg is None:
                     return torch.zeros_like(orig_arg)
                 return grad_arg
-            flat_grad_input = [insert_zeros(x, flat_diff_args[idx]) for idx, x in enumerate(flat_grad_input)]
+            flat_grad_input = [replace_none_with_zeros(x, flat_diff_args[idx]) for idx, x in enumerate(flat_grad_input)]
             grad_input = tree_unflatten(flat_grad_input, spec)
 
         finally:
