@@ -4,14 +4,14 @@ namespace at { namespace functorch {
 
 // batching rules translated from jax: https://github.com/google/jax/blob/master/jax/_src/lax/lax.py#L3143
 Tensor reshape_axis_into(int64_t src, int64_t dst, const Tensor &x) {
-  auto new_shape = x.sizes().vec();
+  VmapDimVector new_shape(x.sizes().begin(), x.sizes().end());
   new_shape.erase(new_shape.begin() + src);
   new_shape[dst] *= x.sizes()[src];
   return at::reshape(x.movedim(dst, src), new_shape);
 }
 
 Tensor reshape_axis_outof(int64_t src, int64_t size1, const Tensor &x) {
-  auto shape = x.sizes().vec();
+  VmapDimVector shape(x.sizes().begin(), x.sizes().end());
   TORCH_INTERNAL_ASSERT(shape[src] % size1 == 0);
   int64_t size2 = shape[src] / size1;
   shape[src] = size1;
@@ -22,9 +22,9 @@ Tensor reshape_axis_outof(int64_t src, int64_t size1, const Tensor &x) {
 // Does not support batch_group_count (needed for convolution backwards)
 std::tuple<Tensor,optional<int64_t>>
 conv2d_batching_rule(const Tensor& lhs, optional<int64_t> lhs_bdim, const Tensor& rhs, optional<int64_t> rhs_bdim, const optional<Tensor>& bias, optional<int64_t> bias_bdim, IntArrayRef stride, IntArrayRef padding, IntArrayRef dilation, int64_t groups) {
-  std::vector<int64_t> lhs_spec = {0,1,2,3};
-  std::vector<int64_t> rhs_spec = {0,1,2,3};
-  std::vector<int64_t> out_spec = {0,1,2,3};
+  std::array<int64_t, 4> lhs_spec = {0,1,2,3};
+  std::array<int64_t, 4> rhs_spec = {0,1,2,3};
+  std::array<int64_t, 4> out_spec = {0,1,2,3};
   optional<Tensor> new_bias;
   if (bias_bdim) {
     TORCH_INTERNAL_ASSERT(bias.has_value());
@@ -77,7 +77,7 @@ conv2d_batching_rule(const Tensor& lhs, optional<int64_t> lhs_bdim, const Tensor
 
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
-  // VMAP_SUPPORT("conv2d", conv2d_batching_rule);
+  VMAP_SUPPORT("conv2d", conv2d_batching_rule);
 }
 }}
 
