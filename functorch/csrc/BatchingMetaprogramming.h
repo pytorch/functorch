@@ -36,6 +36,10 @@ struct IfFirstIsTensorAndSecondisBatchDimThenTailElseNext<const Tensor&, optiona
   using type = Tail;
 };
 template <class Next, class Tail>
+struct IfFirstIsTensorAndSecondisBatchDimThenTailElseNext<const optional<Tensor>&, optional<int64_t>, Next, Tail> {
+  using type = Tail;
+};
+template <class Next, class Tail>
 struct IfFirstIsTensorAndSecondisBatchDimThenTailElseNext<Tensor&, optional<int64_t>, Next, Tail> {
   using type = Tail;
 };

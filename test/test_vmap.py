@@ -28,6 +28,37 @@ class EnableVmapFallbackWarnings:
         torch._C._debug_only_display_vmap_fallback_warnings(self.prev_state)
 
 
+def get_fallback_and_vmap_exhaustive(op, arg_values, kwarg_values):
+    def add_batch_dim(arg, bdim, batch_size=3):
+        if isinstance(arg, torch.Tensor):
+            shape = [1] * len(arg.shape)
+            shape.insert(bdim, batch_size)
+            return (arg.repeat(shape), bdim)
+        else:
+            return (arg, None)
+
+    batch_size = 3
+    out_dim = 0
+    batch_choices = [(add_batch_dim(a, 0, batch_size), (a, None)) if isinstance(a, torch.Tensor) else ((a, None),) for a in arg_values]
+    for batched_values in itertools.product(*batch_choices):
+        batched_args, in_dims = zip(*batched_values)
+        if all([i is None for i in in_dims]):
+            continue
+        outs = []
+        for idx in range(batch_size):
+            idx_args = [a.select(in_dim, idx) if in_dim is not None else a for a, in_dim in zip(batched_args, in_dims)]
+            out = op(*idx_args, **kwarg_values)
+            outs.append(out)
+        loop_out = []
+        if isinstance(outs[0], torch.Tensor):
+            loop_out = torch.stack(outs)
+        else:
+            for idx in range(len(outs[0])):
+                loop_out.append(torch.stack([i[idx] for i in outs], out_dim))
+
+        batched_out = vmap(op, in_dims=in_dims, out_dims=out_dim)(*batched_args, **kwarg_values)
+        yield (loop_out, batched_out)
+
 class TestVmapAPI(TestCase):
     def test_non_tensor_output_raises(self):
         with self.assertRaisesRegex(ValueError, "got type <class 'float'> as a return"):
@@ -2403,6 +2434,14 @@ class TestVmapOperators(Namespace.TestVmapBase):
                                         'vmap: We do not yet support calling random operations'):
                 vmap(op)(*args)
 
+    def test_conv2d(self):
+        mod = torch.nn.Conv2d(4, 8, 3)
+        arg_values = [torch.randn(2, 4, 10, 15), mod.weight, None]
+        kwarg_values = {}
+        for loop_out, batched_out in get_fallback_and_vmap_exhaustive(torch.conv2d, arg_values, kwarg_values):
+            # import pdb; pdb.set_trace()
+            self.assertEqual(loop_out, batched_out)
+
     @parameterized('op', {'abs': torch.abs, 'acos': torch.acos})
     def test_parameterize(self, op):
         pass
@@ -2727,6 +2766,10 @@ class TestVmapBatchedGradient(Namespace.TestVmapBase):
         result = vmap(vjp)(gy)
         self.assertEqual(result, torch.zeros(B0, *x.shape, device=device))
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 6c6d787 (Added conv2d batching rule)
 class TestVmapOperatorsOpInfo(TestCase):
     @onlyCPU
     @ops(op_db, allowed_dtypes=(torch.float,))
@@ -2741,39 +2784,13 @@ class TestVmapOperatorsOpInfo(TestCase):
         if op.name in vmap_fail:
             return
         sample_inputs_itr = op.sample_inputs(device, dtype, requires_grad=False)
-        def add_batch_dim(arg, bdim, batch_size=3):
-            if isinstance(arg, torch.Tensor):
-                shape = [1] * len(arg.shape)
-                shape.insert(bdim, batch_size)
-                return (arg.repeat(shape), bdim)
-            else:
-                return (arg, None)
 
         for sample_input in sample_inputs_itr:
             arg_values = [sample_input.input] + list(sample_input.args)
             kwarg_values = sample_input.kwargs
             if len(kwarg_values) > 0:
                 continue
-            batch_size = 3
-            out_dim = 0
-            batch_choices = [(add_batch_dim(a,0, batch_size), (a, None)) if isinstance(a, torch.Tensor) else ((a, None),) for a in arg_values]
-            for batched_values in itertools.product(*batch_choices):
-                batched_args, in_dims = zip(*batched_values)
-                if all([i is None for i in in_dims]):
-                    continue
-                outs = []
-                for idx in range(batch_size):
-                    idx_args = [a.select(in_dim, idx) if in_dim is not None else a for a, in_dim in zip(batched_args, in_dims)]
-                    out = op.op(*idx_args, **kwarg_values)
-                    outs.append(out)
-                loop_out = []
-                if isinstance(outs[0], torch.Tensor):
-                    loop_out = torch.stack(outs)
-                else:
-                    for idx in range(len(outs[0])):
-                        loop_out.append(torch.stack([i[idx] for i in outs], out_dim))
-
-                batched_out = vmap(op.op, in_dims=in_dims, out_dims=out_dim)(*batched_args, **kwarg_values)
+            for loop_out, batched_out in get_fallback_and_vmap_exhaustive(op.op, arg_values, kwarg_values):
                 self.assertEqual(loop_out, batched_out)
 
 
