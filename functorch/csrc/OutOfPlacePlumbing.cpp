@@ -1,5 +1,6 @@
 #include <functorch/csrc/OutOfPlacePlumbing.hpp>
 #include <functorch/csrc/Constants.h>
+#include <iostream>
 
 namespace at { namespace functorch {
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_0_t)(const Tensor &, c10::optional<int64_t>, bool);

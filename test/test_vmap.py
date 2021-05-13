@@ -42,6 +42,11 @@ def get_fallback_and_vmap_exhaustive(op, arg_values, kwarg_values):
     batch_choices = [(add_batch_dim(a, 0, batch_size), (a, None)) if isinstance(a, torch.Tensor) else ((a, None),) for a in arg_values]
     for batched_values in itertools.product(*batch_choices):
         batched_args, in_dims = zip(*batched_values)
+        if in_dims != (None, None, 0):
+            continue
+        print()
+        print(in_dims)
+
         if all([i is None for i in in_dims]):
             continue
         outs = []
@@ -55,7 +60,6 @@ def get_fallback_and_vmap_exhaustive(op, arg_values, kwarg_values):
         else:
             for idx in range(len(outs[0])):
                 loop_out.append(torch.stack([i[idx] for i in outs], out_dim))
-
         batched_out = vmap(op, in_dims=in_dims, out_dims=out_dim)(*batched_args, **kwarg_values)
         yield (loop_out, batched_out)
 
@@ -2435,8 +2439,8 @@ class TestVmapOperators(Namespace.TestVmapBase):
                 vmap(op)(*args)
 
     def test_conv2d(self):
-        mod = torch.nn.Conv2d(4, 8, 3)
-        arg_values = [torch.randn(2, 4, 10, 15), mod.weight, None]
+        mod = torch.nn.Conv2d(4, 8, kernel_size=3)
+        arg_values = [torch.randn(2, 4, 15, 20), mod.weight, mod.bias]
         kwarg_values = {}
         for loop_out, batched_out in get_fallback_and_vmap_exhaustive(torch.conv2d, arg_values, kwarg_values):
             # import pdb; pdb.set_trace()
@@ -2766,10 +2770,6 @@ class TestVmapBatchedGradient(Namespace.TestVmapBase):
         result = vmap(vjp)(gy)
         self.assertEqual(result, torch.zeros(B0, *x.shape, device=device))
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 6c6d787 (Added conv2d batching rule)
 class TestVmapOperatorsOpInfo(TestCase):
     @onlyCPU
     @ops(op_db, allowed_dtypes=(torch.float,))
