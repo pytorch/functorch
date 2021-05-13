@@ -44,8 +44,6 @@ def get_fallback_and_vmap_exhaustive(op, arg_values, kwarg_values):
         batched_args, in_dims = zip(*batched_values)
         if in_dims != (None, None, 0):
             continue
-        print()
-        print(in_dims)
 
         if all([i is None for i in in_dims]):
             continue
@@ -2443,7 +2441,10 @@ class TestVmapOperators(Namespace.TestVmapBase):
         arg_values = [torch.randn(2, 4, 15, 20), mod.weight, mod.bias]
         kwarg_values = {}
         for loop_out, batched_out in get_fallback_and_vmap_exhaustive(torch.conv2d, arg_values, kwarg_values):
-            # import pdb; pdb.set_trace()
+            self.assertEqual(loop_out, batched_out)
+
+        arg_values = [torch.randn(2, 4, 15, 20), mod.weight, None]
+        for loop_out, batched_out in get_fallback_and_vmap_exhaustive(torch.conv2d, arg_values, kwarg_values):
             self.assertEqual(loop_out, batched_out)
 
     @parameterized('op', {'abs': torch.abs, 'acos': torch.acos})

@@ -212,12 +212,9 @@ constexpr DispatchKeySet all_dynlayer_keyset = DispatchKeySet({
 
 static void sanityCheckStack(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   auto num_args = op.schema().arguments().size();
-  std::cout<<"215: "<<stack->size()<<' '<<num_args<<std::endl;
   foreachTensorInplace(*stack, stack->size() - num_args, stack->size(),
       [](const Tensor& tensor) {
 
-        for (auto i: tensor.sizes()) std::cout<<i<<' ';
-        std::cout<<std::endl;
         auto* wrapper = maybeGetTensorWrapper(tensor);
         TORCH_INTERNAL_ASSERT(wrapper == nullptr);
         auto* batched = maybeGetBatchedImpl(tensor);
@@ -229,7 +226,7 @@ static void sanityCheckStack(const c10::OperatorHandle& op, torch::jit::Stack* s
 void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   auto& dynamicLayerStack = dynamicLayerStackAccessor();
   // if (c10::show_dispatch_trace_enabled()) {
-    std::cout << "DLS size: " << dynamicLayerStack.size() << std::endl;
+  // std::cout << "DLS size: " << dynamicLayerStack.size() << std::endl;
   // }
   if (dynamicLayerStack.size() == 0) {
     sanityCheckStack(op, stack);
@@ -237,7 +234,6 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
     op.callBoxed(stack);
     return;
   }
-  asm("int $0x3\n");
 
   // Unwrap dead GradWrappers, materialize live ones
   auto maybeTransformGradWrappers = [](const Tensor& tensor) {

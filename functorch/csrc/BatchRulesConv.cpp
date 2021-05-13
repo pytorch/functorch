@@ -1,5 +1,4 @@
 #include <functorch/csrc/BatchRulesHelper.h>
-#include <iostream>
 
 namespace at { namespace functorch {
 
@@ -8,7 +7,6 @@ namespace at { namespace functorch {
 // Does not support batch_group_count (needed for convolution backwards)
 std::tuple<Tensor,optional<int64_t>>
 conv2d_batching_rule(const Tensor& lhs, optional<int64_t> lhs_bdim, const Tensor& rhs, optional<int64_t> rhs_bdim, const optional<Tensor>& bias, optional<int64_t> bias_bdim, IntArrayRef stride, IntArrayRef padding, IntArrayRef dilation, int64_t groups) {
-  std::cout<<"11: triggered"<<std::endl;
   std::vector<int64_t> lhs_spec = {0,1,2,3};
   std::vector<int64_t> rhs_spec = {0,1,2,3};
   std::vector<int64_t> out_spec = {0,1,2,3};
@@ -56,7 +54,6 @@ conv2d_batching_rule(const Tensor& lhs, optional<int64_t> lhs_bdim, const Tensor
   } else {
     result = {at::conv2d(lhs, rhs, unbatched_bias, stride, padding, dilation, groups), nullopt};
   }
-  std::cout<<"hey"<<std::endl;
   if (separate_bias) {
     auto A = std::get<0>(result);
     auto A_batch_dim = std::get<1>(result);
@@ -68,11 +65,6 @@ conv2d_batching_rule(const Tensor& lhs, optional<int64_t> lhs_bdim, const Tensor
       B = B.unsqueeze(-1);
     }
     B = maybePadToLogicalRank(B, B_batch_dim, rankWithoutBatchDim(A, A_batch_dim));
-
-    for (auto i: A.sizes()) std::cout<<i<<' ';
-    std::cout<<std::endl;
-    for (auto i: B.sizes()) std::cout<<i<<' ';
-    std::cout<<std::endl;
 
     return {at::add(A, B), 0};
   } else {

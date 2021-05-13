@@ -137,7 +137,7 @@ def parse_args(args_t):
         result.append((arg[:split_idx].strip(), arg[split_idx:].strip()))
     return tuple(result)
 
-def get_signatures(path='/home/chilli/fb/pytorch/build/aten/src/ATen/RegistrationDeclarations.h'):
+def get_signatures(path='build/aten/src/ATen/RegistrationDeclarations.h'):
     with open(path, 'r') as f:
         txt = f.read()
     lines = txt.split('\n')
