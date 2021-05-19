@@ -1,8 +1,35 @@
 #include <torch/library.h>
+#include <ATen/ATen.h>
+#include <functorch/csrc/VmapModeRegistrations.h>
+#include <functorch/csrc/BatchedTensorImpl.h>
+#include <functorch/csrc/PlumbingHelper.h>
+#include <functorch/csrc/Constants.h>
+#include <functorch/csrc/DynamicLayer.h>
 
 
 namespace at {
 namespace functorch {
+thread_local int64_t VmapMode_current_vmap_level = 0;
+
+int64_t VmapMode::current_vmap_level() {
+  return VmapMode_current_vmap_level;
+}
+
+int64_t VmapMode::increment_nesting() {
+  VmapMode_current_vmap_level++;
+  if (VmapMode_current_vmap_level == 1) {
+    c10::impl::tls_set_dispatch_key_included(DispatchKey::FuncTorchVmapMode, true);
+  }
+  return VmapMode_current_vmap_level;
+}
+
+int64_t VmapMode::decrement_nesting() {
+  VmapMode_current_vmap_level--;
+  if (VmapMode_current_vmap_level == 0) {
+    c10::impl::tls_set_dispatch_key_included(DispatchKey::FuncTorchVmapMode, false);
+  }
+  return VmapMode_current_vmap_level;
+}
 
 template <typename... Args> Tensor unsupportedRandomOp(Args... args) {
   TORCH_CHECK(false, "vmap: We do not yet support calling random operations inside of vmap. ",
@@ -17,6 +44,24 @@ template <typename... Args> Tensor& unsupportedRandomOp_(Args... args) {
 TORCH_LIBRARY_IMPL(_, FuncTorchVmapMode, m) {
   m.fallback(torch::CppFunction::makeFallthrough());
 }
+
+#define TENSOROPTIONSPARAMS c10::optional<c10::ScalarType> dtype, c10::optional<c10::Layout> layout, c10::optional<c10::Device> device, c10::optional<bool> pin_memory
+
+#define TENSOROPTIONSARGS dtype, layout, device, pin_memory
+
+Tensor randn_mbatching_rule(IntArrayRef shape, TENSOROPTIONSPARAMS) {
+
+    c10::impl::ExcludeDispatchKeyGuard guard(kVmapModeKey);
+
+    auto maybe_layer = maybeCurrentDynamicLayer();
+    auto shapeVec = shape.vec();
+    shapeVec.insert(shapeVec.begin(), maybe_layer->batchSize());
+    std::cout<<maybe_layer->batchSize()<<std::endl;
+    return makeBatched(at::randn(shapeVec, TENSOROPTIONSARGS), 0, maybe_layer->layerId());
+}
+
+#undef TENSOROPTIONSARGS
+#undef TENSOROPTIONSPARAMS
 
 TORCH_LIBRARY_IMPL(aten, FuncTorchVmapMode, m) {
   // NB: I'd really like to register a special kernel like
@@ -68,7 +113,7 @@ TORCH_LIBRARY_IMPL(aten, FuncTorchVmapMode, m) {
   m.impl("rand.out", unsupportedRandomOp_<IntArrayRef, Tensor&>);
   m.impl("rand.generator_out", unsupportedRandomOp_<IntArrayRef, optional<Generator>, Tensor&>);
 
-  m.impl("randn", unsupportedRandomOp<IntArrayRef, TENSOROPTIONS>);
+//   m.impl("randn", unsupportedRandomOp<IntArrayRef, TENSOROPTIONS>);
   m.impl("randn.generator", unsupportedRandomOp<IntArrayRef, optional<Generator>, TENSOROPTIONS>);
   m.impl("randn.names", unsupportedRandomOp<IntArrayRef, optional<DimnameList>, TENSOROPTIONS>);
   m.impl("randn.generator_with_names", unsupportedRandomOp<IntArrayRef, optional<Generator>, optional<DimnameList>, TENSOROPTIONS>);
@@ -92,6 +137,8 @@ TORCH_LIBRARY_IMPL(aten, FuncTorchVmapMode, m) {
   m.impl("uniform_", unsupportedRandomOp_<Tensor&, double, double, optional<Generator>>);
 
 #undef TENSOROPTIONS
+
+  m.impl("randn", randn_mbatching_rule);
 }
 
 

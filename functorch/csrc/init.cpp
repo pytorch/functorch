@@ -8,6 +8,8 @@
 #include <functorch/csrc/PythonKey.h>
 #include <functorch/csrc/BatchedFallback.h>
 #include <functorch/csrc/BatchRulesHelper.h>
+#include <functorch/csrc/VmapModeRegistrations.h>
+
 
 namespace at {
 namespace functorch {
@@ -161,12 +163,14 @@ int64_t _grad_decrement_nesting() {
   return layer.layerId();
 }
 
-int64_t _vmap_increment_nesting() {
-  return initAndPushDynamicLayer(kBatchedKey);
+int64_t _vmap_increment_nesting(int64_t batch_size) {
+  VmapMode::increment_nesting();
+  return initAndPushDynamicLayer(kBatchedKey, batch_size);
 }
 
 int64_t _vmap_decrement_nesting() {
   auto layer = popDynamicLayerAndDeleteMetadata();
+  VmapMode::decrement_nesting();
   TORCH_INTERNAL_ASSERT(layer.key() == kBatchedKey);
   return layer.layerId();
 }

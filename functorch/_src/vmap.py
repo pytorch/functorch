@@ -43,6 +43,48 @@ def _as_tuple(value: Any, num_elements: int, error_message_lambda: Callable[[], 
         raise ValueError(error_message_lambda())
     return value
 
+def _get_batch_size(in_dims: in_dims_t, args: Tuple, func: Callable) -> int:
+    if not isinstance(in_dims, int) and not isinstance(in_dims, tuple):
+        raise ValueError(
+            f'vmap({_get_name(func)}, in_dims={in_dims}, ...)(<inputs>): '
+            f'expected `in_dims` to be int or a (potentially nested) tuple '
+            f'matching the structure of inputs, got: {type(in_dims)}.')
+    if len(args) == 0:
+        raise ValueError(
+            f'vmap({_get_name(func)})(<inputs>): got no inputs. Maybe you forgot to add '
+            f'inputs, or you are trying to vmap over a function with no inputs. '
+            f'The latter is unsupported.')
+
+    flat_args, args_spec = tree_flatten(args)
+    flat_in_dims = _broadcast_to_and_flatten(in_dims, args_spec)
+    if flat_in_dims is None:
+        raise ValueError(
+            f'vmap({_get_name(func)}, in_dims={in_dims}, ...)(<inputs>): '
+            f'in_dims is not compatible with the structure of `inputs`. '
+            f'in_dims has structure {tree_flatten(in_dims)[1]} but inputs '
+            f'has structure {args_spec}.')
+
+    for arg, in_dim in zip(flat_args, flat_in_dims):
+        if not isinstance(in_dim, int) and in_dim is not None:
+            raise ValueError(
+                f'vmap({_get_name(func)}, in_dims={in_dims}, ...)(<inputs>): '
+                f'Got in_dim={in_dim} for an input but in_dim must be either '
+                f'an integer dimension or None.')
+        if isinstance(in_dim, int) and not isinstance(arg, Tensor):
+            raise ValueError(
+                f'vmap({_get_name(func)}, in_dims={in_dims}, ...)(<inputs>): '
+                f'Got in_dim={in_dim} for an input but the input is of type '
+                f'{type(arg)}. We cannot vmap over non-Tensor arguments, '
+                f'please use None as the respective in_dim')
+        if in_dim is not None and (in_dim < 0 or in_dim >= arg.dim()):
+            raise ValueError(
+                f'vmap({_get_name(func)}, in_dims={in_dims}, ...)(<inputs>): '
+                f'Got in_dim={in_dim} for some input, but that input is a Tensor '
+                f'of dimensionality {arg.dim()} so expected in_dim to satisfy '
+                f'0 <= in_dim < {arg.dim()}.')
+
+    return _validate_and_get_batch_size(flat_in_dims, flat_args)
+
 # Creates BatchedTensors for every Tensor in arg that should be batched.
 # Returns the (potentially) batched arguments and the batch_size.
 def _create_batched_inputs(
@@ -261,13 +303,14 @@ def _vmap(func: Callable, in_dims: in_dims_t = 0, out_dims: out_dims_t = 0) -> C
     @functools.wraps(func)
     def wrapped(*args):
         _check_out_dims_is_int_or_int_pytree(out_dims, func)
-        vmap_level = _vmap_increment_nesting()
-        torch._C._vmapmode_increment_nesting()
+        batch_size = _get_batch_size(in_dims, args, func)
+        vmap_level = _vmap_increment_nesting(batch_size)
+        # torch._C._vmapmode_increment_nesting()
         try:
             batched_inputs, batch_size = _create_batched_inputs(in_dims, args, vmap_level, func)
             batched_outputs = func(*batched_inputs)
             return _unwrap_batched(batched_outputs, out_dims, vmap_level, batch_size, func)
         finally:
-            torch._C._vmapmode_decrement_nesting()
+            # torch._C._vmapmode_decrement_nesting()
             _vmap_decrement_nesting()
     return wrapped
