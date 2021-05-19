@@ -1,5 +1,6 @@
 #include <torch/library.h>
 #include <ATen/ATen.h>
+#include <functorch/csrc/VmapTransforms.h>
 #include <functorch/csrc/BatchedTensorImpl.h>
 #include <functorch/csrc/PlumbingHelper.h>
 #include <functorch/csrc/Constants.h>
@@ -27,10 +28,10 @@ TORCH_LIBRARY_IMPL(_, FuncTorchVmapMode, m) {
 #define TENSOROPTIONSARGS dtype, layout, device, pin_memory
 
 Tensor randn_mbatching_rule(IntArrayRef shape, TENSOROPTIONSPARAMS) {
-
+    TORCH_WARN("Automatically expanding the shape of randn. This means that different elements of vmap will get different random values. If you want different behavior, like using the same random values across vmap, please make a github issue.");
     c10::impl::ExcludeDispatchKeyGuard guard(kVmapModeKey);
     auto maybe_layer = maybeCurrentDynamicLayer();
-    auto shapeVec = shape.vec();
+    VmapDimVector shapeVec(shape.begin(), shape.end());
     shapeVec.insert(shapeVec.begin(), maybe_layer->batchSize());
     return makeBatched(at::randn(shapeVec, TENSOROPTIONSARGS), 0, maybe_layer->layerId());
 }

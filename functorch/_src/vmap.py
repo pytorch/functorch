@@ -83,7 +83,7 @@ def _process_batched_inputs(in_dims: in_dims_t, args: Tuple, func: Callable) -> 
                 f'of dimensionality {arg.dim()} so expected in_dim to satisfy '
                 f'0 <= in_dim < {arg.dim()}.')
 
-    return (_validate_and_get_batch_size(flat_in_dims, flat_args), flat_in_dims, flat_args, args_spec)
+    return _validate_and_get_batch_size(flat_in_dims, flat_args), flat_in_dims, flat_args, args_spec
 
 # Creates BatchedTensors for every Tensor in arg that should be batched.
 # Returns the (potentially) batched arguments and the batch_size.

@@ -247,6 +247,7 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
 
   DispatchKeySet exclude = all_dynlayer_keyset;
   exclude = exclude.remove(kDynamicLayerBackModeKey);
+  DispatchKeySet include;
   if (layer.key() == DispatchKey::Autograd) {
     exclude = exclude - autograd_dispatch_keyset;
     exclude = exclude.remove(DispatchKey::ADInplaceOrView);
@@ -254,11 +255,12 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
   //   exclude = exclude.remove(DispatchKey::Batched);
   } else if (layer.key() == kBatchedKey) {
     exclude = exclude.remove(kBatchedKey);
-    c10::impl::tls_set_dispatch_key_included(DispatchKey::FuncTorchVmapMode, true);
+    include = include.add(kVmapModeKey);
   } else {
     TORCH_INTERNAL_ASSERT(false);
   }
-  c10::impl::ExcludeDispatchKeyGuard guard(exclude);
+  c10::impl::ExcludeDispatchKeyGuard exclude_guard(exclude);
+  c10::impl::IncludeDispatchKeyGuard include_guard(include);
 
   // Re-dispatch
   op.callBoxed(stack);

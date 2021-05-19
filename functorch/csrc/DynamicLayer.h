@@ -15,7 +15,10 @@ struct TORCH_API DynamicLayer {
 
   DispatchKey key() const { return key_; }
   int64_t layerId() const { return layerId_; }
-  int64_t batchSize() const { return *batchSize_; }
+  int64_t batchSize() const {
+    TORCH_INTERNAL_ASSERT(batchSize_);
+    return *batchSize_;
+  }
  private:
   DispatchKey key_;
   int64_t layerId_;
