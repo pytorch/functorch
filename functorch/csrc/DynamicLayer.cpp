@@ -207,7 +207,6 @@ constexpr DispatchKeySet all_dynlayer_keyset = DispatchKeySet({
   kGradWrapperKey,
   // DispatchKey::Batched,
   kBatchedKey,
-  kVmapModeKey,
   DispatchKey::ADInplaceOrView
 }) | autograd_dispatch_keyset;
 
@@ -255,7 +254,7 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
   //   exclude = exclude.remove(DispatchKey::Batched);
   } else if (layer.key() == kBatchedKey) {
     exclude = exclude.remove(kBatchedKey);
-    exclude = exclude.remove(kVmapModeKey);
+    c10::impl::tls_set_dispatch_key_included(DispatchKey::FuncTorchVmapMode, true);
   } else {
     TORCH_INTERNAL_ASSERT(false);
   }

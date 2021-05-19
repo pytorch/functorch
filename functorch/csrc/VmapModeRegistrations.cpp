@@ -1,6 +1,5 @@
 #include <torch/library.h>
 #include <ATen/ATen.h>
-#include <functorch/csrc/VmapModeRegistrations.h>
 #include <functorch/csrc/BatchedTensorImpl.h>
 #include <functorch/csrc/PlumbingHelper.h>
 #include <functorch/csrc/Constants.h>
@@ -9,28 +8,6 @@
 
 namespace at {
 namespace functorch {
-thread_local int64_t VmapMode_current_vmap_level = 0;
-
-int64_t VmapMode::current_vmap_level() {
-  return VmapMode_current_vmap_level;
-}
-
-int64_t VmapMode::increment_nesting() {
-  VmapMode_current_vmap_level++;
-  if (VmapMode_current_vmap_level == 1) {
-    c10::impl::tls_set_dispatch_key_included(DispatchKey::FuncTorchVmapMode, true);
-  }
-  return VmapMode_current_vmap_level;
-}
-
-int64_t VmapMode::decrement_nesting() {
-  VmapMode_current_vmap_level--;
-  if (VmapMode_current_vmap_level == 0) {
-    c10::impl::tls_set_dispatch_key_included(DispatchKey::FuncTorchVmapMode, false);
-  }
-  return VmapMode_current_vmap_level;
-}
-
 template <typename... Args> Tensor unsupportedRandomOp(Args... args) {
   TORCH_CHECK(false, "vmap: We do not yet support calling random operations inside of vmap. ",
               "Please perform random operations outside of vmap as a workaround");
@@ -52,11 +29,9 @@ TORCH_LIBRARY_IMPL(_, FuncTorchVmapMode, m) {
 Tensor randn_mbatching_rule(IntArrayRef shape, TENSOROPTIONSPARAMS) {
 
     c10::impl::ExcludeDispatchKeyGuard guard(kVmapModeKey);
-
     auto maybe_layer = maybeCurrentDynamicLayer();
     auto shapeVec = shape.vec();
     shapeVec.insert(shapeVec.begin(), maybe_layer->batchSize());
-    std::cout<<maybe_layer->batchSize()<<std::endl;
     return makeBatched(at::randn(shapeVec, TENSOROPTIONSARGS), 0, maybe_layer->layerId());
 }
 

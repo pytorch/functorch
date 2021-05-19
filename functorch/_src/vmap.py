@@ -305,12 +305,10 @@ def _vmap(func: Callable, in_dims: in_dims_t = 0, out_dims: out_dims_t = 0) -> C
         _check_out_dims_is_int_or_int_pytree(out_dims, func)
         batch_size = _get_batch_size(in_dims, args, func)
         vmap_level = _vmap_increment_nesting(batch_size)
-        # torch._C._vmapmode_increment_nesting()
         try:
             batched_inputs, batch_size = _create_batched_inputs(in_dims, args, vmap_level, func)
             batched_outputs = func(*batched_inputs)
             return _unwrap_batched(batched_outputs, out_dims, vmap_level, batch_size, func)
         finally:
-            # torch._C._vmapmode_decrement_nesting()
             _vmap_decrement_nesting()
     return wrapped
