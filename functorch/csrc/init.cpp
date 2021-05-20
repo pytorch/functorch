@@ -201,4 +201,5 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
   m.def("_pythonkey_increment_nesting", &at::functorch::PythonKeyMode::increment_nesting, "remove batch dim");
   m.def("_pythonkey_decrement_nesting", &at::functorch::PythonKeyMode::decrement_nesting, "remove batch dim");
+  m.def("_set_proxy_function", &at::functorch::PythonKeyMode::set_proxy_function, "remove batch dim");
 }

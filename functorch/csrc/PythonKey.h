@@ -61,6 +61,7 @@ struct PythonKeyMode {
   // Returns the vmap level, aka the count of how many nested vmaps we're in.
   static int64_t current_level();
 
+  static void set_proxy_function(py::function f);
   // Increment the count of nested vmaps. If this causes the vmap level to be
   // greater than 0, then it enables DispatchKey::VmapMode on all tensors.
   static int64_t increment_nesting();
