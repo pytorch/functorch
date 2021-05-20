@@ -3,7 +3,7 @@ from typing import Any, Dict, NamedTuple, Optional, Set, Tuple, List, Callable, 
 import torch
 from torch.fx.node import map_aggregate
 import torch.utils._pytree as pytree
-from functorch._C import hasPythonKey, addPythonKey, removePythonKey
+from functorch._C import hasPythonKey, addPythonKey, removePythonKey, _pythonkey_increment_nesting, _pythonkey_decrement_nesting
 from torch.fx import Tracer, GraphModule
 import torch.fx as fx
 from .nnc_compile import nnc_compile
@@ -68,22 +68,28 @@ def wrap_key(f, inps):
     flat_inps, inp_spec = pytree.tree_flatten(inps)
     @functools.wraps(f)
     def wrapped(*args):
-        flat_args, args_spec = pytree.tree_flatten(args)
-        assert(len(flat_args) == len(flat_inps))
-        for idx, arg in enumerate(flat_args):
-            if isinstance(flat_inps[idx], torch.Tensor):
-                flat_args[idx] = addPythonKey(PythonTensor(flat_inps[idx], arg))
-            else:
-                flat_args[idx] = flat_inps[idx]
+        _pythonkey_increment_nesting()
+        try:
+            flat_args, args_spec = pytree.tree_flatten(args)
+            assert(len(flat_args) == len(flat_inps))
+            for idx, arg in enumerate(flat_args):
+                if isinstance(flat_inps[idx], torch.Tensor):
+                    flat_args[idx] = addPythonKey(PythonTensor(flat_inps[idx], arg))
+                else:
+                    flat_args[idx] = flat_inps[idx]
 
-        tree_args = pytree.tree_unflatten(flat_args, args_spec)
-        out = f(*tree_args)
+            tree_args = pytree.tree_unflatten(flat_args, args_spec)
+            out = f(*tree_args)
 
-        flat_outs, out_spec = pytree.tree_flatten(out)
-        for idx in range(len(flat_outs)):
-            if isinstance(flat_outs[idx], torch.Tensor) and hasPythonKey(flat_outs[idx]):
-                flat_outs[idx] = removePythonKey(flat_outs[idx]).proxy
-        return pytree.tree_unflatten(flat_outs, out_spec)
+            flat_outs, out_spec = pytree.tree_flatten(out)
+            for idx in range(len(flat_outs)):
+                if isinstance(flat_outs[idx], torch.Tensor) and hasPythonKey(flat_outs[idx]):
+                    flat_outs[idx] = removePythonKey(flat_outs[idx]).proxy
+
+            return pytree.tree_unflatten(flat_outs, out_spec)
+        finally:
+            _pythonkey_decrement_nesting()
+            pass
 
     return wrapped
 

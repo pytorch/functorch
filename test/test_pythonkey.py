@@ -22,6 +22,17 @@ from functorch import (
 # NB: numpy is a testing dependency!
 import numpy as np
 
+USE_TORCHVISION = False
+try:
+    import torchvision
+    USE_TORCHVISION = True
+except ImportError:
+    warnings.warn("Couldn't import torchvision. Some of our tests use it, try "
+                  "to install it with commands from pytorch.org, post-fixed with "
+                  "`--no-deps` to avoid overwriting the pytorch installation",
+                  UserWarning)
+
+
 class TestPythonKey(TestCase):
     def test_make_fx(self, device):
         def f(x):
@@ -70,6 +81,16 @@ class TestPythonKey(TestCase):
         inp = ({'a': torch.randn(3), 'b': torch.randn(3)},)
         jit_f = nnc_jit(f)
         self.assertEqual(jit_f(*inp), f(*inp))
+
+    @unittest.skipIf(not USE_TORCHVISION, "test requires torchvision")
+    def test_torchvision(self, device):
+        model = torchvision.models.resnet18()
+        def f(x):
+            return model(x)
+
+        inp = torch.randn(1, 3, 200, 200)
+        fx_f = make_fx(f)(inp)
+        self.assertEqual(fx_f(inp), f(inp))
 
 
 

@@ -56,4 +56,17 @@ at::Tensor addPythonKey(const py::object& tensor);
 bool hasPythonKey(const at::Tensor& tensor);
 
 py::object removePythonKey(const at::Tensor& tensor);
+
+struct PythonKeyMode {
+  // Returns the vmap level, aka the count of how many nested vmaps we're in.
+  static int64_t current_level();
+
+  // Increment the count of nested vmaps. If this causes the vmap level to be
+  // greater than 0, then it enables DispatchKey::VmapMode on all tensors.
+  static int64_t increment_nesting();
+
+  // Decrements the count of nested vmaps. If this causes the vmap level to be
+  // equal to 0, then it disables DispatchKey::VmapMode on all tensors.
+  static int64_t decrement_nesting();
+};
 }}

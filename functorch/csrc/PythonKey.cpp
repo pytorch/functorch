@@ -1,6 +1,7 @@
 #include <functorch/csrc/PythonKey.h>
 #include <torch/csrc/utils/pybind.h>
 #include <torch/csrc/jit/python/pybind_utils.h>
+#include <functorch/csrc/Constants.h>
 
 namespace at {
 namespace functorch {
@@ -102,6 +103,7 @@ void pythonFallBack(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
 
   const auto num_arguments = schema.arguments().size();
   const auto arguments = torch::jit::last(stack, num_arguments);
+
   py::gil_scoped_acquire g;
   std::vector<py::object> pyArgs;
   c10::optional<py::object> torchFunctionTensor = nullopt;
@@ -114,10 +116,16 @@ void pythonFallBack(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   TORCH_INTERNAL_ASSERT(torchFunctionTensor.has_value());
   py::object torch_function =
       PyObject_FastGetAttrString(torchFunctionTensor->ptr(), (char *)"__torch_function__");
+  torch::jit::drop(stack, num_arguments);
+
   for (auto v : unwrappedArgs) {
     torch::jit::push(stack, v);
   }
-  op.callBoxed(stack);
+  {
+    c10::impl::ExcludeDispatchKeyGuard guard(kPythonKey);
+    op.callBoxed(stack);
+  }
+
   std::vector<c10::IValue> realOuts = torch::jit::pop(*stack, num_returns);
   py::tuple py_types = py::cast<py::tuple>(
       vectorToPyTuple<py::object>(pyArgs, [](py::object x) -> py::object {
@@ -135,7 +143,7 @@ void pythonFallBack(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   std::string delimiter = "aten::";
   func_name = func_name.substr(func_name.find(delimiter) + delimiter.size());
 
- py::object torch_api_function = py::str(op.operator_name().name);
+  py::object torch_api_function = py::str(op.operator_name().name);
   auto pyTupleArgs = vectorToPyTuple<py::object>(pyArgs, pyIdentity);
 
   auto out = PyObject_CallFunctionObjArgs(
@@ -145,12 +153,12 @@ void pythonFallBack(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
       pyTupleArgs.ptr(),
       kwargs.ptr(),
       0);
+  // auto out = torch_function(torch_api_function, py_types, pyTupleArgs, kwargs);
   if (out == nullptr) {
     throw std::runtime_error("call failed");
   }
+
   py::list outs = py::cast<py::list>(out);
-  torch::jit::drop(stack, num_arguments);
-  std::vector<c10::IValue> ret_ivalues;
   assert(outs.size() == op.schema().returns().size());
   for (unsigned idx = 0; idx < outs.size(); idx++) {
     auto ret_type = op.schema().returns()[idx].type();
@@ -163,6 +171,18 @@ void pythonFallBack(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   }
   return;
 }
+
+// #define TENSOROPTIONSPARAMS c10::optional<c10::ScalarType> dtype, c10::optional<c10::Layout> layout, c10::optional<c10::Device> device, c10::optional<bool> pin_memory, c10::optional<c10::MemoryFormat> memory_format
+
+// #define TENSOROPTIONSARGS dtype, layout, device, pin_memory, memory_format
+
+// Tensor empty_mpython_rule(IntArrayRef shape, TENSOROPTIONSPARAMS) {
+//   std::cout<<"HEY"<<std::endl;
+//   return at::empty(shape, TENSOROPTIONSARGS);
+// }
+
+// #undef TENSOROPTIONSARGS
+// #undef TENSOROPTIONSPARAMS
 TORCH_LIBRARY_IMPL(_, FuncTorchPython, m) {
   m.fallback(torch::CppFunction::makeFromBoxedFunction<&pythonFallBack>());
 }
@@ -189,4 +209,27 @@ c10::intrusive_ptr<c10::TensorImpl> PythonTensorImpl::shallow_copy_and_detach(
   impl->set_allow_tensor_metadata_change(allow_tensor_metadata_change);
   return impl;
 }
+
+thread_local int64_t PythonKeyMode_current_vmap_level = 0;
+
+int64_t PythonKeyMode::current_level() {
+  return PythonKeyMode_current_vmap_level;
+}
+
+int64_t PythonKeyMode::increment_nesting() {
+  PythonKeyMode_current_vmap_level++;
+  if (PythonKeyMode_current_vmap_level == 1) {
+    c10::impl::tls_set_dispatch_key_included(kPythonKey, true);
+  }
+  return PythonKeyMode_current_vmap_level;
+}
+
+int64_t PythonKeyMode::decrement_nesting() {
+  PythonKeyMode_current_vmap_level--;
+  if (PythonKeyMode_current_vmap_level == 0) {
+    c10::impl::tls_set_dispatch_key_included(kPythonKey, false);
+  }
+  return PythonKeyMode_current_vmap_level;
+}
+
 }}
