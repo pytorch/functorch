@@ -7,6 +7,7 @@
 #include <functorch/csrc/BatchRulesHelper.h>
 #include <functorch/csrc/PlumbingHelper.h>
 #include <functorch/csrc/InPlacePlumbing.h>
+#include <functorch/csrc/functorch.h>
 
 namespace at { namespace functorch {
 
@@ -14,6 +15,10 @@ template <typename F, F Func>
 static Tensor& unary_inplace_func_batch_rule(Tensor& self, optional<int64_t>) {
   Func(self);
   return self;
+}
+
+TORCH_LIBRARY_IMPL(functorch, FT_BATCHED_KEY, m) {
+  VMAP_SUPPORT("to", SINGLE_ARG(basic_unary_batch_rule<decltype(&prim::to), &prim::to, optional<ScalarType>, optional<Layout>, optional<Device>, optional<bool>, bool, bool, optional<MemoryFormat>>));
 }
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
@@ -88,7 +93,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   UNARY_POINTWISE_SCALAR_SCALAR(softplus);
   UNARY_POINTWISE_SCALAR(softshrink);
   UNARY_POINTWISE_ALL(tanh);
-
 
 #undef UNARY_POINTWISE_SCALAR_SCALAR_SCALAR
 #undef UNARY_POINTWISE_SCALAR_SCALAR

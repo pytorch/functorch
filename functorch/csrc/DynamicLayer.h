@@ -8,6 +8,7 @@
 #include <c10/core/DispatchKey.h>
 #include <c10/util/Optional.h>
 #include <unordered_map>
+#include <ATen/core/dispatch/Dispatcher.h>
 #include <mutex>
 
 // Forward declared bc I am lazy
@@ -43,6 +44,8 @@ TORCH_API bool areTransformsActive();
 
 // NB: not lock safe. TODO: does it need a lock?
 TORCH_API std::shared_ptr<bool> getLifeHandleForLevel(int64_t level);
+
+TORCH_API void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack* stack);
 
 }
 } // namespace at
