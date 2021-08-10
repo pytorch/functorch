@@ -92,6 +92,7 @@ struct BatchedTensorImpl : public c10::TensorImpl {
 #ifdef DEBUG
   bool has_storage() const override;
 #endif
+  void replace_(const TensorImpl* other_impl) override;
 
   void refreshSizesAndStrides();
 

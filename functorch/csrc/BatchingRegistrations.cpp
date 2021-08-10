@@ -1418,6 +1418,8 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
 // //   m.impl("new_zeros", new_zeros_batching_rule);
 // //
   m.impl("contiguous", contiguous_batching_rule);
+  // We need this for the functionalization pass: replace_ shouldn't enter the boxed fallback
+  m.impl("replace_", torch::CppFunction::makeFallthrough());
 }
 
 }

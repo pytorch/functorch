@@ -14,6 +14,7 @@
 #include <torch/csrc/autograd/variable.h>
 #include <c10/util/ThreadLocalDebugInfo.h>
 #include <c10/util/irange.h>
+#include <ATen/FunctionalTensorImpl.h>
 
 namespace at {
 namespace functorch {
@@ -273,6 +274,7 @@ constexpr DispatchKeySet all_dynlayer_keyset = DispatchKeySet({
   kDynamicLayerFrontModeKey,
   kDynamicLayerBackModeKey,
   kGradWrapperKey,
+  DispatchKey::Functionalize,
   // DispatchKey::Batched,
   kBatchedKey,
   DispatchKey::ADInplaceOrView
@@ -304,12 +306,25 @@ static bool batchedAtCurrentLevel(const Tensor& tensor) {
   return batched_at_level == level;
 }
 
+static bool functionalAtCurrentLevel(const Tensor& tensor) {
+  auto& dynamicLayerStack = dynamicLayerStackAccessor();
+  auto layer = dynamicLayerStack.back();
+  auto level = layer.layerId();
+
+  auto* functional = dynamic_cast<FunctionalTensorImpl*>(tensor.unsafeGetTensorImpl());
+  if (!functional) {
+    return false;
+  }
+  auto functional_level = functional->level();
+  return functional_level == level;
+}
+
 void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   auto& dynamicLayerStack = dynamicLayerStackAccessor();
 #ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
-  if (c10::show_dispatch_trace_enabled()) {
+  //if (c10::show_dispatch_trace_enabled()) {
     std::cout << "DLS size: " << dynamicLayerStack.size() << std::endl;
-  }
+  //}
 #endif
   if (dynamicLayerStack.size() == 0) {
     sanityCheckStack(op, stack);
@@ -342,6 +357,16 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
       exclude = exclude.remove(kBatchedKey);
     }
     include = include.add(kVmapModeKey);
+  } else if (layer.key() == DispatchKey::Functionalize) {
+    // The only reason we need to do this is to print properly - see `_tensor_str` in functorch/__init__.py
+    // I think things would break if any factory functions were called inside of it though.
+    // Since we need to explicitly call the Func boxed fallback kernel for factory functions.
+    // (it looks like anyTensors() does what I want in this case, and returns True if there are no tensors args).
+    const auto args = torch::jit::last(stack, op.schema().arguments().size());
+    if (anyTensors(args, functionalAtCurrentLevel)) {
+      exclude = exclude.remove(DispatchKey::Functionalize);
+    }
+    include = include.add(DispatchKey::Functionalize);
   } else {
     TORCH_INTERNAL_ASSERT(false);
   }
@@ -474,8 +499,18 @@ TORCH_LIBRARY_IMPL(_, FT_DYNAMIC_LAYER_FRONT_MODE_KEY, m) {
   m.fallback(torch::CppFunction::makeFromBoxedFunction<&dynamicLayerFrontFallback>());
 }
 
+TORCH_LIBRARY_IMPL(aten, FT_DYNAMIC_LAYER_FRONT_MODE_KEY, m) {
+  // We need this for the functionalization pass: replace_ shouldn't enter the boxed fallback
+  m.impl("replace_", torch::CppFunction::makeFallthrough());
+}
+
 TORCH_LIBRARY_IMPL(_, FT_DYNAMIC_LAYER_BACK_MODE_KEY, m) {
   m.fallback(torch::CppFunction::makeFromBoxedFunction<&dynamicLayerBackFallback>());
+}
+
+TORCH_LIBRARY_IMPL(aten, FT_DYNAMIC_LAYER_BACK_MODE_KEY, m) {
+  // We need this for the functionalization pass: replace_ shouldn't enter the boxed fallback
+  m.impl("replace_", torch::CppFunction::makeFallthrough());
 }
 
 // TORCH_LIBRARY_IMPL(aten, DynamicLayerFront, m) {

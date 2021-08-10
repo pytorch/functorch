@@ -23,6 +23,8 @@ struct TORCH_API TensorWrapper : public c10::TensorImpl {
   void set_size(int64_t dim, int64_t new_size) override;
   void set_stride(int64_t dim, int64_t new_stride) override;
   void set_storage_offset(int64_t storage_offset) override;
+  // Need to override for functionalization to work.
+  void replace_(const TensorImpl* other_impl) override;
 
   void refreshMetadata();
 

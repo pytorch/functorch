@@ -16,8 +16,12 @@ import warnings
 from functorch._C import (
     _add_batch_dim,
     _remove_batch_dim,
+    _wrap_functional_tensor,
+    _unwrap_functional_tensor,
     _vmap_decrement_nesting,
     _vmap_increment_nesting,
+    _func_decrement_nesting,
+    _func_increment_nesting,
 )
 
 in_dims_t = Union[int, Tuple]
@@ -277,4 +281,34 @@ def _vmap(func: Callable, in_dims: in_dims_t = 0, out_dims: out_dims_t = 0) -> C
             return _unwrap_batched(batched_outputs, out_dims, vmap_level, batch_size, func)
         finally:
             _vmap_decrement_nesting()
+    return wrapped
+
+class functionalizer(object):
+    def __enter__(self):
+        _func_increment_nesting()
+
+    def __exit__(self, *args):
+        _func_decrement_nesting()
+
+    def __call__(self, func):
+        @functools.wraps(func)
+        def decorate_func(*args, **kwargs):
+            with self:
+                return func(*args, **kwargs)
+        return decorate_func
+
+def functionalize(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        try:
+            # INVARIANT: when _func_increment_nesting is active, every tensor
+            # that's exposed to python is wrapped in a FunctionalTensorImpl
+            # TODO I don't think the above comment is true once functionalize() uses the DynamicLayer machinery
+            func_level = _func_increment_nesting()
+            func_args = [_wrap_functional_tensor(x, func_level) if isinstance(x, Tensor) else x for x in args]
+            func_outputs = func(*func_args, **kwargs)
+            flattened_outputs, _ = tree_flatten(func_outputs)
+            return [_unwrap_functional_tensor(x) if isinstance(x, Tensor) else x for x in flattened_outputs]
+        finally:
+            _func_decrement_nesting()
     return wrapped
