@@ -163,6 +163,21 @@ void TensorWrapper::set_storage_offset(int64_t storage_offset) {
   TORCH_INTERNAL_ASSERT(false, "Can't set_storage_offset for TensorWrapper");
 }
 
+void TensorWrapper::replace_(const TensorImpl* other_impl) {
+  TORCH_INTERNAL_ASSERT_DEBUG_ONLY(other_impl->key_set().has(kGradWrapperKey));
+  auto wrapper_impl = static_cast<const TensorWrapper*>(other_impl);
+
+  auto unwrapped_impl_self = value().unsafeGetTensorImpl();
+  auto unwrapped_impl_other = wrapper_impl->value().unsafeGetTensorImpl();
+  if (typeid(*unwrapped_impl_self) == typeid(*unwrapped_impl_other)) {
+      // This allows us to retain the program semantic of mutating inputs
+      unwrapped_impl_self->replace_(unwrapped_impl_other);
+  } else {
+      value_ = wrapper_impl->value();
+  }
+  refreshMetadata();
+}
+
 const char* TensorWrapper::tensorimpl_type_name() const {
   return "TensorWrapper";
 }
@@ -224,6 +239,10 @@ void dead_tensor_wrapper_fallback(const c10::OperatorHandle& op, torch::jit::Sta
 TORCH_LIBRARY_IMPL(_, FT_GRAD_WRAPPER_KEY, m) {
   m.fallback(torch::CppFunction::makeFromBoxedFunction<&dead_tensor_wrapper_fallback>());
 }
+TORCH_LIBRARY_IMPL(aten, FT_GRAD_WRAPPER_KEY, m) {
+  // We need this for the functionalization pass: replace_ shouldn't enter the boxed fallback
+  m.impl("replace_", torch::CppFunction::makeFallthrough());
 
 }
+} // namespace functorch
 } // namespace at

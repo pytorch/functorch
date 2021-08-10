@@ -142,6 +142,23 @@ bool BatchedTensorImpl::has_storage() const {
 }
 #endif
 
+void BatchedTensorImpl::replace_(const TensorImpl* other_impl) {
+  TORCH_INTERNAL_ASSERT_DEBUG_ONLY(other_impl->key_set().has(DispatchKey::Batched));
+  auto batched_impl = static_cast<const BatchedTensorImpl*>(other_impl);
+
+  auto unwrapped_impl_self = value().unsafeGetTensorImpl();
+  auto unwrapped_impl_other = batched_impl->value().unsafeGetTensorImpl();
+  if (typeid(*unwrapped_impl_self) == typeid(*unwrapped_impl_other)) {
+      // This allows us to retain the program semantic of mutating inputs
+      unwrapped_impl_self->replace_(unwrapped_impl_other);
+  } else {
+      value_ = batched_impl->value();
+  }
+  bdims_ = batched_impl->bdims();
+  checkInvariants();
+  refreshSizesAndStrides();
+}
+
 const char* BatchedTensorImpl::tensorimpl_type_name() const {
   return "BatchedTensorImpl";
 }

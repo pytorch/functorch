@@ -113,6 +113,8 @@ TORCH_LIBRARY_IMPL(aten, FuncTorchVmapMode, m) {
 
 
   m.impl("randn", randn_mbatching_rule);
+  // We need this for the functionalization pass: replace_ shouldn't enter the boxed fallback
+  m.impl("replace_", torch::CppFunction::makeFallthrough());
 }
 
 
