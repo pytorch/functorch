@@ -8,3 +8,10 @@ functorch/_C.so
 t.py
 .vscode/
 ccache.sh
+
+# Editor temporaries
+*.swn
+*.swo
+*.swp
+*.swm
+*~

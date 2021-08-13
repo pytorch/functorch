@@ -7,7 +7,6 @@
 import torch
 import functools
 import textwrap
-# from . import _C
 from functorch._C import (
     _func_decrement_nesting,
     _func_increment_nesting,
@@ -72,8 +71,6 @@ _old_str = torch._tensor_str._str
 def _functorch_str(tensor):
     level = _C.maybe_get_level(tensor)
     if level == -1:
-        if _C.is_functionaltensor(tensor):
-            raise Exception("HELP")
         return _old_str(tensor)
 
     if _C.is_functionaltensor(tensor):
@@ -91,9 +88,6 @@ def _functorch_str(tensor):
     if _C.is_gradtrackingtensor(tensor):
         return f'GradTrackingTensor(lvl={level}, value=\\\n{value_repr})'
     if _C.is_functionaltensor(tensor):
-        # NOTE: functional tensor's only have a notion of "level" when
-        #  you use the functionalize() API. Otherwise their level is set to -1.
-        # That shouldn't matter, since this print function is only used by functorch
         return f'FunctionalTensor(lvl={level}, value=\\\n{value_repr})'
 
     raise ValueError("We don't know how to print this, please file us an issue")

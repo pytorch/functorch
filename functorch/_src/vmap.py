@@ -283,20 +283,6 @@ def _vmap(func: Callable, in_dims: in_dims_t = 0, out_dims: out_dims_t = 0) -> C
             _vmap_decrement_nesting()
     return wrapped
 
-class functionalizer(object):
-    def __enter__(self):
-        _func_increment_nesting()
-
-    def __exit__(self, *args):
-        _func_decrement_nesting()
-
-    def __call__(self, func):
-        @functools.wraps(func)
-        def decorate_func(*args, **kwargs):
-            with self:
-                return func(*args, **kwargs)
-        return decorate_func
-
 def functionalize(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapped(*args, **kwargs):

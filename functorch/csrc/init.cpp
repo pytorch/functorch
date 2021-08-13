@@ -200,12 +200,10 @@ int64_t _vmap_decrement_nesting() {
 }
 
 int64_t _func_increment_nesting() {
-    //c10::impl::tls_set_dispatch_key_included(DispatchKey::Functionalize, true);
   return initAndPushDynamicLayer(DispatchKey::Functionalize);
 }
 
 int64_t _func_decrement_nesting() {
-    //c10::impl::tls_set_dispatch_key_included(DispatchKey::Functionalize, false);
   auto layer = popDynamicLayerAndDeleteMetadata();
   TORCH_INTERNAL_ASSERT(layer.key() == DispatchKey::Functionalize);
   return layer.layerId();

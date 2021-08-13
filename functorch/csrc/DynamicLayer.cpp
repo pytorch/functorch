@@ -322,9 +322,9 @@ static bool functionalAtCurrentLevel(const Tensor& tensor) {
 void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   auto& dynamicLayerStack = dynamicLayerStackAccessor();
 #ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
-  //if (c10::show_dispatch_trace_enabled()) {
+  if (c10::show_dispatch_trace_enabled()) {
     std::cout << "DLS size: " << dynamicLayerStack.size() << std::endl;
-  //}
+  }
 #endif
   if (dynamicLayerStack.size() == 0) {
     sanityCheckStack(op, stack);
