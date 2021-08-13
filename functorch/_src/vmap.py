@@ -301,13 +301,15 @@ def functionalize(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapped(*args, **kwargs):
         try:
-            # INVARIANT: when _func_increment_nesting is active, every tensor
-            # that's exposed to python is wrapped in a FunctionalTensorImpl
-            # TODO I don't think the above comment is true once functionalize() uses the DynamicLayer machinery
             func_level = _func_increment_nesting()
             func_args = [_wrap_functional_tensor(x, func_level) if isinstance(x, Tensor) else x for x in args]
             func_outputs = func(*func_args, **kwargs)
             flattened_outputs, _ = tree_flatten(func_outputs)
+            for a in func_args:
+                if isinstance(a, Tensor):
+                    # Call sync_() on the inputs, to ensure that they still get mutated inplace if the original
+                    # program mutated its inputs
+                    a.sync_()
             return [_unwrap_functional_tensor(x) if isinstance(x, Tensor) else x for x in flattened_outputs]
         finally:
             _func_decrement_nesting()

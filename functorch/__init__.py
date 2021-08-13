@@ -76,6 +76,11 @@ def _functorch_str(tensor):
             raise Exception("HELP")
         return _old_str(tensor)
 
+    if _C.is_functionaltensor(tensor):
+        # Since we're unwrapping the FunctionalTensorWrapper, we need to make sure
+        # that it's up to date first
+        tensor.sync_()
+
     value = _C.get_unwrapped(tensor)
     value_repr = repr(value)
     value_repr = textwrap.indent(value_repr, '  ')

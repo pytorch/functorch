@@ -5,6 +5,7 @@
 // LICENSE file in the root directory of this source tree.
 
 #include <functorch/csrc/DynamicLayer.h>
+#include <functorch/csrc/FunctionalTensorWrapper.h>
 #include <functorch/csrc/TensorWrapper.h>
 #include <functorch/csrc/BatchedTensorImpl.h>
 
@@ -14,7 +15,6 @@
 #include <torch/csrc/autograd/variable.h>
 #include <c10/util/ThreadLocalDebugInfo.h>
 #include <c10/util/irange.h>
-#include <ATen/FunctionalTensorImpl.h>
 
 namespace at {
 namespace functorch {
@@ -311,7 +311,7 @@ static bool functionalAtCurrentLevel(const Tensor& tensor) {
   auto layer = dynamicLayerStack.back();
   auto level = layer.layerId();
 
-  auto* functional = dynamic_cast<FunctionalTensorImpl*>(tensor.unsafeGetTensorImpl());
+  auto* functional = dynamic_cast<FunctionalTensorWrapper*>(tensor.unsafeGetTensorImpl());
   if (!functional) {
     return false;
   }
@@ -358,10 +358,6 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
     }
     include = include.add(kVmapModeKey);
   } else if (layer.key() == DispatchKey::Functionalize) {
-    // The only reason we need to do this is to print properly - see `_tensor_str` in functorch/__init__.py
-    // I think things would break if any factory functions were called inside of it though.
-    // Since we need to explicitly call the Func boxed fallback kernel for factory functions.
-    // (it looks like anyTensors() does what I want in this case, and returns True if there are no tensors args).
     const auto args = torch::jit::last(stack, op.schema().arguments().size());
     if (anyTensors(args, functionalAtCurrentLevel)) {
       exclude = exclude.remove(DispatchKey::Functionalize);
@@ -432,6 +428,30 @@ void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* 
     return makeTensorWrapper(tensor, cur_level);
   };
 
+  auto unwrap_functional = [&](const Tensor& tensor) {
+    if (!tensor.defined()) {
+      return tensor;
+    }
+    auto* maybe_functional_wrapper = dynamic_cast<FunctionalTensorWrapper*>(tensor.unsafeGetTensorImpl());
+    if (!maybe_functional_wrapper) {
+      return tensor;
+    }
+    auto tensor_wrapper_level = maybe_functional_wrapper->level();
+    TORCH_INTERNAL_ASSERT(tensor_wrapper_level <= cur_level);
+    if (tensor_wrapper_level == cur_level) {
+      return maybe_functional_wrapper->value();
+    }
+    return tensor;
+  };
+
+  auto wrap_functional = [&](const Tensor& tensor) {
+    if (!tensor.defined()) {
+      return tensor;
+    }
+    return at::functionalization::impl::makeFunctional(tensor, cur_level);
+  };
+
+
   // TODO: we only need to do the following (marked with !) on in-place functions
   // that modify sizes or strides. There aren't many of them.
   // If autograd dispatch key:
@@ -454,6 +474,31 @@ void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* 
     foreachTensorInplace(*stack, stack->size() - args_size, stack->size(), unwrap);
   }
 
+  bool should_wrap_functional_outputs = false;
+  if (cur_key == DispatchKey::Functionalize) {
+    // Step 1: Detect if we'll need to wrap output tensors
+    // I really don't like this.
+    // The functional pass should wrap all output tensors in a FunctionalTensorWrapper
+    // But it shouldn't performing the wrapping when we print - i.e. if none of the inputs are functional tensors
+    // HOWEVER, we want the wrapping to trigger on factory functions.
+    // So we're out of luck if a factory function is triggered during printing.
+    const auto args = torch::jit::last(stack, op.schema().arguments().size());
+    bool any_tensor_args = anyTensors(args, [&](const Tensor& tensor) { return true; });
+    bool any_tensor_args_are_functional = anyTensors(args, [&](const Tensor& t) { return functionalAtCurrentLevel(t); });
+    if (!any_tensor_args) {
+      // factory op - hope that we're not printing, and wrap the output
+      should_wrap_functional_outputs = true;
+    }
+    if (any_tensor_args_are_functional) {
+      // if at least one tensor input is wrapped, that means we're in the functionalization pass. wrap the outputs.
+      should_wrap_functional_outputs = true;
+    }
+
+    // Step 2: Unwrap any functional tensor wrappers.
+    auto args_size = op.schema().arguments().size();
+    foreachTensorInplace(*stack, stack->size() - args_size, stack->size(), unwrap_functional);
+  }
+
   // pop the top layer. Put it back on dtor.
   WithoutTop guard;
 
@@ -468,6 +513,12 @@ void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* 
 
   // Re-dispatch
   op.callBoxed(stack);
+
+  if (should_wrap_functional_outputs) {
+    auto ret_size = op.schema().returns().size();
+    foreachTensorInplace(*stack, stack->size() - ret_size, stack->size(), wrap_functional);
+  }
+
 
   // Step 4, 5, 6
   if (cur_key == DispatchKey::Autograd) {

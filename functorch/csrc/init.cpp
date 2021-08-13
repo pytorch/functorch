@@ -6,8 +6,8 @@
 
 #include <torch/extension.h>
 #include <ATen/WrapDimUtils.h>
-#include <ATen/FunctionalTensorImpl.h>
 
+#include <functorch/csrc/FunctionalTensorWrapper.h>
 #include <functorch/csrc/TensorWrapper.h>
 #include <functorch/csrc/DynamicLayer.h>
 #include <functorch/csrc/BatchedTensorImpl.h>
@@ -29,7 +29,7 @@ static bool has_batched_level(const Tensor& self, int64_t level) {
 }
 
 static bool has_functional_level(const Tensor& self, int64_t level) {
-  const auto* functional = dynamic_cast<FunctionalTensorImpl*>(self.unsafeGetTensorImpl());
+  const auto* functional = dynamic_cast<FunctionalTensorWrapper*>(self.unsafeGetTensorImpl());
   if (!functional) {
     return false;
   }
@@ -41,7 +41,7 @@ Tensor _add_batch_dim(const Tensor& self, int64_t batch_dim, int64_t level) {
 }
 
 Tensor _wrap_functional_tensor(const Tensor& self, int64_t level) {
-  return at::functionalization::makeFunctional(self, level);
+  return at::functionalization::impl::makeFunctional(self, level);
 }
 
 static std::pair<Tensor,int64_t> remove_existing_batch_dim(
@@ -135,10 +135,11 @@ Tensor _remove_batch_dim(const Tensor& self, int64_t level, int64_t batch_size, 
 }
 
 Tensor _unwrap_functional_tensor(const Tensor& self) {
-  const auto* functional = dynamic_cast<FunctionalTensorImpl*>(self.unsafeGetTensorImpl());
+  auto* functional = dynamic_cast<FunctionalTensorWrapper*>(self.unsafeGetTensorImpl());
   // We only ever call that after popping out of a functionalize() call, in which case the current tensors
-  // should always be wrapped in a FunctionalTensorImpl.
+  // should always be wrapped in a FunctionalTensorWrapper.
   TORCH_INTERNAL_ASSERT(functional != nullptr);
+  functional->sync_();
   return functional->value();
 }
 
@@ -221,7 +222,7 @@ static bool is_gradtrackingtensor(const Tensor& tensor) {
 }
 
 static bool is_functionaltensor(const Tensor& tensor) {
-  return dynamic_cast<FunctionalTensorImpl*>(tensor.unsafeGetTensorImpl()) != nullptr;
+  return dynamic_cast<FunctionalTensorWrapper*>(tensor.unsafeGetTensorImpl()) != nullptr;
 }
 
 static Tensor get_unwrapped(const Tensor& tensor) {
@@ -233,7 +234,7 @@ static Tensor get_unwrapped(const Tensor& tensor) {
   if (wrapped) {
     return wrapped->value();
   }
-  auto* functional = dynamic_cast<FunctionalTensorImpl*>(tensor.unsafeGetTensorImpl());
+  auto* functional = dynamic_cast<FunctionalTensorWrapper*>(tensor.unsafeGetTensorImpl());
   if (functional) {
     return functional->value();
   }
@@ -245,7 +246,7 @@ static int64_t maybe_get_level(const Tensor& tensor) {
   if (batched) {
     auto tmp = batched->bdims().back().level();
     if (tmp == -1) {
-      TORCH_INTERNAL_ASSERT(!dynamic_cast<FunctionalTensorImpl*>(tensor.unsafeGetTensorImpl()) && !at::functorch::isBatchedTensor(tensor));
+      TORCH_INTERNAL_ASSERT(!dynamic_cast<FunctionalTensorWrapper*>(tensor.unsafeGetTensorImpl()) && !at::functorch::isBatchedTensor(tensor));
     }
     return tmp;
   }
@@ -257,16 +258,10 @@ static int64_t maybe_get_level(const Tensor& tensor) {
     // TODO: this is a weird special case...
     return -2;
   }
-  auto* functional = dynamic_cast<FunctionalTensorImpl*>(tensor.unsafeGetTensorImpl());
+  auto* functional = dynamic_cast<FunctionalTensorWrapper*>(tensor.unsafeGetTensorImpl());
   if (functional) {
       return functional->level();
-      // TODO: make this less hacky?
-      // The functionalization pass isn't like other functorch passes,
-      // and has no concept of a level.
-      // We still need to convey some info here in order to properly print functional tensors.
-      //return -2;
   }
-  TORCH_INTERNAL_ASSERT(!dynamic_cast<FunctionalTensorImpl*>(tensor.unsafeGetTensorImpl()) && !at::functorch::isBatchedTensor(tensor));
   return -1;
 }
 
