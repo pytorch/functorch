@@ -22,19 +22,19 @@ FunctionalTensorWrapper::FunctionalTensorWrapper(Tensor value, int64_t level)
   TORCH_INTERNAL_ASSERT(value_.defined());
 }
 
-void FunctionalTensorWrapper::replace_(const Tensor& other) {
-    auto self_impl = value_.unsafeGetTensorImpl();
-    auto other_functional = dynamic_cast<FunctionalTensorWrapper*>(other.unsafeGetTensorImpl());
-    // new invariant: every time the fucntionalization pass redispatches during functionalize() calls,
-    // we'll hit the DynamicLayerModeBackFallback which should wrap outputs in a FunctionalTensorWrapper
+void FunctionalTensorWrapper::replace_(const TensorImpl* other_impl) {
+    auto other_functional = dynamic_cast<const FunctionalTensorWrapper*>(other_impl);
     TORCH_INTERNAL_ASSERT_DEBUG_ONLY(other_functional != nullptr);
-    auto other_impl = other_functional->value().unsafeGetTensorImpl();
-    if (typeid(*self_impl) == typeid(*other_impl)) {
+
+    auto self_unwrapped_impl = value_.unsafeGetTensorImpl();
+    auto other_unwrapped_impl = other_functional->value().unsafeGetTensorImpl();
+
+    if (typeid(*self_unwrapped_impl) == typeid(*other_unwrapped_impl)) {
         // It is valid to swap out the metadata on the tensorImpl
         // but we can only do that if the two tensor's we're swapping have the same type.
         // This allows us to ensure that programs that mutate their inputs
         // preserve their semantics under a functionalization pass.
-        self_impl->replace_(other_impl);
+        self_unwrapped_impl->replace_(other_unwrapped_impl);
     } else {
         value_ = other_functional->value();
     }

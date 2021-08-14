@@ -20,7 +20,8 @@ struct TORCH_API FunctionalTensorWrapper : public at::FunctionalTensorImplBase {
   int64_t level() const { return level_; };
 
   // Override the FunctionalTensorImplBase method describing how to re-use a tensor in the functionalization pass.
-  void replace_(const Tensor& other) override;
+  //void replace_(const Tensor& other) override;
+  void replace_(const TensorImpl* other_impl) override;
 
   // Override ALL virtual functions on the TensorImpl to call into the wrapped value's implementation
   IntArrayRef sizes() const override;
