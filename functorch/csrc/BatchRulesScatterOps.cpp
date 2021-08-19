@@ -21,15 +21,36 @@ std::tuple<Tensor,optional<int64_t>> index_batch_rule(
   auto self_ = moveBatchDimToFront(self, self_bdim);
   TORCH_INTERNAL_ASSERT(indices.size() == indices_bdims.size());
   std::vector<optional<Tensor>> indices_;
+<<<<<<< HEAD
   for (size_t idx=0; idx < indices.size(); idx++) {
       if (indices_bdims[idx].has_value()) {
           indices_.push_back(moveBatchDimToFront(*indices[idx], indices_bdims[idx]));
       } else {
           indices_.push_back(indices[idx]);
       }
+=======
+  for (auto& index : indices) {
+    if (index.has_value()) {
+      indices_.push_back(moveBatchDimToFront(index.value(), indices_bdims[0]));
+    } else {
+      indices_.push_back(index);
+    }
   }
-  auto result = at::index(self_, List<optional<Tensor>>(indices_));
-  return std::make_tuple(result, 0);
+  bool indices_batched = false;
+  for (auto idx : indices_bdims) {
+    indices_batched = indices_batched || idx.has_value();
+  }
+  if (self_bdim.has_value() && !indices_batched) {
+    indices_.insert(indices_.begin(), nullopt);
+    auto result = at::index(self_, List<optional<Tensor>>(indices_));
+    return std::make_tuple(result, 0);
+  } else if (!self_bdim.has_value() && indices_batched) {
+    return std::make_tuple(at::index(self, List<optional<Tensor>>(indices_)), 0);
+  } else {
+    throw std::runtime_error("");
+    return std::make_tuple(self, 0);
+>>>>>>> 8462109 (handled some cases of index.Tensor)
+  }
 }
 
 Tensor index_plumbing(const Tensor & self, const List<optional<Tensor>> & indices
@@ -231,7 +252,7 @@ std::tuple<Tensor,optional<int64_t>> gather_backward_batch_rule(
 }
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
-    // m.impl("index.Tensor", index_plumbing);
+  m.impl("index.Tensor", index_plumbing);
   VMAP_SUPPORT("gather", gather_batch_rule);
   VMAP_SUPPORT("gather_backward", gather_backward_batch_rule);
   VMAP_SUPPORT("scatter.value", scatter_value_batch_rule);

@@ -20,6 +20,7 @@ from torch.testing._internal.common_device_type import instantiate_device_type_t
 from torch.testing._internal.common_device_type import ops, onlyCPU
 from functorch_lagging_op_db import functorch_lagging_op_db
 from functorch_additional_op_db import additional_op_db
+from torch.utils._pytree import tree_map
 from common_utils import (
     parameterized,
     parameterized_with_device,
@@ -2925,10 +2926,13 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('tensor_split'),
         xfail('to_sparse'),
         xfail('vsplit'),
+        xfail('hstack'),
+        xfail('vstack'),
+        xfail('linalg.multi_dot'),
 
         # entries in here need don't work and need to be fixed.
         # Each one of these is a bug
-        xfail('__getitem__'),
+        # xfail('__getitem__'),
         xfail('argmax'),
         xfail('argmin'),
         xfail('unfold'),
@@ -2945,6 +2949,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         for sample_input in sample_inputs_itr:
             arg_values = [sample_input.input] + list(sample_input.args)
             kwarg_values = sample_input.kwargs
+            print(tree_map(lambda x: x.shape if isinstance(x, torch.Tensor) else x, arg_values))
             for loop_out, batched_out in get_fallback_and_vmap_exhaustive(op.op, arg_values, kwarg_values):
                 self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
 
