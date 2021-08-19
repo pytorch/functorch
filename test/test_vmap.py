@@ -2957,7 +2957,7 @@ class TestVmapOperatorsOpInfo(TestCase):
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestVmapOperatorsOpInfo', 'test_op_has_batch_rule', {
-        xfail('__getitem__'),
+        # xfail('__getitem__'),
         xfail('aminmax'),
         xfail('broadcast_to'),
         xfail('cdist'),
