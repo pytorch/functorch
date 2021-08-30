@@ -21,14 +21,6 @@ std::tuple<Tensor,optional<int64_t>> index_batch_rule(
   auto self_ = moveBatchDimToFront(self, self_bdim);
   TORCH_INTERNAL_ASSERT(indices.size() == indices_bdims.size());
   std::vector<optional<Tensor>> indices_;
-<<<<<<< HEAD
-  for (size_t idx=0; idx < indices.size(); idx++) {
-      if (indices_bdims[idx].has_value()) {
-          indices_.push_back(moveBatchDimToFront(*indices[idx], indices_bdims[idx]));
-      } else {
-          indices_.push_back(indices[idx]);
-      }
-=======
   for (auto& index : indices) {
     if (index.has_value()) {
       indices_.push_back(moveBatchDimToFront(index.value(), indices_bdims[0]));
@@ -49,7 +41,6 @@ std::tuple<Tensor,optional<int64_t>> index_batch_rule(
   } else {
     throw std::runtime_error("");
     return std::make_tuple(self, 0);
->>>>>>> 8462109 (handled some cases of index.Tensor)
   }
 }
 
