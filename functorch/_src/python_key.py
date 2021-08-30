@@ -49,14 +49,8 @@ class PythonTensor(torch.Tensor):
             return e.elem if isinstance(e, PythonTensor) else e
         proxy_args = pytree.tree_map(unwrap_proxy, args)
         proxy_kwargs = pytree.tree_map(unwrap_proxy, kwargs)
-<<<<<<< HEAD
         proxy_out = func(*proxy_args, **proxy_kwargs)
         real_out = func(*pytree.tree_map(unwrap_tensor, args), **pytree.tree_map(unwrap_tensor, kwargs))
-=======
-        # print(aten_func, args, kwargs)
-        proxy_out = aten_func(*proxy_args, **proxy_kwargs)
-        real_out = aten_func(*pytree.tree_map(unwrap_tensor, args), **pytree.tree_map(unwrap_tensor, kwargs))
->>>>>>> 8462109 (handled some cases of index.Tensor)
 
         def wrap_with_proxy(e, idx):
             return PythonTensor(e, proxy_out[idx]) if type(e) == torch.Tensor else e
