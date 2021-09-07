@@ -637,6 +637,13 @@ class TestJacrev(TestCase):
         expected = torch.diagflat(-x.sin())
         assert torch.allclose(y, expected)
 
+    def test_multiple_args(self, device):
+        x = torch.randn(3, device=device)
+        y = torch.randn(3, device=device)
+        z = jacrev(torch.multiply, 1)(x, y)
+        expected = torch.diagflat(x)
+        assert torch.allclose(z, expected)
+
 
 class TestComposability(TestCase):
     def test_grad_grad(self, device):
