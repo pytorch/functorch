@@ -640,19 +640,39 @@ class TestJacrev(TestCase):
     def test_multiple_args(self, device):
         x = torch.randn(3, device=device)
         y = torch.randn(3, device=device)
-        z = jacrev(torch.multiply, 1)(x, y)
+        z = jacrev(torch.multiply, argnums=1)(x, y)
         expected = torch.diagflat(x)
         assert torch.allclose(z, expected)
 
-    def test_argnum_tuple(self, device):
+    def test_argnums_tuple(self, device):
         x = torch.randn(3, device=device)
         y = torch.randn(3, device=device)
-        z = jacrev(torch.multiply, (0, 1))(x, y)
+        z = jacrev(torch.multiply, argnums=(0, 1))(x, y)
         expected0 = torch.diagflat(y)
         expected1 = torch.diagflat(x)
         assert len(z) == 2
         assert torch.allclose(z[0], expected0)
         assert torch.allclose(z[1], expected1)
+    
+    def test_empty_argnums(self, device):
+        x = torch.randn(3, device=device)
+        with self.assertRaisesRegex(RuntimeError, "must be non-empty"):
+            z = jacrev(torch.sin, argnums=())(x)
+
+    def test_out_of_bounds_argnums(self, device):
+        x = torch.randn(3, device=device)
+        with self.assertRaisesRegex(RuntimeError, "only 1 positional inputs"):
+            z = jacrev(torch.sin, argnums=2)(x)
+
+    def test_negative_argnums(self, device):
+        x = torch.randn(3, device=device)
+        with self.assertRaisesRegex(RuntimeError, "only 1 positional inputs"):
+            z = jacrev(torch.sin, argnums=-1)(x)
+
+    def test_repeated_argnums(self, device):
+        x = torch.randn(3, device=device)
+        with self.assertRaisesRegex(RuntimeError, "must be unique"):
+            z = jacrev(torch.sin, argnums=(0,0))(x)
 
 
 class TestComposability(TestCase):

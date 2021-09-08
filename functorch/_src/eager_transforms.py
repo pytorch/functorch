@@ -137,6 +137,13 @@ def jacrev(f, argnums=0):
         return results if len(results) > 1 else results[0]
     return wrapper_fn
 
+def _check_unique_non_empty(argnums):
+    if isinstance(argnums, tuple):
+        if len(argnums) == 0:
+            raise RuntimeError("argnums must be non-empty")
+        if len(set(argnums)) != len(argnums):
+            raise RuntimeError(f"argnums elements must be unique, got {argnums}")
+
 def _replace_args(old_args, new_args, argnums):
     if isinstance(argnums, int):
         if len(new_args) == 1:
@@ -160,6 +167,7 @@ def _safe_index(args, argnum):
     raise RuntimeError(f'Got argnum={argnum}, but only {len(args)} positional inputs')
 
 def _slice_argnums(args, argnums):
+    _check_unique_non_empty(argnums)
     if isinstance(argnums, int):
         return _safe_index(args, argnums)
     if isinstance(argnums, tuple):
