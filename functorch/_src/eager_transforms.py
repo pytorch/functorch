@@ -124,9 +124,9 @@ def vjp(f, *primals):
 
     return results, wrapper
 
-def jacrev(f, argnum=0):
+def jacrev(f, argnums=0):
     def wrapper_fn(*args):
-        f_wrapper, primals = _build_wrapper(f, args, argnum)
+        f_wrapper, primals = _argnums_partial(f, args, argnums)
         output, vjp_fn = vjp(f_wrapper, *primals)
         assert isinstance(output, torch.Tensor)
         # TODO: does jacrev compose with vmap...? the eye call should make it so that it doesn't
@@ -140,7 +140,7 @@ def jacrev(f, argnum=0):
 def _replace_args(old_args, new_args, argnums):
     if isinstance(argnums, int):
         if len(new_args) == 1:
-            return tuple(new_args[i] if i == argnums else old_args[i] for i in range(len(old_args)))
+            return tuple(new_args[0] if i == argnums else old_args[i] for i in range(len(old_args)))
         else:
             raise RuntimeError(f'new_args should be of size 1, was of size {len(new_args)}')
     if isinstance(argnums, tuple):
@@ -166,7 +166,7 @@ def _slice_argnums(args, argnums):
         return tuple(_safe_index(args, i) for i in argnums)
     raise RuntimeError(f'argnums must be int or Tuple[int, ...], got: {type(argnums)}')
 
-def _build_wrapper(f, args, argnums):
+def _argnums_partial(f, args, argnums):
     def f_wrapper(*wrapper_args):
         replaced_args = _replace_args(args, wrapper_args, argnums) 
         return f(*replaced_args)

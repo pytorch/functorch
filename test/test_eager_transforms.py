@@ -644,7 +644,7 @@ class TestJacrev(TestCase):
         expected = torch.diagflat(x)
         assert torch.allclose(z, expected)
 
-    def test_multiple_args(self, device):
+    def test_argnum_tuple(self, device):
         x = torch.randn(3, device=device)
         y = torch.randn(3, device=device)
         z = jacrev(torch.multiply, (0, 1))(x, y)
