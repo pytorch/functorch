@@ -126,16 +126,31 @@ def vjp(f, *primals):
 
 def jacrev(f, argnum=0):
     def wrapper_fn(*args):
-        output, vjp_fn = vjp(f, *args)
+        f_wrapper, primals = _build_wrapper(f, args, argnum)
+        output, vjp_fn = vjp(f_wrapper, *primals)
         assert isinstance(output, torch.Tensor)
         # TODO: does jacrev compose with vmap...? the eye call should make it so that it doesn't
         basis = torch.eye(output.numel(), dtype=output.dtype, device=output.device) \
                      .view(output.numel(), *output.shape)
-        result = vmap(vjp_fn)(basis)[argnum]
-        primal = args[argnum]
-        result = result.view(*output.shape, *primal.shape)
-        return result
+        results = vmap(vjp_fn)(basis)
+        results = tuple(r.view(*output.shape, *p.shape) for (r, p) in zip(results, primals))
+        return results if len(results) > 1 else results[0]
     return wrapper_fn
+
+def _replace_args(old_args, new_args, argnums):
+    if isinstance(argnums, int):
+        if len(new_args) == 1:
+            return tuple(new_args[i] if i == argnums else old_args[i] for i in range(len(old_args)))
+        else:
+            raise RuntimeError(f'new_args should be of size 1, was of size {len(new_args)}')
+    if isinstance(argnums, tuple):
+        if len(new_args) == len(argnums):
+            get_right_elem = lambda i : new_args[argnums.index(i)] if i in argnums else old_args[i]
+            return tuple(get_right_elem(i) for i in range(len(old_args)))
+        else:
+            raise RuntimeError("new_args should have the same size as argnums. "
+            f"Argnums size {len(argnums)}, new_args size {len(new_args)}")
+    raise RuntimeError(f'argnums must be int or Tuple[int, ...], got: {type(argnums)}')
 
 def _safe_index(args, argnum):
     if not isinstance(argnum, int):
@@ -150,6 +165,14 @@ def _slice_argnums(args, argnums):
     if isinstance(argnums, tuple):
         return tuple(_safe_index(args, i) for i in argnums)
     raise RuntimeError(f'argnums must be int or Tuple[int, ...], got: {type(argnums)}')
+
+def _build_wrapper(f, args, argnums):
+    def f_wrapper(*wrapper_args):
+        replaced_args = _replace_args(args, wrapper_args, argnums) 
+        return f(*replaced_args)
+    wrapper_args = _slice_argnums(args, argnums)
+    wrapper_args = wrapper_args if isinstance(wrapper_args, tuple) else (wrapper_args, )
+    return (f_wrapper, wrapper_args)
 
 def jvp(f, primals, tangents):
     level = _grad_increment_nesting()
