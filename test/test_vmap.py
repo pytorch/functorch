@@ -2932,7 +2932,6 @@ class TestVmapOperatorsOpInfo(TestCase):
 
         # entries in here need don't work and need to be fixed.
         # Each one of these is a bug
-        # xfail('__getitem__'),
         xfail('argmax'),
         xfail('argmin'),
         xfail('unfold'),
@@ -2941,21 +2940,21 @@ class TestVmapOperatorsOpInfo(TestCase):
     })
     def test_vmap_exhaustive(self, device, dtype, op):
         sample_inputs_itr = op.sample_inputs(device, dtype, requires_grad=False)
-        def check_up_to_sign(loop_out, batched_out):
-            loop_out = pytree.tree_map(torch.abs, loop_out)
-            batched_out = pytree.tree_map(torch.abs, batched_out)
-            self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4);
-
         for sample_input in sample_inputs_itr:
             arg_values = [sample_input.input] + list(sample_input.args)
             kwarg_values = sample_input.kwargs
-            print(tree_map(lambda x: x.shape if isinstance(x, torch.Tensor) else x, arg_values))
-            for loop_out, batched_out in get_fallback_and_vmap_exhaustive(op.op, arg_values, kwarg_values):
-                self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
+            try:
+                for loop_out, batched_out in get_fallback_and_vmap_exhaustive(op.op, arg_values, kwarg_values):
+                    self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
+            except Exception as e:
+                # Checking if we're throwing an error because of dynamic shapes.
+                if "dynamic" in e.args[0]:
+                    continue
+                raise e
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestVmapOperatorsOpInfo', 'test_op_has_batch_rule', {
-        xfail('__getitem__'),
+        # xfail('__getitem__'),
         xfail('aminmax'),
         xfail('broadcast_to'),
         xfail('cdist'),

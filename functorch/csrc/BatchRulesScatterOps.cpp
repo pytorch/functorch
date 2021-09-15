@@ -22,10 +22,14 @@ std::tuple<Tensor,optional<int64_t>> index_batch_rule(
   TORCH_INTERNAL_ASSERT(indices.size() == indices_bdims.size());
   std::vector<optional<Tensor>> indices_;
   int64_t mxDim = 0;
-  for (auto& index : indices) {
+  for (size_t i = 0; i < indices.size(); i++) {
+    auto index = indices[i];
     if (index.has_value()) {
-      indices_.push_back(moveBatchDimToFront(index.value(), indices_bdims[0]));
+      indices_.push_back(moveBatchDimToFront(index.value(), indices_bdims[i]));
       mxDim = std::max(mxDim, index.value().dim());
+      if (index.value().dtype() == kBool && indices_bdims[i].has_value()) {
+        throw std::runtime_error("vmap: We do not support batching operators that can support dynamic shape. Attempting to batch over indexing with a boolean mask.");
+      }
     } else {
       indices_.push_back(index);
     }
