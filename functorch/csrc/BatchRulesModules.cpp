@@ -6,9 +6,41 @@
 
 #include <functorch/csrc/BatchRulesHelper.h>
 #include <functorch/csrc/PlumbingHelper.h>
+#include <functorch/csrc/VmapTransforms.h>
 #include <ATen/core/dispatch/Dispatcher.h>
 
 namespace at { namespace functorch {
+
+
+std::tuple<Tensor,optional<int64_t>>
+grid_sample_batch_rule(const Tensor& input, optional<int64_t> input_bdim, const Tensor& grid, optional<int64_t> grid_bdim, int64_t interpolation_mode, int64_t padding_mode, bool align_corners) {
+  std::vector<int64_t> input_spec {0, 1, 2, 3};
+  std::vector<int64_t> grid_spec = input_spec;
+  std::vector<int64_t> out_spec = input_spec;
+
+  std::tuple<Tensor, optional<int64_t>> result;
+  if (input_bdim && !grid_bdim) {
+    auto new_input = reshape_dim_into(*input_bdim, input_spec[1], input);
+    auto out = at::grid_sampler(new_input, grid, interpolation_mode, padding_mode, align_corners);
+    out = reshape_dim_outof(out_spec[1], input.sizes()[*input_bdim], out);
+    result = std::make_tuple(out, out_spec[1]);
+  } else if (!input_bdim && grid_bdim) {
+    // grid of N(BH)W2 -> NC(BH)W or grid of N(DH)BW3 -> NC(DH)BW
+    auto new_grid = reshape_dim_into(*grid_bdim, grid_spec[1], grid);
+    auto out = at::grid_sampler(input, new_grid, interpolation_mode, padding_mode, align_corners);
+    out = reshape_dim_outof(out_spec[2], grid.sizes()[*grid_bdim], out);
+    result = std::make_tuple(out, out_spec[2]);
+  } else if (input_bdim && grid_bdim) {
+    auto new_input = reshape_dim_into(*input_bdim, input_spec[0], input);
+    auto new_grid = reshape_dim_into(*grid_bdim, grid_spec[0], grid);
+    auto out = at::grid_sampler(new_input, new_grid, interpolation_mode, padding_mode, align_corners);
+    out = reshape_dim_outof(out_spec[0], input.sizes()[*grid_bdim], out);
+    result = std::make_tuple(out, out_spec[0]);
+  } else {
+    result = std::make_tuple(at::grid_sampler(input, grid, interpolation_mode, padding_mode, align_corners), nullopt);
+  }
+  return result;
+}
 
 // batching rules translated from jax: https://github.com/google/jax/blob/master/jax/_src/lax/lax.py#L3143
 
@@ -282,6 +314,11 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   m.impl("conv2d", convNd_decomp);
   m.impl("conv3d", convNd_decomp);
 
+
+  VMAP_SUPPORT("grid_sampler", grid_sample_batch_rule);
+  VMAP_SUPPORT("grid_sampler_2d", grid_sample_batch_rule);
+  VMAP_SUPPORT("grid_sampler_3d", grid_sample_batch_rule);
+  m.impl("cudnn_grid_sampler", cudnn_convolution_plumbing);
 
   UNARY_POINTWISE(constant_pad_nd);
   EXISTING_BDIM(reflection_pad1d);
