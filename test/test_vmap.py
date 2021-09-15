@@ -2928,7 +2928,9 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('vsplit'),
         xfail('hstack'),
         xfail('vstack'),
+        xfail('dstack'),
         xfail('linalg.multi_dot'),
+        xfail('nanmean'),
 
         # entries in here need don't work and need to be fixed.
         # Each one of these is a bug
@@ -2937,6 +2939,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('unfold'),
         xfail('svd', device_type='cuda'),
         xfail('linalg.svd', device_type='cuda'),
+        xfail('index_put'),
     })
     def test_vmap_exhaustive(self, device, dtype, op):
         sample_inputs_itr = op.sample_inputs(device, dtype, requires_grad=False)
@@ -2954,7 +2957,7 @@ class TestVmapOperatorsOpInfo(TestCase):
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestVmapOperatorsOpInfo', 'test_op_has_batch_rule', {
-        # xfail('__getitem__'),
+        xfail('__getitem__'),
         xfail('aminmax'),
         xfail('broadcast_to'),
         xfail('cdist'),
@@ -3027,6 +3030,18 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('unfold'),
         xfail('vdot'),
         xfail('vsplit'),
+        xfail('__getitem__'),
+        xfail('all'),
+        xfail('any'),
+        xfail('count_nonzero'),
+        xfail('dstack'),
+        xfail('hstack'),
+        xfail('linalg.multi_dot'),
+        xfail('nanmean'),
+        xfail('nn.functional.cosine_similarity'),
+        xfail('nn.functional.layer_norm'),
+        xfail('nn.functional.nll_loss'),
+        xfail('vstack'),
     })
     def test_op_has_batch_rule(self, device, dtype, op):
         def test():
