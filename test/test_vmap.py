@@ -2549,14 +2549,7 @@ class TestVmapOperators(Namespace.TestVmapBase):
                 self.assertEqual(loop_out, batched_out)
 
     def test_grid_sample2d(self):
-        N = 1
-        C = 2
-        DIn = 3
-        HIn = 4
-        WIn = 5
-        DOut = 6
-        HOut = 7
-        WOut = 8
+        N, C, DIn, HIn, WIn, DOut, HOut, WOut = range(1, 9)
 
         input_shape = [N, C, DIn, HIn, WIn]
         grid_shape = [N, DOut, WIn, WOut, 3]
@@ -2570,13 +2563,8 @@ class TestVmapOperators(Namespace.TestVmapBase):
             self.assertEqual(loop_out, batched_out)
 
     def test_grid_sample3d(self):
-        N = 1
-        C = 2
-        HIn = 3
-        WIn = 4
-        HOut = 5
-        WOut = 6
-
+        N, C, HIn, WIn, HOut, WOut = range(1, 7)
+        
         input_shape = [N, C, HIn, WIn]
         grid_shape = [N, WIn, WOut, 2]
         input = torch.randn(input_shape)

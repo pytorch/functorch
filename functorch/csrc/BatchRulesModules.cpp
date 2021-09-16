@@ -6,11 +6,9 @@
 
 #include <functorch/csrc/BatchRulesHelper.h>
 #include <functorch/csrc/PlumbingHelper.h>
-#include <functorch/csrc/VmapTransforms.h>
 #include <ATen/core/dispatch/Dispatcher.h>
 
 namespace at { namespace functorch {
-
 
 // batching rules translated from jax: https://github.com/google/jax/blob/master/jax/_src/lax/lax.py#L3143
 
@@ -215,7 +213,7 @@ grid_sample_batch_rule(const Tensor& input, optional<int64_t> input_bdim, const 
     out = reshape_dim_outof(out_spec[1], input.sizes()[*input_bdim], out);
     result = std::make_tuple(out, out_spec[1]);
   } else if (!input_bdim && grid_bdim) {
-    // grid of N(BH)W2 -> NC(BH)W or grid of N(DH)BW3 -> NC(DH)BW
+    // grid of N(BH)W2 -> NC(BH)W or grid of N(BD)HBW3 -> NC(BD)HW
     auto new_grid = reshape_dim_into(*grid_bdim, grid_spec[1], grid);
     auto out = at::grid_sampler(input, new_grid, interpolation_mode, padding_mode, align_corners);
     out = reshape_dim_outof(out_spec[2], grid.sizes()[*grid_bdim], out);
