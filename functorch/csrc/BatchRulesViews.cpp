@@ -274,13 +274,13 @@ std::tuple<Tensor, optional<int64_t>> select_batching_rule(const Tensor& self, o
 
 std::tuple<Tensor, optional<int64_t>> _reshape_alias_batch_rule(const Tensor& self, optional<int64_t> bdim, const IntArrayRef shape, const IntArrayRef strides) {
   (void) strides;
-  if (!bdim) {
-    return std::make_tuple(self.reshape(shape), nullopt);
-  }
+  TORCH_INTERNAL_ASSERT(bdim.has_value());
 
-  auto new_shape = shape.vec();
-  new_shape.insert(new_shape.cbegin() + bdim.value(), self.size(bdim.value()));
-  return std::make_tuple(self.reshape(new_shape), bdim);
+  c10::SmallBuffer<int64_t, 5> new_shape(shape.size() + 1);
+  new_shape[*bdim] = self.size(*bdim);
+  std::copy(shape.begin(), shape.begin() + *bdim, new_shape.begin());
+  std::copy(shape.begin() + *bdim, shape.end(), new_shape.begin() + *bdim + 1);
+  return std::make_tuple(at::reshape(self, new_shape), bdim);
 }
 
 std::tuple<Tensor,optional<int64_t>> diagonal_backward_batch_rule(
