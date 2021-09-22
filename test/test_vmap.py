@@ -2548,34 +2548,6 @@ class TestVmapOperators(Namespace.TestVmapBase):
             for loop_out, batched_out in get_fallback_and_vmap_exhaustive(conv_fn, arg_values, kwarg_values):
                 self.assertEqual(loop_out, batched_out)
 
-    def test_grid_sample2d(self):
-        N, C, DIn, HIn, WIn, DOut, HOut, WOut = range(1, 9)
-
-        input_shape = [N, C, DIn, HIn, WIn]
-        grid_shape = [N, DOut, WIn, WOut, 3]
-        input = torch.randn(input_shape)
-        
-        # grid is the most interesting when between [-1, 1]
-        grid = torch.rand(grid_shape) * 2 - 1
-        arg_values = [input, grid]
-        kwarg_values = {}
-        for loop_out, batched_out in get_fallback_and_vmap_exhaustive(torch.nn.functional.grid_sample, arg_values, kwarg_values):
-            self.assertEqual(loop_out, batched_out)
-
-    def test_grid_sample3d(self):
-        N, C, HIn, WIn, HOut, WOut = range(1, 7)
-        
-        input_shape = [N, C, HIn, WIn]
-        grid_shape = [N, WIn, WOut, 2]
-        input = torch.randn(input_shape)
-        
-        # grid is the most interesting when between [-1, 1]
-        grid = torch.randn(grid_shape)
-        arg_values = [input, grid]
-        kwarg_values = {}
-        for loop_out, batched_out in get_fallback_and_vmap_exhaustive(torch.nn.functional.grid_sample, arg_values, kwarg_values):
-            self.assertEqual(loop_out, batched_out)
-
     def test_one_hot(self):
         sample_inputs = [
             (torch.randint(0, 3, []), 3),
