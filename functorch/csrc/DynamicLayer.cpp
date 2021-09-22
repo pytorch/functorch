@@ -103,12 +103,24 @@ static DynamicLayer popDynamicLayer() {
   return result;
 }
 
-static int64_t pushDynamicLayer(DispatchKey key, optional<int64_t> batch_size = nullopt) {
+static int64_t pushDynamicLayer(DynamicLayer&& layer) {
+  auto& dynamicLayerStack = dynamicLayerStackAccessor();
+  auto layerId = 1 + dynamicLayerStack.size();
+  dynamicLayerStack.emplace_back(layer);
+  if (layerId == 2) {
+    // std::cout << "DynamicLayer on" << std::endl;
+    c10::impl::tls_set_dispatch_key_included(kDynamicLayerFrontModeKey, true);
+    c10::impl::tls_set_dispatch_key_included(kDynamicLayerBackModeKey, true);
+  }
+  return layerId;
+}
+
+static int64_t pushDynamicLayer(DispatchKey key, optional<int64_t> batch_size = nullopt, void* type_obj = nullptr, void* pyinterpreter = nullptr) {
   auto& dynamicLayerStack = dynamicLayerStackAccessor();
   TORCH_INTERNAL_ASSERT(key != DispatchKey::Undefined);
   TORCH_INTERNAL_ASSERT(key != DispatchKey::Batched);
   auto layerId = 1 + dynamicLayerStack.size();
-  dynamicLayerStack.emplace_back(key, layerId, batch_size);
+  dynamicLayerStack.emplace_back(key, layerId, batch_size, type_obj, pyinterpreter);
 
   if (layerId == 2) {
     // std::cout << "DynamicLayer on" << std::endl;
@@ -121,6 +133,15 @@ static int64_t pushDynamicLayer(DispatchKey key, optional<int64_t> batch_size = 
 
 int64_t initAndPushDynamicLayer(DispatchKey key, optional<int64_t> batch_size) {
   auto layerId = pushDynamicLayer(key, batch_size);
+  auto& data = getGlobalDynmetaData();
+  TORCH_INTERNAL_ASSERT(data.find(layerId) == data.end());
+  data[layerId] = std::make_shared<bool>(true);
+  return layerId;
+}
+
+int64_t initAndPushDynamicLayer(DispatchKey key, void* type_obj, void* pyinterpreter) {
+  TORCH_INTERNAL_ASSERT(type_obj != nullptr);
+  auto layerId = pushDynamicLayer(key, nullopt, type_obj, pyinterpreter);
   auto& data = getGlobalDynmetaData();
   TORCH_INTERNAL_ASSERT(data.find(layerId) == data.end());
   data[layerId] = std::make_shared<bool>(true);
@@ -304,6 +325,17 @@ static bool batchedAtCurrentLevel(const Tensor& tensor) {
   return batched_at_level == level;
 }
 
+struct WithoutTop {
+  WithoutTop(): layer_(popDynamicLayer()) {
+  }
+  ~WithoutTop() {
+    pushDynamicLayer(std::move(layer_));
+  }
+
+  bool prev_grad_enabled_;
+  DynamicLayer layer_;
+};
+
 void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   auto& dynamicLayerStack = dynamicLayerStackAccessor();
 #ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
@@ -328,6 +360,19 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
 
   auto layer = dynamicLayerStack.back();
 
+  if (layer.key() == DispatchKey::Python) {
+    // TorchDispatchTypeObject steals a reference
+    TORCH_INTERNAL_ASSERT(layer.type_obj() != nullptr);
+    Py_INCREF(layer.type_obj());
+    auto python_mode_state = std::make_shared<TorchDispatchTypeObject>(layer.type_obj(), layer.pyinterpreter());
+    DispatchKeySet exclude = all_dynlayer_keyset;
+    exclude = exclude.remove(kDynamicLayerBackModeKey);
+    c10::impl::ExcludeDispatchKeyGuard exclude_guard(exclude);
+    // I hope this doesn't crash
+    layer.pyinterpreter()->dispatch(op, stack, python_mode_state);
+    return;
+  }
+
   DispatchKeySet exclude = all_dynlayer_keyset;
   exclude = exclude.remove(kDynamicLayerBackModeKey);
   DispatchKeySet include;
@@ -351,17 +396,6 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
   // Re-dispatch
   op.callBoxed(stack);
 }
-
-struct WithoutTop {
-  WithoutTop(): layer_(popDynamicLayer()) {
-  }
-  ~WithoutTop() {
-    pushDynamicLayer(layer_.key());
-  }
-
-  bool prev_grad_enabled_;
-  DynamicLayer layer_;
-};
 
 struct SaveLocalDispatchKeySet {
  public:

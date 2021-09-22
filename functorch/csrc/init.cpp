@@ -14,6 +14,9 @@
 #include <functorch/csrc/BatchedFallback.h>
 #include <functorch/csrc/BatchRulesHelper.h>
 
+#include <c10/core/TensorImpl.h>
+#include <torch/csrc/autograd/python_variable.h>
+
 
 namespace at {
 namespace functorch {
@@ -223,6 +226,15 @@ static int64_t maybe_get_bdim(const Tensor& tensor) {
   return -1;
 }
 
+static void enter_custom_transform(py::handle h) {
+  PyObject* pyobj = h.ptr();
+  TORCH_INTERNAL_ASSERT(pyobj != nullptr);
+  initAndPushDynamicLayer(DispatchKey::Python, (void*)h.ptr(), getPyInterpreter());
+}
+static void exit_custom_transform() {
+  popDynamicLayerAndDeleteMetadata();
+}
+
 } // namespace functorch
 }
 
@@ -250,4 +262,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("get_unwrapped", &at::functorch::get_unwrapped);
   m.def("maybe_get_level", &at::functorch::maybe_get_level);
   m.def("maybe_get_bdim", &at::functorch::maybe_get_bdim);
+
+  m.def("_enter_custom_transform", &at::functorch::enter_custom_transform);
+  m.def("_exit_custom_transform", &at::functorch::exit_custom_transform);
 }
