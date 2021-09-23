@@ -320,7 +320,6 @@ class TestOperators(TestCase):
         xfail('linalg.matrix_norm'),
         xfail('linalg.norm'),
         xfail('linalg.slogdet'),
-        xfail('log_softmax'),
         xfail('logdet'),
         xfail('lu'),
         xfail('lu_unpack'),
