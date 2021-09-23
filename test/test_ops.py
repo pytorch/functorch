@@ -413,8 +413,6 @@ class TestOperators(TestCase):
         xfail('linalg.solve'),
         xfail('linalg.tensorinv'),
         xfail('linalg.vector_norm'),
-        xfail('log_softmax'),
-        xfail('log_softmax', 'dtype'),
         xfail('logdet'),
         xfail('logit'),
         xfail('lu'),
