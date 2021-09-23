@@ -456,7 +456,7 @@ class TestOperators(TestCase):
         xfail('quantile'),
         xfail('renorm'),
         xfail('roll'),
-        xfail('rot90'),
+        # xfail('rot90'),
         xfail('scatter_add'),
         xfail('solve'),
         xfail('sort'),
