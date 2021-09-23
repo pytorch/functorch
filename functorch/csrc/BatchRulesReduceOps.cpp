@@ -201,6 +201,17 @@ static std::tuple<Tensor, Tensor, Tensor> expand_bdims(
       c_has_bdim ? c : c.expand_as(flagpole));
 }
 
+std::tuple<Tensor,optional<int64_t>> _log_softmax_batch_rule(
+  const Tensor& self,
+  optional<int64_t> bdim,
+  int64_t dim,
+  bool half_to_float) {
+
+  auto self_ = moveBatchDimToFront(self, bdim);
+  auto dim_physical = getPhysicalDim(self_, bdim.has_value(), dim);
+  return std::make_tuple(at::_log_softmax(self_, dim_physical, half_to_float), bdim);
+}
+
 std::tuple<Tensor,optional<int64_t>> _softmax_backward_batch_rule(
     const Tensor& grad_output, optional<int64_t> grad_output_bdim,
     const Tensor& output, optional<int64_t> output_bdim,
@@ -317,6 +328,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   REDUCTION_BOXED(var.correction);
   REDUCTION_BOXED(var_mean.correction);
 
+  VMAP_SUPPORT("_log_softmax", _log_softmax_batch_rule);
   VMAP_SUPPORT("_log_softmax_backward_data", _log_softmax_backward_batch_rule);
   VMAP_SUPPORT("_softmax_backward_data", _softmax_backward_batch_rule);
 }
