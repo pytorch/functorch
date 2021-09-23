@@ -272,24 +272,24 @@ std::tuple<Tensor, optional<int64_t>> select_batching_rule(const Tensor& self, o
   return std::make_tuple(result, 0);
 }
 
+c10::SmallBuffer<int64_t, 5> getPhysicalShape(const Tensor& self, const IntArrayRef logical_shape, int64_t bdim) {
+  c10::SmallBuffer<int64_t, 5> new_shape(logical_shape.size() + 1);
+  new_shape[bdim] = self.size(bdim);
+  std::copy(logical_shape.begin(), logical_shape.begin() + bdim, new_shape.begin());
+  std::copy(logical_shape.begin() + bdim, logical_shape.end(), new_shape.begin() + bdim + 1);
+  return new_shape;
+}
+
 std::tuple<Tensor, optional<int64_t>> _reshape_alias_batch_rule(const Tensor& self, optional<int64_t> bdim, const IntArrayRef shape, const IntArrayRef strides) {
   (void) strides;
   TORCH_INTERNAL_ASSERT(bdim.has_value());
-
-  c10::SmallBuffer<int64_t, 5> new_shape(shape.size() + 1);
-  new_shape[*bdim] = self.size(*bdim);
-  std::copy(shape.begin(), shape.begin() + *bdim, new_shape.begin());
-  std::copy(shape.begin() + *bdim, shape.end(), new_shape.begin() + *bdim + 1);
+  auto new_shape = getPhysicalShape(self, shape, *bdim);
   return std::make_tuple(at::reshape(self, new_shape), bdim);
 }
 
 std::tuple<Tensor, optional<int64_t>> view_batch_rule(const Tensor& self, optional<int64_t> bdim, const IntArrayRef size) {
   TORCH_INTERNAL_ASSERT(bdim.has_value());
-
-  c10::SmallBuffer<int64_t, 5> new_size(size.size() + 1);
-  new_size[*bdim] = self.size(*bdim);
-  std::copy(size.begin(), size.begin() + *bdim, new_size.begin());
-  std::copy(size.begin() + *bdim, size.end(), new_size.begin() + *bdim + 1);
+  auto new_size = getPhysicalShape(self, size, *bdim);
   return std::make_tuple(self.view(new_size), bdim);
 }
 
