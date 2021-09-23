@@ -1,7 +1,7 @@
 import time
 import torch
 import torch.nn as nn
-from functorch import make_fx, grad, nnc_jit, nnc_compile, vmap, make_nnc, vjp
+from functorch import make_fx, grad, nnc_jit, nnc_compile, vmap, make_nnc, vjp, make_functional
 from torch.fx.node import map_arg
 import torch.fx as fx
 from functools import partial
@@ -182,3 +182,16 @@ def compiled_function(fn, fw_compiler, bw_compiler):
 
 def tvm_function(fn, name):
     return compiled_function(fn, partial(tvm_compile, name=f'fw_{name}'), partial(tvm_compile, name=f'bw_{name}'))
+
+def compiled_module(mod, fw_compiler, bw_compiler):
+    fmod, fparams = make_functional(mod)
+    compiled_f = compiled_function(fmod, fw_compiler, bw_compiler)
+
+    class CompiledModule(nn.Module):
+        def __init__(self):
+            super(CompiledModule, self).__init__()
+            self.orig_module = mod
+
+        def forward(self, *args, **kwargs):
+            return compiled_f(fparams, *args, **kwargs)
+    return CompiledModule()
