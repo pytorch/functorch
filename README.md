@@ -274,6 +274,8 @@ If you're making an ensemble of models, you may find
 `functorch._C.dump_tensor`: Dumps dispatch keys on stack
 `functorch._C._set_vmap_fallback_warning_enabled(False)` if the vmap warning spam bothers you.
 
+`pip install pytest-xdist` and `pytest -n 4 test/` to run tests in parallel (4 workers). This can make tests run 2x faster. Warning: CUDA memory leak tests might fail because those aren't parallel safe.
+
 ## Future Plans
 
 In the end state, we'd like to upstream this into PyTorch once we iron out the
