@@ -19,12 +19,11 @@ from torch.testing._internal.common_device_type import ops, onlyCPU
 from functorch_lagging_op_db import functorch_lagging_op_db
 from functorch_additional_op_db import additional_op_db
 from common_utils import (
-    parameterized,
-    instantiate_parameterized_methods,
     get_fallback_and_vmap_exhaustive,
     get_exhaustive_batched_inputs,
     opinfo_in_dict,
     xfail,
+    skip,
     skipOps,
     check_vmap_fallback,
 )
@@ -314,13 +313,13 @@ class TestOperators(TestCase):
         xfail('index_add'),
         xfail('index_copy'),
         xfail('index_fill'),
+        xfail('index_put', device_type='cuda'),
         xfail('linalg.det', ''),
         xfail('linalg.eigh'),
         xfail('linalg.householder_product'),
         xfail('linalg.matrix_norm'),
         xfail('linalg.norm'),
         xfail('linalg.slogdet'),
-        xfail('log_softmax'),
         xfail('logdet'),
         xfail('lu'),
         xfail('lu_unpack'),
@@ -396,6 +395,7 @@ class TestOperators(TestCase):
         xfail('index_add'),
         xfail('index_copy'),
         xfail('index_fill'),
+        xfail('index_put', device_type='cuda'),
         xfail('index_select'),
         xfail('kthvalue'),
         xfail('linalg.cholesky'),
@@ -414,8 +414,6 @@ class TestOperators(TestCase):
         xfail('linalg.solve'),
         xfail('linalg.tensorinv'),
         xfail('linalg.vector_norm'),
-        xfail('log_softmax'),
-        xfail('log_softmax', 'dtype'),
         xfail('logdet'),
         xfail('logit'),
         xfail('lu'),
@@ -476,6 +474,7 @@ class TestOperators(TestCase):
         xfail('block_diag'),
         xfail('nn.functional.dropout'),
         xfail('nn.functional.max_pool2d'),
+        xfail('nn.functional.batch_norm'),
     })
     def test_vmapvjp_has_batch_rule(self, device, dtype, op):
         # These are too annoying to put into the list above
@@ -522,12 +521,16 @@ class TestOperators(TestCase):
         xfail('nanmean'),
         xfail('vstack'),
         xfail('block_diag'),
-        xfail('nn.functional.dropout'),
         xfail('nn.functional.max_pool2d'),
+        xfail('nn.functional.batch_norm'),
     }))
     def test_vjpvmap(self, device, dtype, op):
         # NB: there is no vjpvmap_has_batch_rule test because that is almost
         # certainly redundant with the vmap_has_batch_rule test in test_vmap.py
+
+        # one-off skip
+        if op.name == 'nn.functional.dropout':
+            self.skipTest("Skipped!")
 
         if not op.supports_autograd:
             # If the op doesn't support autograd, vmap(op) won't either
