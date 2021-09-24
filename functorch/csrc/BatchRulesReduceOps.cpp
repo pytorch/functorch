@@ -316,6 +316,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   REDUCTION_BOXED_ARGS(topk, 2);
   REDUCTION_BOXED(var.correction);
   REDUCTION_BOXED(var_mean.correction);
+  REDUCTION_BOXED(_log_softmax);
   REDUCTION_BOXED_ARGS(rot90, 2);
 
   VMAP_SUPPORT("_log_softmax_backward_data", _log_softmax_backward_batch_rule);
