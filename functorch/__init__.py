@@ -16,6 +16,7 @@ from ._src.make_functional import (
     make_functional_with_buffers,
     make_functional,
     combine_state_for_ensemble,
+    FunctionalModule,
 )
 from ._src.make_functional import functional_init, functional_init_with_buffers
 from ._src.python_key import wrap_key, PythonTensor, pythonkey_trace, make_fx, nnc_jit, make_nnc
