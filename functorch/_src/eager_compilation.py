@@ -1,15 +1,24 @@
-import time
+from functorch import make_fx
 import torch
 import torch.nn as nn
-from functorch import make_fx, grad, nnc_jit, nnc_compile, vmap, make_nnc, vjp
+from functorch import make_fx, grad, nnc_jit, nnc_compile, vmap, make_nnc, vjp, make_functional, FunctionalModule
 from torch.fx.node import map_arg
 import torch.fx as fx
-from functools import partial
-import os
 import torch.utils._pytree as pytree
-import torch.utils.dlpack
+from torch.fx.passes import graph_drawer
+import os
 
-def partition_backwards(fx_module: fx.GraphModule):
+def draw_graph(traced: torch.fx.GraphModule, fname: str, figname: str = "fx_graph"):
+    base, ext = os.path.splitext(fname)
+    if not ext:
+        ext = ".svg"
+    print(f"Writing FX graph to file: {base}{ext}")
+    g = graph_drawer.FxGraphDrawer(traced, figname)
+    x = g.get_main_dot_graph()
+    getattr(x, "write_" + ext.lstrip("."))(fname)
+
+# todo(chilli): clean this up/make it more understandable
+def partition_backwards(fx_module: fx.GraphModule, _joint_inputs):
     bw_nodes = set()
     saved_nodes = set()
     output_node = None
@@ -18,10 +27,12 @@ def partition_backwards(fx_module: fx.GraphModule):
             bw_nodes.add(n)
         elif n.op != 'output':
             has_color = False
+
             def is_colored(a):
                 nonlocal has_color
                 if a in bw_nodes or a in saved_nodes:
                     has_color = True
+
             def add_saved(a):
                 if a not in bw_nodes:
                     saved_nodes.add(a)
@@ -69,11 +80,94 @@ def partition_backwards(fx_module: fx.GraphModule):
     bw_module.graph.lint()
     return fw_module, bw_module
 
+def create_joint_forward_backward(fn):
+    def joint_forward_backward(primals, tangents):
+        primals = pytree.tree_map(lambda x: x.requires_grad_(), primals)
+        out = fn(*primals)
+        backward_out = torch.autograd.grad(out, primals, grad_outputs=tangents, create_graph=True, allow_unused=True)
+        return out, backward_out
+    return joint_forward_backward
+
+def draw_joint_graph(graph, joint_inputs, file_name="full_graph.png"):
+    draw_graph(graph, file_name)
+    return partition_backwards(graph, joint_inputs)
+
+def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn):
+    joint_forward_backward = create_joint_forward_backward(flat_fn)
+
+    compiled_fw = None
+    compiled_bw = None
+    num_outs = None
+
+    class CompiledFunction(torch.autograd.Function):
+        @staticmethod
+        def forward(ctx, *flat_args):
+            nonlocal compiled_fw, compiled_bw, num_outs
+            if compiled_fw is None:
+                out = flat_fn(*flat_args)
+                if isinstance(out, (list, tuple)):
+                    num_outs = len(out)
+                else:
+                    num_outs = 1
+
+                joint_inputs = (flat_args, (out,))
+                with torch.enable_grad():
+                    fx_g = make_fx(joint_forward_backward)(*joint_inputs)
+                fw_module, bw_module = partition_fn(fx_g, joint_inputs)
+                # print(fw_module.code, bw_module.code)
+
+                compiled_fw = fw_compiler(fw_module, flat_args)
+                fw_outs = compiled_fw(*flat_args)
+
+                if not isinstance(fw_outs, list):
+                    fw_outs = [fw_outs]
+
+                bw_args = fw_outs[num_outs:] + fw_outs[0:num_outs]
+                compiled_bw = bw_compiler(bw_module, bw_args)
+
+            fw_outs = compiled_fw(*flat_args)
+            if not isinstance(fw_outs, list):
+                fw_outs = [fw_outs]
+            ctx.activations = fw_outs[num_outs:]
+            if num_outs == 1:
+                return fw_outs[0]
+            return tuple(fw_outs[0:num_outs])
+
+        @staticmethod
+        def backward(ctx, *flat_args):
+            # hmm... this doesn't feel right. todo
+            contiguous_args = [t.contiguous() for t in flat_args]
+            out = compiled_bw(*ctx.activations, *contiguous_args)
+            if not isinstance(out, list):
+                out = [out]
+            return tuple(out)
+    return CompiledFunction
+
+
+def compiled_function(fn, fw_compiler, bw_compiler, partition_fn=partition_backwards):
+    saved_fn = None
+
+    def returned_function(*args, **kwargs):
+        nonlocal saved_fn
+        flattened_args, args_spec = pytree.tree_flatten((args, kwargs))
+
+        if saved_fn is None:
+            def flat_fn(*args):
+                args, kwargs = pytree.tree_unflatten(args, args_spec)
+                return fn(*args, **kwargs)
+
+            saved_fn = create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn).apply
+        return saved_fn(*flattened_args)
+
+    return returned_function
+
 
 def tvm_compile(fx_module, example_inputs, name = None):
     import tvm
     from tvm import relay, auto_scheduler
     from tvm.contrib import graph_executor
+    import os
+
     jit_mod = torch.jit.script(fx_module)
     # jit_mod = torch.jit.trace(fx_module, example_inputs)
 
@@ -114,71 +208,19 @@ def tvm_compile(fx_module, example_inputs, name = None):
         return outs
     return exec_tvm
 
-def compiled_function(fn, fw_compiler, bw_compiler):
-    fw_module = None
-    compiled_fw = None
-    bw_module = None
-    compiled_bw = None
-    num_outs = None
-
-    saved_fn = None
-    def returned_function(*args, **kwargs):
-        nonlocal saved_fn
-        flattened_args, args_spec = pytree.tree_flatten((args, kwargs))
-
-        if saved_fn is None:
-            def flat_fn(*args):
-                args, kwargs = pytree.tree_unflatten(args, args_spec)
-                return fn(*args, **kwargs)
-
-            def vjpfull(primals, tangents):
-                out, vjpfn = vjp(flat_fn, *primals)
-                return out, vjpfn(*tangents)
-
-            class CompiledFunction(torch.autograd.Function):
-                @staticmethod
-                def forward(ctx, *args):
-                    nonlocal compiled_fw, compiled_bw, fw_module, bw_module, num_outs
-                    if compiled_fw is None:
-                        out = flat_fn(*args)
-                        if isinstance(out, (list, tuple)):
-                            num_outs = len(out)
-                        else:
-                            num_outs = 1
-                        with torch.enable_grad():
-                            fx_g = make_fx(vjpfull)(args, (out,))
-                        fw_module, bw_module = partition_backwards(fx_g)
-                        print(fw_module, bw_module)
-
-                        compiled_fw = fw_compiler(fw_module, args)
-                        fw_outs = compiled_fw(*fw_module.graph.flatten_inps(args))
-
-                        if not isinstance(fw_outs, list):
-                            fw_outs = [fw_outs]
-
-                        bw_args = fw_outs[num_outs:] + fw_outs[0:num_outs]
-                        compiled_bw = bw_compiler(bw_module, bw_args)
-
-                    fw_outs = compiled_fw(*fw_module.graph.flatten_inps(args))
-                    if not isinstance(fw_outs, list):
-                        fw_outs = [fw_outs]
-                    ctx.activations = fw_outs[num_outs:]
-                    if num_outs == 1:
-                        return fw_outs[0]
-                    return tuple(fw_outs[0:num_outs])
-
-                @staticmethod
-                def backward(ctx, *args):
-                    contiguous_args = [t.contiguous() for t in args]
-                    out = compiled_bw(*ctx.activations, *contiguous_args)
-                    if not isinstance(out, list):
-                        out = [out]
-                    return tuple(out)
-            saved_fn = CompiledFunction.apply
-        return saved_fn(*flattened_args)
-
-
-    return returned_function
-
 def tvm_function(fn, name):
     return compiled_function(fn, partial(tvm_compile, name=f'fw_{name}'), partial(tvm_compile, name=f'bw_{name}'))
+
+def compiled_module(mod, fw_compiler, bw_compiler):
+    func_mod, params = make_functional(mod)
+    compiled_f = compiled_function(func_mod, fw_compiler, bw_compiler)
+    #func_mod = func_mod.with_state(params)
+    class CompiledModule(nn.Module):
+        def __init__(self):
+            super(CompiledModule, self).__init__()
+            self.orig_module = mod
+
+        def forward(self, *args, **kwargs):
+            return compiled_f(tuple(self.orig_module.parameters()), *args, **kwargs)
+
+    return CompiledModule()
