@@ -272,11 +272,22 @@ std::tuple<Tensor, optional<int64_t>> select_batching_rule(const Tensor& self, o
   return std::make_tuple(result, 0);
 }
 
-c10::SmallBuffer<int64_t, 5> getPhysicalShape(const Tensor& self, const IntArrayRef logical_shape, int64_t bdim) {
-  c10::SmallBuffer<int64_t, 5> new_shape(logical_shape.size() + 1);
-  new_shape[bdim] = self.size(bdim);
-  std::copy(logical_shape.begin(), logical_shape.begin() + bdim, new_shape.begin());
-  std::copy(logical_shape.begin() + bdim, logical_shape.end(), new_shape.begin() + bdim + 1);
+VmapDimVector getPhysicalShape(const Tensor& self, const IntArrayRef logical_shape, int64_t bdim) {
+  VmapDimVector new_shape(logical_shape.size() + 1);
+  std::cout << "logical_shape: " << logical_shape << "\n";
+  std::cout << "self.size(bdim): " << self.size(bdim) << "\n";
+  std::cout << "bdim: " << bdim << "\n";
+  new_shape[bdim - 1] = self.size(bdim);
+  std::cout << "1 new_shape: " << new_shape << "\n";
+  if (bdim < new_shape.size() - 1) {
+    std::cout << "2 copies\n";
+    std::copy(logical_shape.begin(), logical_shape.begin() + bdim, new_shape.begin());
+    std::copy(logical_shape.begin() + bdim, logical_shape.end(), new_shape.begin() + bdim + 1);
+  } else {
+    std::cout << "single copy\n";
+    std::copy(logical_shape.begin(), logical_shape.end(), new_shape.begin());
+  }
+  std::cout << "2 new_shape: " << new_shape << "\n";
   return new_shape;
 }
 
@@ -288,8 +299,8 @@ std::tuple<Tensor, optional<int64_t>> _reshape_alias_batch_rule(const Tensor& se
 }
 
 std::tuple<Tensor, optional<int64_t>> view_batch_rule(const Tensor& self, optional<int64_t> bdim, const IntArrayRef size) {
-  TORCH_INTERNAL_ASSERT(bdim.has_value());
-  auto new_size = getPhysicalShape(self, size, *bdim);
+  // expand_as can route to this batching rule with unbatched tensor
+  auto new_size = (bdim.has_value()) ? getPhysicalShape(self, size, *bdim) : size;
   return std::make_tuple(self.view(new_size), bdim);
 }
 
