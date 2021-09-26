@@ -346,7 +346,6 @@ class TestOperators(TestCase):
         xfail('block_diag'),
         xfail('nn.functional.dropout'),
         xfail('nn.functional.max_pool2d'),
-        xfail('log_softmax'),
     }))
     def test_vmapvjp(self, device, dtype, op):
         # These are too annoying to put into the list above
@@ -455,7 +454,6 @@ class TestOperators(TestCase):
         xfail('quantile'),
         xfail('renorm'),
         xfail('roll'),
-        xfail('rot90'),
         xfail('scatter_add'),
         xfail('solve'),
         xfail('sort'),
@@ -476,7 +474,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.dropout'),
         xfail('nn.functional.max_pool2d'),
         xfail('nn.functional.batch_norm'),
-        xfail('log_softmax'),
     })
     def test_vmapvjp_has_batch_rule(self, device, dtype, op):
         # These are too annoying to put into the list above
