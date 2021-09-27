@@ -148,7 +148,7 @@ std::tuple<Tensor,optional<int64_t>> flip_batch_rule(const Tensor& self, optiona
   auto self_ = moveBatchDimToFront(self, self_bdim);
   VmapDimVector new_dims;
   for (auto i: dims) {
-    new_dims.push_back(getPhysicalDim(self, true, i));
+    new_dims.push_back(getPhysicalDim(self_, true, i));
   }
   return std::make_tuple(at::flip(self_, new_dims), 0);
 }
@@ -283,6 +283,17 @@ std::tuple<Tensor, optional<int64_t>> _reshape_alias_batch_rule(const Tensor& se
   return std::make_tuple(at::reshape(self, new_shape), bdim);
 }
 
+std::tuple<Tensor, optional<int64_t>> roll_batch_rule(const Tensor& self, optional<int64_t> bdim, c10::ArrayRef<long> shifts, c10::ArrayRef<long> dims) {
+  TORCH_INTERNAL_ASSERT(bdim.has_value());
+
+  auto self_ = moveBatchDimToFront(self, bdim);
+  VmapDimVector new_dims;
+  for (auto i: dims) {
+    new_dims.push_back(getPhysicalDim(self, true, i));
+  }
+  return std::make_tuple(at::roll(self_, shifts, new_dims), 0);
+}
+
 std::tuple<Tensor,optional<int64_t>> diagonal_backward_batch_rule(
     const Tensor& grad_input, optional<int64_t> grad_input_bdim,
     IntArrayRef input_sizes, int64_t offset, int64_t dim1, int64_t dim2) {
@@ -339,6 +350,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT("squeeze", squeeze_batch_rule);
   VMAP_SUPPORT("squeeze.dim", squeeze_dim_batch_rule);
   VMAP_SUPPORT("_reshape_alias", _reshape_alias_batch_rule);
+  VMAP_SUPPORT("roll", roll_batch_rule);
   VMAP_SUPPORT("diagonal_backward", diagonal_backward_batch_rule);
   VMAP_SUPPORT("select_backward", select_backward_batch_rule);
   VMAP_SUPPORT("slice_backward", slice_backward_batch_rule);

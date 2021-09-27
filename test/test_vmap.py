@@ -3029,7 +3029,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('resize_as_'),
         xfail('resolve_conj'),
         xfail('resolve_neg'),
-        xfail('roll'),
         xfail('scatter'),
         xfail('scatter_add'),
         xfail('take'),

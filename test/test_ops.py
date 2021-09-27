@@ -453,7 +453,6 @@ class TestOperators(TestCase):
         xfail('put'),
         xfail('quantile'),
         xfail('renorm'),
-        xfail('roll'),
         xfail('scatter_add'),
         xfail('solve'),
         xfail('sort'),
