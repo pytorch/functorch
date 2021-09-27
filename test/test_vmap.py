@@ -2974,7 +2974,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('cdist'),
         xfail('complex'),
         xfail('copysign'),
-        xfail('cross'),
         xfail('diag_embed'),
         xfail('dsplit'),
         xfail('eig'),
