@@ -1,10 +1,12 @@
 from functorch import make_fx
+import time
 import torch
 import torch.nn as nn
-from functorch import make_fx, grad, nnc_jit, nnc_compile, vmap, make_nnc, vjp, make_functional, FunctionalModule
+from functorch import make_functional_with_buffers, make_fx
 from torch.fx.node import map_arg
 import torch.fx as fx
 import torch.utils._pytree as pytree
+import torch.utils.dlpack
 from torch.fx.passes import graph_drawer
 import os
 
@@ -212,14 +214,20 @@ def tvm_function(fn, name):
     return compiled_function(fn, partial(tvm_compile, name=f'fw_{name}'), partial(tvm_compile, name=f'bw_{name}'))
 
 def compiled_module(mod, fw_compiler, bw_compiler, partition_fn=default_partition):
-    func_mod, params = make_functional(mod)
+    func_mod, params, buffers = make_functional_with_buffers(mod)
     compiled_f = compiled_function(func_mod, fw_compiler, bw_compiler, partition_fn)
+
     class CompiledModule(nn.Module):
         def __init__(self):
             super(CompiledModule, self).__init__()
             self.orig_module = mod
 
         def forward(self, *args, **kwargs):
-            return compiled_f(tuple(self.orig_module.parameters()), *args, **kwargs)
+            return compiled_f(
+                tuple(self.orig_module.parameters()),
+                tuple(self.orig_module.buffers()),
+                *args,
+                **kwargs
+            )
 
     return CompiledModule()

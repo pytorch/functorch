@@ -21,9 +21,10 @@ class Foo(nn.Module):
     def __init__(self):
         super(Foo, self).__init__()
         self.param = nn.Parameter(torch.randn(1))
+        self.register_buffer("buf", torch.randn(1))
 
     def forward(self, x):
-        return (self.param * x).sum(dim=0)
+        return (self.param * x + self.buf).sum(dim=0)
 
 input = torch.randn(1)
 mod = Foo()
