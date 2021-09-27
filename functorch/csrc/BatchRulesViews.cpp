@@ -272,36 +272,33 @@ std::tuple<Tensor, optional<int64_t>> select_batching_rule(const Tensor& self, o
   return std::make_tuple(result, 0);
 }
 
-VmapDimVector getPhysicalShape(const Tensor& self, const IntArrayRef logical_shape, int64_t bdim) {
-  VmapDimVector new_shape(logical_shape.size() + 1);
-  std::cout << "logical_shape: " << logical_shape << "\n";
-  std::cout << "self.size(bdim): " << self.size(bdim) << "\n";
-  std::cout << "bdim: " << bdim << "\n";
-  new_shape[bdim - 1] = self.size(bdim);
-  std::cout << "1 new_shape: " << new_shape << "\n";
-  if (bdim < new_shape.size() - 1) {
-    std::cout << "2 copies\n";
-    std::copy(logical_shape.begin(), logical_shape.begin() + bdim, new_shape.begin());
-    std::copy(logical_shape.begin() + bdim, logical_shape.end(), new_shape.begin() + bdim + 1);
-  } else {
-    std::cout << "single copy\n";
-    std::copy(logical_shape.begin(), logical_shape.end(), new_shape.begin());
+VmapDimVector getPhysicalShape(const Tensor& self, int64_t & bdim, const IntArrayRef logical_shape) {
+  VmapDimVector new_shape = { logical_shape.begin(), logical_shape.end() };
+  if (bdim >= new_shape.size()) {
+    bdim = new_shape.size();
   }
-  std::cout << "2 new_shape: " << new_shape << "\n";
+  new_shape.insert(new_shape.begin() + bdim, self.size(bdim));
   return new_shape;
 }
 
 std::tuple<Tensor, optional<int64_t>> _reshape_alias_batch_rule(const Tensor& self, optional<int64_t> bdim, const IntArrayRef shape, const IntArrayRef strides) {
   (void) strides;
   TORCH_INTERNAL_ASSERT(bdim.has_value());
-  auto new_shape = getPhysicalShape(self, shape, *bdim);
-  return std::make_tuple(at::reshape(self, new_shape), bdim);
+  // bdim_ can be updated by getPhysicalShape
+  int64_t bdim_ = *bdim;
+  auto new_shape = getPhysicalShape(self, bdim_, shape);
+  return std::make_tuple(at::reshape(self, new_shape), bdim_);
 }
 
 std::tuple<Tensor, optional<int64_t>> view_batch_rule(const Tensor& self, optional<int64_t> bdim, const IntArrayRef size) {
-  // expand_as can route to this batching rule with unbatched tensor
-  auto new_size = (bdim.has_value()) ? getPhysicalShape(self, size, *bdim) : size;
-  return std::make_tuple(self.view(new_size), bdim);
+  if (!bdim.has_value()) {
+    // expand_as can route to this batching rule with unbatched tensor
+    return std::make_tuple(self.view(size), bdim);
+  }
+  // bdim_ can be updated by getPhysicalShape
+  int64_t bdim_ = *bdim;
+  auto new_size = getPhysicalShape(self, bdim_, size);
+  return std::make_tuple(self.view(new_size), bdim_);
 }
 
 std::tuple<Tensor,optional<int64_t>> diagonal_backward_batch_rule(
