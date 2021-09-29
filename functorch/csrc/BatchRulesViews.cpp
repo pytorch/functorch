@@ -288,10 +288,18 @@ std::tuple<Tensor, optional<int64_t>> roll_batch_rule(const Tensor& self, option
 
   auto self_ = moveBatchDimToFront(self, bdim);
   VmapDimVector new_dims;
-  for (auto i: dims) {
-    new_dims.push_back(getPhysicalDim(self, true, i));
+  if (!dims.empty()) {
+    for (auto i: dims) {
+      new_dims.push_back(getPhysicalDim(self, true, i));
+    }
+    return std::make_tuple(at::roll(self_, shifts, new_dims), 0);
   }
-  return std::make_tuple(at::roll(self_, shifts, new_dims), 0);
+  // We will do something like: t.reshape(a, -1).roll(1, dims=[1, ]).reshape(old_shape)
+  auto old_shape = self_.sizes();
+  new_dims.push_back(1);
+  auto output = at::roll(self_.flatten(1), shifts, new_dims);
+  output = output.reshape(old_shape);
+  return std::make_tuple(output, 0);
 }
 
 std::tuple<Tensor,optional<int64_t>> diagonal_backward_batch_rule(
