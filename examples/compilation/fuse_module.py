@@ -30,10 +30,7 @@ input = torch.randn(1)
 mod = Foo()
 compiled_mod = compiled_module(mod, fw_compiler, bw_compiler)
 
-print("initial param: ", mod.param)
 for a, b in zip(run(mod, input), run(compiled_mod, input)):
-    print(a)
-    print(b)
     torch.testing.assert_allclose(a, b)
 
 out = mod(input)
@@ -42,12 +39,7 @@ mod.param.data -= mod.param.grad
 compiled_mod.orig_module.param.data -= compiled_mod.orig_module.param.grad
 compiled_mod.orig_module.param.grad = None
 
-print("orig param: ", mod.param.data)
-print("compiled param: ", compiled_mod.orig_module.param.data)
-
 for a, b in zip(run(mod, input), run(compiled_mod, input)):
-    print(a)
-    print(b)
     torch.testing.assert_allclose(a, b)
 
 import timeit
