@@ -271,6 +271,11 @@ class TestEagerFusion(TestCase):
         grads = [p.grad for p in compiled_mod.parameters()]
         self.assertEqual((out, grads), (ref_out, ref_grads))
 
+    def test_batchnorm(self):
+        mod = compiled_module(nn.BatchNorm2d(4), _nop_compile, _nop_compile)
+        x = torch.ones(1, 4, 2, 2)
+        mod(x).sum().backward()
+
 class TestEagerFusionOpInfo(TestCase):
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     # entries in here need don't work and need to be fixed.
