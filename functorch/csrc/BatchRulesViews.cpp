@@ -342,6 +342,31 @@ std::tuple<Tensor,optional<int64_t>> slice_backward_batch_rule(
   return std::make_tuple(std::move(result), 0);
 }
 
+std::tuple<Tensor, optional<int64_t>> expand_batch_rule(
+    const Tensor &self, optional<int64_t> self_bdim, IntArrayRef input_sizes, bool implicit)
+{
+  constexpr auto n_bdims = 1; // number of batch dims
+  TORCH_CHECK(self.dim() - 1 <= input_sizes.size(),
+              "expand: the number of sizes provided (", input_sizes.size(), ") ",
+              "must be greater or equal to the number of dimensions in the tensor (", self.dim(), ")");
+  auto self_ = moveBatchDimToFront(self, self_bdim);
+  c10::SmallBuffer<int64_t, 5> input_sizes_(input_sizes.size() + n_bdims);
+
+  auto extra_dims = input_sizes.size() - (self.dim() - n_bdims);
+  // copy batch dim
+  input_sizes_[0] = self_.size(0);
+  std::copy(input_sizes.begin(), input_sizes.end(), input_sizes_.begin() + n_bdims);
+
+  auto physical_sizes = self_.sizes();
+  VmapDimVector view_shape(input_sizes_.size(), 1);
+  // copy batch dim
+  view_shape[0] = self_.size(0);
+  std::copy(physical_sizes.begin() + 1, physical_sizes.end(),
+            view_shape.begin() + n_bdims + extra_dims);
+
+  return std::make_tuple(self_.view(view_shape).expand(input_sizes_, implicit), 0);
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT("diag", diag_batch_rule);
   VMAP_SUPPORT("chunk", chunk_batching_rule);
@@ -362,6 +387,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT("diagonal_backward", diagonal_backward_batch_rule);
   VMAP_SUPPORT("select_backward", select_backward_batch_rule);
   VMAP_SUPPORT("slice_backward", slice_backward_batch_rule);
+  VMAP_SUPPORT("expand", expand_batch_rule);
 }
 
 }}
