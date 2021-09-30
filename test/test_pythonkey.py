@@ -352,12 +352,10 @@ class TestEagerFusionOpInfo(TestCase):
             orig_grad = get_grads(args)
             self.assertEqual(orig_grad, compiled_grad)
 
-            args = pytree.tree_map(lambda x: x.detach().uniform_(0, 1), args)
-            for arg in args:
-                arg.requires_grad = True
+            def create_new_arg(x):
+                return x.detach().uniform_(0, 1).requires_grad_(x.requires_grad)
 
-            # Recompile since we're changing which inputs requires grads.
-            compiled_f = compiled_function(f, lambda x,_: x, lambda x,_: x)
+            args = pytree.tree_map(create_new_arg, args)
 
             reset_grads()
             compiled_f(args, kwargs).sum().backward()
