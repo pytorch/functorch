@@ -282,9 +282,6 @@ class TestEagerFusionOpInfo(TestCase):
     # Each one of these is a bug (or needs to be investigated)
     @skipOps('TestEagerFusionOpInfo', 'test_eager_compilation_exhaustive', {
         xfail('__rmatmul__'),
-        xfail('expand_as'),
-        xfail('fmod', ''),
-        xfail('remainder', ''),
         xfail('linalg.cholesky'),
         xfail('linalg.det'),
         xfail('linalg.inv'),
@@ -292,10 +289,8 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('nn.functional.gelu'),
         xfail('nn.functional.linear'),
         xfail('polar'),
-        xfail('reshape_as'),
         xfail('special.zeta', 'grad'),
         xfail('to_sparse'),
-        xfail('view_as'),
         xfail('addcdiv'),
         xfail('atanh'),
         xfail('addcdiv'),
@@ -308,8 +303,6 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('matrix_exp'),
         xfail('trapezoid'),
         xfail('trapz'),
-        xfail('igamma', 'grad_other'),
-        xfail('igammac', 'grad_other'),
         xfail('block_diag'),
     })
     def test_eager_compilation_exhaustive(self, device, dtype, op):
