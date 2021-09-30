@@ -202,7 +202,6 @@ std::tuple<Tensor,optional<int64_t>> _softmax_backward_batch_rule(
     const Tensor& output, optional<int64_t> output_bdim,
     int64_t dim,
     ScalarType input_dtype) {
-  // NB: self only gets used for its dtype. We handle it anyways just in case.
   // softmax_backward's decomposition is y * gy - y * (y * gy).sum(dim, keepdim=True)
   // NB: the CUDA kernel handles strides so we can just expand
   // all of the tensors and call it a day. The CPU kernel is not as good but
@@ -246,8 +245,7 @@ std::tuple<Tensor,optional<int64_t>> _log_softmax_backward_batch_rule(
       grad_output_, grad_output_bdim.has_value(),
       output_, output_bdim.has_value());
 
-  // Scalar tensor case. softmax turns into the identity when this happens.
-  // I don't know why the output is zeros, though, but that's what softmax tells me...
+  // Scalar tensor case. log_softmax returns zeros when this happens
   if (output_.dim() == 1 && (dim == 0 || dim == -1)) {
     return std::make_tuple(at::zeros_like(grad_output_), 0);
   }
