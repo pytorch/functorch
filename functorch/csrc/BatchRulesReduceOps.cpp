@@ -215,6 +215,12 @@ std::tuple<Tensor,optional<int64_t>> _softmax_backward_batch_rule(
       grad_output_, grad_output_bdim.has_value(),
       output_, output_bdim.has_value());
 
+  // Scalar tensor case. softmax turns into the identity when this happens.
+  // I don't know why the output is zeros, though, but that's what softmax tells me...
+  if (output_.dim() == 1 && (dim == 0 || dim == -1)) {
+    return std::make_tuple(at::zeros_like(grad_output_), 0);
+  }
+
   dim = getPhysicalDim(output_, /*has_batch_dim*/true, dim);
 
   // Not sure why output_ needs to be marked as .contiguous(). Someting must
@@ -239,6 +245,12 @@ std::tuple<Tensor,optional<int64_t>> _log_softmax_backward_batch_rule(
   std::tie(grad_output_, output_) = expand_bdims(
       grad_output_, grad_output_bdim.has_value(),
       output_, output_bdim.has_value());
+
+  // Scalar tensor case. softmax turns into the identity when this happens.
+  // I don't know why the output is zeros, though, but that's what softmax tells me...
+  if (output_.dim() == 1 && (dim == 0 || dim == -1)) {
+    return std::make_tuple(at::zeros_like(grad_output_), 0);
+  }
 
   dim = getPhysicalDim(output_, /*has_batch_dim*/true, dim);
 
