@@ -356,6 +356,9 @@ class TestEagerFusionOpInfo(TestCase):
             for arg in args:
                 arg.requires_grad = True
 
+            # Recompile since we're changing which inputs requires grads.
+            compiled_f = compiled_function(f, lambda x,_: x, lambda x,_: x)
+
             reset_grads()
             compiled_f(args, kwargs).sum().backward()
             compiled_grad = get_grads(args)
