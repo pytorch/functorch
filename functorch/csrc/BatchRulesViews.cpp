@@ -345,13 +345,14 @@ std::tuple<Tensor,optional<int64_t>> slice_backward_batch_rule(
 std::tuple<Tensor, optional<int64_t>> view_batching_rule(const Tensor& self, optional<int64_t> self_bdim, IntArrayRef size) {
   auto self_ = moveBatchDimToFront(self, self_bdim);
   auto nbdim = self_bdim.has_value() ? 1 : 0;
+  optional<int64_t> new_bdim = self_bdim.has_value() ? 0 : optional<int64_t>{};
   VmapDimVector size_(size.size() + nbdim);
   if (nbdim) {
     // copy batch size
     size_[0] = self_.size(0);
   }
   std::copy(size.cbegin(), size.cend(), size_.begin() + nbdim);
-  return std::make_tuple(self_.view(size_), self_bdim);
+  return std::make_tuple(self_.view(size_), new_bdim);
 }
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
