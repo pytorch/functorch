@@ -343,20 +343,20 @@ std::tuple<Tensor,optional<int64_t>> slice_backward_batch_rule(
 }
 
 std::tuple<Tensor, optional<int64_t>> expand_batch_rule(
-    const Tensor &self, optional<int64_t> self_bdim, IntArrayRef input_sizes, bool implicit)
+    const Tensor &self, optional<int64_t> self_bdim, IntArrayRef size, bool implicit)
 {
   auto self_dim = self.dim();
-  TORCH_CHECK(static_cast<uint64_t>(self_dim - 1) <= input_sizes.size(),
-              "expand: the number of sizes provided (", input_sizes.size(), ") ",
+  TORCH_CHECK(static_cast<uint64_t>(self_dim - 1) <= size.size(),
+              "expand: the number of sizes provided (", size.size(), ") ",
               "must be greater or equal to the number of dimensions in the tensor (", static_cast<uint64_t>(self_dim - 1), ")");
 
   auto self_ = moveBatchDimToFront(self, self_bdim);
   auto self_sizes = self_.sizes();
   auto batch_size = self_sizes[0];
 
-  c10::SmallBuffer<int64_t, 5> input_sizes_(input_sizes.size() + 1);
-  input_sizes_[0] = batch_size;
-  std::copy(input_sizes.begin(), input_sizes.end(), input_sizes_.begin() + 1);
+  c10::SmallBuffer<int64_t, 5> size_(size.size() + 1);
+  size_[0] = batch_size;
+  std::copy(size.cbegin(), size.cend(), size_.begin() + 1);
 
   // Here, we know we are expanding a (logical) tensor to a larger number
   // of dimensions. We have to be careful because we can't call expand directly
@@ -367,13 +367,13 @@ std::tuple<Tensor, optional<int64_t>> expand_batch_rule(
   // A physical view of size [B0, 3] can't directly be expanded to size [B0, 2, 3]
   // so the strategy here is to view it first as a tensor of size [B0, 1, 3] and
   // then expand.
-  VmapDimVector view_shape(input_sizes_.size(), /*init_value*/1);
-  auto extra_dims = input_sizes.size() - (self_dim - 1);
+  auto extra_dims = size.size() - (self_dim - 1);
+  VmapDimVector view_shape(size_.size(), /*init_value*/1);
   view_shape[0] = batch_size;
-  std::copy(self_sizes.begin() + 1, self_sizes.end(),
+  std::copy(self_sizes.cbegin() + 1, self_sizes.cend(),
             view_shape.begin() + 1 + extra_dims);
 
-  return std::make_tuple(self_.view(view_shape).expand(input_sizes_, implicit), 0);
+  return std::make_tuple(self_.view(view_shape).expand(size_, implicit), 0);
 }
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
