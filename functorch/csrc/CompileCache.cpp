@@ -280,12 +280,53 @@ struct CompileResultBase {
 
   /// Add a shape-checking constraint on the inputs.
   virtual void addShapeCheck(const std::tuple<int, int, int, int>& indices) = 0;
+
+  virtual void set_backwards(int index, py::object backward_compiler) = 0;
 };
 
 /// Proxy object to bind compilation results to python.
 struct CompileResultProxy {
   CompileResultBase* res;
   explicit CompileResultProxy(CompileResultBase* r) : res(r) {}
+};
+
+struct CompileCache;
+using CompileCacheBackwards = std::tuple<int, CompileCache*>;
+
+/// Cached compiled code for kernel backward pass.
+class CompiledAutoGradNode : public torch::autograd::Node {
+ public:
+  CompiledAutoGradNode() = default;
+
+  torch::autograd::variable_list apply(torch::autograd::variable_list&& new_inputs) override;
+
+  void release_variables() override {
+    inputs_.clear();
+  }
+
+  void setup(
+      std::vector<CompileCacheBackwards>& backwards,
+      at::Tensor* args,
+      size_t len) {
+    inputs_.reserve(len);
+    for (size_t i = 0; i < len; ++i) {
+      inputs_.emplace_back(args[i].detach());
+    }
+
+    // node outputs
+    backwards_functions_.reserve(backwards.size());
+    torch::autograd::edge_list next_edges;
+    for (auto& item : backwards) {
+      backwards_functions_.emplace_back(item);
+      next_edges.emplace_back(
+          torch::autograd::impl::gradient_edge(args[std::get<0>(item)]));
+    }
+    set_next_edges(std::move(next_edges));
+  }
+
+ private:
+  std::vector<CompileCacheBackwards> backwards_functions_;
+  std::vector<at::Tensor> inputs_;
 };
 
 /// Metaprogramming struct containing the number of arguments to a
@@ -339,6 +380,12 @@ struct CompileResult : public CompileResultBase {
   /// Add a shape-checking constraint on the inputs.
   void addShapeCheck(const std::tuple<int, int, int, int>& indices) {
     shapeChecks_.emplace_back(indices);
+  }
+
+  void set_backwards(int index, py::object backward_compiler) override {
+    objects_.emplace_back(backward_compiler);
+    backwards_functions_.emplace_back(
+				      std::make_tuple(index, backward_compiler.cast<CompileCache*>()));
   }
 
   /// Call the cached kernel with the provided args.
@@ -406,6 +453,15 @@ struct CompileResult : public CompileResultBase {
       py::gil_scoped_release release;
       cg_->call_with_numel(callArgs, numel);
     }
+
+    if (backwards_functions_.size() > 0) {
+      std::shared_ptr<CompiledAutoGradNode> node(
+						 new CompiledAutoGradNode(), torch::autograd::deleteNode);
+      node->setup(backwards_functions_, args, Counts::numIn);
+      for (int i = 0; i < Counts::numOut; ++i) {
+	torch::autograd::create_gradient_edge(args[Counts::numIn + i], node);
+      }
+    }
   }
 
   /// Check error conditions, e.g. mismatched input sizes.
@@ -413,6 +469,7 @@ struct CompileResult : public CompileResultBase {
     TORCH_CHECK(cg_ != nullptr);
     TORCH_CHECK(shapeFrom_.size() <= MAX_DIMS);
     TORCH_CHECK(allocatedOutputs_.size() == Counts::numOutAllocated);
+    TORCH_CHECK(backwards_functions_.size() <= Counts::numIn);
     TORCH_CHECK(
         strideArgsFrom_.size() + shapeFrom_.size() <=
         Counts::numKeys * MAX_DIMS + MAX_DIMS);
@@ -455,6 +512,9 @@ struct CompileResult : public CompileResultBase {
 
   /// Outputs to allocate.
   std::vector<std::pair<int, std::vector<int>>> allocatedOutputs_;
+
+  std::vector<CompileCacheBackwards> backwards_functions_;
+  std::vector<py::object> objects_;
 };
 
 /// Class template for a kernel cache specialized on the number of
@@ -653,6 +713,27 @@ struct CompileCache {
   virtual const std::string& getName() const = 0;
 };
 
+torch::autograd::variable_list CompiledAutoGradNode::apply(torch::autograd::variable_list&& new_inputs) {
+  // TODO(jansel): we likely need to copy some error checking from eager to
+  // here
+  // TODO(jansel): possible optimization: horizontal fusion of each backwards
+  // fn
+  // TODO(jansel): possible optimization: reuse the forwards SpecializationKey
+  // TODO(jansel): possible optimization: dont save all the inputs_
+  // TODO(jansel): possible optimization: precompute in forwards
+  torch::autograd::variable_list args;
+  args.reserve(inputs_.size() + 1);
+  std::copy(inputs_.begin(), inputs_.end(), std::back_inserter(args));
+  args.emplace_back(new_inputs[0]);
+
+  torch::autograd::variable_list result;
+  result.reserve(backwards_functions_.size());
+  for (auto& bk : backwards_functions_) {
+    result.emplace_back(std::get<1>(bk)->call(args));
+  }
+  return result;
+}    
+
 /// Specialized kernel cache templated on the number of input
 /// and output arguments.  Uses ArgSpecializedCache to further
 /// specialize on whether kernels are out variants.
@@ -819,7 +900,15 @@ void initCompileCacheBindings(PyObject* module) {
              int optionsFrom,
              const std::vector<int>& storageOrder) {
             self.res->addAllocatedOutput(optionsFrom, storageOrder);
+          })
+      .def(
+          "set_backwards",
+          [](CompileResultProxy& self,
+             int index,
+             py::object backward_compiler) {
+            self.res->set_backwards(index, backward_compiler);
           });
+    
 }
 
 } // namespace functorch
