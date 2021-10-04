@@ -366,6 +366,10 @@ class TestOperators(TestCase):
             fn, args = get_vjpfull_variant(op, sample)
             for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}):
                 self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
+            for a_op in op.aliases:
+                fn, args = get_vjpfull_variant(a_op, sample)
+                for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}):
+                    self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vmapvjp_has_batch_rule', {
@@ -452,6 +456,7 @@ class TestOperators(TestCase):
         xfail('put'),
         xfail('quantile'),
         xfail('renorm'),
+        xfail('repeat_interleave'),
         xfail('scatter_add'),
         xfail('solve'),
         xfail('sort'),
@@ -493,7 +498,10 @@ class TestOperators(TestCase):
                 fn, args = get_vjpfull_variant(op, sample)
                 for _ in get_fallback_and_vmap_exhaustive(fn, args, {}, compute_loop_out=False):
                     pass
-
+                for a_op in op.aliases:
+                    fn, args = get_vjpfull_variant(a_op, sample)
+                    for _ in get_fallback_and_vmap_exhaustive(fn, args, {}, compute_loop_out=False):
+                        pass
         check_vmap_fallback(self, test, op, dry_run=False)
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
