@@ -331,15 +331,19 @@ std::tuple<Tensor,optional<int64_t>> diagonal_backward_batch_rule(
 std::tuple<Tensor, optional<int64_t>> permute_batching_rule(
     const Tensor &self, optional<int64_t> self_bdim, IntArrayRef dims)
 {
-  TORCH_INTERNAL_ASSERT(self_bdim.has_value());
+  if (!self_bdim.has_value()) {
+    return std::make_tuple(self.permute(dims), self_bdim);
+  }
+
+  auto self_ = moveBatchDimToFront(self, self_bdim);
   VmapDimVector dims_;
   dims_.reserve(dims.size() + 1);
-  dims_.emplace_back(self_bdim.value());
-  for (auto dim : dims)
-  {
-    dims_.emplace_back(getPhysicalDim(self, true, dim));
+  dims_.emplace_back(0);
+  for (auto dim : dims) {
+    dims_.emplace_back(getPhysicalDim(self_, self_bdim.has_value(), dim));
   }
-  return std::make_tuple(self.permute(dims_), self_bdim);
+
+  return std::make_tuple(self_.permute(dims_), 0);
 }
 
 std::tuple<Tensor,optional<int64_t>> select_backward_batch_rule(
