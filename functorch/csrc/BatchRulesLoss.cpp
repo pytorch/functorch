@@ -270,40 +270,11 @@ at::Tensor nll_loss_backward_plumbing(
   return slow_fallback<Tensor>(op, {grad_output, self, target, weight, reduction, ignore_index, total_weight});
 }
 
-std::tuple<at::Tensor, optional<int64_t>> cosine_similarity_batch_rule(
-    const Tensor &x1, optional<int64_t> x1_bdim, const Tensor &x2, optional<int64_t> x2_bdim,
-    int64_t dim, double eps)
-{
-  auto maybe_add_bdim_to_front = [](const Tensor& x, optional<int64_t> x_bdim) {
-    if (!x_bdim.has_value()) {
-      return x.unsqueeze(0);
-    }
-    return x;
-  };
-
-  auto x1_ = maybe_add_bdim_to_front(moveBatchDimToFront(x1, x1_bdim), x1_bdim);
-  auto x2_ = maybe_add_bdim_to_front(moveBatchDimToFront(x2, x2_bdim), x2_bdim);
-  auto logical_rank = rankWithoutBatchDim(x1, x1_bdim);
-
-  if (logical_rank == 0)
-  {
-    // For 0-dim tensor, we reshape it as [B, 1] and compute over dim=1
-    int64_t dim_ = 1;
-    x1_ = x1_.unsqueeze(1);
-    x2_ = x2_.unsqueeze(1);
-    return std::make_tuple(at::cosine_similarity(x1_, x2_, dim_, eps), 0);
-  }
-
-  auto dim_ = maybe_wrap_dim(dim, logical_rank) + 1;
-  return std::make_tuple(at::cosine_similarity(x1_, x2_, dim_, eps), 0);
-}
-
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   m.impl("nll_loss_forward", nll_loss_forward_plumbing);
   m.impl("nll_loss_backward", nll_loss_backward_plumbing);
   VMAP_SUPPORT("mse_loss", mse_loss_batch_rule);
   VMAP_SUPPORT("mse_loss_backward", mse_loss_backward_batch_rule);
-  VMAP_SUPPORT("cosine_similarity", cosine_similarity_batch_rule);
 }
 
 }}
