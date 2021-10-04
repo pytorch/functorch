@@ -200,8 +200,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   STOP_DECOMPOSE(diagflat);
   STOP_DECOMPOSE(diagonal.Dimname);
   STOP_DECOMPOSE(diff.out);
-  STOP_DECOMPOSE(divide.Scalar_mode);
-  STOP_DECOMPOSE(divide.Tensor_mode);
   STOP_DECOMPOSE(divide.out);
   STOP_DECOMPOSE(divide.out_mode);
   STOP_DECOMPOSE(divide_.Scalar);
