@@ -222,7 +222,7 @@ class TestOperators(TestCase):
                 self.assertEqual(result_vjps, expected_vjps)
 
         _test(op)
-        for a_op in op.alias:
+        for a_op in op.aliases:
             _test(a_op)
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
@@ -371,10 +371,6 @@ class TestOperators(TestCase):
             fn, args = get_vjpfull_variant(op, sample)
             for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}):
                 self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
-            for a_op in op.aliases:
-                fn, args = get_vjpfull_variant(a_op, sample)
-                for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}):
-                    self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vmapvjp_has_batch_rule', {
