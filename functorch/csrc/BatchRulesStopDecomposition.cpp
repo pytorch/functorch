@@ -200,7 +200,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   STOP_DECOMPOSE(diagflat);
   STOP_DECOMPOSE(diagonal.Dimname);
   STOP_DECOMPOSE(diff.out);
-  STOP_DECOMPOSE(divide.Scalar);
   STOP_DECOMPOSE(divide.Scalar_mode);
   STOP_DECOMPOSE(divide.Tensor_mode);
   STOP_DECOMPOSE(divide.out);
@@ -292,12 +291,10 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   STOP_DECOMPOSE(gradient.scalarrayint);
   STOP_DECOMPOSE(gradient.tensorarray);
   STOP_DECOMPOSE(gradient.tensorarrayint);
-  STOP_DECOMPOSE(greater.Scalar);
   STOP_DECOMPOSE(greater.Scalar_out);
   STOP_DECOMPOSE(greater.Tensor_out);
   STOP_DECOMPOSE(greater_.Scalar);
   STOP_DECOMPOSE(greater_.Tensor);
-  STOP_DECOMPOSE(greater_equal.Scalar);
   STOP_DECOMPOSE(greater_equal.Scalar_out);
   STOP_DECOMPOSE(greater_equal.Tensor_out);
   STOP_DECOMPOSE(greater_equal_.Scalar);
@@ -351,12 +348,10 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   STOP_DECOMPOSE(ldexp.Tensor);
   STOP_DECOMPOSE(ldexp.out);
   STOP_DECOMPOSE(ldexp_);
-  STOP_DECOMPOSE(less.Scalar);
   STOP_DECOMPOSE(less.Scalar_out);
   STOP_DECOMPOSE(less.Tensor_out);
   STOP_DECOMPOSE(less_.Scalar);
   STOP_DECOMPOSE(less_.Tensor);
-  STOP_DECOMPOSE(less_equal.Scalar);
   STOP_DECOMPOSE(less_equal.Scalar_out);
   STOP_DECOMPOSE(less_equal.Tensor_out);
   STOP_DECOMPOSE(less_equal_.Scalar);
@@ -424,12 +419,9 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   STOP_DECOMPOSE(mkldnn_convolution_backward_weights);
   STOP_DECOMPOSE(mode.dimname);
   STOP_DECOMPOSE(mode.dimname_out);
-  STOP_DECOMPOSE(moveaxis.int);
-  // STOP_DECOMPOSE(moveaxis.intlist);
   STOP_DECOMPOSE(msort.out);
   STOP_DECOMPOSE(multilabel_margin_loss);
   STOP_DECOMPOSE(multilabel_margin_loss.out);
-  STOP_DECOMPOSE(multiply.Scalar);
   STOP_DECOMPOSE(multiply.out);
   STOP_DECOMPOSE(multiply_.Scalar);
   STOP_DECOMPOSE(multiply_.Tensor);
@@ -441,7 +433,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   STOP_DECOMPOSE(nanquantile.scalar_out);
   STOP_DECOMPOSE(narrow.Tensor);
   STOP_DECOMPOSE(native_layer_norm);
-  // STOP_DECOMPOSE(negative);
   STOP_DECOMPOSE(negative.out);
   STOP_DECOMPOSE(negative_);
   STOP_DECOMPOSE(new_empty);
@@ -458,7 +449,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   STOP_DECOMPOSE(norm_except_dim);
   STOP_DECOMPOSE(normal.float_float);
   STOP_DECOMPOSE(normal.float_float_out);
-  STOP_DECOMPOSE(not_equal.Scalar);
   STOP_DECOMPOSE(not_equal.Scalar_out);
   STOP_DECOMPOSE(not_equal.Tensor_out);
   STOP_DECOMPOSE(not_equal_.Scalar);
@@ -595,7 +585,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   STOP_DECOMPOSE(stft);
   STOP_DECOMPOSE(stride.Dimname);
   STOP_DECOMPOSE(stride.int);
-  STOP_DECOMPOSE(subtract.Scalar);
   STOP_DECOMPOSE(subtract.out);
   STOP_DECOMPOSE(subtract_.Scalar);
   STOP_DECOMPOSE(subtract_.Tensor);
