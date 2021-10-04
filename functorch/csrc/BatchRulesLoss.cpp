@@ -287,7 +287,7 @@ std::tuple<at::Tensor, optional<int64_t>> cosine_similarity_batch_rule(
 
   if (logical_rank == 0)
   {
-    // For, 0-dim tensor we reshape it as [B, 1] and compute over dim=1
+    // For 0-dim tensor, we reshape it as [B, 1] and compute over dim=1
     int64_t dim_ = 1;
     x1_ = x1_.unsqueeze(1);
     x2_ = x2_.unsqueeze(1);
