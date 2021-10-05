@@ -255,16 +255,12 @@ std::tuple<Tensor,optional<int64_t>> _log_softmax_backward_batch_rule(
   return std::make_tuple(at::_log_softmax_backward_data(grad_output_, output_, dim, input_dtype), 0);
 }
 
+// aminmax has divergent behavior for 0-d tenosrs.
+// reference: https://github.com/pytorch/pytorch/issues/64008
+// TODO: Once the divergent behavior for 0-d scalar is fixed, we should use REDUCTION_BOXED_ARGS
 std::tuple<Tensor, optional<int64_t>, Tensor, optional<int64_t>> aminmax_batching_rule(
     const Tensor &self, optional<int64_t> self_bdim, optional<int64_t> dim, bool keep_dim)
 {
-  Tensor min, max;
-  if (!self_bdim.has_value())
-  {
-    std::tie(min, max) = at::aminmax(self, dim, keep_dim);
-    return std::make_tuple(min, self_bdim, max, self_bdim);
-  }
-
   auto self_ = moveBatchDimToFront(self, self_bdim);
   auto logical_rank = rankWithoutBatchDim(self_, self_bdim);
   if (logical_rank == 0) {
@@ -280,11 +276,11 @@ std::tuple<Tensor, optional<int64_t>, Tensor, optional<int64_t>> aminmax_batchin
     dim = 1;
   }
 
+  Tensor min, max;
   std::tie(min, max) = at::aminmax(self_, dim, keep_dim);
 
   if (logical_rank == 0 && self_.device().is_cuda()) {
     // behaviour diverges between cpu and cuda
-    // reference: https://github.com/pytorch/pytorch/issues/64008
     min = min.squeeze(-1);
     max = max.squeeze(-1);
   }
