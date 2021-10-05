@@ -281,6 +281,13 @@ std::tuple<Tensor, optional<int64_t>, Tensor, optional<int64_t>> aminmax_batchin
   }
 
   std::tie(min, max) = at::aminmax(self_, dim, keep_dim);
+
+  if (logical_rank == 0 && self_.device().is_cuda()) {
+    // behaviour diverges between cpu and cuda
+    // reference: https://github.com/pytorch/pytorch/issues/64008
+    min = min.squeeze(-1);
+    max = max.squeeze(-1);
+  }
   return std::make_tuple(min, 0, max, 0);
 }
 
