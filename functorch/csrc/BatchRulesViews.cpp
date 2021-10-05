@@ -381,7 +381,8 @@ std::tuple<Tensor, optional<int64_t>> view_batching_rule(
 
   if (self.numel() == 0) {
     // temp hack!
-    // Tensor with `0` size are very flexible.
+    // Tensor with `0` size are very flexible to figure
+    // where the bdim should be.
     // eg.
     // import torch
     // t = torch.randn(2, 0, 5)
