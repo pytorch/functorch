@@ -283,7 +283,7 @@ std::tuple<Tensor, optional<int64_t>> _reshape_alias_batch_rule(const Tensor& se
   return std::make_tuple(at::reshape(self, new_shape), bdim);
 }
 
-std::tuple<Tensor, optional<int64_t>> roll_batch_rule(const Tensor& self, optional<int64_t> bdim, c10::ArrayRef<long> shifts, c10::ArrayRef<long> dims) {
+std::tuple<Tensor, optional<int64_t>> roll_batch_rule(const Tensor& self, optional<int64_t> bdim, IntArrayRef shifts, IntArrayRef dims) {
   TORCH_INTERNAL_ASSERT(bdim.has_value());
 
   auto self_ = moveBatchDimToFront(self, bdim);
@@ -302,6 +302,18 @@ std::tuple<Tensor, optional<int64_t>> roll_batch_rule(const Tensor& self, option
   return std::make_tuple(output, 0);
 }
 
+std::tuple<Tensor, optional<int64_t>> diagonal_batching_rule(
+    const Tensor &self, optional<int64_t> self_bdim,
+    int64_t offset, int64_t dim1, int64_t dim2)
+{
+  auto logical_rank = rankWithoutBatchDim(self, self_bdim);
+  auto self_ = moveBatchDimToFront(self, self_bdim);
+  auto dim1_ = maybe_wrap_dim(dim1, logical_rank) + 1;
+  auto dim2_ = maybe_wrap_dim(dim2, logical_rank) + 1;
+  auto result = at::diagonal(self_, offset, dim1_, dim2_);
+  return std::make_tuple(std::move(result), 0);
+}
+
 std::tuple<Tensor,optional<int64_t>> diagonal_backward_batch_rule(
     const Tensor& grad_input, optional<int64_t> grad_input_bdim,
     IntArrayRef input_sizes, int64_t offset, int64_t dim1, int64_t dim2) {
@@ -314,6 +326,24 @@ std::tuple<Tensor,optional<int64_t>> diagonal_backward_batch_rule(
   std::copy(input_sizes.begin(), input_sizes.end(), input_sizes_.begin() + 1);
   auto result = at::diagonal_backward(grad_input_, input_sizes_, offset, dim1, dim2);
   return std::make_tuple(std::move(result), 0);
+}
+
+std::tuple<Tensor, optional<int64_t>> permute_batching_rule(
+    const Tensor &self, optional<int64_t> self_bdim, IntArrayRef dims)
+{
+  if (!self_bdim.has_value()) {
+    return std::make_tuple(self.permute(dims), self_bdim);
+  }
+
+  auto self_ = moveBatchDimToFront(self, self_bdim);
+  VmapDimVector dims_;
+  dims_.reserve(dims.size() + 1);
+  dims_.emplace_back(0);
+  for (auto dim : dims) {
+    dims_.emplace_back(getPhysicalDim(self_, self_bdim.has_value(), dim));
+  }
+
+  return std::make_tuple(self_.permute(dims_), 0);
 }
 
 std::tuple<Tensor,optional<int64_t>> select_backward_batch_rule(
@@ -342,7 +372,9 @@ std::tuple<Tensor,optional<int64_t>> slice_backward_batch_rule(
   return std::make_tuple(std::move(result), 0);
 }
 
-std::tuple<Tensor, optional<int64_t>> view_batching_rule(const Tensor& self, optional<int64_t> self_bdim, IntArrayRef size) {
+std::tuple<Tensor, optional<int64_t>> view_batching_rule(
+    const Tensor &self, optional<int64_t> self_bdim, IntArrayRef size)
+{
   if (!self_bdim.has_value()) {
     return std::make_tuple(self.view(size), self_bdim);
   }
@@ -353,6 +385,40 @@ std::tuple<Tensor, optional<int64_t>> view_batching_rule(const Tensor& self, opt
   size_[0] = self_.size(0);
   std::copy(size.cbegin(), size.cend(), size_.begin() + 1);
   return std::make_tuple(self_.view(size_), 0);
+}
+
+std::tuple<Tensor, optional<int64_t>> expand_batch_rule(
+    const Tensor &self, optional<int64_t> self_bdim, IntArrayRef size, bool implicit)
+{
+  auto self_dim = self.dim();
+  TORCH_CHECK(static_cast<uint64_t>(self_dim - 1) <= size.size(),
+              "expand: the number of sizes provided (", size.size(), ") ",
+              "must be greater or equal to the number of dimensions in the tensor (", static_cast<uint64_t>(self_dim - 1), ")");
+
+  auto self_ = moveBatchDimToFront(self, self_bdim);
+  auto self_sizes = self_.sizes();
+  auto batch_size = self_sizes[0];
+
+  c10::SmallBuffer<int64_t, 5> size_(size.size() + 1);
+  size_[0] = batch_size;
+  std::copy(size.cbegin(), size.cend(), size_.begin() + 1);
+
+  // Here, we know we are expanding a (logical) tensor to a larger number
+  // of dimensions. We have to be careful because we can't call expand directly
+  // due to the presence of batch dimensions.
+  //
+  // As an example, let B0 be a batch dimension and consider expand(Tensor[B0, 3], [2, 3]).
+  // The result should be a tensor of size [B0, 2, 3].
+  // A physical view of size [B0, 3] can't directly be expanded to size [B0, 2, 3]
+  // so the strategy here is to view it first as a tensor of size [B0, 1, 3] and
+  // then expand.
+  auto extra_dims = size.size() - (self_dim - 1);
+  VmapDimVector view_shape(size_.size(), /*init_value*/1);
+  view_shape[0] = batch_size;
+  std::copy(self_sizes.cbegin() + 1, self_sizes.cend(),
+            view_shape.begin() + 1 + extra_dims);
+
+  return std::make_tuple(self_.view(view_shape).expand(size_, implicit), 0);
 }
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
@@ -372,10 +438,13 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT("squeeze.dim", squeeze_dim_batch_rule);
   VMAP_SUPPORT("_reshape_alias", _reshape_alias_batch_rule);
   VMAP_SUPPORT("roll", roll_batch_rule);
+  VMAP_SUPPORT("permute", permute_batching_rule);
+  VMAP_SUPPORT("diagonal", diagonal_batching_rule);
   VMAP_SUPPORT("diagonal_backward", diagonal_backward_batch_rule);
   VMAP_SUPPORT("select_backward", select_backward_batch_rule);
   VMAP_SUPPORT("slice_backward", slice_backward_batch_rule);
   VMAP_SUPPORT("view", view_batching_rule);
+  VMAP_SUPPORT("expand", expand_batch_rule);
 }
 
 }}

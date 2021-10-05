@@ -132,49 +132,6 @@ bool isPhysicalScalarTensor(const Tensor& logical_tensor) {
   return true;
 }
 
-Tensor expand_batching_rule(const Tensor& self, IntArrayRef size, bool implicit) {
-  if (!participatesInCurrentLevel(self)) {
-    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-    return self.expand(size, implicit);
-  }
-
-  auto self_physical = MultiBatchVmapTransform::logicalToPhysical(self);
-  auto size_physical = self_physical.getPhysicalShape(size);
-  auto self_physical_dim = self_physical.tensor().dim();
-
-  TORCH_CHECK((uint64_t)self_physical_dim <= size_physical.size(),
-       "expand: the number of sizes provided (", /*logical*/size.size(), ") ",
-       "must be greater or equal to the number of dimensions in the tensor (",
-       /*logical dim*/self.dim(), ")");
-
-  if ((uint64_t)self_physical_dim == size_physical.size()) {
-    auto result = self_physical.tensor().expand(size_physical, implicit);
-    return self_physical.getPhysicalToLogicalMap().apply(result);
-  }
-
-  TORCH_INTERNAL_ASSERT((uint64_t)self_physical_dim < size_physical.size());
-  // Here, we know we are expanding a (logical) tensor to a larger number
-  // of dimensions. We have to be careful because we can't call expand directly
-  // due to the presence of batch dimensions.
-  //
-  // As an example, let B0 be a batch dimension and consider expand(Tensor[B0, 3], [2, 3]).
-  // The result should be a tensor of size [B0, 2, 3].
-  // A physical view of size [B0, 3] can't directly be expanded to size [B0, 2, 3]
-  // so the strategy here is to view it first as a tensor of size [B0, 1, 3] and
-  // then expand.
-  auto self_physical_size = self_physical.tensor().sizes();
-  auto extra_dims = size_physical.size() - self_physical_dim;
-  VmapDimVector view_shape(size_physical.size(), 1);
-  std::copy(self_physical_size.begin(),
-            self_physical_size.begin() + self_physical.numBatchDims(),
-            view_shape.begin());
-  std::copy(self_physical_size.begin() + self_physical.numBatchDims(),
-            self_physical_size.end(),
-            view_shape.begin() + self_physical.numBatchDims() + extra_dims);
-  auto result = self_physical.tensor().view(view_shape).expand(size_physical, implicit);
-  return self_physical.getPhysicalToLogicalMap().apply(result);
-}
-
 std::vector<Tensor> chunk_batching_rule(const Tensor& self, int64_t chunks, int64_t dim) {
   if (!participatesInCurrentLevel(self)) {
     c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
@@ -334,28 +291,6 @@ Tensor transpose_int_batching_rule(const Tensor& self, int64_t dim0, int64_t dim
   return self_physical.getPhysicalToLogicalMap().apply(result);
 }
 
-Tensor permute_batching_rule(const Tensor& self, IntArrayRef dims) {
-  if (!participatesInCurrentLevel(self)) {
-    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-    return self.permute(dims);
-  }
-
-  auto self_physical = MultiBatchVmapTransform::logicalToPhysical(self);
-  auto dims_physical = self_physical.getPhysicalDims(dims);
-
-  VmapDimVector all_dims_physical;
-  all_dims_physical.reserve(self_physical.tensor().dim());
-  for (int64_t bdim = 0; bdim < self_physical.numBatchDims(); bdim++) {
-    all_dims_physical.push_back(bdim);
-  }
-  all_dims_physical.insert(
-      all_dims_physical.end(),
-      dims_physical.begin(),
-      dims_physical.end());
-  auto result = self_physical.tensor().permute(all_dims_physical);
-  return self_physical.getPhysicalToLogicalMap().apply(result);
-}
-
 static int64_t getGradInputPhysicalDim(int64_t dim, IntArrayRef input_sizes, int64_t num_batch_dims) {
   return maybe_wrap_dim(dim, input_sizes.size()) + num_batch_dims;
 }
@@ -397,31 +332,6 @@ Tensor slice_backward_batching_rule(const Tensor& grad, IntArrayRef input_sizes,
   auto grad_input = at::zeros(grad_physical.getPhysicalShape(input_sizes), grad.options());
   auto physical_dim = getGradInputPhysicalDim(dim, input_sizes, grad_physical.numBatchDims());
   grad_input.slice(physical_dim, start, end, step).copy_(grad_physical.tensor());
-  return grad_physical.getPhysicalToLogicalMap().apply(grad_input);
-}
-
-Tensor diagonal_batching_rule(const Tensor& self, int64_t offset, int64_t dim1, int64_t dim2) {
-  if (!participatesInCurrentLevel(self)) {
-    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-    return at::diagonal(self, offset, dim1, dim2);
-  }
-  auto self_physical = MultiBatchVmapTransform::logicalToPhysical(self);
-  auto dim1_physical = self_physical.getPhysicalDim(dim1);
-  auto dim2_physical = self_physical.getPhysicalDim(dim2);
-  auto result = at::diagonal(self_physical.tensor(), offset, dim1_physical, dim2_physical);
-  return self_physical.getPhysicalToLogicalMap().apply(result);
-}
-
-Tensor diagonal_backward_batching_rule(const Tensor& grad, IntArrayRef input_sizes, int64_t offset, int64_t dim1, int64_t dim2) {
-  if (!participatesInCurrentLevel(grad)) {
-    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-    return at::diagonal_backward(grad, input_sizes, offset, dim1, dim2);
-  }
-  auto grad_physical = MultiBatchVmapTransform::logicalToPhysical(grad);
-  auto grad_input = at::zeros(grad_physical.getPhysicalShape(input_sizes), grad.options());
-  auto dim1_physical = getGradInputPhysicalDim(dim1, input_sizes, grad_physical.numBatchDims());
-  auto dim2_physical = getGradInputPhysicalDim(dim2, input_sizes, grad_physical.numBatchDims());
-  grad_input.diagonal(offset, dim1_physical, dim2_physical).copy_(grad_physical.tensor());
   return grad_physical.getPhysicalToLogicalMap().apply(grad_input);
 }
 
@@ -1015,14 +925,11 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   // m.impl("chunk", chunk_batching_rule);
   m.impl("tensor_split.sections", tensor_split_sections_batching_rule);
   m.impl("tensor_split.indices", tensor_split_indices_batching_rule);
-  m.impl("diagonal", diagonal_batching_rule);
-  m.impl("expand", expand_batching_rule);
   m.impl("movedim.intlist", movedim_batching_rule);
   m.impl("movedim.int", static_cast<Tensor(*)(const Tensor&,int64_t,int64_t)>(native::movedim)); // composite wrt autograd
   // NB: static_cast because there's another variant of narrow. However, we don't
   // want to support the other variant yet bc it isn't documented...
   m.impl("numpy_T", native::numpy_T); // composite wrt autograd
-  m.impl("permute", permute_batching_rule);
   m.impl("reshape_as", native::reshape_as); // composite wrt autograd
   m.impl("slice.Tensor", slice_batching_rule);
   m.impl("split.Tensor", split_batching_rule);
@@ -1091,10 +998,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   m.impl("is_same_size", native::is_same_size);
 // //
 // //   // backward operators
-// //   m.impl("select_backward", select_backward_batching_rule);
-// //   m.impl("slice_backward", slice_backward_batching_rule);
 // //   m.impl("trace_backward", trace_backward_batching_rule);
-// //   m.impl("diagonal_backward", diagonal_backward_batching_rule);
 // //
 // //   // Tensor.new_* operators
 //   m.impl("ones_like", ones_like_batching_rule);
