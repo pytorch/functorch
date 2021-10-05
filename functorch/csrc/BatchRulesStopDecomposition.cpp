@@ -6,12 +6,97 @@
 // LICENSE file in the root directory of this source tree.
 
 #include <functorch/csrc/BatchRulesHelper.h>
+#include <ATen/FunctionalTensorWrapper.h>
 #include <ATen/Operators.h>
 #include <functorch/csrc/PlumbingHelper.h>
 #include <functorch/csrc/BatchedFallback.h>
 #include <ATen/core/dispatch/Dispatcher.h>
 
 namespace at { namespace functorch {
+
+at::Tensor sync_and_unwrap_functional_output(at::Tensor out_functional) {
+  TORCH_INTERNAL_ASSERT(at::functionalization::impl::isFunctionalTensor(out_functional));
+  auto out_wrapper_impl = at::functionalization::impl::unsafeGetFunctionalWrapper(out_functional);
+  // sigh.. we can't just call sync(). sync() only runs if the current tensor is "not up to date".
+  // Where "not up to date" is defined as "has any aliases".
+  // Unfortunately at this point, any aliases to `out_functional` will have been deallocated,
+  // So we need to effectively force the sync.
+  out_wrapper_impl->apply_updates();
+  out_wrapper_impl->regenerate_from_base();
+  auto out_unwrapped = out_wrapper_impl->value();
+  return out_unwrapped;
+}
+
+at::TensorList sync_and_unwrap_functional_output(const c10::List<at::Tensor>& t_list) {
+  std::vector<at::Tensor> outputs(t_list.size());
+  for (const auto i : c10::irange(t_list.size())) {
+    outputs[i] = sync_and_unwrap_functional_output(t_list[i]);
+  }
+  return outputs;
+}
+
+void decompose_functional(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
+  const auto& schema = op.schema();
+
+  const auto num_arguments = schema.arguments().size();
+  const auto arguments = torch::jit::last(stack, num_arguments);
+  const auto arguments_begin = stack->size() - num_arguments;
+  //
+  // Step 1: Wrap any tensor inputs into Functional tensors
+  // and put them on the stack at the correct indices.
+  for (const auto idx : c10::irange(arguments.size())) {
+    const auto& ivalue = arguments[idx];
+    if (ivalue.isTensor()) {
+      auto functional_ivalue = at::functionalization::impl::to_functional_tensor(ivalue.toTensor());
+      (*stack)[arguments_begin + idx] = std::move(functional_ivalue);
+    } else if (ivalue.isTensorList()) {
+      auto functional_ivalue = at::functionalization::impl::to_functional_tensor(ivalue.toTensorList());
+      (*stack)[arguments_begin + idx] = std::move(functional_ivalue);
+    }
+  }
+
+  // Step 2: set up TLS such that we hit the functionalization kernels before the batching rules.
+  // Note: this relies on the fact that Functionalization > BatchMode in DispatchKey.h
+  auto excluded_prev = c10::impl::tls_is_dispatch_key_excluded(c10::DispatchKey::Functionalize);
+  auto included_prev = c10::impl::tls_is_dispatch_key_included(c10::DispatchKey::Functionalize);
+  c10::impl::tls_set_dispatch_key_included(c10::DispatchKey::Functionalize, true);
+  c10::impl::tls_set_dispatch_key_excluded(c10::DispatchKey::Functionalize, false);
+
+  // Step 3: redispatch to native kernel
+  // TODO: this is technically kind of sketchy, since we're relying on the fact
+  // that the composite kernel is registered to a particular dispatch key.
+  // In reality, a C++ extension could register their own custom kernels to any dispatch key, which would override
+  // the composite kernel entry.
+  // I'm using CPU because C++ extensions that register custom kernels to existing composite operators are pretty uncommon,
+  // and only really matter for out-of-tree keys like XLA.
+  // I wonder if we should make "alias dispatch key kernels" a runtime-accessible property on the OperatorHandle?
+  op.redispatchBoxed(c10::DispatchKeySet(c10::DispatchKey::CPU), stack);
+
+  const auto& schema_returns = op.schema().returns();
+  const auto& num_returns = schema_returns.size();
+  auto returns = torch::jit::last(stack, num_returns);
+  const auto returns_begin = stack->size() - num_returns;
+
+  // Step 4: Unwrap each functional output tensor, syncing any pending updates
+  for (const auto idx : c10::irange(returns.size())) {
+    if (returns[idx].isTensor()) {
+      const auto& out_functional = returns[idx].toTensor();
+      auto out_unwrapped = sync_and_unwrap_functional_output(out_functional);
+      (*stack)[returns_begin + idx] = c10::IValue(out_unwrapped);
+    } else if (returns[idx].isTensorList()) {
+      const auto& out_functional = returns[idx].toTensorList();
+      auto out_unwrapped = sync_and_unwrap_functional_output(out_functional);
+      (*stack)[returns_begin + idx] = c10::IValue(out_unwrapped);
+    }
+  }
+
+  // Step 5: Revert TLS state to what it was previously
+  c10::impl::tls_set_dispatch_key_included(c10::DispatchKey::Functionalize, included_prev);
+  c10::impl::tls_set_dispatch_key_excluded(c10::DispatchKey::Functionalize, excluded_prev);
+}
+
+#define DECOMPOSE_FUNCTIONAL(op) \
+  m.impl(#op, torch::CppFunction::makeFromBoxedFunction<&decompose_functional>());
 
 #define STOP_DECOMPOSE(op) \
   m.impl(#op, torch::CppFunction::makeFromBoxedFunction<&batchedTensorForLoopFallback>());
@@ -624,7 +709,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   STOP_DECOMPOSE(zeros.out);
 
   // These throw an error in our tests if we remove them
-  STOP_DECOMPOSE(diag_embed);
+  DECOMPOSE_FUNCTIONAL(diag_embed);
   STOP_DECOMPOSE(index_add);
   STOP_DECOMPOSE(index_add.alpha);
   STOP_DECOMPOSE(index_copy);
