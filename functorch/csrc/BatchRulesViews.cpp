@@ -379,12 +379,61 @@ std::tuple<Tensor, optional<int64_t>> view_batching_rule(
     return std::make_tuple(self.view(size), self_bdim);
   }
 
-  auto self_ = moveBatchDimToFront(self, self_bdim);
-  VmapDimVector size_(size.size() + 1);
-  // copy batch size
-  size_[0] = self_.size(0);
-  std::copy(size.cbegin(), size.cend(), size_.begin() + 1);
-  return std::make_tuple(self_.view(size_), 0);
+  if (self.numel() == 0) {
+    // temp hack!
+    // Tensor with `0` size are very flexible.
+    // eg.
+    // import torch
+    // t = torch.randn(2, 0, 5)
+    // t.view(0, 0, 0)
+    // t.view(0, 100, 0)
+    // t.view(0, 1, 1053)
+    // probably we should just verify that
+    // there is no `-1` and product of new shape is `0`.
+    auto self_ = moveBatchDimToFront(self, self_bdim);
+    VmapDimVector size_(size.size() + 1);
+    size_[0] = self_.size(0);
+    std::copy(size.cbegin(), size.cend(), size_.begin() + 1);
+    return std::make_tuple(self_.view(size_), 0);
+  }
+
+  IntArrayRef self_sizes = self.sizes();
+
+  // number of elements before the current batch dim
+  auto numel_before_bdim = std::accumulate(self_sizes.begin(), self_sizes.begin() + self_bdim.value(), 1);
+  auto bdim_size = self.size(self_bdim.value());
+
+  auto numel_without_bdim = self.numel() / bdim_size;
+
+  auto numel_without_minus_one = 1;
+  for (auto s : size) {
+    if (s != -1) {
+      numel_without_minus_one *= s;
+    }
+  }
+
+  // only used if there is a `-1`
+  auto infer_dim_size = (numel_without_bdim / numel_without_minus_one);
+  auto new_batch_idx = -1;
+  auto running_numel = 1;
+  for (size_t idx = 0; idx < size.size(); ++idx) {
+    if (running_numel == numel_before_bdim) {
+      new_batch_idx = idx;
+      break;
+    }
+    auto dim_size = size[idx];
+    running_numel *=  dim_size == -1 ? infer_dim_size : dim_size;
+  }
+  // if batch was the last dim
+  if (new_batch_idx == -1) {
+    new_batch_idx = size.size();
+  }
+
+  VmapDimVector size_(size.size());
+  std::copy(size.cbegin(), size.cend(), size_.begin());
+  size_.insert(size_.begin() + new_batch_idx, bdim_size);
+  auto result = self.view(size_);
+  return std::make_tuple(std::move(result), new_batch_idx);
 }
 
 std::tuple<Tensor, optional<int64_t>> expand_batch_rule(
