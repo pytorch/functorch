@@ -255,6 +255,35 @@ std::tuple<Tensor,optional<int64_t>> _log_softmax_backward_batch_rule(
   return std::make_tuple(at::_log_softmax_backward_data(grad_output_, output_, dim, input_dtype), 0);
 }
 
+std::tuple<Tensor, optional<int64_t>, Tensor, optional<int64_t>> aminmax_batching_rule(
+    const Tensor &self, optional<int64_t> self_bdim, optional<int64_t> dim, bool keep_dim)
+{
+  Tensor min, max;
+  if (!self_bdim.has_value())
+  {
+    std::tie(min, max) = at::aminmax(self, dim, keep_dim);
+    return std::make_tuple(min, self_bdim, max, self_bdim);
+  }
+
+  auto self_ = moveBatchDimToFront(self, self_bdim);
+  auto logical_rank = rankWithoutBatchDim(self_, self_bdim);
+  if (logical_rank == 0) {
+    self_ = self_.unsqueeze(-1);
+  }
+
+  if (dim.has_value()) {
+    dim = maybe_wrap_dim(dim.value(), logical_rank) + 1;
+  } else {
+    // flatten the input except for batch-dim
+    auto bsize = self.size(0);
+    self_ = self.view({bsize, -1});
+    dim = 1;
+  }
+
+  std::tie(min, max) = at::aminmax(self_, dim, keep_dim);
+  return std::make_tuple(min, 0, max, 0);
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   REDUCTION_BOXED(_fft_r2c);
   REDUCTION_BOXED(_fft_c2r);
@@ -306,6 +335,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   REDUCTION_BOXED(var_mean.correction);
   REDUCTION_BOXED(_log_softmax);
   REDUCTION_BOXED_ARGS(rot90, 2);
+  VMAP_SUPPORT("aminmax", aminmax_batching_rule);
 
   VMAP_SUPPORT("_log_softmax_backward_data", _log_softmax_backward_batch_rule);
   VMAP_SUPPORT("_softmax_backward_data", _softmax_backward_batch_rule);
