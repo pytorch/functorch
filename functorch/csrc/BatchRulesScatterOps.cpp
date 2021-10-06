@@ -196,11 +196,15 @@ int64_t bdim_size(
   TORCH_INTERNAL_ASSERT(false);
 }
 
-std::tuple<Tensor,optional<int64_t>> scatter_value_batch_rule(
+namespace {
+
+template<typename Func, typename ...Args>
+std::tuple<Tensor,optional<int64_t>> scatter_batch_rule(
+    Func f,
     const Tensor& self, optional<int64_t> self_bdim,
     int64_t dim,
     const Tensor& index, optional<int64_t> index_bdim,
-    const Scalar& value) {
+    const Scalar& value, Args... args) {
   auto self_logical_rank = rankWithoutBatchDim(self, self_bdim);
   auto index_logical_rank = rankWithoutBatchDim(index, index_bdim);
   auto batch_size = bdim_size(self, self_bdim, index, index_bdim);
@@ -218,7 +222,7 @@ std::tuple<Tensor,optional<int64_t>> scatter_value_batch_rule(
   index_ = ensure_has_bdim(index_, index_bdim.has_value(), batch_size);
   auto physical_dim = getPhysicalDim(self_, /*has_batch_dim*/true, dim);
 
-  auto result = at::scatter(self_, physical_dim, index_, value);
+  auto result = f(self_, physical_dim, index_, value, args...);
   // result should have same shape as self
   if (self_logical_rank == 0) {
     result = result.squeeze(-1);
@@ -226,15 +230,13 @@ std::tuple<Tensor,optional<int64_t>> scatter_value_batch_rule(
   return std::make_tuple(result, 0);
 }
 
-namespace {
-
-template <typename Func>
+template <typename Func, typename ...Args>
 inline std::tuple<Tensor,optional<int64_t>> scatter_batch_rule(
     Func f,
     const Tensor& self, optional<int64_t> self_bdim,
     int64_t dim,
     const Tensor& index, optional<int64_t> index_bdim,
-    const Tensor& src, optional<int64_t> src_bdim) {
+    const Tensor& src, optional<int64_t> src_bdim, Args... args) {
   auto self_logical_rank = rankWithoutBatchDim(self, self_bdim);
   auto index_logical_rank = rankWithoutBatchDim(index, index_bdim);
   auto src_logical_rank = rankWithoutBatchDim(src, src_bdim);
@@ -258,7 +260,7 @@ inline std::tuple<Tensor,optional<int64_t>> scatter_batch_rule(
   src_ = ensure_has_bdim(src_, src_bdim.has_value(), batch_size);
   auto physical_dim = getPhysicalDim(self_, /*has_batch_dim*/true, dim);
 
-  auto result = f(self_, physical_dim, index_, src_);
+  auto result = f(self_, physical_dim, index_, src_, args...);
   // result should have same shape as self
   if (self_logical_rank == 0) {
     result = result.squeeze(-1);
@@ -267,6 +269,15 @@ inline std::tuple<Tensor,optional<int64_t>> scatter_batch_rule(
 }
 
 } // namespace
+
+std::tuple<Tensor,optional<int64_t>> scatter_value_batch_rule(
+    const Tensor& self, optional<int64_t> self_bdim,
+    int64_t dim,
+    const Tensor& index, optional<int64_t> index_bdim,
+    const Scalar& value) {
+  return scatter_batch_rule(ATEN_FN2(scatter, value),
+                            self, self_bdim, dim, index, index_bdim, value);
+}
 
 std::tuple<Tensor,optional<int64_t>> scatter_src_batch_rule(
     const Tensor& self, optional<int64_t> self_bdim,
@@ -284,6 +295,28 @@ std::tuple<Tensor,optional<int64_t>> scatter_add_batch_rule(
     const Tensor& src, optional<int64_t> src_bdim) {
   return scatter_batch_rule(ATEN_FN(scatter_add),
                             self, self_bdim, dim, index, index_bdim, src, src_bdim);
+}
+
+std::tuple<Tensor,optional<int64_t>> scatter_reduce_batch_rule(
+    const Tensor& self, optional<int64_t> self_bdim,
+    int64_t dim,
+    const Tensor& index, optional<int64_t> index_bdim,
+    const Tensor& src, optional<int64_t> src_bdim,
+    const c10::string_view reduce) {
+  using scatter_reduce_value_sig = Tensor (*)(const Tensor&, int64_t, const Tensor&, const Tensor&, const c10::string_view reduce);
+  return scatter_batch_rule(ATEN_FN2(scatter, reduce),
+                            self, self_bdim, dim, index, index_bdim, src, src_bdim, reduce);
+}
+
+std::tuple<Tensor,optional<int64_t>> scatter_value_reduce_batch_rule(
+    const Tensor& self, optional<int64_t> self_bdim,
+    int64_t dim,
+    const Tensor& index, optional<int64_t> index_bdim,
+    const Scalar& src,
+    const c10::string_view reduce) {
+  using scatter_reduce_value_sig = Tensor (*)(const Tensor&, int64_t, const Tensor&, const Scalar&, const c10::string_view reduce);
+  return scatter_batch_rule(ATEN_FN2(scatter, value_reduce),
+                            self, self_bdim, dim, index, index_bdim, src, reduce);
 }
 
 std::tuple<Tensor,optional<int64_t>> gather_batch_rule(
@@ -361,6 +394,8 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT("scatter.value", scatter_value_batch_rule);
   VMAP_SUPPORT("scatter.src", scatter_src_batch_rule);
   VMAP_SUPPORT("scatter_add", scatter_add_batch_rule);
+  VMAP_SUPPORT("scatter.reduce", scatter_reduce_batch_rule);
+  VMAP_SUPPORT("scatter.value_reduce", scatter_value_reduce_batch_rule);
 }
 
 }}
