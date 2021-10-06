@@ -219,7 +219,7 @@ std::tuple<Tensor,optional<int64_t>> scatter_value_batch_rule(
   auto physical_dim = getPhysicalDim(self_, /*has_batch_dim*/true, dim);
 
   auto result = at::scatter(self_, physical_dim, index_, value);
-  // result should have same shape as self
+  // result should have same rank as self
   if (self_logical_rank == 0) {
     result = result.squeeze(-1);
   }
@@ -259,7 +259,7 @@ inline std::tuple<Tensor,optional<int64_t>> scatter_batch_rule(
   auto physical_dim = getPhysicalDim(self_, /*has_batch_dim*/true, dim);
 
   auto result = f(self_, physical_dim, index_, src_);
-  // result should have same shape as self
+  // result should have same rank as self
   if (self_logical_rank == 0) {
     result = result.squeeze(-1);
   }
@@ -309,7 +309,7 @@ std::tuple<Tensor,optional<int64_t>> gather_batch_rule(
   auto physical_dim = getPhysicalDim(self_, /*has_batch_dim*/true, dim);
 
   auto result = at::gather(self_, physical_dim, index_, sparse_grad);
-  // result should have same shape as index
+  // result should have same rank as index
   if (index_logical_rank == 0) {
     result = result.squeeze(-1);
   }
@@ -346,7 +346,7 @@ std::tuple<Tensor,optional<int64_t>> gather_backward_batch_rule(
 
   auto physical_dim = getPhysicalDim(self_, /*has_batch_dim*/true, dim);
   auto result = at::gather_backward(grad_, self_, physical_dim, index_, sparse_grad);
-  // result should has same shape as self
+  // result should has same rank as self
   if (self_logical_rank == 0) {
     result = result.squeeze(-1);
   }
@@ -395,7 +395,7 @@ std::tuple<Tensor, optional<int64_t>> index_select_batch_rule(
   }
 
   auto result = at::gather(self_, physical_dim, index_);
-  // result should have same shape as self
+  // result should have same rank as self
   if (self_logical_rank == 0) {
     result = result.squeeze(-1);
   }
