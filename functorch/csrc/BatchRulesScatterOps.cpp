@@ -273,8 +273,7 @@ std::tuple<Tensor,optional<int64_t>> scatter_src_batch_rule(
     int64_t dim,
     const Tensor& index, optional<int64_t> index_bdim,
     const Tensor& src, optional<int64_t> src_bdim) {
-  using scatter_sig = Tensor (*)(const Tensor&, int64_t, const Tensor&, const Tensor&);
-  return scatter_batch_rule(static_cast<scatter_sig>(at::scatter),
+  return scatter_batch_rule(ATEN_FN2(scatter, src),
                             self, self_bdim, dim, index, index_bdim, src, src_bdim);
 }
 
@@ -283,8 +282,7 @@ std::tuple<Tensor,optional<int64_t>> scatter_add_batch_rule(
     int64_t dim,
     const Tensor& index, optional<int64_t> index_bdim,
     const Tensor& src, optional<int64_t> src_bdim) {
-  using scatter_add_sig = Tensor (*)(const Tensor&, int64_t, const Tensor&, const Tensor&);
-  return scatter_batch_rule(static_cast<scatter_add_sig>(at::scatter_add),
+  return scatter_batch_rule(ATEN_FN(scatter_add),
                             self, self_bdim, dim, index, index_bdim, src, src_bdim);
 }
 
