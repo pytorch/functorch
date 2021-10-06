@@ -375,10 +375,7 @@ std::tuple<Tensor,optional<int64_t>> slice_backward_batch_rule(
 std::tuple<Tensor, optional<int64_t>> view_batching_rule(
     const Tensor &self, optional<int64_t> self_bdim, IntArrayRef size)
 {
-  if (!self_bdim.has_value()) {
-    return std::make_tuple(self.view(size), self_bdim);
-  }
-
+  TORCH_INTERNAL_ASSERT(self_bdim.has_value());
   auto self_ = moveBatchDimToFront(self, self_bdim);
   VmapDimVector size_(size.size() + 1);
   // copy batch size
