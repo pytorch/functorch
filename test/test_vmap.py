@@ -2975,7 +2975,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         # These are ops that we can't generate fallbacks for
         xfail('broadcast_to'),
         xfail('dsplit'),
-        xfail('fill_'),
         xfail('gradient'),
         xfail('hsplit'),
         xfail('nn.functional.pad', 'circular'),
@@ -2986,22 +2985,16 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('tensor_split'),
         xfail('to_sparse'),
         xfail('vsplit'),
-        xfail('hstack'),
-        xfail('vstack'),
-        xfail('dstack'),
         xfail('linalg.multi_dot'),
         xfail('nanmean'),
-        xfail('block_diag'),
-        xfail('nn.functional.dropout'),
 
-        # entries in here need don't work and need to be fixed.
+        # entries in here don't work and need to be fixed.
         # Each one of these is a bug
-        xfail('unfold'),
+        # xfail('unfold'),
         xfail('svd', device_type='cuda'),
         xfail('linalg.svd', device_type='cuda'),
-        xfail('index_put'),
-        xfail('nn.functional.max_pool2d'),
-        xfail('nn.functional.batch_norm'),
+        # xfail('nn.functional.max_pool2d'),
+        # xfail('nn.functional.batch_norm'),
     })
     def test_vmap_exhaustive(self, device, dtype, op):
         sample_inputs_itr = op.sample_inputs(device, dtype, requires_grad=False)
