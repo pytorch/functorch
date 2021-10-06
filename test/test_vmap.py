@@ -2975,6 +2975,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         # These are ops that we can't generate fallbacks for
         xfail('broadcast_to'),
         xfail('dsplit'),
+        xfail('fill_'),
         xfail('gradient'),
         xfail('hsplit'),
         xfail('nn.functional.pad', 'circular'),
@@ -2985,21 +2986,26 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('tensor_split'),
         xfail('to_sparse'),
         xfail('vsplit'),
+        xfail('hstack'),
+        xfail('vstack'),
+        xfail('dstack'),
         xfail('linalg.multi_dot'),
         xfail('nanmean'),
+        xfail('block_diag'),
+        xfail('nn.functional.dropout'),
 
         # entries in here don't work and need to be fixed.
         # Each one of these is a bug
-        # xfail('unfold'),
+        xfail('unfold'),
         xfail('svd', device_type='cuda'),
         xfail('linalg.svd', device_type='cuda'),
-        # xfail('nn.functional.max_pool2d'),
-        # xfail('nn.functional.batch_norm'),
+        xfail('index_put'),
+        xfail('nn.functional.max_pool2d'),
+        xfail('nn.functional.batch_norm'),
     })
     def test_vmap_exhaustive(self, device, dtype, op):
         sample_inputs_itr = op.sample_inputs(device, dtype, requires_grad=False)
-        # for sample_input in sample_inputs_itr:
-        for sample_input in list(sample_inputs_itr)[1:2]:
+        for sample_input in sample_inputs_itr:
             arg_values = [sample_input.input] + list(sample_input.args)
             kwarg_values = sample_input.kwargs
             try:
