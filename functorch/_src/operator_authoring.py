@@ -5,6 +5,7 @@ import itertools
 from typing import Callable, List, Union, Tuple, Optional
 
 import torch
+import operator
 from torch import fx
 from torch._C import _te  # type: ignore[attr-defined]
 from functorch._C import CompileCache, CompileResult
@@ -40,18 +41,32 @@ def _combine_dtype(a: torch.dtype, b: torch.dtype):
     ).dtype
 
 
-def _fx_replace_constants(fn: Callable, dtype: torch.dtype):
-    """Convert the constants in the user function to TensorExpr constants"""
-
+def _fx_to_expr_handle(fn: Callable, dtype: torch.dtype):
+    """Returns an equivalent ExprHandle"""
     def apply(arg):
         if isinstance(arg, (int, float)):
             return gm.graph.create_node("call_function", _create_constant, (arg, dtype))
         return arg
 
+    torch_to_te_map = {
+        torch.sqrt: _te.sqrt,
+        torch.log: _te.log,
+    }
+
     gm: fx.GraphModule = fx.symbolic_trace(fn)
+
     for node in list(gm.graph.nodes):
         with gm.graph.inserting_before(node):
             node.args = tuple(apply(a) for a in node.args)
+            if node.op == "call_function" and node.target in torch_to_te_map:
+                # Create a parser function to capture the mapping_fn
+                mapping_fn = torch_to_te_map[node.target]
+                def _parser(args):
+                    return mapping_fn(*args)
+
+                new_node = gm.graph.create_node("call_function", _parser, (node.args, ))
+                node.replace_all_uses_with(new_node)
+                gm.graph.erase_node(node)
     gm.recompile()
     return gm
 
@@ -298,7 +313,7 @@ class PointwiseCompiler(object):
             _te.Cast.make(self.dtype, buf.load(self.indexing(stride)))
             for buf, stride in zip(input_bufs, input_strides)
         ]
-        val = _fx_replace_constants(self.pointwise_fn, self.dtype)(*inputs)
+        val = _fx_to_expr_handle(self.pointwise_fn, self.dtype)(*inputs)
         out = _te.Block(
             [
                 buf.store(self.indexing(stride), val)
