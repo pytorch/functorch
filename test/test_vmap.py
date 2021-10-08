@@ -2993,7 +2993,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('block_diag'),
         xfail('nn.functional.dropout'),
 
-        # entries in here need don't work and need to be fixed.
+        # entries in here don't work and need to be fixed.
         # Each one of these is a bug
         xfail('unfold'),
         xfail('svd', device_type='cuda'),
@@ -3039,7 +3039,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('index_copy'),
         xfail('index_fill'),
         xfail('index_put'),
-        xfail('index_select'),
         xfail('isin'),
         xfail('linalg.cholesky'),
         xfail('linalg.eigvals'),
