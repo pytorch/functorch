@@ -351,6 +351,7 @@ class TestOperators(TestCase):
         xfail('block_diag'),
         xfail('nn.functional.dropout'),
         xfail('nn.functional.max_pool2d'),
+        xfail('nn.functional.nll_loss'),
     }))
     def test_vmapvjp(self, device, dtype, op):
         # These are too annoying to put into the list above
@@ -437,7 +438,6 @@ class TestOperators(TestCase):
         xfail('nanmedian'),
         xfail('nanquantile'),
         xfail('nn.functional.adaptive_avg_pool2d'),
-        xfail('nn.functional.avg_pool2d'),
         xfail('nn.functional.conv_transpose2d'),
         xfail('nn.functional.cross_entropy', 'mean'),
         xfail('nn.functional.cross_entropy', 'none'),
@@ -506,7 +506,6 @@ class TestOperators(TestCase):
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vjpvmap', vjp_fail.union({
         xfail('__getitem__'),
-        xfail('broadcast_to'),
         xfail('clamp', ''),
         xfail('dsplit'),
         xfail('fill_'),
@@ -527,6 +526,7 @@ class TestOperators(TestCase):
         xfail('block_diag'),
         xfail('nn.functional.max_pool2d'),
         xfail('nn.functional.batch_norm'),
+        xfail('nn.functional.nll_loss'),
     }))
     def test_vjpvmap(self, device, dtype, op):
         # NB: there is no vjpvmap_has_batch_rule test because that is almost

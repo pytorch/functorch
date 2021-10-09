@@ -159,7 +159,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   STOP_DECOMPOSE(blackman_window);
   STOP_DECOMPOSE(blackman_window.periodic);
   STOP_DECOMPOSE(block_diag);
-  STOP_DECOMPOSE(broadcast_to);
   STOP_DECOMPOSE(can_cast);
   STOP_DECOMPOSE(cartesian_prod);
   STOP_DECOMPOSE(cat.names);
@@ -196,7 +195,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   STOP_DECOMPOSE(cumsum.dimname_out);
   STOP_DECOMPOSE(cumsum_.dimname);
   STOP_DECOMPOSE(data);
-  STOP_DECOMPOSE(diagflat);
   STOP_DECOMPOSE(diagonal.Dimname);
   STOP_DECOMPOSE(diff.out);
   STOP_DECOMPOSE(divide.out);
@@ -505,7 +503,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   STOP_DECOMPOSE(randperm.out);
   STOP_DECOMPOSE(range);
   STOP_DECOMPOSE(range.step);
-  STOP_DECOMPOSE(ravel);
   STOP_DECOMPOSE(refine_names);
   STOP_DECOMPOSE(rename);
   STOP_DECOMPOSE(rename_);

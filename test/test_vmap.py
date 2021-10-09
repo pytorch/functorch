@@ -2973,7 +2973,6 @@ class TestVmapOperatorsOpInfo(TestCase):
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestVmapOperatorsOpInfo', 'test_vmap_exhaustive', {
         # These are ops that we can't generate fallbacks for
-        xfail('broadcast_to'),
         xfail('dsplit'),
         xfail('fill_'),
         xfail('gradient'),
@@ -2994,7 +2993,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('block_diag'),
         xfail('nn.functional.dropout'),
 
-        # entries in here need don't work and need to be fixed.
+        # entries in here don't work and need to be fixed.
         # Each one of these is a bug
         xfail('unfold'),
         xfail('svd', device_type='cuda'),
@@ -3002,6 +3001,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('index_put'),
         xfail('nn.functional.max_pool2d'),
         xfail('nn.functional.batch_norm'),
+        xfail('nn.functional.nll_loss'),
     })
     def test_vmap_exhaustive(self, device, dtype, op):
         sample_inputs_itr = op.sample_inputs(device, dtype, requires_grad=False)
@@ -3023,7 +3023,6 @@ class TestVmapOperatorsOpInfo(TestCase):
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestVmapOperatorsOpInfo', 'test_op_has_batch_rule', {
         # xfail('__getitem__'),
-        xfail('broadcast_to'),
         xfail('cdist'),
         xfail('complex'),
         xfail('copysign'),
@@ -3041,7 +3040,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('index_copy'),
         xfail('index_fill'),
         xfail('index_put'),
-        xfail('index_select'),
         xfail('isin'),
         xfail('linalg.cholesky'),
         xfail('linalg.eigvals'),
