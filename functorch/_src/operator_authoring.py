@@ -8,6 +8,7 @@ import torch
 from torch import fx
 from torch._C import _te  # type: ignore[attr-defined]
 from functorch._C import CompileCache, CompileResult
+from functorch import make_fx
 
 FOLD_ALIASES = True
 _SHAPE_TYPES = {"one", "other"}
@@ -145,6 +146,67 @@ class PointwiseCompiler(object):
             module_name=self.module_name,
         )
 
+    def make_backwards_via_fx(self, index: int):
+        def create_joint_forward_backward(fn):
+            def joint_forward_backward(primals, tangents):
+                out = fn(*primals)
+                # primals = [p for p in pytree.tree_flatten(primals)[0] if p.requires_grad]
+                backward_out = []
+                if primals:
+                    backward_out = torch.autograd.grad(out, primals[index], grad_outputs=tangents, create_graph=True, allow_unused=True)
+                return backward_out
+            return joint_forward_backward
+
+        # Create list of primals
+        primals = list()
+        for arg_index in range(_num_args(self.pointwise_fn)):
+            requires_grad = self.spec[arg_index].requires_grad
+            proxy_shape = [2] * self.spec[arg_index].ndim
+            primals.append(torch.rand(proxy_shape, requires_grad=requires_grad))
+
+        # call forward to get tangents
+        out = self.pointwise_fn(*primals)
+
+        joint_forward_backward = create_joint_forward_backward(self.pointwise_fn)
+        with torch.enable_grad():
+            fx_g = make_fx(joint_forward_backward)(primals, out)
+
+        # Remove pytree info
+        fx_g.graph._pytree_info = None
+        fx_g.recompile()
+        print(fx_g)
+
+        """
+        Above code prints the following joint fwd/bwd graph
+        Note that name forward is misleading here. It is doing both forward and backward.
+
+        I need to somehow get this function and pass it to pointwise_operator
+        def forward(self, primals_1, primals_2, primals_3, tangents_1):
+            mul = torch.ops.aten.mul(primals_1, primals_2)
+            mul_1 = torch.ops.aten.mul(mul, primals_3)
+            mul_2 = torch.ops.aten.mul(tangents_1, mul);  mul = None
+            mul_3 = torch.ops.aten.mul(tangents_1, primals_3);  tangents_1 = primals_3 = None
+            mul_4 = torch.ops.aten.mul(mul_3, primals_1);  primals_1 = None
+            mul_5 = torch.ops.aten.mul(mul_3, primals_2);  mul_3 = primals_2 = None
+            return [mul_5]
+        """
+
+        raise NotImplementedError("Missing connected from fx_g to the pointwise_operator call")
+
+        # Todo - How to write lambda with varargs that works with fx_g
+        # if _num_args(self.pointwise_fn) == 1:
+        #     fn = lambda x, v: fx_g(x, v)[index]
+        # elif _num_args(self.pointwise_fn) == 2:
+        #     fn = lambda x, y, v: fx_g(x, y, v)[index]
+        # elif _num_args(self.pointwise_fn) == 3:
+        #     fn = lambda x, y, z, v: fx_g(x, y, z, v)[index]
+        # print(fn(*primals, out))
+        # return _source_to_pointwise_operator1(
+        #     fn,
+        #     name=f"{self.name}.backwards{index}",
+        #     module_name=self.module_name)
+
+
     def handle_autograd(self):
         cnt = sum(int(x.requires_grad) for x in self.spec)
         if cnt == 0:
@@ -162,7 +224,8 @@ class PointwiseCompiler(object):
                     assert (
                         len(shape_types) == 1
                     ), "TODO: support backwards for broadcasting"
-                self.result.set_backwards(i, self.make_backwards(i))
+                # self.result.set_backwards(i, self.make_backwards(i))
+                self.result.set_backwards(i, self.make_backwards_via_fx(i))
 
     def compute_broadcasts_and_size_checks(self):
         ndim = self.ndim
