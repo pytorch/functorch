@@ -3,6 +3,7 @@ import functools
 import inspect
 import itertools
 from typing import Callable, List, Union, Tuple, Optional
+import operator
 
 import torch
 from torch import fx
@@ -12,6 +13,87 @@ from functorch._C import CompileCache, CompileResult
 FOLD_ALIASES = True
 _SHAPE_TYPES = {"one", "other"}
 _STRIDE_TYPES = {"zero", "one", "contiguous", "transposed_contiguous", "as_arg"}
+_TORCH_TO_EXPR_MAP = {
+    torch.sin: _te.sin,
+    torch.cos: _te.cos,
+    torch.tan: _te.tan,
+    torch.asin: _te.asin,
+    torch.acos: _te.acos,
+    torch.atan: _te.atan,
+    torch.sinh: _te.sinh,
+    torch.cosh: _te.cosh,
+    torch.tanh: _te.tanh,
+    torch.sigmoid: _te.sigmoid,
+    torch.exp: _te.exp,
+    torch.expm1: _te.expm1,
+    torch.abs: _te.abs,
+    torch.log: _te.log,
+    torch.log2: _te.log2,
+    torch.log10: _te.log10,
+    torch.log1p: _te.log1p,
+    torch.erf: _te.erf,
+    torch.erfc: _te.erfc,
+    torch.sqrt: _te.sqrt,
+    torch.rsqrt: _te.rsqrt,
+    torch.ceil: _te.ceil,
+    torch.floor: _te.floor,
+    torch.round: _te.round,
+    torch.trunc: _te.trunc,
+    torch.frac: _te.frac,
+    torch.lgamma: _te.lgamma,
+    torch.isnan: _te.isnan,
+    torch.add: operator.add,
+    torch.sub: operator.sub,
+    torch.subtract: operator.sub,
+    torch.mul: operator.mul,
+    torch.multiply: operator.mul,
+    torch.divide: operator.truediv,
+    torch.div: operator.truediv,
+    torch.remainder: _te.remainder,
+    torch.fmod: _te.fmod,
+    torch.pow: _te.pow,
+    torch.atan2: _te.atan2,
+    # A copy of aten ops
+    torch.ops.aten.sin: _te.sin,
+    torch.ops.aten.cos: _te.cos,
+    torch.ops.aten.tan: _te.tan,
+    torch.ops.aten.asin: _te.asin,
+    torch.ops.aten.acos: _te.acos,
+    torch.ops.aten.atan: _te.atan,
+    torch.ops.aten.sinh: _te.sinh,
+    torch.ops.aten.cosh: _te.cosh,
+    torch.ops.aten.tanh: _te.tanh,
+    torch.ops.aten.sigmoid: _te.sigmoid,
+    torch.ops.aten.exp: _te.exp,
+    torch.ops.aten.expm1: _te.expm1,
+    torch.ops.aten.abs: _te.abs,
+    torch.ops.aten.log: _te.log,
+    torch.ops.aten.log2: _te.log2,
+    torch.ops.aten.log10: _te.log10,
+    torch.ops.aten.log1p: _te.log1p,
+    torch.ops.aten.erf: _te.erf,
+    torch.ops.aten.erfc: _te.erfc,
+    torch.ops.aten.sqrt: _te.sqrt,
+    torch.ops.aten.rsqrt: _te.rsqrt,
+    torch.ops.aten.ceil: _te.ceil,
+    torch.ops.aten.floor: _te.floor,
+    torch.ops.aten.round: _te.round,
+    torch.ops.aten.trunc: _te.trunc,
+    torch.ops.aten.frac: _te.frac,
+    torch.ops.aten.lgamma: _te.lgamma,
+    torch.ops.aten.isnan: _te.isnan,
+    torch.ops.aten.add: operator.add,
+    torch.ops.aten.sub: operator.sub,
+    torch.ops.aten.subtract: operator.sub,
+    torch.ops.aten.mul: operator.mul,
+    torch.ops.aten.multiply: operator.mul,
+    torch.ops.aten.divide: operator.truediv,
+    torch.ops.aten.div: operator.truediv,
+    torch.ops.aten.remainder: _te.remainder,
+    torch.ops.aten.fmod: _te.fmod,
+    torch.ops.aten.pow: _te.pow,
+    torch.ops.aten.atan2: _te.atan2,
+}
 _int = _te.ExprHandle.int
 
 
@@ -40,8 +122,14 @@ def _combine_dtype(a: torch.dtype, b: torch.dtype):
     ).dtype
 
 
-def _fx_replace_constants(fn: Callable, dtype: torch.dtype):
-    """Convert the constants in the user function to TensorExpr constants"""
+def _torch_to_expr_handle(torch_op):
+    if torch_op not in _TORCH_TO_EXPR_MAP:
+        return torch_op
+    return _TORCH_TO_EXPR_MAP[torch_op]
+
+
+def _fx_to_expr(fn: Callable, dtype: torch.dtype):
+    """Convert the fx graph to equivalent Tensor Expr"""
 
     def apply(arg):
         if isinstance(arg, (int, float)):
@@ -52,6 +140,15 @@ def _fx_replace_constants(fn: Callable, dtype: torch.dtype):
     for node in list(gm.graph.nodes):
         with gm.graph.inserting_before(node):
             node.args = tuple(apply(a) for a in node.args)
+            if node.op == "call_function":
+                expr_handle_fn = _torch_to_expr_handle(node.target)
+
+                def _parser(args):
+                    return expr_handle_fn(*args)
+
+                new_node = gm.graph.create_node("call_function", _parser, (node.args,))
+                node.replace_all_uses_with(new_node)
+                gm.graph.erase_node(node)
     gm.recompile()
     return gm
 
@@ -298,7 +395,7 @@ class PointwiseCompiler(object):
             _te.Cast.make(self.dtype, buf.load(self.indexing(stride)))
             for buf, stride in zip(input_bufs, input_strides)
         ]
-        val = _fx_replace_constants(self.pointwise_fn, self.dtype)(*inputs)
+        val = _fx_to_expr(self.pointwise_fn, self.dtype)(*inputs)
         out = _te.Block(
             [
                 buf.store(self.indexing(stride), val)
