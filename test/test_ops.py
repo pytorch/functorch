@@ -118,8 +118,7 @@ def get_vjpfull_variant(f, sample):
     fn, primals = normalize_op_for_vjp(f, sample)
     result = fn(*primals)
     cotangents = _as_tuple(
-        # tree_map(lambda x: torch.randn_like(x, requires_grad=True), result))
-        tree_map(lambda x: torch.ones_like(x, requires_grad=True), result))
+        tree_map(lambda x: torch.randn_like(x, requires_grad=True), result))
     num_primals = len(primals)
     args = (*primals, *cotangents)
 
@@ -379,17 +378,8 @@ class TestOperators(TestCase):
             return
 
         for sample in samples:
-            if not (
-                tuple(sample.input.shape) == tuple([2, 3]) and \
-                tuple(sample.args[0].shape) == tuple([2, ]) and \
-                sample.kwargs.get("reduction", None) == "mean"
-            ):
-                continue
-            print("-- Sample:", sample.input.shape, sample.args[0].shape, sample.args[1:], sample.kwargs, sample.output_process_fn_grad)
             fn, args = get_vjpfull_variant(op, sample)
             for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}):
-                print("-- loop_out:", loop_out)
-                print("-- batched_out:", batched_out)
                 self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
