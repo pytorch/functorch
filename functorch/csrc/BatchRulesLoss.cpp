@@ -67,52 +67,6 @@ mse_loss_backward_batch_rule(
   return std::make_tuple(result, 0);
 };
 
-// std::tuple<at::Tensor,optional<int64_t>,at::Tensor,optional<int64_t>>
-// nll_loss_forward_self_target_batch_rule(
-//     const at::Tensor & self, optional<int64_t> self_bdim,
-//     const at::Tensor & target, optional<int64_t> target_bdim,
-//     int64_t reduction) {
-//   TORCH_INTERNAL_ASSERT(self.dim() == 3 && target.dim() == 2);
-
-//   if (reduction == Reduction::None) {
-//     int64_t batch_size = self.size(*self_bdim);
-//     auto self_ = reshape_dim_into(*self_bdim, 0, self);
-//     auto target_ = reshape_dim_into(*target_bdim, 0, target);
-//     auto result = at::nll_loss_forward(self_, target_, nullopt, reduction, -100);
-//     return std::make_tuple(
-//       reshape_dim_outof(0, batch_size, std::get<0>(result)), 0,
-//       std::get<1>(result), nullopt
-//     );
-//   } else if (reduction == Reduction::Sum) {
-//     int64_t batch_size = self.size(*self_bdim);
-//     auto self_ = reshape_dim_into(*self_bdim, 0, self);
-//     auto target_ = reshape_dim_into(*target_bdim, 0, target);
-//     auto res = at::nll_loss_forward(self_, target_, nullopt, Reduction::None, -100);
-//     auto output = std::get<0>(res);
-//     output = reshape_dim_outof(0, batch_size, output);
-//     auto total_weight = self_.new_full({}, output.size(-1));
-//     return std::make_tuple(
-//       output.sum(-1), 0,
-//       // NB: total_weight = 0 after Reduction::None
-//       total_weight, nullopt
-//     );
-//   } else if (reduction == Reduction::Mean) {
-//     int64_t batch_size = self.size(*self_bdim);
-//     auto self_ = reshape_dim_into(*self_bdim, 0, self);
-//     auto target_ = reshape_dim_into(*target_bdim, 0, target);
-//     auto res = at::nll_loss_forward(self_, target_, nullopt, Reduction::None, -100);
-//     auto output = std::get<0>(res);
-//     output = reshape_dim_outof(0, batch_size, output);
-//     auto total_weight = self_.new_full({}, output.size(-1));
-//     return std::make_tuple(
-//       output.mean(-1), 0,
-//       // NB: total_weight = 0 after Reduction::None
-//       total_weight, nullopt
-//     );
-//   }
-//   TORCH_INTERNAL_ASSERT(false);
-// }
-
 std::tuple<Tensor, Tensor> nll_loss_forward_plumbing(
     const Tensor & self,
     const Tensor & target,
@@ -137,7 +91,6 @@ std::tuple<Tensor, Tensor> nll_loss_forward_plumbing(
     std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(*weight, cur_level);
   }
 
-  // bool no_weights = ((!weight || !weight->defined()) && ignore_index < 0);
   bool has_ignore_index = ignore_index >= 0;
   if (has_ignore_index) {
     // fallback
