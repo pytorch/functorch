@@ -9,11 +9,24 @@ import torch
 from torch import fx
 from torch._C import _te  # type: ignore[attr-defined]
 from functorch._C import CompileCache, CompileResult
+from functorch import make_fx
 
 FOLD_ALIASES = True
 _SHAPE_TYPES = {"one", "other"}
 _STRIDE_TYPES = {"zero", "one", "contiguous", "transposed_contiguous", "as_arg"}
 _identity = lambda x: x
+
+
+def _sigmoid_backward_lowering(out_grad, y):
+    """Lowering for the sigmoid backward to equivalent tensor expr"""
+    return out_grad * (y * (_create_constant(1.0, torch.float32) - y))
+
+
+def _tanh_backward_lowering(out_grad, y):
+    """Lowering for the tanh backward to equivalent tensor expr"""
+    return out_grad * (_create_constant(1.0, torch.float32) - (y * y))
+
+
 _TORCH_TO_EXPR_MAP = {
     "sin": _te.sin,
     "cos": _te.cos,
@@ -54,10 +67,13 @@ _TORCH_TO_EXPR_MAP = {
     "fmod": _te.fmod,
     "pow": _te.pow,
     "atan2": _te.atan2,
+    #     "neg": _te.neg,
     "detach": _identity,
     "neg": lambda x: _create_constant(0.0, torch.float32) - x,
+    "tanh_backward": _tanh_backward_lowering,
+    "sigmoid_backward": _sigmoid_backward_lowering,
+    "reciprocal": lambda x: _create_constant(1.0, torch.float32) / x,
 }
-
 _int = _te.ExprHandle.int
 
 
@@ -106,8 +122,7 @@ def _fx_to_expr(fn: Callable, dtype: torch.dtype):
                         " to Tensor Expr",
                     )
 
-                    # Get the parser function to parse the torch op to tensor expr handle
-
+                # Get the parser function to parse the torch op to tensor expr handle
                 def _parser(*args, op_name):
                     return _TORCH_TO_EXPR_MAP[op_name](*args)
 
@@ -212,6 +227,48 @@ class PointwiseCompiler(object):
             module_name=self.module_name,
         )
 
+    def make_backwards_via_fx(self, index: int):
+        def create_joint_forward_backward(fn):
+            def joint_forward_backward(primals, tangents):
+                out = fn(*primals)
+                backward_out = []
+                if primals:
+                    backward_out = torch.autograd.grad(
+                        out,
+                        primals[index],
+                        grad_outputs=tangents,
+                        create_graph=True,
+                        allow_unused=True,
+                    )
+                return backward_out
+
+            return joint_forward_backward
+
+        # Create list of primals
+        primals = list()
+        for arg_index in range(_num_args(self.pointwise_fn)):
+            requires_grad = self.spec[arg_index].requires_grad
+            # TODO - Do we need any better shape
+            proxy_shape = [2] * self.spec[arg_index].ndim
+            primals.append(torch.rand(proxy_shape, requires_grad=requires_grad))
+
+        # Call forward
+        out = self.pointwise_fn(*primals)
+
+        # Get the traced joint forward and backward graph
+        joint_forward_backward = create_joint_forward_backward(self.pointwise_fn)
+        with torch.enable_grad():
+            fx_g = make_fx(joint_forward_backward)(primals, out)
+
+        # Remove pytree info and recompile
+        fx_g.graph._pytree_info = None
+        fx_g.graph.eliminate_dead_code()
+        fx_g.recompile()
+
+        return _fx_to_pointwise_operator(
+            fx_g, f"{self.name}.backwards{index}", self.module_name
+        )
+
     def handle_autograd(self):
         cnt = sum(int(x.requires_grad) for x in self.spec)
         if cnt == 0:
@@ -229,7 +286,8 @@ class PointwiseCompiler(object):
                     assert (
                         len(shape_types) == 1
                     ), "TODO: support backwards for broadcasting"
-                self.result.set_backwards(i, self.make_backwards(i))
+                # self.result.set_backwards(i, self.make_backwards(i))
+                self.result.set_backwards(i, self.make_backwards_via_fx(i))
 
     def compute_broadcasts_and_size_checks(self):
         ndim = self.ndim
@@ -365,7 +423,12 @@ class PointwiseCompiler(object):
             _te.Cast.make(self.dtype, buf.load(self.indexing(stride)))
             for buf, stride in zip(input_bufs, input_strides)
         ]
+
         val = _fx_to_expr(self.pointwise_fn, self.dtype)(*inputs)
+        if isinstance(val, (tuple, list)):
+            assert len(val) == 1, "Multiple outputs are not supported"
+            val = val[0]
+
         out = _te.Block(
             [
                 buf.store(self.indexing(stride), val)
@@ -411,6 +474,24 @@ class PointwiseCompiler(object):
 
 class _CompileCache(CompileCache):
     pass
+
+
+@functools.lru_cache(None)
+def _fx_to_pointwise_operator(fx_g: torch.fx.GraphModule, name: str, module_name: str):
+    """ Extract the function from the fx Graphmodule. The code is quite hacky. """
+    # TODO - Revisit if there is a better way to extract the function or change pointwise_operator API.
+    fn_name = f"code_{id(fx_g)}"
+    fn_code = fx_g.code.replace("def forward(self, ", f"def {fn_name}(")
+
+    # Manually replace the buffers with their values to get rid of self
+    for (name, tensor) in fx_g.named_buffers():
+        if tensor.ndim != 0:
+            raise NotImplementedError("Non scalar tensors are not supported")
+        value = tensor.item()
+        fn_code = fn_code.replace("self." + name, str(value))
+
+    exec(fn_code)
+    return pointwise_operator(locals()[fn_name], name=name, module_name=module_name)
 
 
 @functools.lru_cache(None)
