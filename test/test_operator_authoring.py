@@ -225,6 +225,19 @@ class TestOperatorAuthoringCPU(JitTestCase):
             res = pointwise_fn(a, b)
             assert torch.allclose(ref, res, atol=1e-3, rtol=1e-3)
 
+    def test_bias_gelu(self):
+        def bias_gelu(bias, y):
+            x = bias + y
+            return x * 0.5 * (1.0 + torch.tanh(0.79788456 * x * (1 + 0.044715 * x * x)))
+
+        bias = torch.rand(1, 768)
+        y = torch.rand(64, 768)
+        ref = bias_gelu(bias, y)
+
+        pointwise_fn = pointwise_operator(bias_gelu)
+        res = pointwise_fn(bias, y)
+        assert torch.allclose(ref, res, atol=1e-3, rtol=1e-3)
+
 
 class TestOperatorAuthoringGPU(TestOperatorAuthoringCPU):
     device = "cuda"

@@ -13,87 +13,51 @@ from functorch._C import CompileCache, CompileResult
 FOLD_ALIASES = True
 _SHAPE_TYPES = {"one", "other"}
 _STRIDE_TYPES = {"zero", "one", "contiguous", "transposed_contiguous", "as_arg"}
+_identity = lambda x: x
 _TORCH_TO_EXPR_MAP = {
-    torch.sin: _te.sin,
-    torch.cos: _te.cos,
-    torch.tan: _te.tan,
-    torch.asin: _te.asin,
-    torch.acos: _te.acos,
-    torch.atan: _te.atan,
-    torch.sinh: _te.sinh,
-    torch.cosh: _te.cosh,
-    torch.tanh: _te.tanh,
-    torch.sigmoid: _te.sigmoid,
-    torch.exp: _te.exp,
-    torch.expm1: _te.expm1,
-    torch.abs: _te.abs,
-    torch.log: _te.log,
-    torch.log2: _te.log2,
-    torch.log10: _te.log10,
-    torch.log1p: _te.log1p,
-    torch.erf: _te.erf,
-    torch.erfc: _te.erfc,
-    torch.sqrt: _te.sqrt,
-    torch.rsqrt: _te.rsqrt,
-    torch.ceil: _te.ceil,
-    torch.floor: _te.floor,
-    torch.round: _te.round,
-    torch.trunc: _te.trunc,
-    torch.frac: _te.frac,
-    torch.lgamma: _te.lgamma,
-    torch.isnan: _te.isnan,
-    torch.add: operator.add,
-    torch.sub: operator.sub,
-    torch.subtract: operator.sub,
-    torch.mul: operator.mul,
-    torch.multiply: operator.mul,
-    torch.divide: operator.truediv,
-    torch.div: operator.truediv,
-    torch.remainder: _te.remainder,
-    torch.fmod: _te.fmod,
-    torch.pow: _te.pow,
-    torch.atan2: _te.atan2,
-    # A copy of aten ops
-    torch.ops.aten.sin: _te.sin,
-    torch.ops.aten.cos: _te.cos,
-    torch.ops.aten.tan: _te.tan,
-    torch.ops.aten.asin: _te.asin,
-    torch.ops.aten.acos: _te.acos,
-    torch.ops.aten.atan: _te.atan,
-    torch.ops.aten.sinh: _te.sinh,
-    torch.ops.aten.cosh: _te.cosh,
-    torch.ops.aten.tanh: _te.tanh,
-    torch.ops.aten.sigmoid: _te.sigmoid,
-    torch.ops.aten.exp: _te.exp,
-    torch.ops.aten.expm1: _te.expm1,
-    torch.ops.aten.abs: _te.abs,
-    torch.ops.aten.log: _te.log,
-    torch.ops.aten.log2: _te.log2,
-    torch.ops.aten.log10: _te.log10,
-    torch.ops.aten.log1p: _te.log1p,
-    torch.ops.aten.erf: _te.erf,
-    torch.ops.aten.erfc: _te.erfc,
-    torch.ops.aten.sqrt: _te.sqrt,
-    torch.ops.aten.rsqrt: _te.rsqrt,
-    torch.ops.aten.ceil: _te.ceil,
-    torch.ops.aten.floor: _te.floor,
-    torch.ops.aten.round: _te.round,
-    torch.ops.aten.trunc: _te.trunc,
-    torch.ops.aten.frac: _te.frac,
-    torch.ops.aten.lgamma: _te.lgamma,
-    torch.ops.aten.isnan: _te.isnan,
-    torch.ops.aten.add: operator.add,
-    torch.ops.aten.sub: operator.sub,
-    torch.ops.aten.subtract: operator.sub,
-    torch.ops.aten.mul: operator.mul,
-    torch.ops.aten.multiply: operator.mul,
-    torch.ops.aten.divide: operator.truediv,
-    torch.ops.aten.div: operator.truediv,
-    torch.ops.aten.remainder: _te.remainder,
-    torch.ops.aten.fmod: _te.fmod,
-    torch.ops.aten.pow: _te.pow,
-    torch.ops.aten.atan2: _te.atan2,
+    "sin": _te.sin,
+    "cos": _te.cos,
+    "tan": _te.tan,
+    "asin": _te.asin,
+    "acos": _te.acos,
+    "atan": _te.atan,
+    "sinh": _te.sinh,
+    "cosh": _te.cosh,
+    "tanh": _te.tanh,
+    "sigmoid": _te.sigmoid,
+    "exp": _te.exp,
+    "expm1": _te.expm1,
+    "abs": _te.abs,
+    "log": _te.log,
+    "log2": _te.log2,
+    "log10": _te.log10,
+    "log1p": _te.log1p,
+    "erf": _te.erf,
+    "erfc": _te.erfc,
+    "sqrt": _te.sqrt,
+    "rsqrt": _te.rsqrt,
+    "ceil": _te.ceil,
+    "floor": _te.floor,
+    "round": _te.round,
+    "trunc": _te.trunc,
+    "frac": _te.frac,
+    "lgamma": _te.lgamma,
+    "isnan": _te.isnan,
+    "add": operator.add,
+    "sub": operator.sub,
+    "subtract": operator.sub,
+    "mul": operator.mul,
+    "multiply": operator.mul,
+    "divide": operator.truediv,
+    "div": operator.truediv,
+    "remainder": _te.remainder,
+    "fmod": _te.fmod,
+    "pow": _te.pow,
+    "atan2": _te.atan2,
+    "detach": _identity,
+    "neg": lambda x: _create_constant(0.0, torch.float32) - x,
 }
+
 _int = _te.ExprHandle.int
 
 
@@ -122,12 +86,6 @@ def _combine_dtype(a: torch.dtype, b: torch.dtype):
     ).dtype
 
 
-def _torch_to_expr_handle(torch_op):
-    if torch_op not in _TORCH_TO_EXPR_MAP:
-        return torch_op
-    return _TORCH_TO_EXPR_MAP[torch_op]
-
-
 def _fx_to_expr(fn: Callable, dtype: torch.dtype):
     """Convert the fx graph to equivalent Tensor Expr"""
 
@@ -141,12 +99,24 @@ def _fx_to_expr(fn: Callable, dtype: torch.dtype):
         with gm.graph.inserting_before(node):
             node.args = tuple(apply(a) for a in node.args)
             if node.op == "call_function":
-                expr_handle_fn = _torch_to_expr_handle(node.target)
+                if node.target.__name__ not in _TORCH_TO_EXPR_MAP:
+                    raise NotImplementedError(
+                        "Missing mapping from op ",
+                        node.target.__name__,
+                        " to Tensor Expr",
+                    )
 
-                def _parser(args):
-                    return expr_handle_fn(*args)
+                    # Get the parser function to parse the torch op to tensor expr handle
 
-                new_node = gm.graph.create_node("call_function", _parser, (node.args,))
+                def _parser(*args, op_name):
+                    return _TORCH_TO_EXPR_MAP[op_name](*args)
+
+                new_node = gm.graph.create_node(
+                    "call_function",
+                    _parser,
+                    node.args,
+                    {"op_name": node.target.__name__},
+                )
                 node.replace_all_uses_with(new_node)
                 gm.graph.erase_node(node)
     gm.recompile()
