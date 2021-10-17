@@ -308,16 +308,11 @@ Tensor slice_backward_batching_rule(const Tensor& grad, IntArrayRef input_sizes,
   return grad_physical.getPhysicalToLogicalMap().apply(grad_input);
 }
 
-Tensor movedim_batching_rule(const Tensor& self, IntArrayRef source, IntArrayRef destination) {
-  if (!participatesInCurrentLevel(self)) {
-    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-    return at::movedim(self, source, destination);
-  }
-  auto self_physical = MultiBatchVmapTransform::logicalToPhysical(self);
-  auto source_physical = self_physical.getPhysicalDims(source);
-  auto destination_physical = self_physical.getPhysicalDims(destination);
-  auto result = at::movedim(self_physical.tensor(), source_physical, destination_physical);
-  return self_physical.getPhysicalToLogicalMap().apply(result);
+std::tuple<Tensor, optional<int64_t>> movedim_batching_rule(const Tensor& self, optional<int64_t> self_bdim, IntArrayRef source, IntArrayRef destination) {
+  auto self_ = moveBatchDimToFront(self, self_bdim);
+  auto source_ = getPhysicalDims(self_, self_bdim.has_value(), source);
+  auto destination_ = getPhysicalDims(self_, self_bdim.has_value(), destination);
+  return std::make_tuple(self_.movedim(source_, destination_), 0);
 }
 
 std::vector<Tensor> split_batching_rule(const Tensor& self, int64_t split_size, int64_t dim) {
@@ -884,7 +879,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   // m.impl("chunk", chunk_batching_rule);
   m.impl("tensor_split.sections", tensor_split_sections_batching_rule);
   m.impl("tensor_split.indices", tensor_split_indices_batching_rule);
-  m.impl("movedim.intlist", movedim_batching_rule);
+  VMAP_SUPPORT("movedim.intlist", movedim_batching_rule);
   m.impl("movedim.int", static_cast<Tensor(*)(const Tensor&,int64_t,int64_t)>(native::movedim)); // composite wrt autograd
   // NB: static_cast because there's another variant of narrow. However, we don't
   // want to support the other variant yet bc it isn't documented...
