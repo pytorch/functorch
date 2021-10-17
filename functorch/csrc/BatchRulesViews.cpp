@@ -446,6 +446,13 @@ std::tuple<Tensor, optional<int64_t>> unfold_batch_rule(
   return std::make_tuple(result, 0);
 }
 
+std::tuple<Tensor, optional<int64_t>> movedim_batch_rule(const Tensor& self, optional<int64_t> self_bdim, IntArrayRef source, IntArrayRef destination) {
+  auto self_ = moveBatchDimToFront(self, self_bdim);
+  auto source_ = getPhysicalDims(self_, self_bdim.has_value(), source);
+  auto destination_ = getPhysicalDims(self_, self_bdim.has_value(), destination);
+  return std::make_tuple(self_.movedim(source_, destination_), 0);
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT("diag", diag_batch_rule);
   VMAP_SUPPORT("chunk", chunk_batching_rule);
@@ -470,7 +477,13 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT("slice_backward", slice_backward_batch_rule);
   VMAP_SUPPORT("view", view_batching_rule);
   VMAP_SUPPORT("expand", expand_batch_rule);
+<<<<<<< HEAD
   VMAP_SUPPORT("unfold", unfold_batch_rule);
 }
+=======
+  VMAP_SUPPORT("movedim.intlist", movedim_batch_rule);
+  m.impl("movedim.int", static_cast<Tensor(*)(const Tensor&,int64_t,int64_t)>(native::movedim)); // composite wrt autograd
+} 
+>>>>>>> move to view batching rules
 
 }}
