@@ -465,7 +465,7 @@ class PointwiseCompiler(object):
 
     def run(self):
         self.error_checks()
-        self.handle_autograd()
+        # self.handle_autograd()
         self.compute_broadcasts_and_size_checks()
         self.compute_output_order()
         self.compute_symbolic_shapes_and_strides()
