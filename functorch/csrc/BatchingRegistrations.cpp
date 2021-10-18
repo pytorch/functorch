@@ -912,7 +912,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
 //           at::threshold_backward,
 //           Scalar>);
 //
-  // for at::result_type, call the native::result_type implementationgit.
+  // for at::result_type, call the native::result_type implementation.
   // We don't have to do anything special because native::result_type operates
   // on the logical shape of the tensors.
   m.impl("result_type.Tensor", static_cast<ScalarType (*)(const Tensor&, const Tensor&)>(native::result_type));
