@@ -73,28 +73,10 @@ std::tuple<Tensor, Tensor> nll_loss_forward_plumbing(
     const c10::optional<Tensor> & weight,
     int64_t reduction, int64_t ignore_index) {
 
-  auto maybe_layer = maybeCurrentDynamicLayer();
-  TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
-  int64_t cur_level = maybe_layer->layerId();
-
-  Tensor self_value;
-  optional<int64_t> self_bdim;
-  std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
-
-  Tensor target_value;
-  optional<int64_t> target_bdim;
-  std::tie(target_value, target_bdim) = unwrapTensorAtLevel(target, cur_level);
-
-  optional<Tensor> weight_value;
-  optional<int64_t> weight_bdim;
-  if (weight) {
-    std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(*weight, cur_level);
-  }
-
   bool has_ignore_index = ignore_index >= 0;
   if (has_ignore_index) {
     // fallback
-    if ((target.dim() > 2 && target_bdim) || (target.dim() > 1 && !target_bdim)) {
+    if (target.dim() > 1) {
       static auto op = c10::Dispatcher::singleton()
         .findSchemaOrThrow("aten::nll_loss_nd", "");
       return slow_fallback<Tensor, Tensor>(op, {self, target, weight, reduction, ignore_index});
@@ -104,82 +86,53 @@ std::tuple<Tensor, Tensor> nll_loss_forward_plumbing(
       return slow_fallback<Tensor, Tensor>(op, {self, target, weight, reduction, ignore_index});
     }
   }
+  // self can be [N, C, ...] or [C]
+  // target can be [N, ...] or []
 
-  auto self_ = moveBatchDimToFront(self_value, self_bdim);
-  auto target_ = moveBatchDimToFront(target_value, target_bdim);
-
-  // self can be [B, N, C, ...], [N, C, ...], [B, C] or [C]
-  // target can be [B, N, ...], [N, ...], [B] or []
   int64_t channel_dim = 1;
-  if (!self_bdim) {
-    // [N, C, ...] -> [B, N, C, ...] or [C] -> [B, C]
-    auto batch_size = (target_bdim) ? target_.size(0) : 1;
-    self_ = ensure_has_bdim(self_, false, batch_size);
-
+  if (self.dim() < 2) {
+    channel_dim = 0;
   }
-  if (self_.dim() > 2) {
-    channel_dim = 2;
-  }
-  // self can be [B, N, C, ...] or [B, C]
-
+  auto self_ = self;
   Tensor weight_;
-  if (weight_value && weight_value->defined()) {
+
+  if (weight && weight->defined()) {
     // Here is a specific case with reduction mean and non-batched tensors
     // https://github.com/pytorch/pytorch/issues/61309
     // In this case weight is cancelled: w * x[t] / w -> x[t]
-    if (!(reduction == Reduction::Mean && self_.dim() <= 2)) {
-      TORCH_INTERNAL_ASSERT(!weight_bdim);
-      // reshape weights to [1, 1, C, 1, ..., 1] or [1, C]
-      auto shape = weight_value->sizes();
+    if (!(reduction == Reduction::Mean && self_.dim() < 2)) {
+      // reshape weights to [1, C, 1, ..., 1]
+      auto shape = weight->sizes();
       VmapDimVector new_shape(self_.dim(), 1);
       new_shape[channel_dim] = shape[0];
-      weight_ = weight_value->reshape(new_shape);
+      weight_ = weight->reshape(new_shape);
       self_ = self_ * weight_;
     }
   }
-  if (!target_bdim) {
-    // [N, ...] -> [B, N, ...] or [] -> [B]
-    auto batch_size = (self_bdim) ? self_.size(0) : 1;
-    target_ = ensure_has_bdim(target_, false, batch_size);
-  }
-  target_ = target_.unsqueeze(channel_dim);
-  // target can be [B, N, 1, ...], [B, 1]
+  auto target_ = target.unsqueeze(channel_dim);
+  // target can be [N, 1, ...] or [1]
 
   auto result = -at::gather(self_, channel_dim, target_).squeeze(channel_dim);
   auto total_weight = at::full(
-      {}, result.numel(), self.scalar_type(),
-      self.layout(), self.device(), nullopt);
+      {}, result.numel(), self_.scalar_type(),
+      self_.layout(), self_.device(), nullopt);
 
   // Apply the reduction
-  if (result.dim() > 1) {
+  if (result.dim() > 0) {
     if (reduction == Reduction::Sum) {
-      VmapDimVector dims(result.dim() - 1);
-      for (int64_t i = 0; i < dims.size(); i++) {
-          dims[i] = i + 1;
-      }
-      result = result.sum(dims);
+      result = result.sum();
     } else if (reduction == Reduction::Mean) {
-      VmapDimVector dims(result.dim() - 1);
-      for (int64_t i = 0; i < dims.size(); i++) {
-          dims[i] = i + 1;
-      }
-      if (!weight_value || !weight_.defined()) {
-        result = result.mean(dims);
+      if (!weight || !weight->defined()) {
+        result = result.mean();
       } else {
         TORCH_INTERNAL_ASSERT(weight_.defined());
         weight_ = weight_.expand(self_.sizes());
         auto wsum = at::gather(weight_, channel_dim, target_).squeeze(channel_dim);
-        wsum = wsum.sum(dims);
-        result = result.sum(dims) / wsum;
+        wsum = wsum.sum();
+        result = result.sum() / wsum;
       }
     }
   }
-
-  if (self_bdim || target_bdim) {
-    result = makeBatched(result, 0, cur_level);
-    total_weight = makeBatched(total_weight, nullopt, cur_level);
-  }
-
   return std::make_tuple(result, total_weight);
 }
 
