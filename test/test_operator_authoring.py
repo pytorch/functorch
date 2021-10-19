@@ -5,7 +5,7 @@ import numpy as np
 
 import torch
 from torch import fx
-from functorch import pointwise_operator
+from functorch import pointwise_operator, compiled_function, partition_with_recompute_fwd_in_bwd, _fx_to_pointwise_operator
 from torch.testing._internal.common_utils import run_tests
 from torch.testing._internal.jit_utils import JitTestCase
 import unittest
@@ -237,6 +237,35 @@ class TestOperatorAuthoringCPU(JitTestCase):
         res.sum().backward()
         assert torch.allclose(ref_bias.grad, res_bias.grad, atol=1e-3, rtol=1e-3)
         assert torch.allclose(ref_y.grad, res_y.grad, atol=1e-3, rtol=1e-3)
+
+
+class TestOpAuthoringWithCompiledFunc(JitTestCase):
+    def test_simple(self):
+        def fn(a, b):
+            return torch.sin(torch.sin(a)) + b
+        
+        # Reference calculation
+        ref_a = torch.rand(10, 10, requires_grad=True)
+        ref_b = torch.rand(10, 10, requires_grad=True)
+        ref = fn(ref_a, ref_b)
+        ref.sum().backward()
+
+        # Compiled function calculation
+        res_a = ref_a.clone().detach().requires_grad_(True)
+        res_b = ref_b.clone().detach().requires_grad_(True)
+        def fwd_compile(fx_module, flat_args):
+            print(fx_module)
+            return _fx_to_pointwise_operator(fx_module, "fwd", "fwd_module")
+
+        def bwd_compile(fx_module, flat_args):
+            return _fx_to_pointwise_operator(fx_module, "bwd", "bwd_module")
+
+        compiled_fn = compiled_function(fn, fwd_compile, bwd_compile, partition_with_recompute_fwd_in_bwd)
+        res = compiled_fn(res_a, res_b)
+        assert torch.allclose(ref, res, atol=1e-3, rtol=1e-3)
+        # res.sum().backward()
+        # assert torch.allclose(ref_a.grad, res_a.grad, atol=1e-3, rtol=1e-3)
+        # assert torch.allclose(ref_b.grad, res_b.grad, atol=1e-3, rtol=1e-3)
 
 
 class TestOperatorAuthoringGPU(TestOperatorAuthoringCPU):
