@@ -102,7 +102,7 @@ def default_partition(joint_module: fx.GraphModule, _joint_inputs):
         while len(q):
             node = q.popleft()
             bwd_nodes.add(node)
-            if node.op == "call_function":
+            if node is not None and node.op == "call_function":
                 for arg in node.args:
                     if (
                         arg in fwd_graph_val_map
@@ -144,7 +144,7 @@ def default_partition(joint_module: fx.GraphModule, _joint_inputs):
                 value_remap[node] = bwd_graph.node_copy(node, lambda n: value_remap[n])
 
         assert num_fwd_outputs + num_bwd_outputs == len(output_node.args[0])
-        bwd_outputs = [value_remap[i] for i in bwd_outputs]
+        bwd_outputs = [None if i is None else value_remap[i] for i in bwd_outputs]
         if len(bwd_outputs) == 1:
             bwd_outputs = bwd_outputs[0]
         bwd_graph.output(bwd_outputs)
@@ -202,9 +202,9 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
         # Set the outputs
         outputs = outputs + saved_nodes
         if len(outputs) == 1:
-            graph.output(val_map[outputs[0]])
+            graph.output(None if outputs[0] is None else val_map[outputs[0]])
         else:
-            graph.output([val_map[out] for out in outputs])
+            graph.output([None if out is None else val_map[out] for out in outputs])
 
         # Run dead code elimination to remove unnecessary nodes
         graph.eliminate_dead_code()
