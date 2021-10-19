@@ -19,68 +19,146 @@ def draw_graph(traced: torch.fx.GraphModule, fname: str, figname: str = "fx_grap
     x = g.get_main_dot_graph()
     getattr(x, "write_" + ext.lstrip("."))(fname)
 
-# todo(chilli): clean this up/make it more understandable
-def default_partition(fx_module: fx.GraphModule, _joint_inputs):
-    bw_nodes = set()
-    saved_nodes = set()
+
+def default_partition(joint_module: fx.GraphModule, _joint_inputs):
+    """
+    In default partitioning, we partition in a manner that is most intuitive to
+    the user of eager compilation. We start with the joint graph, and extract
+    the computation that intuitively maps to the forward pass. Everything else
+    is then partitioned to the backward pass. Naturally, we will have to find
+    the tensors that have to be saved/stashed for the backward pass. We collect
+    those tensors and add them as outputs in the forward pass and inputs in the
+    backward pass.
+
+    To perform default partitioning, this is the basic outline
+    1) Get the original forward graph. This has only the original outputs and
+    helps us in finding the saved tensors.
+    2) To find saved tensors, we walk in the reverse order in the joint graph,
+    and if a node in joint graph is in original forward pass, then the node has
+    to be saved for the backward pass.
+    3) Using the above two information, we set the outputs of forward pass, and
+    inputs of backward pass accordingly.
+    """
+
+    # Find the output node, and original forward and backward outputs
     output_node = None
-    for n in fx_module.graph.nodes:
-        if n.op == 'placeholder' and 'tangents' in n.target:
-            bw_nodes.add(n)
-        elif n.op != 'output':
-            has_color = False
-
-            def is_colored(a):
-                nonlocal has_color
-                if a in bw_nodes or a in saved_nodes:
-                    has_color = True
-
-            def add_saved(a):
-                if a not in bw_nodes:
-                    saved_nodes.add(a)
-            map_arg(n.args, lambda x: is_colored(x))
-            map_arg(n.kwargs, lambda x: is_colored(x))
-            if has_color:
-                bw_nodes.add(n)
-                map_arg(n.args, lambda x: add_saved(x))
-                map_arg(n.kwargs, lambda x: add_saved(x))
-        elif n.op == 'output':
+    for n in reversed(joint_module.graph.nodes):
+        if n.op == "output":
             output_node = n
+            break
+    num_fwd_outputs = joint_module._out_spec.children_specs[0].num_leaves
+    num_bwd_outputs = joint_module._out_spec.children_specs[1].num_leaves
+    fwd_outputs = output_node.args[0][0:num_fwd_outputs]
+    bwd_outputs = output_node.args[0][num_fwd_outputs:]
 
-    num_fwd_outputs = fx_module._out_spec.children_specs[0].num_leaves
-    num_bwd_outputs = fx_module._out_spec.children_specs[1].num_leaves
-    bw_outputs = output_node.args[0][num_fwd_outputs:]
+    def _extract_orig_fwd_graph():
+        """
+        Extract the original forward graph. Note that this is the not the final
+        forward graph because it does not save the tensors for the backward pass
+        yet.
 
-    bw_graph = fx.Graph()
-    value_remap = {}
-    for saved_node in saved_nodes:
-        value_remap[saved_node] = bw_graph.placeholder(saved_node.name)
+        """
+        fwd_graph_val_map = {}
 
-    for node in fx_module.graph.nodes:
-        if node in bw_nodes or node in bw_outputs:
-            value_remap[node] = bw_graph.node_copy(node, lambda n : value_remap[n])
+        def _tangent_finder(node):
+            return node.op == "placeholder" and "tangents" in node.target
 
-    assert(num_fwd_outputs + num_bwd_outputs == len(output_node.args[0]))
-    bwd_outputs = [value_remap[i] for i in bw_outputs]
-    if len(bwd_outputs) == 1:
-        bwd_outputs = bwd_outputs[0]
-    bw_graph.output(bwd_outputs)
-    bw_module = fx.GraphModule(fx_module, bw_graph)
+        tangent_nodes = filter(_tangent_finder, joint_module.graph.nodes)
+        for tangent_node in tangent_nodes:
+            fwd_graph_val_map[tangent_node] = 1
 
-    fw_graph = fx.Graph()
-    value_remap = {}
-    for node in fx_module.graph.nodes:
-        if node not in bw_nodes and node.op != 'output':
-            value_remap[node] = fw_graph.node_copy(node, lambda n : value_remap[n])
+        # Make a copy of the joint fwd_graph
+        fwd_graph = fx.Graph()
+        fwd_graph.graph_copy(joint_module.graph, fwd_graph_val_map)
 
-    fwd_outputs = [value_remap[i] for i in output_node.args[0][:num_fwd_outputs]] + [value_remap[n] for n in saved_nodes]
-    if len(fwd_outputs) == 1:
-        fwd_outputs = fwd_outputs[0]
-    fw_graph.output(fwd_outputs)
-    fw_module = fx.GraphModule(fx_module, fw_graph)
-    fw_module.graph.lint()
-    bw_module.graph.lint()
-    return fw_module, bw_module
+        # Set the fwd_outputs
+        if len(fwd_outputs) == 1:
+            fwd_graph_out = fwd_graph.output(fwd_graph_val_map[fwd_outputs[0]])
+        else:
+            fwd_graph_out = fwd_graph.output(
+                [fwd_graph_val_map[out] for out in fwd_outputs]
+            )
+
+        # Run dead code elimination to remove unnecessary nodes
+        fwd_graph.eliminate_dead_code()
+        fwd_graph.lint()
+
+        return fwd_graph, fwd_graph_out, fwd_graph_val_map
+
+    def _collect_saved_and_bwd_nodes(fwd_graph, fwd_graph_val_map):
+        """
+        Collect the saved and backward nodes. This can be done by traversing the
+        joint graph in the reverse direction and saving the nodes that exist in
+        the original forward graph.
+        """
+        nonlocal bwd_outputs
+        from collections import deque
+
+        fwd_nodes_set = set(fwd_graph.nodes)
+        q = deque(bwd_outputs)
+
+        saved_nodes = []
+        bwd_nodes = set()
+        while len(q):
+            node = q.popleft()
+            bwd_nodes.add(node)
+            if node.op == "call_function":
+                for arg in node.args:
+                    if (
+                        arg in fwd_graph_val_map
+                        and fwd_graph_val_map[arg] in fwd_nodes_set
+                    ):
+                        saved_nodes.append(arg)
+                    else:
+                        q.append(arg)
+        return saved_nodes, bwd_nodes
+
+    def _add_saved_nodes_to_fwd_outputs(fwd_graph, fwd_graph_out, saved_nodes):
+        """
+        Add the saved nodes to the forward output.
+        """
+        nonlocal fwd_outputs
+        fwd_outputs = fwd_outputs + saved_nodes
+        fwd_graph.erase_node(fwd_graph_out)
+        if len(fwd_outputs) == 1:
+            fwd_graph.output(fwd_graph_val_map[fwd_outputs[0]])
+        else:
+            fwd_graph.output([fwd_graph_val_map[out] for out in fwd_outputs])
+        fwd_graph.lint()
+        return fx.GraphModule(joint_module, fwd_graph)
+
+    def _construct_bwd_graph(saved_nodes, bwd_nodes):
+        """
+        We mechanically build the backward graph. The inputs of the backward
+        graph are the saved nodes.  We traverse through the joint graph and
+        gradually build the graph by copying nodes one by one.
+        """
+        nonlocal bwd_outputs
+        bwd_graph = fx.Graph()
+        value_remap = {}
+        for saved_node in saved_nodes:
+            value_remap[saved_node] = bwd_graph.placeholder(saved_node.name)
+
+        for node in joint_module.graph.nodes:
+            if node in bwd_nodes or node in bwd_outputs:
+                value_remap[node] = bwd_graph.node_copy(node, lambda n: value_remap[n])
+
+        assert num_fwd_outputs + num_bwd_outputs == len(output_node.args[0])
+        bwd_outputs = [value_remap[i] for i in bwd_outputs]
+        if len(bwd_outputs) == 1:
+            bwd_outputs = bwd_outputs[0]
+        bwd_graph.output(bwd_outputs)
+        bwd_graph.eliminate_dead_code()
+        bwd_graph.lint()
+        bwd_module = fx.GraphModule(joint_module, bwd_graph)
+        return bwd_module
+
+    fwd_graph, fwd_graph_out, fwd_graph_val_map = _extract_orig_fwd_graph()
+    saved_nodes, bwd_nodes = _collect_saved_and_bwd_nodes(fwd_graph, fwd_graph_val_map)
+    fwd_module = _add_saved_nodes_to_fwd_outputs(fwd_graph, fwd_graph_out, saved_nodes)
+    bwd_module = _construct_bwd_graph(saved_nodes, bwd_nodes)
+    return fwd_module, bwd_module
+
 
 def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inputs):
     """
