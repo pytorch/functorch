@@ -130,9 +130,15 @@ std::tuple<Tensor, Tensor> nll_loss_forward_plumbing(
         auto wsum = at::gather(weight_, channel_dim, target_).squeeze(channel_dim);
         wsum = wsum.sum();
         result = result.sum() / wsum;
+        total_weight = wsum;
       }
     }
+  } else if (reduction == Reduction::Mean && weight && weight->defined()) {
+    // here weight is [C] and target is [1]
+    auto wsum = at::gather(*weight, channel_dim, target_).squeeze(channel_dim);
+    total_weight = wsum.sum();
   }
+
   return std::make_tuple(result, total_weight);
 }
 
