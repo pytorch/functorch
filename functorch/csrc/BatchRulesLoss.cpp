@@ -67,7 +67,7 @@ mse_loss_backward_batch_rule(
   return std::make_tuple(result, 0);
 };
 
-std::tuple<Tensor, Tensor> nll_loss_forward_plumbing(
+std::tuple<Tensor, Tensor> nll_loss_forward_decomposition(
     const Tensor & self,
     const Tensor & target,
     const c10::optional<Tensor> & weight,
@@ -140,15 +140,6 @@ std::tuple<Tensor, Tensor> nll_loss_forward_plumbing(
   }
 
   return std::make_tuple(result, total_weight);
-}
-
-at::Tensor nll_loss_nd_plumbing(
-    const at::Tensor & self,
-    const at::Tensor & target,
-    const c10::optional<at::Tensor> & weight,
-    int64_t reduction, int64_t ignore_index) {
-  auto result = nll_loss_forward_plumbing(self, target, weight, reduction, ignore_index);
-  return std::get<0>(result);
 }
 
 std::tuple<at::Tensor,optional<int64_t>>
@@ -252,8 +243,7 @@ at::Tensor nll_loss_backward_plumbing(
 
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
-  m.impl("nll_loss_forward", nll_loss_forward_plumbing);
-  m.impl("nll_loss_nd", nll_loss_nd_plumbing);
+  m.impl("nll_loss_forward", nll_loss_forward_decomposition);
   m.impl("nll_loss_backward", nll_loss_backward_plumbing);
   VMAP_SUPPORT("mse_loss", mse_loss_batch_rule);
   VMAP_SUPPORT("mse_loss_backward", mse_loss_backward_batch_rule);
