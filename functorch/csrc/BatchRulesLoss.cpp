@@ -100,16 +100,19 @@ std::tuple<Tensor, Tensor> nll_loss_forward_decomposition(
   // target can be [N, 1, ...] or [1]
 
   auto result = -at::gather(self_, channel_dim, target_).squeeze(channel_dim);
-  auto total_weight = at::full(
-      {}, result.numel(), self_.scalar_type(),
-      self_.layout(), self_.device(), nullopt);
 
+  int64_t result_numel = result.numel();
   bool has_ignore_index = ignore_index >= 0;
   Tensor ignore_index_mask;
   if (has_ignore_index) {
     ignore_index_mask = target != ignore_index;
     result = result * ignore_index_mask;
+    result_numel -= (ignore_index_mask.numel() - ignore_index_mask.sum().item().toInt());
   }
+
+  auto total_weight = at::full(
+      {}, result_numel, self_.scalar_type(),
+      self_.layout(), self_.device(), nullopt);
 
   // Apply the reduction
   if (result.dim() > 0) {
