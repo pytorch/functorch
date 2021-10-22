@@ -19,11 +19,12 @@ from torch.testing import \
     (make_non_contiguous, floating_types, floating_types_and, complex_types,
      floating_and_complex_types, floating_and_complex_types_and,
      all_types_and_complex_and, all_types_and, all_types_and_complex,
-     integral_types_and, all_types)
+     integral_types_and, all_types, empty_types)
 # from .._core import _dispatch_dtypes
 from torch.testing._internal.common_device_type import \
     (skipIf, skipCUDAIfNoMagma, skipCUDAIfNoMagmaAndNoCusolver, skipCUDAIfNoCusolver,
-     skipCPUIfNoLapack, skipCPUIfNoFFT, skipCUDAIfRocm, precisionOverride, toleranceOverride, tol)
+     skipCPUIfNoLapack, skipCPUIfNoFFT, skipCUDAIfRocm, precisionOverride, toleranceOverride, tol,
+     onlyCUDA)
 from torch.testing._internal.common_cuda import CUDA11OrLater, SM53OrLater, SM60OrLater
 from torch.testing._internal.common_utils import \
     (is_iterable_of_tensors,
@@ -214,4 +215,100 @@ for reduction in ['mean', 'sum', 'none']:
                dtypesIfCUDA=floating_types_and(torch.half, torch.bfloat16),
                supports_out=True))
 
+def disablecuDNN(fn):
 
+    @wraps(fn)
+    def disable_cudnn(self, *args, **kwargs):
+        if self.device_type == 'cuda' and self.has_cudnn():
+            with torch.backends.cudnn.flags(enabled=False):
+                return fn(self, *args, **kwargs)
+        return fn(self, *args, **kwargs)
+
+    return disable_cudnn
+
+def sample_inputs_batch_norm(op_info, device, dtype, requires_grad, **kwargs):
+    make_arg = partial(make_tensor, device=device, dtype=dtype, requires_grad=requires_grad)
+    make_arg_without_requires_grad = partial(make_tensor, device=device, dtype=dtype, requires_grad=False)
+
+    # Ordered as: input shape, kwargs for training, momentum, eps
+    cases: Tuple[Tuple[int], dict] = (  # type: ignore[assignment]
+        ((S, S, S), {'training': True, 'momentum': 0.5, 'eps': 0.6}),
+        ((3, 2, 4), {'training': False, 'momentum': -1.2}),
+        ((3, 1), {'training': True, 'momentum': 0.0}),
+        ((0,), {'training': True}),
+        ((0,), {'training': False}),
+        ((3, 2, 3, 4), {'training': True, 'momentum': -1.0, 'eps': 0.5}),
+        ((3, 2, 3, 4), {'training': False, 'momentum': -1.0, 'eps': 0.5}),
+        ((2, 1), {}),
+    )
+
+    def generator():
+        for input_shape, kwargs in cases:
+            # args: running mean, running var, weight and bias should necessarily be of shape: (channels,)
+            channels = input_shape[1] if len(input_shape) > 1 else 0
+            weight = make_arg(channels) if channels > 0 else None
+            bias = make_arg(channels) if channels > 0 else None
+            running_mean = make_arg_without_requires_grad(channels, low=0)
+            running_var = make_arg_without_requires_grad(channels, low=0)
+
+            yield SampleInput(
+                make_arg(input_shape),
+                args=(
+                    running_mean,
+                    running_var,
+                    weight,
+                    bias
+                ),
+                kwargs=kwargs
+            )
+            # Checking for permutations of weights and biases as `None`
+        weights = [channels, None, None]
+        biases = [None, channels, None]
+        is_training = [True, False, False]
+
+        for weight, bias, training in zip(weights, biases, is_training):
+            yield SampleInput(
+                make_arg(input_shape),
+                args=(
+                    running_mean,
+                    running_var,
+                    make_arg(channels),
+                    make_arg(channels)
+                ),
+                kwargs={'training': training}
+            )
+
+        # Test case for no optional kwargs
+        # running_mean and running_var are required in evaluation mode (training: False) but not in training mode
+        yield SampleInput(make_arg((1, 2, 3)), args=(None, None), kwargs={'training': True})
+    return list(generator())
+
+additional_op_db.extend([
+    # Multiple variants for batch_norm to test with and without cuDNN disabled
+    # See https://github.com/pytorch/pytorch/pull/63218#discussion_r688549391 for more details
+    OpInfo('nn.functional.batch_norm',
+           aten_name='batch_norm',
+           dtypes=floating_types(),
+           dtypesIfCUDA=floating_types_and(torch.float16, torch.bfloat16),
+           supports_out=False,
+           skips=(
+               # RuntimeError: deepEquals(input.iValue, deepCopiedInput) INTERNAL ASSERT FAILED at
+               # "../torch/csrc/jit/passes/utils/check_alias_annotation.cpp":142, please report a bug to PyTorch
+               DecorateInfo(unittest.skip("Skipped!"), 'TestJit', 'test_variant_consistency_jit'),
+           ),
+           sample_inputs_func=sample_inputs_batch_norm),
+    # This variant tests batch_norm with cuDNN disabled only on CUDA devices
+    OpInfo('nn.functional.batch_norm',
+           variant_test_name='without_cudnn',
+           aten_name='batch_norm',
+           dtypesIfCPU=empty_types(),
+           dtypesIfCUDA=floating_types_and(torch.float16, torch.bfloat16),
+           supports_out=False,
+           skips=(
+               # RuntimeError: deepEquals(input.iValue, deepCopiedInput) INTERNAL ASSERT FAILED at
+               # "../torch/csrc/jit/passes/utils/check_alias_annotation.cpp":142, please report a bug to PyTorch
+               DecorateInfo(unittest.skip("Skipped!"), 'TestJit', 'test_variant_consistency_jit'),
+           ),
+           decorators=[onlyCUDA, disablecuDNN],
+           sample_inputs_func=sample_inputs_batch_norm),
+])
