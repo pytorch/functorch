@@ -289,6 +289,8 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('linalg.householder_product'),
         xfail('logit'),
         xfail('matrix_exp'),
+        xfail('max', 'reduction_no_dim'),
+        xfail('min', 'reduction_no_dim'),
         xfail('trapezoid'),
         xfail('trapz'),
         xfail('igamma', 'grad_other'),
