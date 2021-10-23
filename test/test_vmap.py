@@ -3008,7 +3008,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('linalg.svd', device_type='cuda'),
         xfail('index_put'),
         xfail('nn.functional.batch_norm'),
-        xfail('nn.functional.nll_loss'),
     })
     def test_vmap_exhaustive(self, device, dtype, op):
         sample_inputs_itr = op.sample_inputs(device, dtype, requires_grad=False)
