@@ -39,7 +39,7 @@ from torch.testing._internal.common_utils import \
 import torch.testing._internal.opinfo_helper as opinfo_helper
 from torch.testing._internal.common_methods_invocations import (
     OpInfo, DecorateInfo, SampleInput, sample_inputs_hardshrink_hardtanh,
-    sample_inputs_softmax_variant, S
+    sample_inputs_softmax_variant, S, sample_inputs_sort,
 )
 
 # List of OpInfos that aren't in PyTorch Core yet.
@@ -311,4 +311,26 @@ additional_op_db.extend([
            ),
            decorators=[onlyCUDA, disablecuDNN],
            sample_inputs_func=sample_inputs_batch_norm),
+])
+
+def sample_inputs_argsort(*args, **kwargs):
+    return [sample_input for sample_input in sample_inputs_sort(*args, **kwargs) if "stable" not in sample_input.kwargs]
+
+additional_op_db.extend([
+    OpInfo(
+        "argsort",
+        dtypesIfCPU=all_types_and(torch.bool, torch.float16, torch.bfloat16),
+        dtypesIfCUDA=all_types_and(torch.float16, torch.bfloat16),
+        sample_inputs_func=sample_inputs_argsort,
+        supports_out=False,
+        supports_autograd=False,
+        skips=(
+            DecorateInfo(
+                unittest.skip("Skipped!"),
+                "TestJit",
+                "test_variant_consistency_jit",
+                dtypes=(torch.float32,),
+            ),
+        ),
+    ),
 ])
