@@ -3003,6 +3003,9 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('nn.functional.dropout'),
         xfail('view_as_complex'),
 
+        # See https://github.com/pytorch/pytorch/issues/67167
+        xfail('nn.functional.cross_entropy', 'none', device_type='cuda'),
+
         # entries in here don't work and need to be fixed.
         # Each one of these is a bug
         xfail('unfold'),
