@@ -183,6 +183,9 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   UNARY_POINTWISE(clamp_max);
   POINTWISE_BOXED(clamp_max_);
 
+  UNARY_POINTWISE(clip);
+  POINTWISE_BOXED(clip.Tensor);
+
   // Commented out so we have a test op
   // BINARY_SCALAR_2(copysign, Tensor, Scalar);
   BINARY_SCALAR_2(div, Tensor, Scalar);

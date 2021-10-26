@@ -888,7 +888,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   m.impl("view_as", native::view_as); // composite wrt autograd
 
   m.impl("addmm", addmm_batching_rule);
-  // clamp operations
 
 // unary pointwise, out-of-place, no additional arguments.
 #define TO_BATCHING_RULE(name, ...) \
