@@ -17,6 +17,12 @@ from .nnc_compile import nnc_compile
 from enum import Enum
 import warnings
 
+def nop(x):
+    return x
+decompositions = {
+    torch.ops.aten.detach: nop,
+    torch.ops.aten.add: torch.ops.aten.sub,
+}
 class PythonTensor(torch.Tensor):
     elem: torch.Tensor
 
@@ -42,6 +48,8 @@ class PythonTensor(torch.Tensor):
     __torch_function__ = _disabled_torch_function_impl
     @classmethod
     def __torch_dispatch__(cls, func, types, args=(), kwargs=None):
+        if func in decompositions:
+            return decompositions[func](*args, **kwargs)
         def unwrap_proxy(e):
             return e.proxy if isinstance(e, PythonTensor) else e
 
