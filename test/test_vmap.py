@@ -183,7 +183,7 @@ class TestVmapAPI(TestCase):
         tensor = torch.randn(2)
         # The fallback doesn't support TensorList
         with self.assertRaisesRegex(RuntimeError, 'Batching rule not implemented'):
-            vmap(lambda t: torch.atleast_1d([t]))(tensor)
+            vmap(lambda t: torch.vstack([t]))(tensor)
 
         # Don't support non-tensor returns. This is a limitation of vmap;
         # functions that don't return tensors must be special cased
@@ -2951,6 +2951,7 @@ class TestVmapBatchedGradient(Namespace.TestVmapBase):
         x = torch.randn(3, 4, 5, device=device, requires_grad=True)
         self._batched_grad_test(lambda x: x.diagonal(0, -1, -2), (x,))
 
+
     @allowVmapFallbackUsage
     def test_unrelated_output(self, device):
         B0 = 3
@@ -2998,7 +2999,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('vstack'),
         xfail('dstack'),
         xfail('linalg.multi_dot'),
-        xfail('nanmean'),
         xfail('block_diag'),
         xfail('nn.functional.dropout'),
         xfail('view_as_complex'),
@@ -3037,6 +3037,7 @@ class TestVmapOperatorsOpInfo(TestCase):
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestVmapOperatorsOpInfo', 'test_op_has_batch_rule', {
+        xfail('addr'),
         xfail('cdist'),
         xfail('complex'),
         xfail('copysign'),
