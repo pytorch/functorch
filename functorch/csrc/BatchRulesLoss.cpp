@@ -109,7 +109,7 @@ std::tuple<Tensor, Tensor> nll_loss_forward_decomposition(
   if (has_ignore_index) {
     ignore_index_mask = target != ignore_index;
     result = result * ignore_index_mask;
-    total_weight -= (ignore_index_mask.numel() - ignore_index_mask.sum());
+    total_weight = total_weight - (ignore_index_mask.numel() - ignore_index_mask.sum());
   }
 
   // Apply the reduction
