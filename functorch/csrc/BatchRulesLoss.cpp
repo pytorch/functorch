@@ -109,7 +109,7 @@ std::tuple<Tensor, Tensor> nll_loss_forward_decomposition(
   if (has_ignore_index) {
     ignore_index_mask = target != ignore_index;
     result = result * ignore_index_mask;
-    total_weight = total_weight - (ignore_index_mask.numel() - ignore_index_mask.sum());
+    total_weight = ignore_index_mask.sum().to(self_);
   }
 
   // Apply the reduction
@@ -120,8 +120,8 @@ std::tuple<Tensor, Tensor> nll_loss_forward_decomposition(
       if (!weight || !weight->defined()) {
         if (has_ignore_index) {
           TORCH_INTERNAL_ASSERT(ignore_index_mask.defined());
-          auto n = ignore_index_mask.sum();
-          result = result.sum() / n;
+          // total_weight is ignore_index_mask.sum()
+          result = result.sum() / total_weight;
         } else {
           result = result.mean();
         }
