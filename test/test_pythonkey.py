@@ -23,7 +23,10 @@ from functools import partial, wraps
 import functorch
 from functorch import (
     grad, vjp, vmap, jacrev, grad_and_value,
-    make_fx, nnc_jit, compiled_function, compiled_module,
+    make_fx,
+)
+from functorch.compile import (
+    nnc_jit, compiled_function, compiled_module,
 )
 
 from torch.testing._internal.common_device_type import ops, onlyCPU
