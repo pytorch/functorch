@@ -306,7 +306,6 @@ class TestOperators(TestCase):
                 self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
     vmapvjp_fail = vjp_fail.union({
         # All of the following are bugs and need to be fixed
-        xfail('clamp', ''),
         xfail('diag_embed'),
         xfail('eig'),
         xfail('nn.functional.conv_transpose2d'),
