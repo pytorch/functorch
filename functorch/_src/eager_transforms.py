@@ -4,20 +4,15 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from typing import Callable, Union, Tuple
 import torch
 from functools import partial, wraps
 import contextlib
-import collections
-import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils._pytree import tree_flatten, tree_unflatten, tree_map
 from .pytree_hacks import tree_map_, treespec_pprint
-from collections import namedtuple
 import torch.autograd.forward_ad as fwAD
-import gc
 
 from .vmap import vmap
-from .make_functional import make_functional_deprecated_v1, make_functional_with_buffers_deprecated_v1
 
 from functorch._C import (
     _wrap_for_grad,
@@ -25,6 +20,9 @@ from functorch._C import (
     _grad_increment_nesting,
     _grad_decrement_nesting,
 )
+
+argnums_t = Union[int, Tuple[int, ...]]
+
 
 def _create_differentiable(inps, level=None):
     def create_differentiable(x):
@@ -278,8 +276,8 @@ def jacfwd(f):
         return result
     return wrapper_fn
 
-def grad_and_value(f, argnums=0, has_aux=False):
-    @wraps(f)
+def grad_and_value(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Callable:
+    @wraps(func)
     def wrapper(*args, **kwargs):
         level = _grad_increment_nesting()
         output, aux, grad_input = None, None, None
@@ -291,7 +289,7 @@ def grad_and_value(f, argnums=0, has_aux=False):
                 diff_args = _slice_argnums(args, argnums)
                 tree_map_(partial(_create_differentiable, level=level), diff_args)
 
-                output = f(*args, **kwargs)
+                output = func(*args, **kwargs)
                 if has_aux:
                     output, aux = output
 
@@ -324,14 +322,71 @@ def grad_and_value(f, argnums=0, has_aux=False):
         return grad_input, output
     return wrapper
 
-def grad(f, argnums=0, has_aux=False):
-    @wraps(f)
+def grad(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Callable:
+    """``grad`` operator helps computing gradients of the output of a function.
+    ``grad(func)`` returns a new function that computes the gradients of ``func``
+    with respect to the input. This operator can be used multiple times to compute
+    higher-order gradients.
+
+    Args:
+        func (Callable): A Python function that takes one or more arguments.
+            Must return a single-element Tensor. If specified ``has_aux=True``, function can
+            return a tuple of single-element Tensor and other auxiliairy objects:
+            ``(output, aux)``.
+        argnums (int or Tuple[int]): Specifies arguments to compute gradients with respect to.
+            ``argnums`` can be single integer or tuple of integers. Default: 0.
+        has_aux (bool): Flag indicating that ``func`` returns a tensor and other
+            auxiliairy objects: ``(output, aux)``. Default: False.
+
+    Returns:
+        Function to compute gradients on its inputs. By default, the output of
+        the function is gradients tensor. If specified ``has_aux=True``, tuple of gradients
+        and output auxiliairy objects is returned.
+        If ``argnums`` is a tuple of integers, a tuple of output gradients with respect to
+        each ``argnums`` value is returned
+
+    .. warning:
+        TODO: on limitations: usage torch autograd inside etc
+
+    Example of using ``grad``:
+
+        >>> from functorch import grad
+        >>> x = torch.randn([])
+        >>> cos_x = grad(lambda x: torch.sin(x))(x)
+        >>> assert torch.allclose(cos_x, x.cos())
+        >>>
+        >>> # Second-order gradients
+        >>> neg_sin_x = grad(grad(lambda x: torch.sin(x)))(x)
+        >>> assert torch.allclose(neg_sin_x, -x.sin())
+
+    When composed with ``vmap``, ``grad`` can be used to compute per-sample-gradients:
+
+        >>> from functorch import vmap
+        >>> batch_size, feature_size = 3, 5
+        >>>
+        >>> def model(weights,feature_vec):
+        >>>     # Very simple linear model with activation
+        >>>     assert feature_vec.dim() == 1
+        >>>     return feature_vec.dot(weights).relu()
+        >>>
+        >>> def compute_loss(weights, example, target):
+        >>>     y = model(weights, example)
+        >>>     return ((y - target) ** 2).mean()  # MSELoss
+        >>>
+        >>> weights = torch.randn(feature_size, requires_grad=True)
+        >>> examples = torch.randn(batch_size, feature_size)
+        >>> targets = torch.randn(batch_size)
+        >>> inputs = (weights,examples, targets)
+        >>> grad_weight_per_example = vmap(grad(compute_loss), in_dims=(None, 0, 0))(*inputs)
+
+    """
+    @wraps(func)
     def wrapper(*args, **kwargs):
-        results = grad_and_value(f, argnums, has_aux=has_aux)(*args, **kwargs)
+        results = grad_and_value(func, argnums, has_aux=has_aux)(*args, **kwargs)
         if has_aux:
-            grad, (value, aux) = results
+            grad, (_, aux) = results
             return grad, aux
-        grad, value = results
+        grad, _ = results
         return grad
     return wrapper
 
