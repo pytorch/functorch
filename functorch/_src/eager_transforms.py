@@ -345,9 +345,6 @@ def grad(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Calla
         If ``argnums`` is a tuple of integers, a tuple of output gradients with respect to
         each ``argnums`` value is returned
 
-    .. warning:
-        TODO: on limitations: usage torch autograd inside etc
-
     Example of using ``grad``:
 
         >>> from functorch import grad
@@ -378,6 +375,27 @@ def grad(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Calla
         >>> targets = torch.randn(batch_size)
         >>> inputs = (weights,examples, targets)
         >>> grad_weight_per_example = vmap(grad(compute_loss), in_dims=(None, 0, 0))(*inputs)
+
+    .. note:
+        Using PyTorch ``torch.no_grad`` together with ``grad``.
+
+        Case 1: Using ``torch.no_grad`` inside a function:
+
+            >>> def f(x):
+            >>>     with torch.no_grad():
+            >>>         c = x ** 2
+            >>>     return x - c
+
+        In this case, ``grad(f)(x)`` will respect the inner ``torch.no_grad``.
+
+        Case 2: Using ``grad`` inside ``torch.no_grad`` context manager:
+
+            >>> with torch.no_grad():
+            >>>     grad(f)(x)
+
+        In this case, ``grad`` will respect the inner ``torch.no_grad``, but not the
+        outer one. This is because ``grad`` is a "function transform": its result
+        should not depend on the result of a context manager outside of ``f``.
 
     """
     @wraps(func)
