@@ -131,7 +131,7 @@ def tensorexpr_compile(fx_module, flat_args):
     return f
 
 
-def torchscript_compile(fx_module, flat_args):
+def torchscript_nnc_compile(fx_module, flat_args):
     """Compiles the given fx_module using torchscript"""
     fx_module = decompose(fx_module)
     traced_module = torch.jit.trace(fx_module, flat_args)
@@ -139,9 +139,25 @@ def torchscript_compile(fx_module, flat_args):
     return frozen_module
 
 
-def torchscript_operator_authoring(fn, partition_fn):
-    fw_compiler = torchscript_compile
-    bw_compiler = torchscript_compile
+def torchscript_nvfuser_compile(fx_module, flat_args):
+    """Compiles the given fx_module using torchscript nvfuser"""
+    if not torch._C._jit_nvfuser_enabled():
+        raise RuntimeError("Wrap the call with `with jit.fuser(\"fuser2\") to turn nvfuser on")
+    fx_module = decompose(fx_module)
+    scripted_module = torch.jit.script(fx_module)
+    frozen_module = torch.jit.freeze(scripted_module.eval())
+    return frozen_module
+
+
+def torchscript_nnc_operator_authoring(fn, partition_fn):
+    fw_compiler = torchscript_nnc_compile
+    bw_compiler = torchscript_nnc_compile
+    return compiled_function(fn, fw_compiler, bw_compiler, partition_fn)
+
+
+def torchscript_nvfuser_operator_authoring(fn, partition_fn):
+    fw_compiler = torchscript_nvfuser_compile
+    bw_compiler = torchscript_nvfuser_compile
     return compiled_function(fn, fw_compiler, bw_compiler, partition_fn)
 
 
@@ -151,9 +167,15 @@ def tensorexpr_operator_authoring(fn, partition_fn):
     return compiled_function(fn, fw_compiler, bw_compiler, partition_fn)
 
 
-def memory_efficient_operator_authoring(fn, compiler_name):
+def memory_efficient_operator_authoring(fn, compiler_name="torchscript_nnc"):
     if compiler_name == "torchscript_nnc":
-        return torchscript_operator_authoring(fn, partition_with_recompute_fwd_in_bwd)
+        return torchscript_nnc_operator_authoring(
+            fn, partition_with_recompute_fwd_in_bwd
+        )
     elif compiler_name == "tensorexpr_nnc":
         return tensorexpr_operator_authoring(fn, partition_with_recompute_fwd_in_bwd)
+    elif compiler_name == "torchscript_nvfuser":
+        return torchscript_nvfuser_operator_authoring(
+            fn, partition_with_recompute_fwd_in_bwd
+        )
     return NotImplementedError(f"{compiler_name} is not implemented")

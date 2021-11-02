@@ -24,15 +24,15 @@ def mish(x):
 
 
 def hard_sigmoid(x):
-    return (x + 3).clamp(min=0, max=6).div(6.0)
+    return (x + 3.0).clamp(min=0.0, max=6.0).div(6.0)
 
 
 def hard_swish(x):
-    return x * (x + 3).clamp(min=0, max=6).div(6.0)
+    return x * (x + 3.0).clamp(min=0.0, max=6.0).div(6.0)
 
 
 def hard_mish(x):
-    return 0.5 * x * (x + 2).clamp(min=0, max=2)
+    return 0.5 * x * (x + 2.0).clamp(min=0.0, max=2.0)
 
 
 def run_and_compare_activation(fn, shape, device, compiler_name):
@@ -61,25 +61,60 @@ def run_and_compare_activation(fn, shape, device, compiler_name):
         assert torch.allclose(ref_args[idx].grad, res_args[idx].grad)
 
 
-class TesMemoryEfficientOpAuthroing(TestCase):
+device = "cpu"
+if device == "cpu":
+    compilers = ["torchscript_nnc"]
+elif device == "cuda":
+    # TODO - Add tensorexpr_nnc after Nick's PR is merged.
+    # compilers = ["torchscript_nnc", "torchscript_nvfuser", "tensorexr_nnc"]
+    compilers = ["torchscript_nnc", "torchscript_nvfuser"]
+
+
+class TestMemoryEfficientOpAuthoring(TestCase):
     def test_gelu_bias(self):
-        run_and_compare_activation(gelu_bias, 1024, "cpu", "torchscript_nnc")
+        for compiler in compilers:
+            if compiler == "torchscript_nvfuser":
+                with torch.jit.fuser("fuser2"):
+                    run_and_compare_activation(gelu_bias, 1024, device, compiler)
+            else:
+                run_and_compare_activation(gelu_bias, 1024, device, compiler)
 
     def test_mish(self):
-        run_and_compare_activation(mish, 1024, "cpu", "torchscript_nnc")
+        for compiler in compilers:
+            if compiler == "torchscript_nvfuser":
+                with torch.jit.fuser("fuser2"):
+                    run_and_compare_activation(mish, 1024, device, compiler)
+            else:
+                run_and_compare_activation(mish, 1024, device, compiler)
 
     def test_swish(self):
-        run_and_compare_activation(swish, 1024, "cpu", "torchscript_nnc")
+        for compiler in compilers:
+            if compiler == "torchscript_nvfuser":
+                with torch.jit.fuser("fuser2"):
+                    run_and_compare_activation(swish, 1024, device, compiler)
+            else:
+                run_and_compare_activation(swish, 1024, device, compiler)
 
     def test_hard_sigmoid(self):
-        run_and_compare_activation(hard_sigmoid, 1024, "cpu", "torchscript_nnc")
+        for compiler in compilers:
+            if compiler == "torchscript_nvfuser":
+                with torch.jit.fuser("fuser2"):
+                    run_and_compare_activation(hard_sigmoid, 1024, device, compiler)
+            else:
+                run_and_compare_activation(hard_sigmoid, 1024, device, compiler)
 
     def test_hard_swish(self):
-        run_and_compare_activation(hard_swish, 1024, "cpu", "torchscript_nnc")
+        for compiler in compilers:
+            if compiler == "torchscript_nvfuser":
+                with torch.jit.fuser("fuser2"):
+                    run_and_compare_activation(hard_swish, 1024, device, compiler)
+            else:
+                run_and_compare_activation(hard_swish, 1024, device, compiler)
 
     # TODO - Assertion failure
     # def test_hard_mish(self):
-    #     run_and_compare_activation(hard_mish, 1024, "cpu", "torchscript_nnc")
+    #   for compiler in compilers:
+    #     run_and_compare_activation(hard_mish, 1024, device, compiler)
 
 
 if __name__ == "__main__":
