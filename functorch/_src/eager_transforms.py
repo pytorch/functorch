@@ -323,27 +323,26 @@ def grad_and_value(func: Callable, argnums: argnums_t = 0, has_aux: bool = False
     return wrapper
 
 def grad(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Callable:
-    """``grad`` operator helps computing gradients of the output of a function.
-    ``grad(func)`` returns a new function that computes the gradients of ``func``
-    with respect to the input. This operator can be used multiple times to compute
-    higher-order gradients.
+    """``grad`` operator helps computing gradients of :attr:`func` with respect to the
+    input(s) specified by :attr:`argnums`. This operator can be nested to
+    compute higher-order gradients.
 
     Args:
         func (Callable): A Python function that takes one or more arguments.
-            Must return a single-element Tensor. If specified ``has_aux=True``, function can
-            return a tuple of single-element Tensor and other auxiliairy objects:
+            Must return a single-element Tensor. If specified :attr:`has_aux` equals ``True``,
+            function can return a tuple of single-element Tensor and other auxiliairy objects:
             ``(output, aux)``.
         argnums (int or Tuple[int]): Specifies arguments to compute gradients with respect to.
-            ``argnums`` can be single integer or tuple of integers. Default: 0.
-        has_aux (bool): Flag indicating that ``func`` returns a tensor and other
+            :attr:`argnums` can be single integer or tuple of integers. Default: 0.
+        has_aux (bool): Flag indicating that :attr:`func` returns a tensor and other
             auxiliairy objects: ``(output, aux)``. Default: False.
 
     Returns:
-        Function to compute gradients on its inputs. By default, the output of
-        the function is gradients tensor. If specified ``has_aux=True``, tuple of gradients
-        and output auxiliairy objects is returned.
-        If ``argnums`` is a tuple of integers, a tuple of output gradients with respect to
-        each ``argnums`` value is returned
+        Function to compute gradients with respect to its inputs. By default, the output of
+        the function is the gradient tensor with respect to the first argument.
+        If specified :attr:`has_aux` equals ``True``, tuple of gradients and output auxiliairy objects
+        is returned. If :attr:`argnums` is a tuple of integers, a tuple of output gradients with
+        respect to each :attr:`argnums` value is returned.
 
     Example of using ``grad``:
 
@@ -361,7 +360,7 @@ def grad(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Calla
         >>> from functorch import vmap
         >>> batch_size, feature_size = 3, 5
         >>>
-        >>> def model(weights,feature_vec):
+        >>> def model(weights, feature_vec):
         >>>     # Very simple linear model with activation
         >>>     assert feature_vec.dim() == 1
         >>>     return feature_vec.dot(weights).relu()
@@ -373,8 +372,21 @@ def grad(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Calla
         >>> weights = torch.randn(feature_size, requires_grad=True)
         >>> examples = torch.randn(batch_size, feature_size)
         >>> targets = torch.randn(batch_size)
-        >>> inputs = (weights,examples, targets)
+        >>> inputs = (weights, examples, targets)
         >>> grad_weight_per_example = vmap(grad(compute_loss), in_dims=(None, 0, 0))(*inputs)
+
+    Example of using ``grad`` with :attr:`has_aux` and :attr:`argnums`:
+
+        >>> def my_loss_func(y, y_pred):
+        >>>    loss_per_sample = (0.5 * y_pred - y) ** 2
+        >>>    loss = loss_per_sample.mean()
+        >>>    return loss, (y_pred, loss_per_sample)
+        >>>
+        >>> fn = grad(my_loss_func, argnums=(0, 1), has_aux=True)
+        >>> y_true = torch.rand(4)
+        >>> y_preds = torch.rand(4, requires_grad=True)
+        >>> out = fn(y_true, y_preds)
+        >>> > output is ((grads w.r.t y_true, grads w.r.t y_preds), (y_pred, loss_per_sample))
 
     .. note:
         Using PyTorch ``torch.no_grad`` together with ``grad``.
