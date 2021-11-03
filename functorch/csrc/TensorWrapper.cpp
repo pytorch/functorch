@@ -182,10 +182,28 @@ void dead_tensor_wrapper_fallback(const c10::OperatorHandle& op, torch::jit::Sta
   op.callBoxed(stack);
 }
 
+Tensor& copy_wrapper_tensor_(Tensor& self, const Tensor& src, bool non_blocking) {
+  const auto* self_impl = maybeGetTensorWrapper(self);
+  const auto* src_impl = maybeGetTensorWrapper(src);
+  if (!self_impl || !src_impl || self_impl->level() != src_impl->level()) {
+    TORCH_WARN("The functionalization pass encountered a function that mutated its inputs \
+                and it was unable to preserve the mutations. Inputs to the function \
+                will not be mutated");
+    return self;
+  }
+  return self_impl->value().copy_(src_impl->value(), non_blocking);
+}
+
 // TensorWrapper backend fallback: Unwrap and fallthrough.
 
 TORCH_LIBRARY_IMPL(_, FT_GRAD_WRAPPER_KEY, m) {
   m.fallback(torch::CppFunction::makeFromBoxedFunction<&dead_tensor_wrapper_fallback>());
+}
+
+TORCH_LIBRARY_IMPL(aten, FT_GRAD_WRAPPER_KEY, m) {
+  // In order to preserve semantics for functions that mutate inputs,
+  // an input batched tensor needs to know one mutate operation: copy_.
+  m.impl("copy_", copy_wrapper_tensor_);
 }
 
 }

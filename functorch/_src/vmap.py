@@ -17,8 +17,14 @@ import inspect
 from functorch._C import (
     _add_batch_dim,
     _remove_batch_dim,
+    _wrap_functional_tensor,
+    _unwrap_functional_tensor,
     _vmap_decrement_nesting,
     _vmap_increment_nesting,
+    _func_decrement_nesting,
+    _func_increment_nesting,
+    _assert_wrapped_functional,
+    _propagate_functional_input_mutation,
 )
 
 in_dims_t = Union[int, Tuple]
@@ -384,4 +390,41 @@ def vmap(
             return _unwrap_batched(batched_outputs, out_dims, vmap_level, batch_size, func)
         finally:
             _vmap_decrement_nesting()
+    return wrapped
+
+def assert_wrapped(unwrapped_tensor_inputs: List[Tensor], wrapped_tensor_inputs: List[Tensor]) -> None:
+    if len(unwrapped_tensor_inputs) != len(wrapped_tensor_inputs):
+        raise Exception()
+    for i in range(len(unwrapped_tensor_inputs)):
+        _assert_wrapped_functional(unwrapped_tensor_inputs[i], wrapped_tensor_inputs[i])
+
+def propagate_functional_input_mutations(unwrapped_tensor_inputs: List[Tensor], wrapped_tensor_inputs: List[Tensor]) -> None:
+    if len(unwrapped_tensor_inputs) != len(wrapped_tensor_inputs):
+        raise Exception()
+    for i in range(len(unwrapped_tensor_inputs)):
+        _propagate_functional_input_mutation(unwrapped_tensor_inputs[i], wrapped_tensor_inputs[i])
+
+def functionalize(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        try:
+            func_level = _func_increment_nesting()
+            func_args = [_wrap_functional_tensor(x, func_level) if isinstance(x, Tensor) else x for x in args]
+
+            unwrapped_tensor_inputs = [t for t in args if isinstance(t, Tensor)]
+            wrapped_tensor_inputs = [t for t in func_args if isinstance(t, Tensor)]
+            assert_wrapped(unwrapped_tensor_inputs, wrapped_tensor_inputs)
+
+            func_outputs = func(*func_args, **kwargs)
+            flattened_outputs, _ = tree_flatten(func_outputs)
+            for a in func_args:
+                if isinstance(a, Tensor):
+                    # Call sync_() on the inputs, to ensure that they still get mutated inplace if the original
+                    # program mutated its inputs
+                    torch._sync(a)
+
+            propagate_functional_input_mutations(unwrapped_tensor_inputs, wrapped_tensor_inputs)
+            return [_unwrap_functional_tensor(x) if isinstance(x, Tensor) else x for x in flattened_outputs]
+        finally:
+            _func_decrement_nesting()
     return wrapped

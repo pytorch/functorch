@@ -658,6 +658,25 @@ TORCH_LIBRARY_IMPL(_, FT_BATCHED_KEY, m) {
   m.fallback(torch::CppFunction::makeFromBoxedFunction<&batchedTensorForLoopFallback>());
 }
 
+Tensor& copy_batched_tensor_(Tensor& self, const Tensor& src, bool non_blocking) {
+  const auto* self_impl = maybeGetBatchedImpl(self);
+  const auto* src_impl = maybeGetBatchedImpl(src);
+  if (!self_impl || !src_impl) {
+    TORCH_WARN("The functionalization pass encountered a function that mutated its inputs \
+                and it was unable to preserve the mutations. Inputs to the function \
+                will not be mutated");
+  }
+  auto self_vmap_levels = createVmapLevelsBitset(self_impl->bdims());
+  auto other_vmap_levels = createVmapLevelsBitset(src_impl->bdims());
+  if (self_vmap_levels != (self_vmap_levels | other_vmap_levels)) {
+    TORCH_WARN("The functionalization pass encountered a function that mutated its inputs \
+                and it was unable to preserve the mutations. Inputs to the function \
+                will not be mutated");
+    return self;
+  }
+  return self_impl->value().copy_(src_impl->value(), non_blocking);
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   // still legacy b/c teturns multiple tensors
   m.impl("tensor_split.sections", tensor_split_sections_batching_rule);
@@ -684,6 +703,12 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   // still legacy because these are ridiculously complicated
   m.impl("as_strided", as_strided_batching_rule);
   m.impl("new_empty_strided", new_empty_strided_batching_rule);
+// //   m.impl("new_zeros", new_zeros_batching_rule);
+// //
+  m.impl("contiguous", contiguous_batching_rule);
+  // In order to preserve semantics for functions that mutate inputs,
+  // an input batched tensor needs to know one mutate operation: copy_.
+  m.impl("copy_", copy_batched_tensor_);
 }
 
 }
