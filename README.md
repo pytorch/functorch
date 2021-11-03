@@ -171,7 +171,7 @@ When composed with `vmap`, `grad` can be used to compute per-sample-gradients:
 
 The `vjp` transform applies `func` to `inputs` and returns a new function that
 computes vjps given some `cotangents` Tensors.
-```
+```py
 >>> from functorch import vjp
 >>> outputs, vjp_fn = vjp(func, inputs); vjps = vjp_fn(*cotangents)
 ```
@@ -192,6 +192,15 @@ batched jacobians:
 >>> x = torch.randn(64, 5)
 >>> jacobian = vmap(jacrev(torch.sin))(x)
 >>> assert jacobian.shape == (64, 5, 5)
+```
+
+`jacrev` can be composed with itself to produce hessians:
+```py
+>>> def f(x):
+>>>   return x.sin().sum()
+>>>
+>>> x = torch.randn(5)
+>>> hessian = jacrev(jacrev(f))(x)
 ```
 
 ### Tracing through the transformations

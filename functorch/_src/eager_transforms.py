@@ -203,6 +203,14 @@ def jacrev(f: Callable, argnums: Union[int, Tuple[int]] = 0):
         >>> jacobian = vmap(jacrev(torch.sin))(x)
         >>> assert jacobian.shape == (64, 5, 5)
     
+    Additionally, :func:`jacrev` can be composed with itself to produce Hessians
+        >>> def f(x):
+        >>>   return x.sin().sum()
+        >>>
+        >>> x = torch.randn(5)
+        >>> hessian = jacrev(jacrev(f))(x)
+        >>> assert torch.allclose(hessian, torch.diag(-x.sin()))
+    
     By default, :func:`jacrev` computes the Jacobian with respect to the first input. However, it can compute the
     Jacboian with respect to a different argument by using :attr:`argnums`:
         >>> from functorch import jacrev
