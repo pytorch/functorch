@@ -369,6 +369,7 @@ void sanityCheckNotFunctional(const c10::OperatorHandle& op, torch::jit::Stack* 
   foreachTensor(*stack, stack->size() - num_args, stack->size(),
       [](const Tensor& tensor) -> void{
         TORCH_INTERNAL_ASSERT(!at::functionalization::impl::isFunctionalTensor(tensor));
+        return tensor;
       });
 }
 
