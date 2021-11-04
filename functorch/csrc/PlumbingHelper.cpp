@@ -10,19 +10,19 @@
 
 namespace at { namespace functorch {
 
-Tensor makeBatched(const Tensor& tensor, optional<int64_t> bdim, int64_t level) {
+Tensor makeBatched(const Tensor& tensor, int64_t level, optional<int64_t> bdim) {
   if (bdim.has_value()) {
     TORCH_INTERNAL_ASSERT(*bdim >= 0);
     TORCH_INTERNAL_ASSERT(*bdim < tensor.dim());
-    return makeBatched(tensor, {{level, bdim.value()}});
+    return makeBatched(tensor, level, bdim.value());
   }
   return tensor;
 }
 
-std::vector<Tensor> makeBatchedVector(const std::vector<Tensor>& tensors, optional<int64_t> bdim, int64_t level) {
+std::vector<Tensor> makeBatchedVector(const std::vector<Tensor>& tensors, int64_t level, optional<int64_t> bdim) {
   std::vector<Tensor> res;
   for (size_t idx = 0; idx < tensors.size(); idx++) {
-    res.push_back(makeBatched(tensors[idx], bdim, level));
+    res.push_back(makeBatched(tensors[idx], level, bdim));
   }
   return res;
 }
@@ -32,11 +32,8 @@ std::tuple<Tensor, optional<int64_t>> unwrapTensorAtLevel(const Tensor& tensor, 
   if (!batched) {
     return std::make_tuple(tensor, nullopt);
   }
-  TORCH_INTERNAL_ASSERT(batched->bdims().size() == 1);
-  auto batched_level = batched->bdims().back().level();
-  if (batched_level == level) {
-    auto bdim = batched->bdims().back().dim();
-    return std::make_tuple(batched->value(), bdim);
+  if (batched->level() == level) {
+    return std::make_tuple(batched->value(), batched->bdim());
   }
   return std::make_tuple(tensor, nullopt);
 }

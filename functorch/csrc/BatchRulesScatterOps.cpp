@@ -108,7 +108,7 @@ Tensor index_plumbing(const Tensor & self, const List<optional<Tensor>> & indice
     indices_bdims.push_back(index_bdim);
   }
   auto results = index_batch_rule(self_value, self_bdim, indices_value, indices_bdims);
-  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
+  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
 }
 
 void index_put__batch_rule(

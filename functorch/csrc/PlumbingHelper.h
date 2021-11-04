@@ -11,10 +11,10 @@
 
 namespace at { namespace functorch {
 
-Tensor makeBatched(const Tensor& tensor, optional<int64_t> bdim, int64_t level);
+Tensor makeBatched(const Tensor& tensor, int64_t level, optional<int64_t> bdim);
 std::tuple<Tensor, optional<int64_t>> unwrapTensorAtLevel(const Tensor& tensor, int64_t level);
 
-std::vector<Tensor> makeBatchedVector(const std::vector<Tensor>& tensors, optional<int64_t> bdim, int64_t level);
+std::vector<Tensor> makeBatchedVector(const std::vector<Tensor>& tensors, int64_t level, optional<int64_t> bdim);
 
 }}
 

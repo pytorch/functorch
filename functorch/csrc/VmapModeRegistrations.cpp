@@ -41,7 +41,7 @@ Tensor randn_mbatching_rule(IntArrayRef shape, TENSOROPTIONSPARAMS) {
     auto maybe_layer = maybeCurrentDynamicLayer();
     VmapDimVector shapeVec(shape.begin(), shape.end());
     shapeVec.insert(shapeVec.begin(), maybe_layer->batchSize());
-    return makeBatched(at::randn(shapeVec, TENSOROPTIONSARGS), 0, maybe_layer->layerId());
+    return makeBatched(at::randn(shapeVec, TENSOROPTIONSARGS), maybe_layer->layerId(), 0);
 }
 
 

@@ -116,10 +116,10 @@ def lower(returns: Tuple[str], args: List[Tuple[str, str]], unique_count: int) -
     wrapped_returns = []
     for ret in returns:
         if is_tensor(ret):
-            wrapped_returns.append(f'makeBatched(std::get<{idx}>(results), std::get<{idx + 1}>(results), cur_level)')
+            wrapped_returns.append(f'makeBatched(std::get<{idx}>(results), cur_level, std::get<{idx + 1}>(results))')
             idx += 2
         elif is_vector_tensor(ret):
-            wrapped_returns.append(f'makeBatchedVector(std::get<{idx}>(results), std::get<{idx + 1}>(results), cur_level)')
+            wrapped_returns.append(f'makeBatchedVector(std::get<{idx}>(results), cur_level, std::get<{idx + 1}>(results))')
             idx += 2
         else:
             wrapped_returns.append(f'std::get<{idx}>(results)')

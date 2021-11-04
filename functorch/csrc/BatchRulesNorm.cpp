@@ -95,7 +95,7 @@ Tensor batch_norm_plumbing(
         running_mean_value, running_mean_bdim,
         running_var_value, running_var_bdim,
         training, momentum, eps, cudnn_enabled);
-    return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
+    return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
   }
 
   static auto op = c10::Dispatcher::singleton()
@@ -149,9 +149,9 @@ std::tuple<Tensor,Tensor,Tensor> native_group_norm_plumbing(
         input_value, *input_bdim, weight_value, bias_value,
         N, C, HxW, group, eps);
     return std::make_tuple(
-        makeBatched(std::get<0>(result), std::get<1>(result), cur_level),
-        makeBatched(std::get<2>(result), std::get<3>(result), cur_level),
-        makeBatched(std::get<4>(result), std::get<5>(result), cur_level));
+        makeBatched(std::get<0>(result), cur_level, std::get<1>(result)),
+        makeBatched(std::get<2>(result), cur_level, std::get<3>(result)),
+        makeBatched(std::get<4>(result), cur_level, std::get<5>(result)));
   }
 
   static auto op = c10::Dispatcher::singleton()
