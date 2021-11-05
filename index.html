@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>functorch &mdash; functorch preview documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato" type="text/css" />
+      <link rel="stylesheet" href="_static/css/pytorch_theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/clipboard.min.js"></script>
+        <script src="_static/copybutton.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Install" href="install.html" />
+
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+    
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Install</a></li>
+<li class="toctree-l1"><a class="reference internal" href="functorch.html">functorch API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="functorch.html#function-transforms">Function Transforms</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="generated/functorch.grad.html">functorch.grad</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/functorch.grad_and_value.html">functorch.grad_and_value</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/functorch.jacrev.html">functorch.jacrev</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/functorch.vmap.html">functorch.vmap</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/functorch.vjp.html">functorch.vjp</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="functorch.html#utilities-for-working-with-torch-nn-modules">Utilities for working with torch.nn.Modules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="generated/functorch.make_functional.html">functorch.make_functional</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/functorch.make_functional_with_buffers.html">functorch.make_functional_with_buffers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/functorch.combine_state_for_ensemble.html">functorch.combine_state_for_ensemble</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">functorch</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home"></a> &raquo;</li>
+      <li>functorch</li>
+      <li class="wy-breadcrumbs-aside">
+              <!-- User defined GitHub URL -->
+              <a href="https://github.com/pytorch/functorch" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="functorch">
+<h1>functorch<a class="headerlink" href="#functorch" title="Permalink to this headline">¶</a></h1>
+<p>functorch is <a class="reference external" href="https://github.com/google/jax">JAX-like</a> composable function transforms for PyTorch.</p>
+<p>It aims to provide composable vmap and grad transforms that work with PyTorch modules
+and PyTorch autograd with good eager-mode performance.</p>
+<p><strong>This library is currently under heavy development - if you have suggestions on the API or use-cases you’d like to be covered, please open an github issue or reach out. We’d love to hear about how you’re using the library.</strong></p>
+<div class="section" id="why-composable-function-transforms">
+<h2>Why composable function transforms?<a class="headerlink" href="#why-composable-function-transforms" title="Permalink to this headline">¶</a></h2>
+<p>There are a number of use cases that are tricky to do in PyTorch today:</p>
+<ul class="simple">
+<li><p>computing per-sample-gradients (or other per-sample quantities)</p></li>
+<li><p>running ensembles of models on a single machine</p></li>
+<li><p>efficiently batching together tasks in the inner-loop of MAML</p></li>
+<li><p>efficiently computing Jacobians and Hessians</p></li>
+<li><p>efficiently computing batched Jacobians and Hessians</p></li>
+</ul>
+<p>Composing <a class="reference internal" href="generated/functorch.vmap.html#functorch.vmap" title="functorch.vmap"><code class="xref py py-func docutils literal notranslate"><span class="pre">vmap()</span></code></a>, <a class="reference internal" href="generated/functorch.grad.html#functorch.grad" title="functorch.grad"><code class="xref py py-func docutils literal notranslate"><span class="pre">grad()</span></code></a>, and <a class="reference internal" href="generated/functorch.vjp.html#functorch.vjp" title="functorch.vjp"><code class="xref py py-func docutils literal notranslate"><span class="pre">vjp()</span></code></a> transforms allows us to express the above without designing a separate subsystem for each.
+This idea of composable function transforms comes from the <a class="reference external" href="https://github.com/google/jax">JAX framework</a>.</p>
+</div>
+<div class="section" id="read-more">
+<h2>Read More<a class="headerlink" href="#read-more" title="Permalink to this headline">¶</a></h2>
+<p>For a whirlwind tour of how to use the transforms, please check out <a class="reference external" href="https://github.com/pytorch/functorch/blob/main/README.md#what-are-the-transforms">this section in our README</a>. For installation instructions or the API reference, please check below.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Install</a></li>
+<li class="toctree-l1"><a class="reference internal" href="functorch.html">functorch API Reference</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="install.html" class="btn btn-neutral float-right" title="Install" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright functorch Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+<script script type="text/javascript">
+  var collapsedSections = ['Notes', 'Language Bindings', 'Libraries', 'Community'];
+</script>
+
+<img height="1" width="1" style="border-style:none;" alt="" src="https://www.googleadservices.com/pagead/conversion/795629140/?label=txkmCPmdtosBENSssfsC&amp;guid=ON&amp;script=0"/>
+
+
+</body>
+</html>

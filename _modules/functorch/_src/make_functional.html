@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>functorch._src.make_functional &mdash; functorch preview documentation</title><link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/pytorch_theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/clipboard.min.js"></script>
+        <script src="../../../_static/copybutton.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+    
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../install.html">Install</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../functorch.html">functorch API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../functorch.html#function-transforms">Function Transforms</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../generated/functorch.grad.html">functorch.grad</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../generated/functorch.grad_and_value.html">functorch.grad_and_value</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../generated/functorch.jacrev.html">functorch.jacrev</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../generated/functorch.vmap.html">functorch.vmap</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../generated/functorch.vjp.html">functorch.vjp</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../functorch.html#utilities-for-working-with-torch-nn-modules">Utilities for working with torch.nn.Modules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../generated/functorch.make_functional.html">functorch.make_functional</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../generated/functorch.make_functional_with_buffers.html">functorch.make_functional_with_buffers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../generated/functorch.combine_state_for_ensemble.html">functorch.combine_state_for_ensemble</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">functorch</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>functorch._src.make_functional</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for functorch._src.make_functional</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) Facebook, Inc. and its affiliates.</span>
+<span class="c1"># All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># This source code is licensed under the BSD-style license found in the</span>
+<span class="c1"># LICENSE file in the root directory of this source tree.</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">Tensor</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="c1"># Utilities to make nn.Module &quot;functional&quot;</span>
+<span class="c1"># In particular the goal is to be able to provide a function that takes as input</span>
+<span class="c1"># the parameters and evaluate the nn.Module using fixed inputs.</span>
+<span class="k">def</span> <span class="nf">_del_nested_attr</span><span class="p">(</span><span class="n">obj</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Deletes the attribute specified by the given list of names.</span>
+<span class="sd">    For example, to delete the attribute obj.conv.weight,</span>
+<span class="sd">    use _del_nested_attr(obj, [&#39;conv&#39;, &#39;weight&#39;])</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="nb">delattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">_del_nested_attr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">names</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">names</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+
+<span class="k">def</span> <span class="nf">_set_nested_attr</span><span class="p">(</span><span class="n">obj</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">value</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Set the attribute specified by the given list of names to value.</span>
+<span class="sd">    For example, to set the attribute obj.conv.weight,</span>
+<span class="sd">    use _del_nested_attr(obj, [&#39;conv&#39;, &#39;weight&#39;], value)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">names</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">value</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">_set_nested_attr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">names</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">names</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">value</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">_get_nested_attr</span><span class="p">(</span><span class="n">obj</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">_get_nested_attr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">names</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">names</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+
+<span class="k">def</span> <span class="nf">extract_weights</span><span class="p">(</span><span class="n">mod</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function removes all the Parameters from the model and</span>
+<span class="sd">    return them as a tuple as well as their original attribute names.</span>
+<span class="sd">    The weights must be re-loaded with `load_weights` before the model</span>
+<span class="sd">    can be used again.</span>
+<span class="sd">    Note that this function modifies the model in place and after this</span>
+<span class="sd">    call, mod.parameters() will be empty.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">orig_params</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
+    <span class="c1"># Remove all the parameters in the model</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">named_parameters</span><span class="p">()):</span>
+        <span class="n">replacement</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s1">&#39;meta&#39;</span><span class="p">))</span>
+        <span class="n">_set_nested_attr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">),</span> <span class="n">replacement</span><span class="p">)</span>
+        <span class="n">names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="c1"># Make params regular Tensors instead of nn.Parameter</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">orig_params</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">params</span><span class="p">,</span> <span class="n">names</span>
+
+<span class="k">def</span> <span class="nf">load_weights</span><span class="p">(</span><span class="n">mod</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">params</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">as_params</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reload a set of weights so that `mod` can be used again to perform a forward pass.</span>
+<span class="sd">    Note that the `params` are regular Tensors (that can have history) and so are left</span>
+<span class="sd">    as Tensors. This means that mod.parameters() will still be empty after this call.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">as_params</span><span class="p">:</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="n">_del_nested_attr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">))</span>
+        <span class="n">_set_nested_attr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">),</span> <span class="n">p</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">_swap_state</span><span class="p">(</span><span class="n">mod</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">split_names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">elems</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">split_name</span><span class="p">,</span> <span class="n">elem</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">split_names</span><span class="p">,</span> <span class="n">elems</span><span class="p">):</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_get_nested_attr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">split_name</span><span class="p">))</span>
+        <span class="n">_del_nested_attr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">split_name</span><span class="p">)</span>
+        <span class="n">_set_nested_attr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">split_name</span><span class="p">,</span> <span class="n">elem</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+<span class="k">def</span> <span class="nf">extract_buffers</span><span class="p">(</span><span class="n">mod</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+    <span class="n">orig_params</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">buffers</span><span class="p">())</span>
+    <span class="c1"># Remove all the parameters in the model</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">named_buffers</span><span class="p">()):</span>
+        <span class="n">replacement</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s1">&#39;meta&#39;</span><span class="p">)</span>
+        <span class="n">_set_nested_attr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">),</span> <span class="n">replacement</span><span class="p">)</span>
+        <span class="n">names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="c1"># Make params regular Tensors instead of nn.Parameter</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">orig_params</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">params</span><span class="p">,</span> <span class="n">names</span>
+
+
+<span class="k">def</span> <span class="nf">load_buffers</span><span class="p">(</span><span class="n">mod</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">buffers</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">as_params</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">buffers</span><span class="p">):</span>
+        <span class="n">_set_nested_attr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">),</span> <span class="n">p</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">load_state</span><span class="p">(</span>
+        <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">weights</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">weight_names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">buffers</span><span class="o">=</span><span class="p">(),</span> <span class="n">buffer_names</span><span class="o">=</span><span class="p">()):</span>
+    <span class="sd">&quot;&quot;&quot;load_state(model, weights, weight_names, buffers=(), buffer_names=()) -&gt; model</span>
+
+<span class="sd">    load_state takes `weights` and `buffers` and assigns them to the model.</span>
+<span class="sd">    This is the inverse operation of `make_functional_deprecated_v1`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">weight_names</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+    <span class="n">load_weights</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">weight_names</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">buffers</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">buffer_names</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">buffers</span><span class="p">)</span>
+        <span class="n">load_buffers</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">buffer_names</span><span class="p">,</span> <span class="n">buffers</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">model</span>
+
+
+<span class="k">def</span> <span class="nf">make_functional_deprecated_v1</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;make_functional_deprecated_v1(model) -&gt; weights, func, weight_names</span>
+
+<span class="sd">    Given an nn.Module, make_functional_deprecated_v1 extracts the state (weights)</span>
+<span class="sd">    and returns a functional version of the model, `func`. This makes</span>
+<span class="sd">    it so that it is possible use transforms over the parameters of</span>
+<span class="sd">    `model`.</span>
+
+<span class="sd">    `func` can be invoked as follows:</span>
+<span class="sd">    ```</span>
+<span class="sd">    x = torch.randn(4, 3)</span>
+<span class="sd">    model = nn.Linear(3, 3)</span>
+<span class="sd">    weights, func, _ = make_functional_deprecated_v1(model)</span>
+<span class="sd">    func(weights, (x,))</span>
+<span class="sd">    ```</span>
+
+<span class="sd">    And here is an example of applying the grad transform:</span>
+<span class="sd">    ```</span>
+<span class="sd">    x = torch.randn(4, 3)</span>
+<span class="sd">    model = nn.Linear(3, 3)</span>
+<span class="sd">    weights, _, func = make_functional_deprecated_v1(model)</span>
+<span class="sd">    grad_weights = grad(func)(weights, (x,))</span>
+<span class="sd">    ```</span>
+
+<span class="sd">    To put the state back into a model, use `load_state`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">buffers</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">buffers</span><span class="p">())</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">buffers</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;make_functional_deprecated_v1(model): `model` has buffers. Please use &#39;</span>
+                           <span class="s1">&#39;make_functional_with_buffers_deprecated_v1(model) instead.&#39;</span><span class="p">)</span>
+    <span class="n">weights</span><span class="p">,</span> <span class="n">descriptors</span> <span class="o">=</span> <span class="n">extract_weights</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">fun</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="n">mutable_model</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+        <span class="n">load_weights</span><span class="p">(</span><span class="n">mutable_model</span><span class="p">,</span> <span class="n">descriptors</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mutable_model</span><span class="p">(</span><span class="o">*</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">weights</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">descriptors</span>
+
+
+<span class="k">def</span> <span class="nf">make_functional_with_buffers_deprecated_v1</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;make_functional_with_buffers_deprecated_v1(model) -&gt; weights, buffers, func, weight_names, buffer_names</span>
+
+<span class="sd">    Given an nn.Module, make_functional_with_buffers_deprecated_v1 extracts the state (weights and buffers)</span>
+<span class="sd">    and returns a functional version of the model, `func`.</span>
+
+<span class="sd">    `func` can be invoked as follows:</span>
+<span class="sd">    ```</span>
+<span class="sd">    x = torch.randn(4, 3)</span>
+<span class="sd">    model = nn.Linear(3, 3)</span>
+<span class="sd">    weights, buffers, func, _, _ = make_functional_with_buffers_deprecated_v1(model)</span>
+<span class="sd">    func(weights, buffers, (x,))</span>
+<span class="sd">    ```</span>
+
+<span class="sd">    And here is an example of applying the grad transform:</span>
+<span class="sd">    ```</span>
+<span class="sd">    x = torch.randn(4, 3)</span>
+<span class="sd">    model = nn.Linear(3, 3)</span>
+<span class="sd">    weights, buffers, func, _, _ = make_functional_with_buffers_deprecated_v1(model)</span>
+<span class="sd">    func(weights, buffers, (x,))</span>
+<span class="sd">    grad_weights = grad(func)(weights, buffers, (x,))</span>
+<span class="sd">    ```</span>
+
+<span class="sd">    To put the state back into a model, use `load_state`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">weights</span><span class="p">,</span> <span class="n">weight_descriptors</span> <span class="o">=</span> <span class="n">extract_weights</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+    <span class="n">buffers</span><span class="p">,</span> <span class="n">buf_descriptors</span> <span class="o">=</span> <span class="n">extract_buffers</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">fun</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">buffers</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="n">mutable_model</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+        <span class="n">load_weights</span><span class="p">(</span><span class="n">mutable_model</span><span class="p">,</span> <span class="n">weight_descriptors</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
+        <span class="n">load_buffers</span><span class="p">(</span><span class="n">mutable_model</span><span class="p">,</span> <span class="n">buf_descriptors</span><span class="p">,</span> <span class="n">buffers</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mutable_model</span><span class="p">(</span><span class="o">*</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">weights</span><span class="p">,</span> <span class="n">buffers</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">weight_descriptors</span><span class="p">,</span> <span class="n">buf_descriptors</span>
+
+<span class="k">def</span> <span class="nf">make_split_names</span><span class="p">(</span><span class="n">lst</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">lst</span><span class="p">]</span>
+
+<span class="k">class</span> <span class="nc">FunctionalModuleWithBuffers</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is the callable object returned by :func:`make_functional_with_buffers`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stateless_model</span><span class="p">,</span> <span class="n">param_names</span><span class="p">,</span> <span class="n">buffer_names</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">FunctionalModuleWithBuffers</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stateless_model</span> <span class="o">=</span> <span class="n">stateless_model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">param_names</span> <span class="o">=</span> <span class="n">param_names</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffer_names</span> <span class="o">=</span> <span class="n">buffer_names</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">split_names</span> <span class="o">=</span> <span class="n">make_split_names</span><span class="p">(</span><span class="n">param_names</span> <span class="o">+</span> <span class="n">buffer_names</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_create_from</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
+        <span class="c1"># TODO: We don&#39;t need to copy the model to create a stateless copy</span>
+        <span class="n">model_copy</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+        <span class="n">params</span><span class="p">,</span> <span class="n">param_names</span> <span class="o">=</span> <span class="n">extract_weights</span><span class="p">(</span><span class="n">model_copy</span><span class="p">)</span>
+        <span class="n">buffers</span><span class="p">,</span> <span class="n">buffer_names</span> <span class="o">=</span> <span class="n">extract_buffers</span><span class="p">(</span><span class="n">model_copy</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">FunctionalModuleWithBuffers</span><span class="p">(</span><span class="n">model_copy</span><span class="p">,</span> <span class="n">param_names</span><span class="p">,</span> <span class="n">buffer_names</span><span class="p">),</span>
+            <span class="n">params</span><span class="p">,</span>
+            <span class="n">buffers</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">buffers</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c1"># Temporarily load the state back onto self.stateless_model</span>
+        <span class="n">old_state</span> <span class="o">=</span> <span class="n">_swap_state</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stateless_model</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">split_names</span><span class="p">,</span>
+            <span class="nb">list</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">buffers</span><span class="p">))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">stateless_model</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="c1"># Remove the loaded state on self.stateless_model</span>
+            <span class="n">_swap_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stateless_model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_names</span><span class="p">,</span> <span class="n">old_state</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">FunctionalModule</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is the callable object returned by :func:`make_functional`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stateless_model</span><span class="p">,</span> <span class="n">param_names</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">FunctionalModule</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stateless_model</span> <span class="o">=</span> <span class="n">stateless_model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">param_names</span> <span class="o">=</span> <span class="n">param_names</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">split_names</span> <span class="o">=</span> <span class="n">make_split_names</span><span class="p">(</span><span class="n">param_names</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_create_from</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
+        <span class="c1"># TODO: We don&#39;t need to copy the model to create a stateless copy</span>
+        <span class="n">model_copy</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+        <span class="n">params</span><span class="p">,</span> <span class="n">param_names</span> <span class="o">=</span> <span class="n">extract_weights</span><span class="p">(</span><span class="n">model_copy</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">FunctionalModule</span><span class="p">(</span><span class="n">model_copy</span><span class="p">,</span> <span class="n">param_names</span><span class="p">),</span> <span class="n">params</span>
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c1"># Temporarily load the state back onto self.stateless_model</span>
+        <span class="n">old_state</span> <span class="o">=</span> <span class="n">_swap_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stateless_model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_names</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">stateless_model</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="c1"># Remove the loaded state on self.stateless_model</span>
+            <span class="n">_swap_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stateless_model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_names</span><span class="p">,</span> <span class="n">old_state</span><span class="p">)</span>
+
+<div class="viewcode-block" id="make_functional"><a class="viewcode-back" href="../../../generated/functorch.make_functional.html#functorch.make_functional">[docs]</a><span class="k">def</span> <span class="nf">make_functional</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;make_functional(model) -&gt; func, params</span>
+
+<span class="sd">    Given a ``torch.nn.Module``, :func:`make_functional` extracts the state</span>
+<span class="sd">    (params) and returns a functional version of the model, ``func``. This</span>
+<span class="sd">    makes it so that it is possible use transforms over the parameters of</span>
+<span class="sd">    ``model``.</span>
+
+<span class="sd">    ``func`` can be invoked as follows:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        import torch</span>
+<span class="sd">        import torch.nn as nn</span>
+<span class="sd">        from functorch import make_functional</span>
+
+<span class="sd">        x = torch.randn(4, 3)</span>
+<span class="sd">        model = nn.Linear(3, 3)</span>
+<span class="sd">        func, params = make_functional(model)</span>
+<span class="sd">        func(params, x)</span>
+
+<span class="sd">    And here is an example of applying the grad transform over the parameters</span>
+<span class="sd">    of a model.</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        import torch</span>
+<span class="sd">        import torch.nn as nn</span>
+<span class="sd">        from functorch import make_functional, grad</span>
+
+<span class="sd">        x = torch.randn(4, 3)</span>
+<span class="sd">        t = torch.randn(4, 3)</span>
+<span class="sd">        model = nn.Linear(3, 3)</span>
+<span class="sd">        func, params = make_functional(model)</span>
+
+<span class="sd">        def compute_loss(params, x, t):</span>
+<span class="sd">            y = func(params, x)</span>
+<span class="sd">            return nn.functional.mse_loss(y, t)</span>
+
+<span class="sd">        grad_weights = grad(compute_loss)(params, x, t)</span>
+
+<span class="sd">    If the model has any buffers, please use :func:`make_functional_with_buffers` instead.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">buffers</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">buffers</span><span class="p">())</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">buffers</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;make_functional(model): `model` has buffers. Please use &#39;</span>
+                           <span class="s1">&#39;make_functional_with_buffers(model) instead.&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">FunctionalModule</span><span class="o">.</span><span class="n">_create_from</span><span class="p">(</span><span class="n">model</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="make_functional_with_buffers"><a class="viewcode-back" href="../../../generated/functorch.make_functional_with_buffers.html#functorch.make_functional_with_buffers">[docs]</a><span class="k">def</span> <span class="nf">make_functional_with_buffers</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;make_functional_with_buffers(model) -&gt; func, params, buffers</span>
+
+<span class="sd">    Given a ``torch.nn.Module``, make_functional_with_buffers extracts the</span>
+<span class="sd">    state (params and buffers) and returns a functional version of the model</span>
+<span class="sd">    ``func`` that can be invoked like a function.</span>
+
+<span class="sd">    ``func`` can be invoked as follows:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        import torch</span>
+<span class="sd">        import torch.nn as nn</span>
+<span class="sd">        from functorch import make_functional_with_buffers</span>
+
+<span class="sd">        x = torch.randn(4, 3)</span>
+<span class="sd">        model = nn.Linear(3, 3)</span>
+<span class="sd">        func, params, buffers = make_functional_with_buffers(model)</span>
+<span class="sd">        func(params, buffers, x)</span>
+
+<span class="sd">    And here is an example of applying the grad transform over the parameters</span>
+<span class="sd">    of a model:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        import torch</span>
+<span class="sd">        import torch.nn as nn</span>
+<span class="sd">        from functorch import make_functional_with_buffers, grad</span>
+
+<span class="sd">        x = torch.randn(4, 3)</span>
+<span class="sd">        t = torch.randn(4, 3)</span>
+<span class="sd">        model = nn.Linear(3, 3)</span>
+<span class="sd">        func, params, buffers = make_functional_with_buffers(model)</span>
+
+<span class="sd">        def compute_loss(params, buffers, x, t):</span>
+<span class="sd">            y = func(params, buffers, x)</span>
+<span class="sd">            return nn.functional.mse_loss(y, t)</span>
+
+<span class="sd">        grad_weights = grad(compute_loss)(params, buffers, x, t)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">FunctionalModuleWithBuffers</span><span class="o">.</span><span class="n">_create_from</span><span class="p">(</span><span class="n">model</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">transpose_stack</span><span class="p">(</span><span class="n">tuple_of_tuple_of_tensors</span><span class="p">):</span>
+    <span class="n">tuple_of_tuple_of_tensors</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">tuple_of_tuple_of_tensors</span><span class="p">))</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">shards</span><span class="p">)</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="k">for</span> <span class="n">shards</span> <span class="ow">in</span> <span class="n">tuple_of_tuple_of_tensors</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">results</span>
+
+
+<div class="viewcode-block" id="combine_state_for_ensemble"><a class="viewcode-back" href="../../../generated/functorch.combine_state_for_ensemble.html#functorch.combine_state_for_ensemble">[docs]</a><span class="k">def</span> <span class="nf">combine_state_for_ensemble</span><span class="p">(</span><span class="n">models</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;combine_state_for_ensemble(models) -&gt; func, params, buffers</span>
+
+<span class="sd">    Prepares a list of torch.nn.Modules for ensembling with :func:`vmap`.</span>
+
+<span class="sd">    Given a list of ``M`` ``nn.Modules`` of the same class, stacks all of their</span>
+<span class="sd">    parameters and buffers together to make ``params`` and ``buffers``.</span>
+<span class="sd">    Each parameter and buffer in the result will have an additional dimension</span>
+<span class="sd">    of size ``M``.</span>
+
+<span class="sd">    :func:`combine_state_for_ensemble` also returns ``func``, a functional</span>
+<span class="sd">    version of one of the models in :attr:`models`. One cannot directly run</span>
+<span class="sd">    ``func(params, buffers, *args, **kwargs)`` directly, you probably want to</span>
+<span class="sd">    use ``vmap(func, ...)(params, buffers, *args, **kwargs)``</span>
+
+<span class="sd">    Here&#39;s an example of how to ensemble over a very simple model:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        num_models = 5</span>
+<span class="sd">        batch_size = 64</span>
+<span class="sd">        in_features, out_features = 3, 3</span>
+<span class="sd">        models = [torch.nn.Linear(in_features, out_features) for i in range(num_models)]</span>
+<span class="sd">        data = torch.randn(batch_size, 3)</span>
+
+<span class="sd">        fmodel, params, buffers = combine_state_for_ensemble(models)</span>
+<span class="sd">        output = vmap(fmodel, (0, 0, None))(params, buffers, data)</span>
+
+<span class="sd">        assert output.shape == (num_models, batch_size, out_features)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">funcs</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">buffers</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">make_functional_with_buffers</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+                                   <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">models</span><span class="p">])</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="n">transpose_stack</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+    <span class="n">buffers</span> <span class="o">=</span> <span class="n">transpose_stack</span><span class="p">(</span><span class="n">buffers</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">funcs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">params</span><span class="p">,</span> <span class="n">buffers</span></div>
+
+
+<span class="c1"># class Ensemble(nn.Module):</span>
+<span class="c1">#     def __init__(self, models, in_dims, out_dims=0):</span>
+<span class="c1">#         super(Ensemble, self).__init__()</span>
+<span class="c1">#         func_model, params, buffers = combine_state_for_ensemble(models)</span>
+<span class="c1">#         self.func_model = func_model</span>
+<span class="c1">#         self.params = params</span>
+<span class="c1">#         self.buffers = buffers if len(buffers) &gt; 0 else None</span>
+<span class="c1"># </span>
+<span class="c1">#         in_dims_start = (0, 0) if self.buffers is not None else (0,)</span>
+<span class="c1">#         self.in_dims = in_dims_start + in_dims</span>
+<span class="c1">#         self.out_dims = out_dims</span>
+<span class="c1">#         self._vmap_func = vmap(func_model, self.in_dims, self.out_dims)</span>
+<span class="c1"># </span>
+<span class="c1">#     def forward(self, *args, **kwargs):</span>
+<span class="c1">#         return self._vmap_func(self.params, self.buffers, *args, **kwargs)</span>
+
+
+<span class="k">def</span> <span class="nf">functional_init</span><span class="p">(</span><span class="n">model_class</span><span class="p">,</span> <span class="n">ensemble_shape</span><span class="o">=</span><span class="p">(),</span> <span class="n">device</span><span class="o">=</span><span class="s1">&#39;cpu&#39;</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">wrapped</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ensemble_shape</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;NYI: ensemble_shape with more than 1 element&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ensemble_shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">model_class</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">make_functional_deprecated_v1</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+        <span class="n">num_models</span> <span class="o">=</span> <span class="n">ensemble_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">num_models</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;num_models </span><span class="si">{</span><span class="n">num_models</span><span class="si">}</span><span class="s2"> should be &gt; 0&quot;</span><span class="p">)</span>
+        <span class="c1"># NB: Not very efficient, more of a POC</span>
+        <span class="n">models</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">model_class</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+                       <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_models</span><span class="p">))</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">names</span> <span class="o">=</span> <span class="n">make_functional_deprecated_v1</span><span class="p">(</span><span class="n">model_class</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">make_functional_deprecated_v1</span><span class="p">(</span><span class="n">model</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">models</span><span class="p">)</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">weights</span><span class="p">))</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">shards</span><span class="p">)</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="k">for</span> <span class="n">shards</span> <span class="ow">in</span> <span class="n">weights</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">weights</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">names</span>
+    <span class="k">return</span> <span class="n">wrapped</span>
+
+
+<span class="k">def</span> <span class="nf">functional_init_with_buffers</span><span class="p">(</span><span class="n">model_class</span><span class="p">,</span> <span class="n">ensemble_shape</span><span class="o">=</span><span class="p">(),</span> <span class="n">device</span><span class="o">=</span><span class="s1">&#39;cpu&#39;</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">wrapped</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ensemble_shape</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;NYI: ensemble_shape with more than 1 element&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ensemble_shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">model_class</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">make_functional_deprecated_v1</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+        <span class="n">num_models</span> <span class="o">=</span> <span class="n">ensemble_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">num_models</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;num_models </span><span class="si">{</span><span class="n">num_models</span><span class="si">}</span><span class="s2"> should be &gt; 0&quot;</span><span class="p">)</span>
+        <span class="c1"># NB: Not very efficient, more of a POC</span>
+        <span class="n">models</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">model_class</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+                       <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_models</span><span class="p">))</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">weight_names</span><span class="p">,</span> <span class="n">buffer_names</span> <span class="o">=</span> \
+            <span class="n">make_functional_with_buffers_deprecated_v1</span><span class="p">(</span><span class="n">model_class</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+        <span class="n">weights</span><span class="p">,</span> <span class="n">buffers</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">make_functional_with_buffers_deprecated_v1</span><span class="p">(</span><span class="n">model</span><span class="p">)[:</span><span class="mi">2</span><span class="p">]</span>
+                                      <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">models</span><span class="p">))</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">weights</span><span class="p">))</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">shards</span><span class="p">)</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="k">for</span> <span class="n">shards</span> <span class="ow">in</span> <span class="n">weights</span><span class="p">)</span>
+        <span class="n">buffers</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">buffers</span><span class="p">))</span>
+        <span class="n">buffers</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">shards</span><span class="p">)</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="k">for</span> <span class="n">shards</span> <span class="ow">in</span> <span class="n">buffers</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">weights</span><span class="p">,</span> <span class="n">buffers</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">weight_names</span><span class="p">,</span> <span class="n">buffer_names</span>
+    <span class="k">return</span> <span class="n">wrapped</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright functorch Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+<script script type="text/javascript">
+  var collapsedSections = ['Notes', 'Language Bindings', 'Libraries', 'Community'];
+</script>
+
+<img height="1" width="1" style="border-style:none;" alt="" src="https://www.googleadservices.com/pagead/conversion/795629140/?label=txkmCPmdtosBENSssfsC&amp;guid=ON&amp;script=0"/>
+
+
+</body>
+</html>

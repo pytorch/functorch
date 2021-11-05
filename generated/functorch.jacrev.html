@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>functorch.jacrev &mdash; functorch preview documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/pytorch_theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/clipboard.min.js"></script>
+        <script src="../_static/copybutton.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="functorch.vmap" href="functorch.vmap.html" />
+    <link rel="prev" title="functorch.grad_and_value" href="functorch.grad_and_value.html" />
+
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+    
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Install</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../functorch.html">functorch API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../functorch.html#function-transforms">Function Transforms</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="functorch.grad.html">functorch.grad</a></li>
+<li class="toctree-l3"><a class="reference internal" href="functorch.grad_and_value.html">functorch.grad_and_value</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">functorch.jacrev</a></li>
+<li class="toctree-l3"><a class="reference internal" href="functorch.vmap.html">functorch.vmap</a></li>
+<li class="toctree-l3"><a class="reference internal" href="functorch.vjp.html">functorch.vjp</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../functorch.html#utilities-for-working-with-torch-nn-modules">Utilities for working with torch.nn.Modules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="functorch.make_functional.html">functorch.make_functional</a></li>
+<li class="toctree-l3"><a class="reference internal" href="functorch.make_functional_with_buffers.html">functorch.make_functional_with_buffers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="functorch.combine_state_for_ensemble.html">functorch.combine_state_for_ensemble</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">functorch</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../functorch.html">functorch API Reference</a> &raquo;</li>
+      <li>functorch.jacrev</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/generated/functorch.jacrev.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="functorch-jacrev">
+<h1>functorch.jacrev<a class="headerlink" href="#functorch-jacrev" title="Permalink to this headline">¶</a></h1>
+<dl class="py function">
+<dt id="functorch.jacrev">
+<code class="sig-prename descclassname"><span class="pre">functorch.</span></code><code class="sig-name descname"><span class="pre">jacrev</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">argnums</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/functorch/_src/eager_transforms.html#jacrev"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.jacrev" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the Jacobian of <code class="xref py py-attr docutils literal notranslate"><span class="pre">f</span></code> with respect to the arg(s) at index
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">argnum</span></code> using reverse mode autodiff</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>func</strong> (<em>function</em>) – A Python function that takes one or more arguments,
+one of which must be a Tensor, and returns one or more Tensors</p></li>
+<li><p><strong>argnums</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em> or </em><em>Tuple</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>]</em>) – Optional, integer or tuple of integers,
+saying which arguments to get the Jacobian with respect to.
+Default: 0.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns a function that takes in the same inputs as <code class="xref py py-attr docutils literal notranslate"><span class="pre">f</span></code> and
+returns the Jacobian of <code class="xref py py-attr docutils literal notranslate"><span class="pre">f</span></code> with respect to the arg(s) at
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">argnums</span></code></p>
+</dd>
+</dl>
+<p>A basic usage with a pointwise, unary operation will give a diagonal array
+as the Jacobian</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">jacrev</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">jacobian</span> <span class="o">=</span> <span class="n">jacrev</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">sin</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">expected</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">jacobian</span><span class="p">,</span> <span class="n">expected</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><a class="reference internal" href="#functorch.jacrev" title="functorch.jacrev"><code class="xref py py-func docutils literal notranslate"><span class="pre">jacrev()</span></code></a> can be composed with vmap to produce batched
+Jacobians:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">jacrev</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">jacobian</span> <span class="o">=</span> <span class="n">vmap</span><span class="p">(</span><span class="n">jacrev</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">sin</span><span class="p">))(</span><span class="n">x</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">assert</span> <span class="n">jacobian</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Additionally, <a class="reference internal" href="#functorch.jacrev" title="functorch.jacrev"><code class="xref py py-func docutils literal notranslate"><span class="pre">jacrev()</span></code></a> can be composed with itself to produce
+Hessians</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">jacrev</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span>  <span class="k">return</span> <span class="n">x</span><span class="o">.</span><span class="n">sin</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hessian</span> <span class="o">=</span> <span class="n">jacrev</span><span class="p">(</span><span class="n">jacrev</span><span class="p">(</span><span class="n">f</span><span class="p">))(</span><span class="n">x</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">hessian</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="o">-</span><span class="n">x</span><span class="o">.</span><span class="n">sin</span><span class="p">()))</span>
+</pre></div>
+</div>
+<p>By default, <a class="reference internal" href="#functorch.jacrev" title="functorch.jacrev"><code class="xref py py-func docutils literal notranslate"><span class="pre">jacrev()</span></code></a> computes the Jacobian with respect to the first
+input. However, it can compute the Jacboian with respect to a different
+argument by using <code class="xref py py-attr docutils literal notranslate"><span class="pre">argnums</span></code>:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">jacrev</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span>  <span class="k">return</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span> <span class="o">**</span> <span class="mi">2</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">jacobian</span> <span class="o">=</span> <span class="n">jacrev</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">1</span><span class="p">)(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">expected</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">y</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">jacobian</span><span class="p">,</span> <span class="n">expected</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Additionally, passing a tuple to <code class="xref py py-attr docutils literal notranslate"><span class="pre">argnums</span></code> will compute the Jacobian
+with respect to multiple arguments</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">jacrev</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span>  <span class="k">return</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span> <span class="o">**</span> <span class="mi">2</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">jacobian</span> <span class="o">=</span> <span class="n">jacrev</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">argnums</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">))(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">expectedX</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">expectedY</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">y</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">jacobian</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">expectedX</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">jacobian</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">expectedY</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Using PyTorch <code class="docutils literal notranslate"><span class="pre">torch.no_grad</span></code> together with <code class="docutils literal notranslate"><span class="pre">jacrev</span></code>.
+Case 1: Using <code class="docutils literal notranslate"><span class="pre">torch.no_grad</span></code> inside a function:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="n">c</span> <span class="o">=</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">return</span> <span class="n">x</span> <span class="o">-</span> <span class="n">c</span>
+</pre></div>
+</div>
+<p>In this case, <code class="docutils literal notranslate"><span class="pre">jacrev(f)(x)</span></code> will respect the inner <code class="docutils literal notranslate"><span class="pre">torch.no_grad</span></code>.</p>
+<p>Case 2: Using <code class="docutils literal notranslate"><span class="pre">jacrev</span></code> inside <code class="docutils literal notranslate"><span class="pre">torch.no_grad</span></code> context manager:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">jacrev</span><span class="p">(</span><span class="n">f</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In this case, <code class="docutils literal notranslate"><span class="pre">jacrev</span></code> will respect the inner <code class="docutils literal notranslate"><span class="pre">torch.no_grad</span></code>, but not the
+outer one. This is because <code class="docutils literal notranslate"><span class="pre">jacrev</span></code> is a “function transform”: its result
+should not depend on the result of a context manager outside of <code class="docutils literal notranslate"><span class="pre">f</span></code>.</p>
+</div>
+</dd></dl>
+
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="functorch.grad_and_value.html" class="btn btn-neutral float-left" title="functorch.grad_and_value" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="functorch.vmap.html" class="btn btn-neutral float-right" title="functorch.vmap" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright functorch Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+<script script type="text/javascript">
+  var collapsedSections = ['Notes', 'Language Bindings', 'Libraries', 'Community'];
+</script>
+
+<img height="1" width="1" style="border-style:none;" alt="" src="https://www.googleadservices.com/pagead/conversion/795629140/?label=txkmCPmdtosBENSssfsC&amp;guid=ON&amp;script=0"/>
+
+
+</body>
+</html>
