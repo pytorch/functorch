@@ -28,7 +28,7 @@ static bool has_level(const Tensor& self, int64_t level) {
 }
 
 Tensor _add_batch_dim(const Tensor& self, int64_t batch_dim, int64_t level) {
-  return addBatchDim(self, level, batch_dim);
+  return addBatchDim(self, batch_dim, level);
 }
 
 static std::pair<Tensor,int64_t> remove_existing_batch_dim(

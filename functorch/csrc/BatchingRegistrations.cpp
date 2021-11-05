@@ -594,7 +594,7 @@ Tensor unwrap_and_call(const Tensor& input, ExtraArgs... args) {
   // guard against the user passing in a batch of scalar tensors with batch
   auto* input_batched = unsafeGetBatchedImpl(input);
   auto output_physical = Func(input_batched->value(), args...);
-  return makeBatched(output_physical, input_batched->level(), input_batched->bdim());
+  return makeBatched(output_physical, input_batched->bdim(), input_batched->level());
 }
 
 template <typename F, F Func, typename... ExtraArgs>
@@ -605,7 +605,7 @@ Tensor unwrap_and_call_method(const Tensor& input, ExtraArgs... extra_args) {
   }
   auto* input_batched = unsafeGetBatchedImpl(input);
   auto output_physical = (input_batched->value().*Func)(extra_args...);
-  return makeBatched(output_physical, input_batched->level(), input_batched->bdim());
+  return makeBatched(output_physical, input_batched->bdim(), input_batched->level());
 }
 
 
@@ -645,7 +645,7 @@ Tensor clone_batching_rule(const Tensor& self, optional<MemoryFormat> memory_for
   TORCH_INTERNAL_ASSERT(!memory_format.has_value() || memory_format == MemoryFormat::Preserve);
   auto* self_batched = unsafeGetBatchedImpl(self);
   auto output_physical = at::clone(self_batched->value(), memory_format);
-  return makeBatched(output_physical, self_batched->level(), self_batched->bdim());
+  return makeBatched(output_physical, self_batched->bdim(), self_batched->level());
 }
 
 Tensor bmm_batching_rule(const Tensor& self, const Tensor& other) {
@@ -710,7 +710,7 @@ Tensor to_dtype_layout_batching_rule(
     .pinned_memory(pin_memory);
   auto* input_batched = unsafeGetBatchedImpl(self);
   auto output_physical = input_batched->value().to(options, non_blocking, copy, memory_format);
-  return makeBatched(output_physical, input_batched->level(), input_batched->bdim());
+  return makeBatched(output_physical, input_batched->bdim(), input_batched->level());
 }
 
 Tensor new_zeros_batching_rule(

@@ -191,8 +191,8 @@ std::tuple<Tensor,Tensor> cudnn_convolution_backward_plumbing(const Tensor & sel
         padding, stride, dilation, groups,
         benchmark, deterministic, allow_tf32, output_mask);
     return std::make_tuple(
-        makeBatched(std::get<0>(result), cur_level, std::get<1>(result)),
-        makeBatched(std::get<2>(result), cur_level, std::get<3>(result)));
+        makeBatched(std::get<0>(result), std::get<1>(result), cur_level),
+        makeBatched(std::get<2>(result), std::get<3>(result), cur_level));
   }
 
   static auto op = c10::Dispatcher::singleton()

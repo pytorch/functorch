@@ -85,7 +85,7 @@ static std::tuple<int64_t, int64_t> computeFrontBatchDimsFromLevels(std::bitset<
     }
     break;
   }
-  return std::make_tuple(level, dim);
+  return std::make_tuple(dim, level);
 }
 
 static Tensor moveDimToFrontAndExpand(Tensor tensor, optional<int64_t> dim, int64_t size) {
@@ -208,8 +208,8 @@ VmapPhysicalToLogicalMap VmapPhysicalView::getPhysicalToLogicalMap() const {
 }
 
 Tensor VmapPhysicalToLogicalMap::apply(const Tensor& physical_tensor) const {
-  auto level_bdim = computeFrontBatchDimsFromLevels(levels_);
-  return makeBatched(physical_tensor, std::get<0>(level_bdim), std::get<1>(level_bdim));
+  auto bdim_level = computeFrontBatchDimsFromLevels(levels_);
+  return makeBatched(physical_tensor, std::get<0>(bdim_level), std::get<1>(bdim_level));
 }
 
 void VmapPhysicalToLogicalMap::applyInplace(std::vector<Tensor>& physical_tensors) const {

@@ -149,7 +149,7 @@ void boxed_tensor_inputs_batch_rule(const c10::OperatorHandle& op, torch::jit::S
   const auto returns = torch::jit::pop(*stack, num_returns);
   for (const auto& ret : returns) {
     if (ret.isTensor()) {
-      torch::jit::push(stack, makeBatched(ret.toTensor(), cur_level, 0));
+      torch::jit::push(stack, makeBatched(ret.toTensor(), 0, cur_level));
     } else {
       TORCH_INTERNAL_ASSERT(false, "This boxed batching rule does not currently support ops that return non-tensor values");
     }
@@ -253,7 +253,7 @@ inline void boxed_existing_bdim_all_batch_rule(
     const auto& ret = (*stack)[idx];
     TORCH_INTERNAL_ASSERT(ret.isTensor(),
         "This boxed batching rule does not currently support ops that return non-tensor values");
-    (*stack)[idx] = makeBatched(reshape_dim_outof(0, batch_size, ret.toTensor()), cur_level, 0);
+    (*stack)[idx] = makeBatched(reshape_dim_outof(0, batch_size, ret.toTensor()), 0, cur_level);
   }
 }
 
@@ -316,9 +316,9 @@ inline void boxed_all_tensors_have_optional_bdim(
     TORCH_INTERNAL_ASSERT(ret.isTensor(),
         "This boxed batching rule does not currently support ops that return non-tensor values");
     if (*is_no_batch_dim_case) {
-      (*stack)[idx] = makeBatched(ret.toTensor(), cur_level, 0);
+      (*stack)[idx] = makeBatched(ret.toTensor(), 0, cur_level);
     } else {
-      (*stack)[idx] = makeBatched(reshape_dim_outof(0, batch_size, ret.toTensor()), cur_level, 0);
+      (*stack)[idx] = makeBatched(reshape_dim_outof(0, batch_size, ret.toTensor()), 0, cur_level);
     }
   }
 }

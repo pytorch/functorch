@@ -10,19 +10,19 @@
 
 namespace at { namespace functorch {
 
-Tensor makeBatched(const Tensor& tensor, int64_t level, optional<int64_t> bdim) {
+Tensor makeBatched(const Tensor& tensor, optional<int64_t> bdim, int64_t level) {
   if (bdim.has_value()) {
     TORCH_INTERNAL_ASSERT(*bdim >= 0);
     TORCH_INTERNAL_ASSERT(*bdim < tensor.dim());
-    return makeBatched(tensor, level, bdim.value());
+    return makeBatched(tensor, bdim.value(), level);
   }
   return tensor;
 }
 
-std::vector<Tensor> makeBatchedVector(const std::vector<Tensor>& tensors, int64_t level, optional<int64_t> bdim) {
+std::vector<Tensor> makeBatchedVector(const std::vector<Tensor>& tensors, optional<int64_t> bdim, int64_t level) {
   std::vector<Tensor> res;
   for (size_t idx = 0; idx < tensors.size(); idx++) {
-    res.push_back(makeBatched(tensors[idx], level, bdim));
+    res.push_back(makeBatched(tensors[idx], bdim, level));
   }
   return res;
 }

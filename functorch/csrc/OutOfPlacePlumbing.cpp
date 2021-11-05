@@ -17,7 +17,7 @@ Tensor lowerToNextLayer<batch_rule_0_t,Tensor,const Tensor &, bool>(
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, upper);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_1_t)(const Tensor &, c10::optional<int64_t>);
@@ -34,7 +34,7 @@ Tensor lowerToNextLayer<batch_rule_1_t,Tensor,const Tensor &>(
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
   auto results = batch_rule(input_value, input_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<bool> (*batch_rule_2_t)(const Tensor &, c10::optional<int64_t>);
@@ -85,7 +85,7 @@ Tensor lowerToNextLayer<batch_rule_4_t,Tensor,const Tensor &, int64_t>(
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, n);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_5_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t);
@@ -105,7 +105,7 @@ Tensor lowerToNextLayer<batch_rule_5_t,Tensor,const Tensor &, const Tensor &, in
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, dim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_6_t)(const Tensor &, c10::optional<int64_t>, int64_t);
@@ -122,7 +122,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_6_t,std::tuple<Tensor,Tens
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_7_t)(const Tensor &, c10::optional<int64_t>, c10::optional<DimnameList>);
@@ -139,7 +139,7 @@ Tensor lowerToNextLayer<batch_rule_7_t,Tensor,const Tensor &, c10::optional<Dimn
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, names);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_8_t)(const Tensor &, c10::optional<int64_t>, DimnameList);
@@ -156,7 +156,7 @@ Tensor lowerToNextLayer<batch_rule_8_t,Tensor,const Tensor &, DimnameList>(
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, names);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_9_t)(const Tensor &, c10::optional<int64_t>, DimnameList, int64_t);
@@ -173,7 +173,7 @@ Tensor lowerToNextLayer<batch_rule_9_t,Tensor,const Tensor &, DimnameList, int64
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, order, ellipsis_idx);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_10_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>);
@@ -193,7 +193,7 @@ Tensor lowerToNextLayer<batch_rule_10_t,Tensor,const Tensor &, const Tensor &>(
   optional<int64_t> other_bdim;
   std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
   auto results = batch_rule(input_value, input_bdim, other_value, other_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<bool> (*batch_rule_11_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, int64_t);
@@ -233,7 +233,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_12_t,std::tuple<Tensor,Ten
   optional<int64_t> targets_bdim;
   std::tie(targets_value, targets_bdim) = unwrapTensorAtLevel(targets, cur_level);
   auto results = batch_rule(log_probs_value, log_probs_bdim, targets_value, targets_bdim, input_lengths, target_lengths, blank, deterministic, zero_infinity);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_13_t)(const Tensor &, c10::optional<int64_t>, double, c10::optional<Generator>);
@@ -250,7 +250,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_13_t,std::tuple<Tensor,Ten
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, p, generator);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_14_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, double);
@@ -270,7 +270,7 @@ Tensor lowerToNextLayer<batch_rule_14_t,Tensor,const Tensor &, const Tensor &, d
   optional<int64_t> mask_bdim;
   std::tie(mask_value, mask_bdim) = unwrapTensorAtLevel(mask, cur_level);
   auto results = batch_rule(self_value, self_bdim, mask_value, mask_bdim, scale);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_15_t)(const Tensor &, c10::optional<int64_t>, int64_t, const Tensor &, c10::optional<int64_t>, int64_t, int64_t, c10::optional<ScalarType>);
@@ -290,7 +290,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_15_t,std::tuple<Tensor,Ten
   optional<int64_t> sobolstate_bdim;
   std::tie(sobolstate_value, sobolstate_bdim) = unwrapTensorAtLevel(sobolstate, cur_level);
   auto results = batch_rule(quasi_value, quasi_bdim, n, sobolstate_value, sobolstate_bdim, dimension, num_generated, dtype);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_16_t)(const Tensor &, c10::optional<int64_t>, double, bool);
@@ -307,7 +307,7 @@ Tensor lowerToNextLayer<batch_rule_16_t,Tensor,const Tensor &, double, bool>(
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, rcond, hermitian);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_17_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, bool, bool);
@@ -324,7 +324,7 @@ Tensor lowerToNextLayer<batch_rule_17_t,Tensor,const Tensor &, IntArrayRef, IntA
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, kernel_size, stride, padding, ceil_mode, count_include_pad);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_18_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef);
@@ -341,7 +341,7 @@ Tensor lowerToNextLayer<batch_rule_18_t,Tensor,const Tensor &, IntArrayRef>(
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, padding);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_19_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef);
@@ -358,7 +358,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_19_t,std::tuple<Tensor,Ten
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, output_size);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_20_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Scalar &);
@@ -378,7 +378,7 @@ Tensor lowerToNextLayer<batch_rule_20_t,Tensor,const Tensor &, const Tensor &, c
   optional<int64_t> other_bdim;
   std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
   auto results = batch_rule(self_value, self_bdim, other_value, other_bdim, alpha);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_21_t)(const Tensor &, c10::optional<int64_t>, const Scalar &, const Scalar &);
@@ -395,7 +395,7 @@ Tensor lowerToNextLayer<batch_rule_21_t,Tensor,const Tensor &, const Scalar &, c
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, beta, threshold);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_22_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Scalar &, const Scalar &);
@@ -418,7 +418,7 @@ Tensor lowerToNextLayer<batch_rule_22_t,Tensor,const Tensor &, const Tensor &, c
   optional<int64_t> batch2_bdim;
   std::tie(batch2_value, batch2_bdim) = unwrapTensorAtLevel(batch2, cur_level);
   auto results = batch_rule(self_value, self_bdim, batch1_value, batch1_bdim, batch2_value, batch2_bdim, beta, alpha);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_23_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, bool);
@@ -435,7 +435,7 @@ Tensor lowerToNextLayer<batch_rule_23_t,Tensor,const Tensor &, IntArrayRef, bool
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, keepdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_24_t)(const Tensor &, c10::optional<int64_t>, int64_t, bool);
@@ -452,7 +452,7 @@ Tensor lowerToNextLayer<batch_rule_24_t,Tensor,const Tensor &, int64_t, bool>(
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, size, out_int32);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_25_t)(const Tensor &, c10::optional<int64_t>, Dimname, bool);
@@ -469,7 +469,7 @@ Tensor lowerToNextLayer<batch_rule_25_t,Tensor,const Tensor &, Dimname, bool>(
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, descending);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<bool> (*batch_rule_26_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, double, double, bool);
@@ -506,7 +506,7 @@ Tensor lowerToNextLayer<batch_rule_27_t,Tensor,const Tensor &, c10::optional<int
   optional<int64_t> x_bdim;
   std::tie(x_value, x_bdim) = unwrapTensorAtLevel(x, cur_level);
   auto results = batch_rule(x_value, x_bdim, N, increasing);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_28_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, c10::optional<int64_t>);
@@ -523,7 +523,7 @@ Tensor lowerToNextLayer<batch_rule_28_t,Tensor,const Tensor &, IntArrayRef, IntA
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, size, stride, storage_offset);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_29_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, bool, double, double, bool);
@@ -560,7 +560,7 @@ Tensor lowerToNextLayer<batch_rule_29_t,Tensor,const Tensor &, const c10::option
       std::tie(running_var_value, running_var_bdim) = unwrapTensorAtLevel(running_var.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, running_mean_value, running_mean_bdim, running_var_value, running_var_bdim, use_input_stats, momentum, eps, cudnn_enabled);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_30_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, double, double, int64_t);
@@ -593,7 +593,7 @@ Tensor lowerToNextLayer<batch_rule_30_t,Tensor,const Tensor &, const c10::option
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, mean_value, mean_bdim, var_value, var_bdim, eps, output_scale, output_zero_point);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,int64_t> (*batch_rule_31_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, bool, double, double, bool);
@@ -630,7 +630,7 @@ std::tuple<Tensor,Tensor,Tensor,Tensor,int64_t> lowerToNextLayer<batch_rule_31_t
       std::tie(running_var_value, running_var_bdim) = unwrapTensorAtLevel(running_var.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, running_mean_value, running_mean_bdim, running_var_value, running_var_bdim, training, momentum, eps, cudnn_enabled);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)), makeBatched(std::get<6>(results), cur_level, std::get<7>(results)), std::get<8>(results));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level), makeBatched(std::get<6>(results), std::get<7>(results), cur_level), std::get<8>(results));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_32_t)(const Tensor &, c10::optional<int64_t>, c10::optional<Generator>);
@@ -647,7 +647,7 @@ Tensor lowerToNextLayer<batch_rule_32_t,Tensor,const Tensor &, c10::optional<Gen
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, generator);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_33_t)(const Tensor &, c10::optional<int64_t>, double, c10::optional<Generator>);
@@ -664,7 +664,7 @@ Tensor lowerToNextLayer<batch_rule_33_t,Tensor,const Tensor &, double, c10::opti
   optional<int64_t> mean_bdim;
   std::tie(mean_value, mean_bdim) = unwrapTensorAtLevel(mean, cur_level);
   auto results = batch_rule(mean_value, mean_bdim, std, generator);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_34_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>);
@@ -692,7 +692,7 @@ Tensor lowerToNextLayer<batch_rule_34_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(input1_value, input1_bdim, input2_value, input2_bdim, weight_value, weight_bdim, bias_value, bias_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_35_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t);
@@ -717,7 +717,7 @@ Tensor lowerToNextLayer<batch_rule_35_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, target_value, target_bdim, weight_value, weight_bdim, reduction);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_36_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t);
@@ -745,7 +745,7 @@ Tensor lowerToNextLayer<batch_rule_36_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight.value(), cur_level);
   }
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, target_value, target_bdim, weight_value, weight_bdim, reduction);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_37_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t);
@@ -775,7 +775,7 @@ Tensor lowerToNextLayer<batch_rule_37_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(pos_weight_value, pos_weight_bdim) = unwrapTensorAtLevel(pos_weight.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, target_value, target_bdim, weight_value, weight_bdim, pos_weight_value, pos_weight_bdim, reduction);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_38_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t);
@@ -808,7 +808,7 @@ Tensor lowerToNextLayer<batch_rule_38_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(pos_weight_value, pos_weight_bdim) = unwrapTensorAtLevel(pos_weight.value(), cur_level);
   }
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, target_value, target_bdim, weight_value, weight_bdim, pos_weight_value, pos_weight_bdim, reduction);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_39_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t);
@@ -830,7 +830,7 @@ Tensor lowerToNextLayer<batch_rule_39_t,Tensor,const Tensor &, const c10::option
       std::tie(weights_value, weights_bdim) = unwrapTensorAtLevel(weights.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, weights_value, weights_bdim, minlength);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_40_t)(const Tensor &, c10::optional<int64_t>, const Scalar &);
@@ -847,7 +847,7 @@ Tensor lowerToNextLayer<batch_rule_40_t,Tensor,const Tensor &, const Scalar &>(
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, other);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<::std::vector<Tensor>,c10::optional<int64_t>> (*batch_rule_41_t)(const Tensor &, c10::optional<int64_t>, int64_t, int64_t);
@@ -864,7 +864,7 @@ template <>
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, split_size, dim);
-  return makeBatchedVector(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<::std::vector<Tensor>,c10::optional<int64_t>> (*batch_rule_42_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, int64_t);
@@ -881,7 +881,7 @@ template <>
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, split_sizes, dim);
-  return makeBatchedVector(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<::std::vector<Tensor>,c10::optional<int64_t>> (*batch_rule_43_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t);
@@ -901,7 +901,7 @@ template <>
   optional<int64_t> tensor_indices_or_sections_bdim;
   std::tie(tensor_indices_or_sections_value, tensor_indices_or_sections_bdim) = unwrapTensorAtLevel(tensor_indices_or_sections, cur_level);
   auto results = batch_rule(self_value, self_bdim, tensor_indices_or_sections_value, tensor_indices_or_sections_bdim, dim);
-  return makeBatchedVector(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_44_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Scalar> &, const c10::optional<Scalar> &);
@@ -918,7 +918,7 @@ Tensor lowerToNextLayer<batch_rule_44_t,Tensor,const Tensor &, const c10::option
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, min, max);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_45_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>);
@@ -945,7 +945,7 @@ Tensor lowerToNextLayer<batch_rule_45_t,Tensor,const Tensor &, const c10::option
       std::tie(max_value, max_bdim) = unwrapTensorAtLevel(max.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, min_value, min_bdim, max_value, max_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_46_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, const Scalar &);
@@ -962,7 +962,7 @@ Tensor lowerToNextLayer<batch_rule_46_t,Tensor,const Tensor &, IntArrayRef, cons
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, pad, value);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_47_t)(const Tensor &, c10::optional<int64_t>, MemoryFormat);
@@ -979,7 +979,7 @@ Tensor lowerToNextLayer<batch_rule_47_t,Tensor,const Tensor &, MemoryFormat>(
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, memory_format);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_48_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, bool, IntArrayRef, int64_t);
@@ -1004,7 +1004,7 @@ Tensor lowerToNextLayer<batch_rule_48_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, stride, padding, dilation, transposed, output_padding, groups);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_49_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, bool, IntArrayRef, int64_t, bool, bool, bool, bool);
@@ -1029,7 +1029,7 @@ Tensor lowerToNextLayer<batch_rule_49_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, stride, padding, dilation, transposed, output_padding, groups, benchmark, deterministic, cudnn_enabled, allow_tf32);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_50_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, bool, IntArrayRef, int64_t, bool, bool, bool);
@@ -1054,7 +1054,7 @@ Tensor lowerToNextLayer<batch_rule_50_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, stride, padding, dilation, transposed, output_padding, groups, benchmark, deterministic, cudnn_enabled);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_51_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, IntArrayRef, c10::string_view, IntArrayRef, int64_t);
@@ -1079,7 +1079,7 @@ Tensor lowerToNextLayer<batch_rule_51_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, stride, padding, dilation, groups);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_52_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, bool, IntArrayRef);
@@ -1104,7 +1104,7 @@ Tensor lowerToNextLayer<batch_rule_52_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, stride, padding, dilation, transposed, output_padding);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_53_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, int64_t);
@@ -1129,7 +1129,7 @@ Tensor lowerToNextLayer<batch_rule_53_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, weight_value, weight_bdim, bias_value, bias_bdim, padding, stride, dilation, groups);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_54_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t);
@@ -1152,7 +1152,7 @@ Tensor lowerToNextLayer<batch_rule_54_t,Tensor,const Tensor &, const Tensor &, c
   optional<int64_t> target_bdim;
   std::tie(target_value, target_bdim) = unwrapTensorAtLevel(target, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, target_value, target_bdim, reduction);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_55_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t);
@@ -1178,7 +1178,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_55_t,std::tuple<Ten
   optional<int64_t> bias_bdim;
   std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias, cur_level);
   auto results = batch_rule(self_value, self_bdim, input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, pad);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_56_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, int64_t, IntArrayRef);
@@ -1203,7 +1203,7 @@ Tensor lowerToNextLayer<batch_rule_56_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, stride, padding, output_padding, groups, dilation);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_57_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool);
@@ -1223,7 +1223,7 @@ Tensor lowerToNextLayer<batch_rule_57_t,Tensor,const Tensor &, const Tensor &, b
   optional<int64_t> tol_bdim;
   std::tie(tol_value, tol_bdim) = unwrapTensorAtLevel(tol, cur_level);
   auto results = batch_rule(input_value, input_bdim, tol_value, tol_bdim, hermitian);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_58_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, double, int64_t);
@@ -1246,7 +1246,7 @@ Tensor lowerToNextLayer<batch_rule_58_t,Tensor,const Tensor &, const Tensor &, c
   optional<int64_t> target_bdim;
   std::tie(target_value, target_bdim) = unwrapTensorAtLevel(target, cur_level);
   auto results = batch_rule(input1_value, input1_bdim, input2_value, input2_bdim, target_value, target_bdim, margin, reduction);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_59_t)(const Tensor &, c10::optional<int64_t>, c10::optional<int64_t>);
@@ -1263,7 +1263,7 @@ Tensor lowerToNextLayer<batch_rule_59_t,Tensor,const Tensor &, c10::optional<int
   optional<int64_t> repeats_bdim;
   std::tie(repeats_value, repeats_bdim) = unwrapTensorAtLevel(repeats, cur_level);
   auto results = batch_rule(repeats_value, repeats_bdim, output_size);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_60_t)(const Tensor &, c10::optional<int64_t>, int64_t, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>);
@@ -1290,7 +1290,7 @@ Tensor lowerToNextLayer<batch_rule_60_t,Tensor,const Tensor &, int64_t, const c1
       std::tie(aweights_value, aweights_bdim) = unwrapTensorAtLevel(aweights.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, correction, fweights_value, fweights_bdim, aweights_value, aweights_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_61_t)(const Tensor &, c10::optional<int64_t>, int64_t, int64_t, int64_t, int64_t);
@@ -1307,7 +1307,7 @@ Tensor lowerToNextLayer<batch_rule_61_t,Tensor,const Tensor &, int64_t, int64_t,
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
   auto results = batch_rule(grad_value, grad_bdim, N, C, H, W);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_62_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, bool, double, double);
@@ -1342,7 +1342,7 @@ std::tuple<Tensor,Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_62_t,std::tu
       std::tie(running_var_value, running_var_bdim) = unwrapTensorAtLevel(running_var.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, running_mean_value, running_mean_bdim, running_var_value, running_var_bdim, training, exponential_average_factor, epsilon);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)), makeBatched(std::get<6>(results), cur_level, std::get<7>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level), makeBatched(std::get<6>(results), std::get<7>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_63_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, double, const Tensor &, c10::optional<int64_t>);
@@ -1388,7 +1388,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_63_t,std::tuple<Ten
       std::tie(save_var_value, save_var_bdim) = unwrapTensorAtLevel(save_var.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, grad_output_value, grad_output_bdim, weight_value, weight_bdim, running_mean_value, running_mean_bdim, running_var_value, running_var_bdim, save_mean_value, save_mean_bdim, save_var_value, save_var_bdim, epsilon, reserveSpace_value, reserveSpace_bdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_64_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, int64_t, bool, bool);
@@ -1413,7 +1413,7 @@ Tensor lowerToNextLayer<batch_rule_64_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, weight_value, weight_bdim, bias_value, bias_bdim, padding, stride, dilation, groups, benchmark, deterministic);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_65_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, int64_t, bool, bool);
@@ -1433,7 +1433,7 @@ Tensor lowerToNextLayer<batch_rule_65_t,Tensor,const Tensor &, const Tensor &, I
   optional<int64_t> weight_bdim;
   std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, weight_value, weight_bdim, padding, stride, dilation, groups, benchmark, deterministic);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_66_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, int64_t, bool, bool, bool);
@@ -1453,7 +1453,7 @@ Tensor lowerToNextLayer<batch_rule_66_t,Tensor,const Tensor &, const Tensor &, I
   optional<int64_t> weight_bdim;
   std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, weight_value, weight_bdim, padding, stride, dilation, groups, benchmark, deterministic, allow_tf32);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_67_t)(IntArrayRef, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, int64_t, bool, bool, bool);
@@ -1473,7 +1473,7 @@ Tensor lowerToNextLayer<batch_rule_67_t,Tensor,IntArrayRef, const Tensor &, cons
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(weight_size, grad_output_value, grad_output_bdim, self_value, self_bdim, padding, stride, dilation, groups, benchmark, deterministic, allow_tf32);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_68_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, IntArrayRef, int64_t, bool, bool);
@@ -1498,7 +1498,7 @@ Tensor lowerToNextLayer<batch_rule_68_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, weight_value, weight_bdim, bias_value, bias_bdim, padding, output_padding, stride, dilation, groups, benchmark, deterministic);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_69_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, IntArrayRef, int64_t, bool, bool);
@@ -1518,7 +1518,7 @@ Tensor lowerToNextLayer<batch_rule_69_t,Tensor,const Tensor &, const Tensor &, I
   optional<int64_t> weight_bdim;
   std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
   auto results = batch_rule(self_value, self_bdim, weight_value, weight_bdim, padding, output_padding, stride, dilation, groups, benchmark, deterministic);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_70_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, IntArrayRef, int64_t, bool, bool, bool);
@@ -1538,7 +1538,7 @@ Tensor lowerToNextLayer<batch_rule_70_t,Tensor,const Tensor &, const Tensor &, I
   optional<int64_t> weight_bdim;
   std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
   auto results = batch_rule(self_value, self_bdim, weight_value, weight_bdim, padding, output_padding, stride, dilation, groups, benchmark, deterministic, allow_tf32);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_71_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Scalar> &, const c10::optional<Tensor> &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, int64_t);
@@ -1566,7 +1566,7 @@ Tensor lowerToNextLayer<batch_rule_71_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, weight_value, weight_bdim, z_value, z_bdim, alpha, bias_value, bias_bdim, stride, padding, dilation, groups);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_72_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>);
@@ -1589,7 +1589,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_72_t,std::tuple<Tensor,Ten
   optional<int64_t> weight_bdim;
   std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, weight_value, weight_bdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_73_t)(const Tensor &, c10::optional<int64_t>, Dimname);
@@ -1606,7 +1606,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_73_t,std::tuple<Tensor,Ten
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_74_t)(const Tensor &, c10::optional<int64_t>, int64_t, c10::optional<ScalarType>);
@@ -1623,7 +1623,7 @@ Tensor lowerToNextLayer<batch_rule_74_t,Tensor,const Tensor &, int64_t, c10::opt
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_75_t)(const Tensor &, c10::optional<int64_t>, Dimname, c10::optional<ScalarType>);
@@ -1640,7 +1640,7 @@ Tensor lowerToNextLayer<batch_rule_75_t,Tensor,const Tensor &, Dimname, c10::opt
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_76_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, ScalarType);
@@ -1660,7 +1660,7 @@ Tensor lowerToNextLayer<batch_rule_76_t,Tensor,const Tensor &, const Tensor &, i
   optional<int64_t> output_bdim;
   std::tie(output_value, output_bdim) = unwrapTensorAtLevel(output, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, output_value, output_bdim, dim, input_dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_77_t)(const Tensor &, c10::optional<int64_t>, const Scalar &, int64_t);
@@ -1677,7 +1677,7 @@ Tensor lowerToNextLayer<batch_rule_77_t,Tensor,const Tensor &, const Scalar &, i
   optional<int64_t> y_bdim;
   std::tie(y_value, y_bdim) = unwrapTensorAtLevel(y, cur_level);
   auto results = batch_rule(y_value, y_bdim, dx, dim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_78_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, int64_t, int64_t, bool);
@@ -1697,7 +1697,7 @@ Tensor lowerToNextLayer<batch_rule_78_t,Tensor,const Tensor &, const Tensor &, I
   optional<int64_t> targets_bdim;
   std::tie(targets_value, targets_bdim) = unwrapTensorAtLevel(targets, cur_level);
   auto results = batch_rule(log_probs_value, log_probs_bdim, targets_value, targets_bdim, input_lengths, target_lengths, blank, reduction, zero_infinity);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_79_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, int64_t, bool);
@@ -1723,7 +1723,7 @@ Tensor lowerToNextLayer<batch_rule_79_t,Tensor,const Tensor &, const Tensor &, c
   optional<int64_t> target_lengths_bdim;
   std::tie(target_lengths_value, target_lengths_bdim) = unwrapTensorAtLevel(target_lengths, cur_level);
   auto results = batch_rule(log_probs_value, log_probs_bdim, targets_value, targets_bdim, input_lengths_value, input_lengths_bdim, target_lengths_value, target_lengths_bdim, blank, reduction, zero_infinity);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_80_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, int64_t, bool);
@@ -1743,7 +1743,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_80_t,std::tuple<Tensor,Ten
   optional<int64_t> targets_bdim;
   std::tie(targets_value, targets_bdim) = unwrapTensorAtLevel(targets, cur_level);
   auto results = batch_rule(log_probs_value, log_probs_bdim, targets_value, targets_bdim, input_lengths, target_lengths, blank, zero_infinity);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_81_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, bool);
@@ -1772,7 +1772,7 @@ Tensor lowerToNextLayer<batch_rule_81_t,Tensor,const Tensor &, const Tensor &, c
   optional<int64_t> log_alpha_bdim;
   std::tie(log_alpha_value, log_alpha_bdim) = unwrapTensorAtLevel(log_alpha, cur_level);
   auto results = batch_rule(grad_value, grad_bdim, log_probs_value, log_probs_bdim, targets_value, targets_bdim, input_lengths, target_lengths, neg_log_likelihood_value, neg_log_likelihood_bdim, log_alpha_value, log_alpha_bdim, blank, zero_infinity);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_82_t)(const Tensor &, c10::optional<int64_t>, int64_t, int64_t, int64_t);
@@ -1789,7 +1789,7 @@ Tensor lowerToNextLayer<batch_rule_82_t,Tensor,const Tensor &, int64_t, int64_t,
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, level, batch_size, out_dim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_83_t)(const Tensor &, c10::optional<int64_t>, Dimname, Dimname, Dimname, int64_t);
@@ -1806,7 +1806,7 @@ Tensor lowerToNextLayer<batch_rule_83_t,Tensor,const Tensor &, Dimname, Dimname,
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, outdim, dim1, dim2, offset);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_84_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, int64_t, int64_t, int64_t);
@@ -1823,7 +1823,7 @@ Tensor lowerToNextLayer<batch_rule_84_t,Tensor,const Tensor &, IntArrayRef, int6
   optional<int64_t> grad_in_bdim;
   std::tie(grad_in_value, grad_in_bdim) = unwrapTensorAtLevel(grad_in, cur_level);
   auto results = batch_rule(grad_in_value, grad_in_bdim, input_sizes, dim, size, step);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_85_t)(const Tensor &, c10::optional<int64_t>, int64_t, int64_t, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>);
@@ -1850,7 +1850,7 @@ Tensor lowerToNextLayer<batch_rule_85_t,Tensor,const Tensor &, int64_t, int64_t,
       std::tie(append_value, append_bdim) = unwrapTensorAtLevel(append.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, n, dim, prepend_value, prepend_bdim, append_value, append_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<::std::vector<Tensor>,c10::optional<int64_t>> (*batch_rule_86_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Scalar> &, c10::optional<int64_t>, int64_t);
@@ -1867,7 +1867,7 @@ template <>
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, spacing, dim, edge_order);
-  return makeBatchedVector(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<::std::vector<Tensor>,c10::optional<int64_t>> (*batch_rule_87_t)(const Tensor &, c10::optional<int64_t>, const Scalar &, IntArrayRef, int64_t);
@@ -1884,7 +1884,7 @@ template <>
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, spacing, dim, edge_order);
-  return makeBatchedVector(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<::std::vector<Tensor>,c10::optional<int64_t>> (*batch_rule_88_t)(const Tensor &, c10::optional<int64_t>, ArrayRef<Scalar>, c10::optional<int64_t>, int64_t);
@@ -1901,7 +1901,7 @@ template <>
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, spacing, dim, edge_order);
-  return makeBatchedVector(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<::std::vector<Tensor>,c10::optional<int64_t>> (*batch_rule_89_t)(const Tensor &, c10::optional<int64_t>, ArrayRef<Scalar>, IntArrayRef, int64_t);
@@ -1918,7 +1918,7 @@ template <>
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, spacing, dim, edge_order);
-  return makeBatchedVector(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_90_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, c10::optional<c10::string_view>);
@@ -1938,7 +1938,7 @@ Tensor lowerToNextLayer<batch_rule_90_t,Tensor,const Tensor &, const Tensor &, c
   optional<int64_t> other_bdim;
   std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
   auto results = batch_rule(self_value, self_bdim, other_value, other_bdim, rounding_mode);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_91_t)(const Tensor &, c10::optional<int64_t>, const Scalar &, c10::optional<c10::string_view>);
@@ -1955,7 +1955,7 @@ Tensor lowerToNextLayer<batch_rule_91_t,Tensor,const Tensor &, const Scalar &, c
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, other, rounding_mode);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_92_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, bool, bool);
@@ -1975,7 +1975,7 @@ Tensor lowerToNextLayer<batch_rule_92_t,Tensor,const Tensor &, const Tensor &, i
   optional<int64_t> indices_bdim;
   std::tie(indices_value, indices_bdim) = unwrapTensorAtLevel(indices, cur_level);
   auto results = batch_rule(weight_value, weight_bdim, indices_value, indices_bdim, padding_idx, scale_grad_by_freq, sparse);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_93_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, int64_t, bool, bool);
@@ -1995,7 +1995,7 @@ Tensor lowerToNextLayer<batch_rule_93_t,Tensor,const Tensor &, const Tensor &, i
   optional<int64_t> indices_bdim;
   std::tie(indices_value, indices_bdim) = unwrapTensorAtLevel(indices, cur_level);
   auto results = batch_rule(grad_value, grad_bdim, indices_value, indices_bdim, num_weights, padding_idx, scale_grad_by_freq, sparse);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_94_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, int64_t, bool);
@@ -2015,7 +2015,7 @@ Tensor lowerToNextLayer<batch_rule_94_t,Tensor,const Tensor &, const Tensor &, i
   optional<int64_t> grid_bdim;
   std::tie(grid_value, grid_bdim) = unwrapTensorAtLevel(grid, cur_level);
   auto results = batch_rule(input_value, input_bdim, grid_value, grid_bdim, interpolation_mode, padding_mode, align_corners);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_95_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool, int64_t, bool, const c10::optional<Tensor> &, c10::optional<int64_t>, bool, int64_t);
@@ -2043,7 +2043,7 @@ std::tuple<Tensor,Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_95_t,std::tu
       std::tie(per_sample_weights_value, per_sample_weights_bdim) = unwrapTensorAtLevel(per_sample_weights.value(), cur_level);
   }
   auto results = batch_rule(weight_value, weight_bdim, indices_value, indices_bdim, offsets_value, offsets_bdim, scale_grad_by_freq, mode, sparse, per_sample_weights_value, per_sample_weights_bdim, include_last_offset, padding_idx);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)), makeBatched(std::get<6>(results), cur_level, std::get<7>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level), makeBatched(std::get<6>(results), std::get<7>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_96_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, ScalarType);
@@ -2063,7 +2063,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_96_t,std::tuple<Tensor,Ten
   optional<int64_t> mask_bdim;
   std::tie(mask_value, mask_bdim) = unwrapTensorAtLevel(mask, cur_level);
   auto results = batch_rule(weight_value, weight_bdim, mask_value, mask_bdim, compressed_indices_dtype);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_97_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool, int64_t, bool, const c10::optional<Tensor> &, c10::optional<int64_t>, bool);
@@ -2091,7 +2091,7 @@ std::tuple<Tensor,Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_97_t,std::tu
       std::tie(per_sample_weights_value, per_sample_weights_bdim) = unwrapTensorAtLevel(per_sample_weights.value(), cur_level);
   }
   auto results = batch_rule(weight_value, weight_bdim, indices_value, indices_bdim, offsets_value, offsets_bdim, scale_grad_by_freq, mode, sparse, per_sample_weights_value, per_sample_weights_bdim, include_last_offset);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)), makeBatched(std::get<6>(results), cur_level, std::get<7>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level), makeBatched(std::get<6>(results), std::get<7>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_98_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool, int64_t, bool, const c10::optional<Tensor> &, c10::optional<int64_t>, bool, c10::optional<int64_t>);
@@ -2119,7 +2119,7 @@ std::tuple<Tensor,Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_98_t,std::tu
       std::tie(per_sample_weights_value, per_sample_weights_bdim) = unwrapTensorAtLevel(per_sample_weights.value(), cur_level);
   }
   auto results = batch_rule(weight_value, weight_bdim, indices_value, indices_bdim, offsets_value, offsets_bdim, scale_grad_by_freq, mode, sparse, per_sample_weights_value, per_sample_weights_bdim, include_last_offset, padding_idx);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)), makeBatched(std::get<6>(results), cur_level, std::get<7>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level), makeBatched(std::get<6>(results), std::get<7>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_99_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, bool, int64_t, bool, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t);
@@ -2156,7 +2156,7 @@ Tensor lowerToNextLayer<batch_rule_99_t,Tensor,const Tensor &, const Tensor &, c
       std::tie(per_sample_weights_value, per_sample_weights_bdim) = unwrapTensorAtLevel(per_sample_weights.value(), cur_level);
   }
   auto results = batch_rule(grad_value, grad_bdim, indices_value, indices_bdim, offsets_value, offsets_bdim, offset2bag_value, offset2bag_bdim, bag_size_value, bag_size_bdim, maximum_indices_value, maximum_indices_bdim, num_weights, scale_grad_by_freq, mode, sparse, per_sample_weights_value, per_sample_weights_bdim, padding_idx);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_100_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, bool, int64_t, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t);
@@ -2190,7 +2190,7 @@ Tensor lowerToNextLayer<batch_rule_100_t,Tensor,const Tensor &, const Tensor &, 
       std::tie(per_sample_weights_value, per_sample_weights_bdim) = unwrapTensorAtLevel(per_sample_weights.value(), cur_level);
   }
   auto results = batch_rule(grad_value, grad_bdim, indices_value, indices_bdim, offset2bag_value, offset2bag_bdim, bag_size_value, bag_size_bdim, maximum_indices_value, maximum_indices_bdim, num_weights, scale_grad_by_freq, mode, per_sample_weights_value, per_sample_weights_bdim, padding_idx);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_101_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, int64_t);
@@ -2219,7 +2219,7 @@ Tensor lowerToNextLayer<batch_rule_101_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> offset2bag_bdim;
   std::tie(offset2bag_value, offset2bag_bdim) = unwrapTensorAtLevel(offset2bag, cur_level);
   auto results = batch_rule(grad_value, grad_bdim, weight_value, weight_bdim, indices_value, indices_bdim, offsets_value, offsets_bdim, offset2bag_value, offset2bag_bdim, mode, padding_idx);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_102_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>);
@@ -2236,7 +2236,7 @@ Tensor lowerToNextLayer<batch_rule_102_t,Tensor,const Tensor &, IntArrayRef, c10
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, size, dtype, layout, device, pin_memory);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_103_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>);
@@ -2253,7 +2253,7 @@ Tensor lowerToNextLayer<batch_rule_103_t,Tensor,const Tensor &, IntArrayRef, Int
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, size, stride, dtype, layout, device, pin_memory);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_104_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, const Scalar &, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>);
@@ -2270,7 +2270,7 @@ Tensor lowerToNextLayer<batch_rule_104_t,Tensor,const Tensor &, IntArrayRef, con
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, size, fill_value, dtype, layout, device, pin_memory);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_105_t)(IntArrayRef, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>, c10::optional<MemoryFormat>);
@@ -2290,7 +2290,7 @@ Tensor lowerToNextLayer<batch_rule_105_t,Tensor,IntArrayRef, const Tensor &, con
   optional<int64_t> zero_points_bdim;
   std::tie(zero_points_value, zero_points_bdim) = unwrapTensorAtLevel(zero_points, cur_level);
   auto results = batch_rule(size, scales_value, scales_bdim, zero_points_value, zero_points_bdim, axis, dtype, layout, device, pin_memory, memory_format);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_106_t)(IntArrayRef, const Tensor &, c10::optional<int64_t>, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>, c10::optional<MemoryFormat>);
@@ -2307,7 +2307,7 @@ Tensor lowerToNextLayer<batch_rule_106_t,Tensor,IntArrayRef, const Tensor &, c10
   optional<int64_t> qtensor_bdim;
   std::tie(qtensor_value, qtensor_bdim) = unwrapTensorAtLevel(qtensor, cur_level);
   auto results = batch_rule(size, qtensor_value, qtensor_bdim, dtype, layout, device, pin_memory, memory_format);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_107_t)(const Tensor &, c10::optional<int64_t>, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>, c10::optional<MemoryFormat>);
@@ -2324,7 +2324,7 @@ Tensor lowerToNextLayer<batch_rule_107_t,Tensor,const Tensor &, c10::optional<Sc
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dtype, layout, device, pin_memory, memory_format);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_108_t)(const Tensor &, c10::optional<int64_t>, int64_t, int64_t);
@@ -2341,7 +2341,7 @@ Tensor lowerToNextLayer<batch_rule_108_t,Tensor,const Tensor &, int64_t, int64_t
   optional<int64_t> dummy_bdim;
   std::tie(dummy_value, dummy_bdim) = unwrapTensorAtLevel(dummy, cur_level);
   auto results = batch_rule(dummy_value, dummy_bdim, a, b);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_109_t)(const Tensor &, c10::optional<int64_t>, int64_t, int64_t, Dimname);
@@ -2358,7 +2358,7 @@ Tensor lowerToNextLayer<batch_rule_109_t,Tensor,const Tensor &, int64_t, int64_t
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, start_dim, end_dim, out_dim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_110_t)(const Tensor &, c10::optional<int64_t>, Dimname, Dimname, Dimname);
@@ -2375,7 +2375,7 @@ Tensor lowerToNextLayer<batch_rule_110_t,Tensor,const Tensor &, Dimname, Dimname
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, start_dim, end_dim, out_dim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_111_t)(const Tensor &, c10::optional<int64_t>, DimnameList, Dimname);
@@ -2392,7 +2392,7 @@ Tensor lowerToNextLayer<batch_rule_111_t,Tensor,const Tensor &, DimnameList, Dim
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dims, out_dim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_112_t)(const Tensor &, c10::optional<int64_t>, int64_t, IntArrayRef, c10::optional<DimnameList>);
@@ -2409,7 +2409,7 @@ Tensor lowerToNextLayer<batch_rule_112_t,Tensor,const Tensor &, int64_t, IntArra
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, sizes, names);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_113_t)(const Tensor &, c10::optional<int64_t>, Dimname, IntArrayRef, DimnameList);
@@ -2426,7 +2426,7 @@ Tensor lowerToNextLayer<batch_rule_113_t,Tensor,const Tensor &, Dimname, IntArra
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, sizes, names);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_114_t)(const Tensor &, c10::optional<int64_t>, const Scalar &, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>, c10::optional<MemoryFormat>);
@@ -2443,7 +2443,7 @@ Tensor lowerToNextLayer<batch_rule_114_t,Tensor,const Tensor &, const Scalar &, 
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, fill_value, dtype, layout, device, pin_memory, memory_format);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_115_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, int64_t, bool);
@@ -2466,7 +2466,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_115_t,std::tuple<Tensor,Te
   optional<int64_t> grid_bdim;
   std::tie(grid_value, grid_bdim) = unwrapTensorAtLevel(grid, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, input_value, input_bdim, grid_value, grid_bdim, interpolation_mode, padding_mode, align_corners);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_116_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, double, int64_t);
@@ -2486,7 +2486,7 @@ Tensor lowerToNextLayer<batch_rule_116_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> target_bdim;
   std::tie(target_value, target_bdim) = unwrapTensorAtLevel(target, cur_level);
   auto results = batch_rule(self_value, self_bdim, target_value, target_bdim, margin, reduction);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_117_t)(const Tensor &, c10::optional<int64_t>, int64_t, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, double, bool);
@@ -2513,7 +2513,7 @@ Tensor lowerToNextLayer<batch_rule_117_t,Tensor,const Tensor &, int64_t, const c
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, num_groups, weight_value, weight_bdim, bias_value, bias_bdim, eps, cudnn_enabled);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_118_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t, int64_t, int64_t, int64_t, double);
@@ -2540,7 +2540,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_118_t,std::tuple<Te
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, N, C, HxW, group, eps);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_119_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, int64_t, bool);
@@ -2557,7 +2557,7 @@ Tensor lowerToNextLayer<batch_rule_119_t,Tensor,const Tensor &, IntArrayRef, int
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, normalization, forward);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_120_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, int64_t, int64_t);
@@ -2574,7 +2574,7 @@ Tensor lowerToNextLayer<batch_rule_120_t,Tensor,const Tensor &, IntArrayRef, int
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, input_sizes, dim, index);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_121_t)(const Tensor &, c10::optional<int64_t>, const c10::List<c10::optional<Tensor>> &);
@@ -2591,7 +2591,7 @@ Tensor lowerToNextLayer<batch_rule_121_t,Tensor,const Tensor &, const c10::List<
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, indices);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_122_t)(const Tensor &, c10::optional<int64_t>, int64_t, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>);
@@ -2614,7 +2614,7 @@ Tensor lowerToNextLayer<batch_rule_122_t,Tensor,const Tensor &, int64_t, const T
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, index_value, index_bdim, grad_value, grad_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_123_t)(const Tensor &, c10::optional<int64_t>, Dimname, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>);
@@ -2637,7 +2637,7 @@ Tensor lowerToNextLayer<batch_rule_123_t,Tensor,const Tensor &, Dimname, const T
   optional<int64_t> src_bdim;
   std::tie(src_value, src_bdim) = unwrapTensorAtLevel(src, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, index_value, index_bdim, src_value, src_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_124_t)(const Tensor &, c10::optional<int64_t>, const c10::List<c10::optional<Tensor>> &, const Tensor &, c10::optional<int64_t>, bool);
@@ -2657,7 +2657,7 @@ Tensor lowerToNextLayer<batch_rule_124_t,Tensor,const Tensor &, const c10::List<
   optional<int64_t> values_bdim;
   std::tie(values_value, values_bdim) = unwrapTensorAtLevel(values, cur_level);
   auto results = batch_rule(self_value, self_bdim, indices, values_value, values_bdim, accumulate);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_125_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, double, double, bool);
@@ -2677,7 +2677,7 @@ Tensor lowerToNextLayer<batch_rule_125_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> x2_bdim;
   std::tie(x2_value, x2_bdim) = unwrapTensorAtLevel(x2, cur_level);
   auto results = batch_rule(x1_value, x1_bdim, x2_value, x2_bdim, p, eps, keepdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_126_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool, bool);
@@ -2697,7 +2697,7 @@ Tensor lowerToNextLayer<batch_rule_126_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(sorted_sequence_value, sorted_sequence_bdim, self_value, self_bdim, out_int32, right);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_127_t)(const Tensor &, c10::optional<int64_t>, const Scalar &, bool, bool);
@@ -2714,7 +2714,7 @@ Tensor lowerToNextLayer<batch_rule_127_t,Tensor,const Tensor &, const Scalar &, 
   optional<int64_t> sorted_sequence_bdim;
   std::tie(sorted_sequence_value, sorted_sequence_bdim) = unwrapTensorAtLevel(sorted_sequence, cur_level);
   auto results = batch_rule(sorted_sequence_value, sorted_sequence_bdim, self, out_int32, right);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_128_t)(const Scalar &, const Tensor &, c10::optional<int64_t>, bool, bool);
@@ -2731,7 +2731,7 @@ Tensor lowerToNextLayer<batch_rule_128_t,Tensor,const Scalar &, const Tensor &, 
   optional<int64_t> boundaries_bdim;
   std::tie(boundaries_value, boundaries_bdim) = unwrapTensorAtLevel(boundaries, cur_level);
   auto results = batch_rule(self, boundaries_value, boundaries_bdim, out_int32, right);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<bool> (*batch_rule_129_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>);
@@ -2771,7 +2771,7 @@ Tensor lowerToNextLayer<batch_rule_130_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> target_bdim;
   std::tie(target_value, target_bdim) = unwrapTensorAtLevel(target, cur_level);
   auto results = batch_rule(self_value, self_bdim, target_value, target_bdim, reduction, log_target);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_131_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, bool);
@@ -2794,7 +2794,7 @@ Tensor lowerToNextLayer<batch_rule_131_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> target_bdim;
   std::tie(target_value, target_bdim) = unwrapTensorAtLevel(target, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, target_value, target_bdim, reduction, log_target);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_132_t)(const Tensor &, c10::optional<int64_t>, int64_t, int64_t, bool);
@@ -2811,7 +2811,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_132_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, k, dim, keepdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_133_t)(const Tensor &, c10::optional<int64_t>, int64_t, Dimname, bool);
@@ -2828,7 +2828,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_133_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, k, dim, keepdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_134_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, double, bool);
@@ -2855,7 +2855,7 @@ Tensor lowerToNextLayer<batch_rule_134_t,Tensor,const Tensor &, IntArrayRef, con
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, normalized_shape, weight_value, weight_bdim, bias_value, bias_bdim, eps, cudnn_enable);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_135_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, double);
@@ -2882,7 +2882,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_135_t,std::tuple<Te
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, normalized_shape, weight_value, weight_bdim, bias_value, bias_bdim, eps);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_136_t)(const Tensor &, c10::optional<int64_t>, c10::optional<double>, c10::optional<double>, c10::optional<double>);
@@ -2899,7 +2899,7 @@ Tensor lowerToNextLayer<batch_rule_136_t,Tensor,const Tensor &, c10::optional<do
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, nan, posinf, neginf);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_137_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>);
@@ -2924,7 +2924,7 @@ Tensor lowerToNextLayer<batch_rule_137_t,Tensor,const Tensor &, const Tensor &, 
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, weight_value, weight_bdim, bias_value, bias_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_138_t)(IntArrayRef, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>);
@@ -2944,7 +2944,7 @@ Tensor lowerToNextLayer<batch_rule_138_t,Tensor,IntArrayRef, const Tensor &, con
   optional<int64_t> weight_bdim;
   std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
   auto results = batch_rule(input_size, grad_output_value, grad_output_bdim, weight_value, weight_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_139_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool);
@@ -2967,7 +2967,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_139_t,std::tuple<Tensor,Te
   optional<int64_t> weight_bdim;
   std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, input_value, input_bdim, weight_value, weight_bdim, bias_defined);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_140_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Scalar &, const Scalar &, const Tensor &, c10::optional<int64_t>);
@@ -2996,7 +2996,7 @@ Tensor lowerToNextLayer<batch_rule_140_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> bias_bdim;
   std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias, cur_level);
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, packed_value, packed_bdim, col_offsets_value, col_offsets_bdim, weight_scale, weight_zero_point, bias_value, bias_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,double,int64_t> (*batch_rule_141_t)(const Tensor &, c10::optional<int64_t>);
@@ -3013,7 +3013,7 @@ std::tuple<Tensor,Tensor,double,int64_t> lowerToNextLayer<batch_rule_141_t,std::
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
   auto results = batch_rule(input_value, input_bdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), std::get<4>(results), std::get<5>(results));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), std::get<4>(results), std::get<5>(results));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_142_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>);
@@ -3036,7 +3036,7 @@ Tensor lowerToNextLayer<batch_rule_142_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> indices_bdim;
   std::tie(indices_value, indices_bdim) = unwrapTensorAtLevel(indices, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, indices_value, indices_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_143_t)(const Scalar &, const Tensor &, c10::optional<int64_t>);
@@ -3053,7 +3053,7 @@ Tensor lowerToNextLayer<batch_rule_143_t,Tensor,const Scalar &, const Tensor &>(
   optional<int64_t> other_bdim;
   std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
   auto results = batch_rule(self, other_value, other_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_144_t)(const Tensor &, c10::optional<int64_t>, Dimname);
@@ -3070,7 +3070,7 @@ Tensor lowerToNextLayer<batch_rule_144_t,Tensor,const Tensor &, Dimname>(
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_145_t)(const Tensor &, c10::optional<int64_t>, DimnameList, bool);
@@ -3087,7 +3087,7 @@ Tensor lowerToNextLayer<batch_rule_145_t,Tensor,const Tensor &, DimnameList, boo
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, keepdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_146_t)(const Tensor &, c10::optional<int64_t>);
@@ -3104,7 +3104,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_146_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_147_t)(const Tensor &, c10::optional<int64_t>, int64_t, bool);
@@ -3121,7 +3121,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_147_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, descending);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_148_t)(const Tensor &, c10::optional<int64_t>, c10::optional<int64_t>, bool);
@@ -3138,7 +3138,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_148_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, keepdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_149_t)(const Tensor &, c10::optional<int64_t>, Dimname, bool);
@@ -3155,7 +3155,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_149_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, descending);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_150_t)(const Tensor &, c10::optional<int64_t>, int64_t, const Tensor &, c10::optional<int64_t>, IntArrayRef, bool);
@@ -3175,7 +3175,7 @@ Tensor lowerToNextLayer<batch_rule_150_t,Tensor,const Tensor &, int64_t, const T
   optional<int64_t> indices_bdim;
   std::tie(indices_value, indices_bdim) = unwrapTensorAtLevel(indices, cur_level);
   auto results = batch_rule(grad_value, grad_bdim, dim, indices_value, indices_bdim, sizes, keepdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_151_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, IntArrayRef, bool);
@@ -3192,7 +3192,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_151_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, kernel_size, stride, padding, dilation, ceil_mode);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_152_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, IntArrayRef, bool);
@@ -3209,7 +3209,7 @@ Tensor lowerToNextLayer<batch_rule_152_t,Tensor,const Tensor &, IntArrayRef, Int
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, kernel_size, stride, padding, dilation, ceil_mode);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_153_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, IntArrayRef, bool);
@@ -3232,7 +3232,7 @@ Tensor lowerToNextLayer<batch_rule_153_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, output_value, output_bdim, input_value, input_bdim, kernel_size, stride, padding, dilation, ceil_mode);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_154_t)(const Tensor &, c10::optional<int64_t>, c10::optional<ScalarType>);
@@ -3249,7 +3249,7 @@ Tensor lowerToNextLayer<batch_rule_154_t,Tensor,const Tensor &, c10::optional<Sc
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_155_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, bool, c10::optional<ScalarType>);
@@ -3266,7 +3266,7 @@ Tensor lowerToNextLayer<batch_rule_155_t,Tensor,const Tensor &, IntArrayRef, boo
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, keepdim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_156_t)(const Tensor &, c10::optional<int64_t>, DimnameList, bool, c10::optional<ScalarType>);
@@ -3283,7 +3283,7 @@ Tensor lowerToNextLayer<batch_rule_156_t,Tensor,const Tensor &, DimnameList, boo
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, keepdim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_157_t)(IntArrayRef, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, int64_t, bool);
@@ -3303,7 +3303,7 @@ Tensor lowerToNextLayer<batch_rule_157_t,Tensor,IntArrayRef, const Tensor &, con
   optional<int64_t> weight_bdim;
   std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
   auto results = batch_rule(self_size, grad_output_value, grad_output_bdim, weight_value, weight_bdim, padding, stride, dilation, groups, bias_defined);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_158_t)(IntArrayRef, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, int64_t, bool);
@@ -3323,7 +3323,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_158_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(weight_size, grad_output_value, grad_output_bdim, self_value, self_bdim, padding, stride, dilation, groups, bias_defined);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_159_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, bool, double, double);
@@ -3358,7 +3358,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_159_t,std::tuple<Te
       std::tie(running_var_value, running_var_bdim) = unwrapTensorAtLevel(running_var.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, running_mean_value, running_mean_bdim, running_var_value, running_var_bdim, training, exponential_average_factor, epsilon);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_160_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, double);
@@ -3401,7 +3401,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_160_t,std::tuple<Te
       std::tie(save_var_value, save_var_bdim) = unwrapTensorAtLevel(save_var.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, grad_output_value, grad_output_bdim, weight_value, weight_bdim, running_mean_value, running_mean_bdim, running_var_value, running_var_bdim, save_mean_value, save_mean_bdim, save_var_value, save_var_bdim, epsilon);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_161_t)(IntArrayRef, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, int64_t, bool, bool);
@@ -3421,7 +3421,7 @@ Tensor lowerToNextLayer<batch_rule_161_t,Tensor,IntArrayRef, const Tensor &, con
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(weight_size, grad_output_value, grad_output_bdim, self_value, self_bdim, padding, stride, dilation, groups, benchmark, deterministic);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_162_t)(const Tensor &, c10::optional<int64_t>, int64_t, const Tensor &, c10::optional<int64_t>, int64_t);
@@ -3441,7 +3441,7 @@ Tensor lowerToNextLayer<batch_rule_162_t,Tensor,const Tensor &, int64_t, const T
   optional<int64_t> start_bdim;
   std::tie(start_value, start_bdim) = unwrapTensorAtLevel(start, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, start_value, start_bdim, length);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_163_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, bool, double, double);
@@ -3478,7 +3478,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_163_t,std::tuple<Te
       std::tie(running_var_value, running_var_bdim) = unwrapTensorAtLevel(running_var.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, running_mean_value, running_mean_bdim, running_var_value, running_var_bdim, training, momentum, eps);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_164_t)(const Tensor &, c10::optional<int64_t>, double);
@@ -3495,7 +3495,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_164_t,std::tuple<Tensor,Te
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
   auto results = batch_rule(input_value, input_bdim, eps);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_165_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, double);
@@ -3528,7 +3528,7 @@ Tensor lowerToNextLayer<batch_rule_165_t,Tensor,const Tensor &, const c10::optio
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, mean_value, mean_bdim, invstd_value, invstd_bdim, eps);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_166_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, double, double, int64_t);
@@ -3561,7 +3561,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_166_t,std::tuple<Tensor,Te
       std::tie(running_var_value, running_var_bdim) = unwrapTensorAtLevel(running_var.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, mean_value, mean_bdim, invstd_value, invstd_bdim, running_mean_value, running_mean_bdim, running_var_value, running_var_bdim, momentum, eps, count);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_167_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, double, double, const Tensor &, c10::optional<int64_t>);
@@ -3597,7 +3597,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_167_t,std::tuple<Tensor,Te
       std::tie(running_var_value, running_var_bdim) = unwrapTensorAtLevel(running_var.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, mean_value, mean_bdim, invstd_value, invstd_bdim, running_mean_value, running_mean_bdim, running_var_value, running_var_bdim, momentum, eps, counts_value, counts_bdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_168_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, bool, bool, bool);
@@ -3628,7 +3628,7 @@ std::tuple<Tensor,Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_168_t,std::t
       std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight.value(), cur_level);
   }
   auto results = batch_rule(grad_out_value, grad_out_bdim, input_value, input_bdim, mean_value, mean_bdim, invstd_value, invstd_bdim, weight_value, weight_bdim, input_g, weight_g, bias_g);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)), makeBatched(std::get<6>(results), cur_level, std::get<7>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level), makeBatched(std::get<6>(results), std::get<7>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_169_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>);
@@ -3668,7 +3668,7 @@ Tensor lowerToNextLayer<batch_rule_169_t,Tensor,const Tensor &, const Tensor &, 
       std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight.value(), cur_level);
   }
   auto results = batch_rule(grad_out_value, grad_out_bdim, input_value, input_bdim, mean_value, mean_bdim, invstd_value, invstd_bdim, weight_value, weight_bdim, mean_dy_value, mean_dy_bdim, mean_dy_xmu_value, mean_dy_xmu_bdim, count_value, count_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_170_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, double);
@@ -3695,7 +3695,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_170_t,std::tuple<Tensor,Te
       std::tie(running_var_value, running_var_bdim) = unwrapTensorAtLevel(running_var.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, running_mean_value, running_mean_bdim, running_var_value, running_var_bdim, momentum);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_171_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, IntArrayRef, IntArrayRef);
@@ -3720,7 +3720,7 @@ Tensor lowerToNextLayer<batch_rule_171_t,Tensor,const Tensor &, const Tensor &, 
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, weight_value, weight_bdim, bias_value, bias_bdim, padding, stride);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_172_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef);
@@ -3743,7 +3743,7 @@ Tensor lowerToNextLayer<batch_rule_172_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> indices_bdim;
   std::tie(indices_value, indices_bdim) = unwrapTensorAtLevel(indices, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, indices_value, indices_bdim, output_size);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_173_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, const Tensor &, c10::optional<int64_t>, IntArrayRef);
@@ -3763,7 +3763,7 @@ Tensor lowerToNextLayer<batch_rule_173_t,Tensor,const Tensor &, IntArrayRef, con
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
   auto results = batch_rule(input_value, input_bdim, weightsize, grad_output_value, grad_output_bdim, padding);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_174_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, double, c10::optional<int64_t>);
@@ -3783,7 +3783,7 @@ Tensor lowerToNextLayer<batch_rule_174_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> x2_bdim;
   std::tie(x2_value, x2_bdim) = unwrapTensorAtLevel(x2, cur_level);
   auto results = batch_rule(x1_value, x1_bdim, x2_value, x2_bdim, p, compute_mode);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_175_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, double, const Tensor &, c10::optional<int64_t>);
@@ -3809,7 +3809,7 @@ Tensor lowerToNextLayer<batch_rule_175_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> cdist_bdim;
   std::tie(cdist_value, cdist_bdim) = unwrapTensorAtLevel(cdist, cur_level);
   auto results = batch_rule(grad_value, grad_bdim, x1_value, x1_bdim, x2_value, x2_bdim, p, cdist_value, cdist_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_176_t)(const Tensor &, c10::optional<int64_t>, double);
@@ -3826,7 +3826,7 @@ Tensor lowerToNextLayer<batch_rule_176_t,Tensor,const Tensor &, double>(
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, rcond);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_177_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, double, const Tensor &, c10::optional<int64_t>);
@@ -3849,7 +3849,7 @@ Tensor lowerToNextLayer<batch_rule_177_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> pdist_bdim;
   std::tie(pdist_value, pdist_bdim) = unwrapTensorAtLevel(pdist, cur_level);
   auto results = batch_rule(grad_value, grad_bdim, self_value, self_bdim, p, pdist_value, pdist_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_178_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, double);
@@ -3869,7 +3869,7 @@ Tensor lowerToNextLayer<batch_rule_178_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> target_bdim;
   std::tie(target_value, target_bdim) = unwrapTensorAtLevel(target, cur_level);
   auto results = batch_rule(self_value, self_bdim, target_value, target_bdim, reduction, delta);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_179_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef);
@@ -3886,7 +3886,7 @@ Tensor lowerToNextLayer<batch_rule_179_t,Tensor,const Tensor &, IntArrayRef, Int
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, shifts, dims);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<bool> (*batch_rule_180_t)(const Tensor &, c10::optional<int64_t>, c10::optional<Device>);
@@ -3920,7 +3920,7 @@ Tensor lowerToNextLayer<batch_rule_181_t,Tensor,const Tensor &, c10::optional<De
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, device);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_182_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool, bool, double, int64_t);
@@ -3940,7 +3940,7 @@ Tensor lowerToNextLayer<batch_rule_182_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> target_bdim;
   std::tie(target_value, target_bdim) = unwrapTensorAtLevel(target, cur_level);
   auto results = batch_rule(input_value, input_bdim, target_value, target_bdim, log_input, full, eps, reduction);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_183_t)(const Tensor &, c10::optional<int64_t>, int64_t, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>, c10::optional<MemoryFormat>);
@@ -3957,7 +3957,7 @@ Tensor lowerToNextLayer<batch_rule_183_t,Tensor,const Tensor &, int64_t, c10::op
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, high, dtype, layout, device, pin_memory, memory_format);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_184_t)(const Tensor &, c10::optional<int64_t>, int64_t, int64_t, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>, c10::optional<MemoryFormat>);
@@ -3974,7 +3974,7 @@ Tensor lowerToNextLayer<batch_rule_184_t,Tensor,const Tensor &, int64_t, int64_t
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, low, high, dtype, layout, device, pin_memory, memory_format);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_185_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, c10::optional<int64_t>, c10::optional<int64_t>);
@@ -3994,7 +3994,7 @@ Tensor lowerToNextLayer<batch_rule_185_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> repeats_bdim;
   std::tie(repeats_value, repeats_bdim) = unwrapTensorAtLevel(repeats, cur_level);
   auto results = batch_rule(self_value, self_bdim, repeats_value, repeats_bdim, dim, output_size);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_186_t)(const Tensor &, c10::optional<int64_t>, int64_t, c10::optional<int64_t>, c10::optional<int64_t>);
@@ -4011,7 +4011,7 @@ Tensor lowerToNextLayer<batch_rule_186_t,Tensor,const Tensor &, int64_t, c10::op
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, repeats, dim, output_size);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_187_t)(const Tensor &, c10::optional<int64_t>, const Scalar &, const Scalar &, bool, c10::optional<Generator>);
@@ -4028,7 +4028,7 @@ Tensor lowerToNextLayer<batch_rule_187_t,Tensor,const Tensor &, const Scalar &, 
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, lower, upper, training, generator);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_188_t)(const Tensor &, c10::optional<int64_t>, Dimname, int64_t);
@@ -4045,7 +4045,7 @@ Tensor lowerToNextLayer<batch_rule_188_t,Tensor,const Tensor &, Dimname, int64_t
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, index);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_189_t)(const Tensor &, c10::optional<int64_t>, c10::optional<double>);
@@ -4062,7 +4062,7 @@ Tensor lowerToNextLayer<batch_rule_189_t,Tensor,const Tensor &, c10::optional<do
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, eps);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<int64_t> (*batch_rule_190_t)(const Tensor &, c10::optional<int64_t>, int64_t);
@@ -4113,7 +4113,7 @@ Tensor lowerToNextLayer<batch_rule_192_t,Tensor,const Tensor &, int64_t, c10::op
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, start, end, step);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_193_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, int64_t, int64_t, int64_t, int64_t);
@@ -4130,7 +4130,7 @@ Tensor lowerToNextLayer<batch_rule_193_t,Tensor,const Tensor &, IntArrayRef, int
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, input_sizes, dim, start, end, step);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<::std::vector<Tensor>,c10::optional<int64_t>> (*batch_rule_194_t)(const Tensor &, c10::optional<int64_t>, int64_t);
@@ -4147,7 +4147,7 @@ template <>
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim);
-  return makeBatchedVector(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<::std::vector<Tensor>,c10::optional<int64_t>> (*batch_rule_195_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef);
@@ -4164,7 +4164,7 @@ template <>
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, indices);
-  return makeBatchedVector(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_196_t)(const Tensor &, c10::optional<int64_t>, int64_t, c10::optional<int64_t>, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, bool, c10::optional<bool>, c10::optional<bool>);
@@ -4186,7 +4186,7 @@ Tensor lowerToNextLayer<batch_rule_196_t,Tensor,const Tensor &, int64_t, c10::op
       std::tie(window_value, window_bdim) = unwrapTensorAtLevel(window.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, n_fft, hop_length, win_length, window_value, window_bdim, normalized, onesided, return_complex);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_197_t)(const Tensor &, c10::optional<int64_t>, int64_t, c10::optional<int64_t>, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, bool, bool, c10::optional<bool>, c10::optional<int64_t>, bool);
@@ -4208,7 +4208,7 @@ Tensor lowerToNextLayer<batch_rule_197_t,Tensor,const Tensor &, int64_t, c10::op
       std::tie(window_value, window_bdim) = unwrapTensorAtLevel(window.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, n_fft, hop_length, win_length, window_value, window_bdim, center, normalized, onesided, length, return_complex);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_198_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, bool, bool);
@@ -4225,7 +4225,7 @@ Tensor lowerToNextLayer<batch_rule_198_t,Tensor,const Tensor &, IntArrayRef, boo
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, unbiased, keepdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_199_t)(const Tensor &, c10::optional<int64_t>, c10::optional<IntArrayRef>, c10::optional<int64_t>, bool);
@@ -4242,7 +4242,7 @@ Tensor lowerToNextLayer<batch_rule_199_t,Tensor,const Tensor &, c10::optional<In
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, correction, keepdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_200_t)(const Tensor &, c10::optional<int64_t>, bool);
@@ -4259,7 +4259,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_200_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, check_errors);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_201_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, bool, bool);
@@ -4276,7 +4276,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_201_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, unbiased, keepdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_202_t)(const Tensor &, c10::optional<int64_t>, c10::optional<IntArrayRef>, c10::optional<int64_t>, bool);
@@ -4293,7 +4293,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_202_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, correction, keepdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_203_t)(const Tensor &, c10::optional<int64_t>, DimnameList, bool, bool);
@@ -4310,7 +4310,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_203_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, unbiased, keepdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_204_t)(const Tensor &, c10::optional<int64_t>, DimnameList, c10::optional<int64_t>, bool);
@@ -4327,7 +4327,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_204_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, correction, keepdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_205_t)(const Tensor &, c10::optional<int64_t>, DimnameList, bool, bool);
@@ -4344,7 +4344,7 @@ Tensor lowerToNextLayer<batch_rule_205_t,Tensor,const Tensor &, DimnameList, boo
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, unbiased, keepdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_206_t)(const Tensor &, c10::optional<int64_t>, DimnameList, c10::optional<int64_t>, bool);
@@ -4361,7 +4361,7 @@ Tensor lowerToNextLayer<batch_rule_206_t,Tensor,const Tensor &, DimnameList, c10
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, correction, keepdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_207_t)(const Tensor &, c10::optional<int64_t>, int64_t, bool, c10::optional<ScalarType>);
@@ -4378,7 +4378,7 @@ Tensor lowerToNextLayer<batch_rule_207_t,Tensor,const Tensor &, int64_t, bool, c
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, keepdim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_208_t)(const Tensor &, c10::optional<int64_t>, Dimname, bool, c10::optional<ScalarType>);
@@ -4395,7 +4395,7 @@ Tensor lowerToNextLayer<batch_rule_208_t,Tensor,const Tensor &, Dimname, bool, c
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, keepdim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_209_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef);
@@ -4415,7 +4415,7 @@ Tensor lowerToNextLayer<batch_rule_209_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> other_bdim;
   std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
   auto results = batch_rule(self_value, self_bdim, other_value, other_bdim, dims_self, dims_other);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_210_t)(const Tensor &, c10::optional<int64_t>, Dimname, Dimname);
@@ -4432,7 +4432,7 @@ Tensor lowerToNextLayer<batch_rule_210_t,Tensor,const Tensor &, Dimname, Dimname
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim0, dim1);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_211_t)(const Tensor &, c10::optional<int64_t>, int64_t, IntArrayRef);
@@ -4449,7 +4449,7 @@ Tensor lowerToNextLayer<batch_rule_211_t,Tensor,const Tensor &, int64_t, IntArra
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, k, dims);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_212_t)(const Tensor &, c10::optional<int64_t>, double, int64_t);
@@ -4466,7 +4466,7 @@ Tensor lowerToNextLayer<batch_rule_212_t,Tensor,const Tensor &, double, int64_t>
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, scale, zero_point);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_213_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, IntArrayRef, int64_t);
@@ -4489,7 +4489,7 @@ Tensor lowerToNextLayer<batch_rule_213_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> i3_bdim;
   std::tie(i3_value, i3_bdim) = unwrapTensorAtLevel(i3, cur_level);
   auto results = batch_rule(i1_value, i1_bdim, i2_value, i2_bdim, i3_value, i3_bdim, expand1, expand2, expand3, sumdim, unroll_dim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_214_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, double, double, double, bool, int64_t);
@@ -4512,7 +4512,7 @@ Tensor lowerToNextLayer<batch_rule_214_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> negative_bdim;
   std::tie(negative_value, negative_bdim) = unwrapTensorAtLevel(negative, cur_level);
   auto results = batch_rule(anchor_value, anchor_bdim, positive_value, positive_bdim, negative_value, negative_bdim, margin, p, eps, swap, reduction);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_215_t)(const Tensor &, c10::optional<int64_t>, bool, bool);
@@ -4529,7 +4529,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_215_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, upper, check_errors);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_216_t)(const Tensor &, c10::optional<int64_t>, int64_t, bool, bool, bool);
@@ -4546,7 +4546,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_216_t,std::tuple<Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, sorted, return_inverse, return_counts);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_217_t)(const Tensor &, c10::optional<int64_t>, bool, bool, c10::optional<int64_t>);
@@ -4563,7 +4563,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_217_t,std::tuple<Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, return_inverse, return_counts, dim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_218_t)(const Tensor &, c10::optional<int64_t>, int64_t, bool, bool);
@@ -4580,7 +4580,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_218_t,std::tuple<Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, return_inverse, return_counts);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_219_t)(const Tensor &, c10::optional<int64_t>, bool, bool, bool);
@@ -4597,7 +4597,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_219_t,std::tuple<Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, sorted, return_inverse, return_counts);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_220_t)(const Tensor &, c10::optional<int64_t>, const Scalar &, const Tensor &, c10::optional<int64_t>);
@@ -4617,7 +4617,7 @@ Tensor lowerToNextLayer<batch_rule_220_t,Tensor,const Tensor &, const Scalar &, 
   optional<int64_t> other_bdim;
   std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
   auto results = batch_rule(condition_value, condition_bdim, self, other_value, other_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<::std::vector<Tensor>,c10::optional<int64_t>> (*batch_rule_221_t)(const Tensor &, c10::optional<int64_t>);
@@ -4634,7 +4634,7 @@ template <>
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim);
-  return makeBatchedVector(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_222_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t);
@@ -4654,7 +4654,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_222_t,std::tuple<Tensor,Te
   optional<int64_t> target_bdim;
   std::tie(target_value, target_bdim) = unwrapTensorAtLevel(target, cur_level);
   auto results = batch_rule(self_value, self_bdim, target_value, target_bdim, reduction);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_223_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t);
@@ -4680,7 +4680,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_223_t,std::tuple<Tensor,Te
   optional<int64_t> saved_norms_bdim;
   std::tie(saved_norms_value, saved_norms_bdim) = unwrapTensorAtLevel(saved_norms, cur_level);
   auto results = batch_rule(grad_w_value, grad_w_bdim, saved_v_value, saved_v_bdim, saved_g_value, saved_g_bdim, saved_norms_value, saved_norms_bdim, dim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_224_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, c10::optional<Generator>);
@@ -4700,7 +4700,7 @@ Tensor lowerToNextLayer<batch_rule_224_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> std_bdim;
   std::tie(std_value, std_bdim) = unwrapTensorAtLevel(std, cur_level);
   auto results = batch_rule(mean_value, mean_bdim, std_value, std_bdim, generator);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_225_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Scalar> &, IntArrayRef, bool, c10::optional<ScalarType>);
@@ -4717,7 +4717,7 @@ Tensor lowerToNextLayer<batch_rule_225_t,Tensor,const Tensor &, const c10::optio
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, p, dim, keepdim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_226_t)(const Tensor &, c10::optional<int64_t>, ScalarType);
@@ -4734,7 +4734,7 @@ Tensor lowerToNextLayer<batch_rule_226_t,Tensor,const Tensor &, ScalarType>(
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_227_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, ScalarType);
@@ -4751,7 +4751,7 @@ Tensor lowerToNextLayer<batch_rule_227_t,Tensor,const Tensor &, IntArrayRef, Sca
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_228_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef);
@@ -4771,7 +4771,7 @@ Tensor lowerToNextLayer<batch_rule_228_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, padding);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_229_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Scalar> &, ScalarType);
@@ -4788,7 +4788,7 @@ Tensor lowerToNextLayer<batch_rule_229_t,Tensor,const Tensor &, const c10::optio
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, p, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_230_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Scalar> &, IntArrayRef, bool, ScalarType);
@@ -4805,7 +4805,7 @@ Tensor lowerToNextLayer<batch_rule_230_t,Tensor,const Tensor &, const c10::optio
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, p, dim, keepdim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_231_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Scalar> &, IntArrayRef, bool);
@@ -4822,7 +4822,7 @@ Tensor lowerToNextLayer<batch_rule_231_t,Tensor,const Tensor &, const c10::optio
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, p, dim, keepdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_232_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Scalar> &, DimnameList, bool, ScalarType);
@@ -4839,7 +4839,7 @@ Tensor lowerToNextLayer<batch_rule_232_t,Tensor,const Tensor &, const c10::optio
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, p, dim, keepdim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_233_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Scalar> &, DimnameList, bool);
@@ -4856,7 +4856,7 @@ Tensor lowerToNextLayer<batch_rule_233_t,Tensor,const Tensor &, const c10::optio
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, p, dim, keepdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_234_t)(const Tensor &, c10::optional<int64_t>, c10::optional<MemoryFormat>);
@@ -4873,7 +4873,7 @@ Tensor lowerToNextLayer<batch_rule_234_t,Tensor,const Tensor &, c10::optional<Me
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, memory_format);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_235_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>);
@@ -4896,7 +4896,7 @@ Tensor lowerToNextLayer<batch_rule_235_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> values_bdim;
   std::tie(values_value, values_bdim) = unwrapTensorAtLevel(values, cur_level);
   auto results = batch_rule(crow_indices_value, crow_indices_bdim, col_indices_value, col_indices_bdim, values_value, values_bdim, size, dtype, layout, device, pin_memory);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_236_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>);
@@ -4919,7 +4919,7 @@ Tensor lowerToNextLayer<batch_rule_236_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> values_bdim;
   std::tie(values_value, values_bdim) = unwrapTensorAtLevel(values, cur_level);
   auto results = batch_rule(crow_indices_value, crow_indices_bdim, col_indices_value, col_indices_bdim, values_value, values_bdim, dtype, layout, device, pin_memory);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_237_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>);
@@ -4939,7 +4939,7 @@ Tensor lowerToNextLayer<batch_rule_237_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> values_bdim;
   std::tie(values_value, values_bdim) = unwrapTensorAtLevel(values, cur_level);
   auto results = batch_rule(indices_value, indices_bdim, values_value, values_bdim, dtype, layout, device, pin_memory);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_238_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>);
@@ -4959,7 +4959,7 @@ Tensor lowerToNextLayer<batch_rule_238_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> values_bdim;
   std::tie(values_value, values_bdim) = unwrapTensorAtLevel(values, cur_level);
   auto results = batch_rule(indices_value, indices_bdim, values_value, values_bdim, size, dtype, layout, device, pin_memory);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_239_t)(int64_t, int64_t, IntArrayRef, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>);
@@ -4979,7 +4979,7 @@ Tensor lowerToNextLayer<batch_rule_239_t,Tensor,int64_t, int64_t, IntArrayRef, c
   optional<int64_t> values_bdim;
   std::tie(values_value, values_bdim) = unwrapTensorAtLevel(values, cur_level);
   auto results = batch_rule(sparse_dim, dense_dim, size, indices_value, indices_bdim, values_value, values_bdim, dtype, layout, device, pin_memory);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<::std::vector<Tensor>,c10::optional<int64_t>> (*batch_rule_240_t)(const Tensor &, c10::optional<int64_t>, Dimname);
@@ -4996,7 +4996,7 @@ template <>
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim);
-  return makeBatchedVector(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_241_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, int64_t);
@@ -5013,7 +5013,7 @@ Tensor lowerToNextLayer<batch_rule_241_t,Tensor,const Tensor &, IntArrayRef, Int
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, padding, stride, dilation, groups);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_242_t)(const Tensor &, c10::optional<int64_t>, double, int64_t, ScalarType);
@@ -5030,7 +5030,7 @@ Tensor lowerToNextLayer<batch_rule_242_t,Tensor,const Tensor &, double, int64_t,
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, scale, zero_point, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_243_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, ScalarType);
@@ -5053,7 +5053,7 @@ Tensor lowerToNextLayer<batch_rule_243_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> zero_point_bdim;
   std::tie(zero_point_value, zero_point_bdim) = unwrapTensorAtLevel(zero_point, cur_level);
   auto results = batch_rule(self_value, self_bdim, scale_value, scale_bdim, zero_point_value, zero_point_bdim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_244_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, ScalarType);
@@ -5076,7 +5076,7 @@ Tensor lowerToNextLayer<batch_rule_244_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> zero_points_bdim;
   std::tie(zero_points_value, zero_points_bdim) = unwrapTensorAtLevel(zero_points, cur_level);
   auto results = batch_rule(self_value, self_bdim, scales_value, scales_bdim, zero_points_value, zero_points_bdim, axis, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<double> (*batch_rule_245_t)(const Tensor &, c10::optional<int64_t>);
@@ -5127,7 +5127,7 @@ Tensor lowerToNextLayer<batch_rule_247_t,Tensor,const Tensor &, double, int64_t,
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, scale, zero_point, quant_min, quant_max);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_248_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, int64_t);
@@ -5150,7 +5150,7 @@ Tensor lowerToNextLayer<batch_rule_248_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> zero_point_bdim;
   std::tie(zero_point_value, zero_point_bdim) = unwrapTensorAtLevel(zero_point, cur_level);
   auto results = batch_rule(self_value, self_bdim, scale_value, scale_bdim, zero_point_value, zero_point_bdim, quant_min, quant_max);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_249_t)(const Tensor &, c10::optional<int64_t>, double, int64_t, int64_t, int64_t);
@@ -5167,7 +5167,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_249_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, scale, zero_point, quant_min, quant_max);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_250_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, int64_t);
@@ -5193,7 +5193,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_250_t,std::tuple<Tensor,Te
   optional<int64_t> fake_quant_enabled_bdim;
   std::tie(fake_quant_enabled_value, fake_quant_enabled_bdim) = unwrapTensorAtLevel(fake_quant_enabled, cur_level);
   auto results = batch_rule(self_value, self_bdim, scale_value, scale_bdim, zero_point_value, zero_point_bdim, fake_quant_enabled_value, fake_quant_enabled_bdim, quant_min, quant_max);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_251_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, int64_t, double);
@@ -5216,7 +5216,7 @@ Tensor lowerToNextLayer<batch_rule_251_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> zero_point_bdim;
   std::tie(zero_point_value, zero_point_bdim) = unwrapTensorAtLevel(zero_point, cur_level);
   auto results = batch_rule(self_value, self_bdim, scale_value, scale_bdim, zero_point_value, zero_point_bdim, quant_min, quant_max, grad_factor);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_252_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, int64_t, double);
@@ -5242,7 +5242,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_252_t,std::tuple<Te
   optional<int64_t> zero_point_bdim;
   std::tie(zero_point_value, zero_point_bdim) = unwrapTensorAtLevel(zero_point, cur_level);
   auto results = batch_rule(grad_value, grad_bdim, self_value, self_bdim, scale_value, scale_bdim, zero_point_value, zero_point_bdim, quant_min, quant_max, grad_factor);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_253_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, int64_t, int64_t);
@@ -5265,7 +5265,7 @@ Tensor lowerToNextLayer<batch_rule_253_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> zero_point_bdim;
   std::tie(zero_point_value, zero_point_bdim) = unwrapTensorAtLevel(zero_point, cur_level);
   auto results = batch_rule(self_value, self_bdim, scale_value, scale_bdim, zero_point_value, zero_point_bdim, axis, quant_min, quant_max);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_254_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, int64_t, int64_t);
@@ -5288,7 +5288,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_254_t,std::tuple<Tensor,Te
   optional<int64_t> zero_point_bdim;
   std::tie(zero_point_value, zero_point_bdim) = unwrapTensorAtLevel(zero_point, cur_level);
   auto results = batch_rule(self_value, self_bdim, scale_value, scale_bdim, zero_point_value, zero_point_bdim, axis, quant_min, quant_max);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_255_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, int64_t, int64_t, double);
@@ -5311,7 +5311,7 @@ Tensor lowerToNextLayer<batch_rule_255_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> zero_point_bdim;
   std::tie(zero_point_value, zero_point_bdim) = unwrapTensorAtLevel(zero_point, cur_level);
   auto results = batch_rule(self_value, self_bdim, scale_value, scale_bdim, zero_point_value, zero_point_bdim, axis, quant_min, quant_max, grad_factor);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_256_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, int64_t, int64_t, double);
@@ -5337,7 +5337,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_256_t,std::tuple<Te
   optional<int64_t> zero_point_bdim;
   std::tie(zero_point_value, zero_point_bdim) = unwrapTensorAtLevel(zero_point, cur_level);
   auto results = batch_rule(grad_value, grad_bdim, self_value, self_bdim, scale_value, scale_bdim, zero_point_value, zero_point_bdim, axis, quant_min, quant_max, grad_factor);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<double,int64_t> (*batch_rule_257_t)(const Tensor &, c10::optional<int64_t>, bool);
@@ -5371,7 +5371,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_258_t,std::tuple<Tensor,Te
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
   auto results = batch_rule(input_value, input_bdim, numel, n_bins, ratio, bit_width);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_259_t)(const Tensor &, c10::optional<int64_t>, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>, bool, c10::optional<MemoryFormat>);
@@ -5388,7 +5388,7 @@ Tensor lowerToNextLayer<batch_rule_259_t,Tensor,const Tensor &, c10::optional<Sc
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dtype, layout, device, pin_memory, non_blocking, memory_format);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_260_t)(const Tensor &, c10::optional<int64_t>, c10::optional<ScalarType>, c10::optional<Layout>, c10::optional<Device>, c10::optional<bool>, bool, bool, c10::optional<MemoryFormat>);
@@ -5405,7 +5405,7 @@ Tensor lowerToNextLayer<batch_rule_260_t,Tensor,const Tensor &, c10::optional<Sc
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dtype, layout, device, pin_memory, non_blocking, copy, memory_format);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_261_t)(const Tensor &, c10::optional<int64_t>, Device, ScalarType, bool, bool, c10::optional<MemoryFormat>);
@@ -5422,7 +5422,7 @@ Tensor lowerToNextLayer<batch_rule_261_t,Tensor,const Tensor &, Device, ScalarTy
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, device, dtype, non_blocking, copy, memory_format);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_262_t)(const Tensor &, c10::optional<int64_t>, ScalarType, bool, bool, c10::optional<MemoryFormat>);
@@ -5439,7 +5439,7 @@ Tensor lowerToNextLayer<batch_rule_262_t,Tensor,const Tensor &, ScalarType, bool
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, dtype, non_blocking, copy, memory_format);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_263_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool, bool, c10::optional<MemoryFormat>);
@@ -5459,7 +5459,7 @@ Tensor lowerToNextLayer<batch_rule_263_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> other_bdim;
   std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
   auto results = batch_rule(self_value, self_bdim, other_value, other_bdim, non_blocking, copy, memory_format);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Scalar> (*batch_rule_264_t)(const Tensor &, c10::optional<int64_t>);
@@ -5563,7 +5563,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_268_t,std::tuple<Te
       std::tie(hidden_bias_value, hidden_bias_bdim) = unwrapTensorAtLevel(hidden_bias.value(), cur_level);
   }
   auto results = batch_rule(input_gates_value, input_gates_bdim, hidden_gates_value, hidden_gates_bdim, cx_value, cx_bdim, input_bias_value, input_bias_bdim, hidden_bias_value, hidden_bias_bdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_269_t)(const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool);
@@ -5596,7 +5596,7 @@ std::tuple<Tensor,Tensor,Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_269_t
       std::tie(grad_cy_value, grad_cy_bdim) = unwrapTensorAtLevel(grad_cy.value(), cur_level);
   }
   auto results = batch_rule(grad_hy_value, grad_hy_bdim, grad_cy_value, grad_cy_bdim, cx_value, cx_bdim, cy_value, cy_bdim, workspace_value, workspace_bdim, has_bias);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)), makeBatched(std::get<6>(results), cur_level, std::get<7>(results)), makeBatched(std::get<8>(results), cur_level, std::get<9>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level), makeBatched(std::get<6>(results), std::get<7>(results), cur_level), makeBatched(std::get<8>(results), std::get<9>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_270_t)(const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>);
@@ -5642,7 +5642,7 @@ std::tuple<Tensor,Tensor,Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_270_t
       std::tie(hidden_bias_value, hidden_bias_bdim) = unwrapTensorAtLevel(hidden_bias.value(), cur_level);
   }
   auto results = batch_rule(grad_hy_value, grad_hy_bdim, grad_cy_value, grad_cy_bdim, input_gates_value, input_gates_bdim, hidden_gates_value, hidden_gates_bdim, input_bias_value, input_bias_bdim, hidden_bias_value, hidden_bias_bdim, cx_value, cx_bdim, cy_value, cy_bdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)), makeBatched(std::get<6>(results), cur_level, std::get<7>(results)), makeBatched(std::get<8>(results), cur_level, std::get<9>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level), makeBatched(std::get<6>(results), std::get<7>(results), cur_level), makeBatched(std::get<8>(results), std::get<9>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_271_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>);
@@ -5675,7 +5675,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_271_t,std::tuple<Tensor,Te
       std::tie(hidden_bias_value, hidden_bias_bdim) = unwrapTensorAtLevel(hidden_bias.value(), cur_level);
   }
   auto results = batch_rule(input_gates_value, input_gates_bdim, hidden_gates_value, hidden_gates_bdim, hx_value, hx_bdim, input_bias_value, input_bias_bdim, hidden_bias_value, hidden_bias_bdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_272_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool);
@@ -5695,7 +5695,7 @@ std::tuple<Tensor,Tensor,Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_272_t
   optional<int64_t> workspace_bdim;
   std::tie(workspace_value, workspace_bdim) = unwrapTensorAtLevel(workspace, cur_level);
   auto results = batch_rule(grad_hy_value, grad_hy_bdim, workspace_value, workspace_bdim, has_bias);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)), makeBatched(std::get<6>(results), cur_level, std::get<7>(results)), makeBatched(std::get<8>(results), cur_level, std::get<9>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level), makeBatched(std::get<6>(results), std::get<7>(results), cur_level), makeBatched(std::get<8>(results), std::get<9>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_273_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>);
@@ -5731,7 +5731,7 @@ std::tuple<Tensor,Tensor,Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_273_t
       std::tie(hidden_bias_value, hidden_bias_bdim) = unwrapTensorAtLevel(hidden_bias.value(), cur_level);
   }
   auto results = batch_rule(grad_hy_value, grad_hy_bdim, input_gates_value, input_gates_bdim, hidden_gates_value, hidden_gates_bdim, hx_value, hx_bdim, input_bias_value, input_bias_bdim, hidden_bias_value, hidden_bias_bdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)), makeBatched(std::get<6>(results), cur_level, std::get<7>(results)), makeBatched(std::get<8>(results), cur_level, std::get<9>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level), makeBatched(std::get<6>(results), std::get<7>(results), cur_level), makeBatched(std::get<8>(results), std::get<9>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_274_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>);
@@ -5767,7 +5767,7 @@ Tensor lowerToNextLayer<batch_rule_274_t,Tensor,const Tensor &, const Tensor &, 
       std::tie(b_hh_value, b_hh_bdim) = unwrapTensorAtLevel(b_hh.value(), cur_level);
   }
   auto results = batch_rule(input_value, input_bdim, hx_value, hx_bdim, w_ih_value, w_ih_bdim, w_hh_value, w_hh_bdim, b_ih_value, b_ih_bdim, b_hh_value, b_hh_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_275_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Scalar &, const Scalar &, const Scalar &, const Scalar &);
@@ -5811,7 +5811,7 @@ Tensor lowerToNextLayer<batch_rule_275_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> col_offsets_hh_bdim;
   std::tie(col_offsets_hh_value, col_offsets_hh_bdim) = unwrapTensorAtLevel(col_offsets_hh, cur_level);
   auto results = batch_rule(input_value, input_bdim, hx_value, hx_bdim, w_ih_value, w_ih_bdim, w_hh_value, w_hh_bdim, b_ih_value, b_ih_bdim, b_hh_value, b_hh_bdim, packed_ih_value, packed_ih_bdim, packed_hh_value, packed_hh_bdim, col_offsets_ih_value, col_offsets_ih_bdim, col_offsets_hh_value, col_offsets_hh_bdim, scale_ih, scale_hh, zero_point_ih, zero_point_hh);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_276_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool);
@@ -5831,7 +5831,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_276_t,std::tuple<Tensor,Te
   optional<int64_t> lengths_bdim;
   std::tie(lengths_value, lengths_bdim) = unwrapTensorAtLevel(lengths, cur_level);
   auto results = batch_rule(input_value, input_bdim, lengths_value, lengths_bdim, batch_first);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_277_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, const Tensor &, c10::optional<int64_t>, bool);
@@ -5851,7 +5851,7 @@ Tensor lowerToNextLayer<batch_rule_277_t,Tensor,const Tensor &, IntArrayRef, con
   optional<int64_t> batch_sizes_bdim;
   std::tie(batch_sizes_value, batch_sizes_bdim) = unwrapTensorAtLevel(batch_sizes, cur_level);
   auto results = batch_rule(grad_value, grad_bdim, input_size, batch_sizes_value, batch_sizes_bdim, batch_first);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_278_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool, const Scalar &, int64_t);
@@ -5871,7 +5871,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_278_t,std::tuple<Tensor,Te
   optional<int64_t> batch_sizes_bdim;
   std::tie(batch_sizes_value, batch_sizes_bdim) = unwrapTensorAtLevel(batch_sizes, cur_level);
   auto results = batch_rule(data_value, data_bdim, batch_sizes_value, batch_sizes_bdim, batch_first, padding_value, total_length);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_279_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool);
@@ -5894,7 +5894,7 @@ Tensor lowerToNextLayer<batch_rule_279_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> source_bdim;
   std::tie(source_value, source_bdim) = unwrapTensorAtLevel(source, cur_level);
   auto results = batch_rule(self_value, self_bdim, index_value, index_bdim, source_value, source_bdim, accumulate);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_280_t)(const Tensor &, c10::optional<int64_t>, int64_t, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Scalar &);
@@ -5917,7 +5917,7 @@ Tensor lowerToNextLayer<batch_rule_280_t,Tensor,const Tensor &, int64_t, const T
   optional<int64_t> source_bdim;
   std::tie(source_value, source_bdim) = unwrapTensorAtLevel(source, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, index_value, index_bdim, source_value, source_bdim, alpha);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_281_t)(const Tensor &, c10::optional<int64_t>, Dimname, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Scalar &);
@@ -5940,7 +5940,7 @@ Tensor lowerToNextLayer<batch_rule_281_t,Tensor,const Tensor &, Dimname, const T
   optional<int64_t> source_bdim;
   std::tie(source_value, source_bdim) = unwrapTensorAtLevel(source, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, index_value, index_bdim, source_value, source_bdim, alpha);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_282_t)(const Tensor &, c10::optional<int64_t>, int64_t, const Tensor &, c10::optional<int64_t>, const Scalar &);
@@ -5960,7 +5960,7 @@ Tensor lowerToNextLayer<batch_rule_282_t,Tensor,const Tensor &, int64_t, const T
   optional<int64_t> index_bdim;
   std::tie(index_value, index_bdim) = unwrapTensorAtLevel(index, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, index_value, index_bdim, value);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_283_t)(const Tensor &, c10::optional<int64_t>, Dimname, const Tensor &, c10::optional<int64_t>, const Scalar &);
@@ -5980,7 +5980,7 @@ Tensor lowerToNextLayer<batch_rule_283_t,Tensor,const Tensor &, Dimname, const T
   optional<int64_t> index_bdim;
   std::tie(index_value, index_bdim) = unwrapTensorAtLevel(index, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, index_value, index_bdim, value);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_284_t)(const Tensor &, c10::optional<int64_t>, int64_t, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, c10::string_view);
@@ -6003,7 +6003,7 @@ Tensor lowerToNextLayer<batch_rule_284_t,Tensor,const Tensor &, int64_t, const T
   optional<int64_t> src_bdim;
   std::tie(src_value, src_bdim) = unwrapTensorAtLevel(src, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, index_value, index_bdim, src_value, src_bdim, reduce);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_285_t)(const Tensor &, c10::optional<int64_t>, int64_t, const Tensor &, c10::optional<int64_t>, const Scalar &, c10::string_view);
@@ -6023,7 +6023,7 @@ Tensor lowerToNextLayer<batch_rule_285_t,Tensor,const Tensor &, int64_t, const T
   optional<int64_t> index_bdim;
   std::tie(index_value, index_bdim) = unwrapTensorAtLevel(index, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, index_value, index_bdim, value, reduce);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_286_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, int64_t);
@@ -6040,7 +6040,7 @@ Tensor lowerToNextLayer<batch_rule_286_t,Tensor,const Tensor &, IntArrayRef, int
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
   auto results = batch_rule(grad_value, grad_bdim, input_sizes, diagonal);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_287_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, c10::optional<int64_t>);
@@ -6060,7 +6060,7 @@ Tensor lowerToNextLayer<batch_rule_287_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> indices_bdim;
   std::tie(indices_value, indices_bdim) = unwrapTensorAtLevel(indices, cur_level);
   auto results = batch_rule(self_value, self_bdim, indices_value, indices_bdim, dim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_288_t)(const Tensor &, c10::optional<int64_t>, int64_t, const Tensor &, c10::optional<int64_t>);
@@ -6080,7 +6080,7 @@ Tensor lowerToNextLayer<batch_rule_288_t,Tensor,const Tensor &, int64_t, const T
   optional<int64_t> index_bdim;
   std::tie(index_value, index_bdim) = unwrapTensorAtLevel(index, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, index_value, index_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_289_t)(const Tensor &, c10::optional<int64_t>, Dimname, const Tensor &, c10::optional<int64_t>);
@@ -6100,7 +6100,7 @@ Tensor lowerToNextLayer<batch_rule_289_t,Tensor,const Tensor &, Dimname, const T
   optional<int64_t> index_bdim;
   std::tie(index_value, index_bdim) = unwrapTensorAtLevel(index, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, index_value, index_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_290_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, int64_t, const Tensor &, c10::optional<int64_t>);
@@ -6120,7 +6120,7 @@ Tensor lowerToNextLayer<batch_rule_290_t,Tensor,const Tensor &, IntArrayRef, int
   optional<int64_t> index_bdim;
   std::tie(index_value, index_bdim) = unwrapTensorAtLevel(index, cur_level);
   auto results = batch_rule(grad_value, grad_bdim, self_sizes, dim, index_value, index_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_291_t)(const Tensor &, c10::optional<int64_t>, int64_t, const Tensor &, c10::optional<int64_t>, bool);
@@ -6140,7 +6140,7 @@ Tensor lowerToNextLayer<batch_rule_291_t,Tensor,const Tensor &, int64_t, const T
   optional<int64_t> index_bdim;
   std::tie(index_value, index_bdim) = unwrapTensorAtLevel(index, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, index_value, index_bdim, sparse_grad);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_292_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, const Tensor &, c10::optional<int64_t>, bool);
@@ -6163,7 +6163,7 @@ Tensor lowerToNextLayer<batch_rule_292_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> index_bdim;
   std::tie(index_value, index_bdim) = unwrapTensorAtLevel(index, cur_level);
   auto results = batch_rule(grad_value, grad_bdim, self_value, self_bdim, dim, index_value, index_bdim, sparse_grad);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_293_t)(const Tensor &, c10::optional<int64_t>, Dimname, const Tensor &, c10::optional<int64_t>, bool);
@@ -6183,7 +6183,7 @@ Tensor lowerToNextLayer<batch_rule_293_t,Tensor,const Tensor &, Dimname, const T
   optional<int64_t> index_bdim;
   std::tie(index_value, index_bdim) = unwrapTensorAtLevel(index, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, index_value, index_bdim, sparse_grad);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_294_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Scalar &);
@@ -6206,7 +6206,7 @@ Tensor lowerToNextLayer<batch_rule_294_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> tensor2_bdim;
   std::tie(tensor2_value, tensor2_bdim) = unwrapTensorAtLevel(tensor2, cur_level);
   auto results = batch_rule(self_value, self_bdim, tensor1_value, tensor1_bdim, tensor2_value, tensor2_bdim, value);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_295_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t, int64_t, double);
@@ -6231,7 +6231,7 @@ Tensor lowerToNextLayer<batch_rule_295_t,Tensor,const Tensor &, const Tensor &, 
       std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, target_value, target_bdim, weight_value, weight_bdim, reduction, ignore_index, label_smoothing);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_296_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>);
@@ -6251,7 +6251,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_296_t,std::tuple<Tensor,Te
   optional<int64_t> A_bdim;
   std::tie(A_value, A_bdim) = unwrapTensorAtLevel(A, cur_level);
   auto results = batch_rule(self_value, self_bdim, A_value, A_bdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_297_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool, bool, bool);
@@ -6271,7 +6271,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_297_t,std::tuple<Tensor,Te
   optional<int64_t> A_bdim;
   std::tie(A_value, A_bdim) = unwrapTensorAtLevel(A, cur_level);
   auto results = batch_rule(self_value, self_bdim, A_value, A_bdim, upper, transpose, unitriangular);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_298_t)(const Tensor &, c10::optional<int64_t>, bool, bool);
@@ -6288,7 +6288,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_298_t,std::tuple<Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, pivot, check_errors);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_299_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool, bool);
@@ -6311,7 +6311,7 @@ Tensor lowerToNextLayer<batch_rule_299_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> input3_bdim;
   std::tie(input3_value, input3_bdim) = unwrapTensorAtLevel(input3, cur_level);
   auto results = batch_rule(self_value, self_bdim, input2_value, input2_bdim, input3_value, input3_bdim, left, transpose);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_300_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, bool, bool);
@@ -6331,7 +6331,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_300_t,std::tuple<Te
   optional<int64_t> LU_pivots_bdim;
   std::tie(LU_pivots_value, LU_pivots_bdim) = unwrapTensorAtLevel(LU_pivots, cur_level);
   auto results = batch_rule(LU_data_value, LU_data_bdim, LU_pivots_value, LU_pivots_bdim, unpack_data, unpack_pivots);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_301_t)(const Tensor &, c10::optional<int64_t>, int64_t, bool, c10::optional<Generator>);
@@ -6348,7 +6348,7 @@ Tensor lowerToNextLayer<batch_rule_301_t,Tensor,const Tensor &, int64_t, bool, c
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, num_samples, replacement, generator);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_302_t)(int64_t, const Tensor &, c10::optional<int64_t>);
@@ -6365,7 +6365,7 @@ Tensor lowerToNextLayer<batch_rule_302_t,Tensor,int64_t, const Tensor &>(
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(n, self_value, self_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_303_t)(const Tensor &, c10::optional<int64_t>, int64_t, const Scalar &, const Scalar &);
@@ -6382,7 +6382,7 @@ Tensor lowerToNextLayer<batch_rule_303_t,Tensor,const Tensor &, int64_t, const S
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, bins, min, max);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_304_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, bool);
@@ -6407,7 +6407,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_304_t,std::tuple<Tensor,Te
       std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, bins_value, bins_bdim, weight_value, weight_bdim, density);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_305_t)(const Tensor &, c10::optional<int64_t>, int64_t, c10::optional<ArrayRef<double>>, const c10::optional<Tensor> &, c10::optional<int64_t>, bool);
@@ -6429,7 +6429,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_305_t,std::tuple<Tensor,Te
       std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, bins, range, weight_value, weight_bdim, density);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_306_t)(const Tensor &, c10::optional<int64_t>, double, c10::optional<int64_t>, bool);
@@ -6446,7 +6446,7 @@ Tensor lowerToNextLayer<batch_rule_306_t,Tensor,const Tensor &, double, c10::opt
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, q, dim, keepdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_307_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, c10::optional<int64_t>, bool);
@@ -6466,7 +6466,7 @@ Tensor lowerToNextLayer<batch_rule_307_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> q_bdim;
   std::tie(q_value, q_bdim) = unwrapTensorAtLevel(q, cur_level);
   auto results = batch_rule(self_value, self_bdim, q_value, q_bdim, dim, keepdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_308_t)(const Tensor &, c10::optional<int64_t>, double, c10::optional<int64_t>, bool, c10::string_view);
@@ -6483,7 +6483,7 @@ Tensor lowerToNextLayer<batch_rule_308_t,Tensor,const Tensor &, double, c10::opt
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, q, dim, keepdim, interpolation);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_309_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, c10::optional<int64_t>, bool, c10::string_view);
@@ -6503,7 +6503,7 @@ Tensor lowerToNextLayer<batch_rule_309_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> q_bdim;
   std::tie(q_value, q_bdim) = unwrapTensorAtLevel(q, cur_level);
   auto results = batch_rule(self_value, self_bdim, q_value, q_bdim, dim, keepdim, interpolation);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_310_t)(const Tensor &, c10::optional<int64_t>, c10::optional<bool>, int64_t, bool);
@@ -6520,7 +6520,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_310_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, stable, dim, descending);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_311_t)(const Tensor &, c10::optional<int64_t>, c10::optional<bool>, Dimname, bool);
@@ -6537,7 +6537,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_311_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, stable, dim, descending);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_312_t)(const Tensor &, c10::optional<int64_t>, int64_t, int64_t, bool, bool);
@@ -6554,7 +6554,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_312_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, k, dim, largest, sorted);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_313_t)(const Tensor &, c10::optional<int64_t>, const Scalar &, int64_t, const Scalar &);
@@ -6571,7 +6571,7 @@ Tensor lowerToNextLayer<batch_rule_313_t,Tensor,const Tensor &, const Scalar &, 
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, p, dim, maxnorm);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_314_t)(double, const Tensor &, c10::optional<int64_t>, c10::optional<Generator>);
@@ -6588,7 +6588,7 @@ Tensor lowerToNextLayer<batch_rule_314_t,Tensor,double, const Tensor &, c10::opt
   optional<int64_t> std_bdim;
   std::tie(std_value, std_bdim) = unwrapTensorAtLevel(std, cur_level);
   auto results = batch_rule(mean, std_value, std_bdim, generator);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_315_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Scalar &, const Scalar &, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t);
@@ -6613,7 +6613,7 @@ Tensor lowerToNextLayer<batch_rule_315_t,Tensor,const Tensor &, const Tensor &, 
       std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, target_value, target_bdim, p, margin, weight_value, weight_bdim, reduction);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_316_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Scalar &, const Scalar &, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t);
@@ -6641,7 +6641,7 @@ Tensor lowerToNextLayer<batch_rule_316_t,Tensor,const Tensor &, const Tensor &, 
       std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight.value(), cur_level);
   }
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, target_value, target_bdim, p, margin, weight_value, weight_bdim, reduction);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_317_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, const Tensor &, c10::optional<int64_t>);
@@ -6667,7 +6667,7 @@ Tensor lowerToNextLayer<batch_rule_317_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> is_target_bdim;
   std::tie(is_target_value, is_target_bdim) = unwrapTensorAtLevel(is_target, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, target_value, target_bdim, reduction, is_target_value, is_target_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_318_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t, int64_t);
@@ -6692,7 +6692,7 @@ Tensor lowerToNextLayer<batch_rule_318_t,Tensor,const Tensor &, const Tensor &, 
       std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, target_value, target_bdim, weight_value, weight_bdim, reduction, ignore_index);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_319_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t, int64_t);
@@ -6717,7 +6717,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_319_t,std::tuple<Tensor,Te
       std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, target_value, target_bdim, weight_value, weight_bdim, reduction, ignore_index);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_320_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t, int64_t, const Tensor &, c10::optional<int64_t>);
@@ -6748,7 +6748,7 @@ Tensor lowerToNextLayer<batch_rule_320_t,Tensor,const Tensor &, const Tensor &, 
       std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight.value(), cur_level);
   }
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, target_value, target_bdim, weight_value, weight_bdim, reduction, ignore_index, total_weight_value, total_weight_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_321_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, int64_t, double);
@@ -6771,7 +6771,7 @@ Tensor lowerToNextLayer<batch_rule_321_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> target_bdim;
   std::tie(target_value, target_bdim) = unwrapTensorAtLevel(target, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, target_value, target_bdim, reduction, delta);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_322_t)(const Tensor &, c10::optional<int64_t>, const Scalar &, const Scalar &, const Scalar &);
@@ -6788,7 +6788,7 @@ Tensor lowerToNextLayer<batch_rule_322_t,Tensor,const Tensor &, const Scalar &, 
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, alpha, scale, input_scale);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_323_t)(const Tensor &, c10::optional<int64_t>, const Scalar &, const Scalar &, const Scalar &, bool, const Tensor &, c10::optional<int64_t>);
@@ -6808,7 +6808,7 @@ Tensor lowerToNextLayer<batch_rule_323_t,Tensor,const Tensor &, const Scalar &, 
   optional<int64_t> self_or_result_bdim;
   std::tie(self_or_result_value, self_or_result_bdim) = unwrapTensorAtLevel(self_or_result, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, alpha, scale, input_scale, is_result, self_or_result_value, self_or_result_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_324_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Scalar &, const Scalar &);
@@ -6828,7 +6828,7 @@ Tensor lowerToNextLayer<batch_rule_324_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, min_val, max_val);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_325_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Scalar &, bool);
@@ -6848,7 +6848,7 @@ Tensor lowerToNextLayer<batch_rule_325_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, negative_slope, self_is_result);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_326_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Scalar &, const Scalar &, bool, c10::optional<Generator>);
@@ -6868,7 +6868,7 @@ Tensor lowerToNextLayer<batch_rule_326_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> noise_bdim;
   std::tie(noise_value, noise_bdim) = unwrapTensorAtLevel(noise, cur_level);
   auto results = batch_rule(self_value, self_bdim, noise_value, noise_bdim, lower, upper, training, generator);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_327_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Scalar &, const Scalar &, bool, bool);
@@ -6891,7 +6891,7 @@ Tensor lowerToNextLayer<batch_rule_327_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> noise_bdim;
   std::tie(noise_value, noise_bdim) = unwrapTensorAtLevel(noise, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, noise_value, noise_bdim, lower, upper, training, self_is_result);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_328_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Scalar &, const Scalar &, const Tensor &, c10::optional<int64_t>);
@@ -6914,7 +6914,7 @@ Tensor lowerToNextLayer<batch_rule_328_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> output_bdim;
   std::tie(output_value, output_bdim) = unwrapTensorAtLevel(output, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, beta, threshold, output_value, output_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_329_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, bool, bool, c10::optional<int64_t>);
@@ -6931,7 +6931,7 @@ Tensor lowerToNextLayer<batch_rule_329_t,Tensor,const Tensor &, IntArrayRef, Int
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, kernel_size, stride, padding, ceil_mode, count_include_pad, divisor_override);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_330_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, bool, bool, c10::optional<int64_t>);
@@ -6951,7 +6951,7 @@ Tensor lowerToNextLayer<batch_rule_330_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, kernel_size, stride, padding, ceil_mode, count_include_pad, divisor_override);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_331_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, const Tensor &, c10::optional<int64_t>);
@@ -6971,7 +6971,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_331_t,std::tuple<Tensor,Te
   optional<int64_t> random_samples_bdim;
   std::tie(random_samples_value, random_samples_bdim) = unwrapTensorAtLevel(random_samples, cur_level);
   auto results = batch_rule(self_value, self_bdim, kernel_size, output_size, random_samples_value, random_samples_bdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_332_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, const Tensor &, c10::optional<int64_t>);
@@ -6994,7 +6994,7 @@ Tensor lowerToNextLayer<batch_rule_332_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> indices_bdim;
   std::tie(indices_value, indices_bdim) = unwrapTensorAtLevel(indices, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, kernel_size, output_size, indices_value, indices_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_333_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, IntArrayRef, bool, const Tensor &, c10::optional<int64_t>);
@@ -7017,7 +7017,7 @@ Tensor lowerToNextLayer<batch_rule_333_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> indices_bdim;
   std::tie(indices_value, indices_bdim) = unwrapTensorAtLevel(indices, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, kernel_size, stride, padding, dilation, ceil_mode, indices_value, indices_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_334_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef);
@@ -7037,7 +7037,7 @@ Tensor lowerToNextLayer<batch_rule_334_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> indices_bdim;
   std::tie(indices_value, indices_bdim) = unwrapTensorAtLevel(indices, cur_level);
   auto results = batch_rule(self_value, self_bdim, indices_value, indices_bdim, output_size, stride, padding);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_335_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef);
@@ -7060,7 +7060,7 @@ Tensor lowerToNextLayer<batch_rule_335_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> indices_bdim;
   std::tie(indices_value, indices_bdim) = unwrapTensorAtLevel(indices, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, indices_value, indices_bdim, output_size, stride, padding);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_336_t)(const Tensor &, c10::optional<int64_t>, c10::optional<IntArrayRef>, bool, c10::optional<ArrayRef<double>>);
@@ -7077,7 +7077,7 @@ Tensor lowerToNextLayer<batch_rule_336_t,Tensor,const Tensor &, c10::optional<In
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
   auto results = batch_rule(input_value, input_bdim, output_size, align_corners, scale_factors);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_337_t)(const Tensor &, c10::optional<int64_t>, c10::optional<IntArrayRef>, IntArrayRef, bool, c10::optional<ArrayRef<double>>);
@@ -7094,7 +7094,7 @@ Tensor lowerToNextLayer<batch_rule_337_t,Tensor,const Tensor &, c10::optional<In
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, output_size, input_size, align_corners, scale_factors);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_338_t)(const Tensor &, c10::optional<int64_t>, c10::optional<IntArrayRef>, c10::optional<ArrayRef<double>>);
@@ -7111,7 +7111,7 @@ Tensor lowerToNextLayer<batch_rule_338_t,Tensor,const Tensor &, c10::optional<In
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
   auto results = batch_rule(input_value, input_bdim, output_size, scale_factors);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_339_t)(const Tensor &, c10::optional<int64_t>, c10::optional<IntArrayRef>, IntArrayRef, c10::optional<ArrayRef<double>>);
@@ -7128,7 +7128,7 @@ Tensor lowerToNextLayer<batch_rule_339_t,Tensor,const Tensor &, c10::optional<In
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, output_size, input_size, scale_factors);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_340_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, bool, c10::optional<double>);
@@ -7145,7 +7145,7 @@ Tensor lowerToNextLayer<batch_rule_340_t,Tensor,const Tensor &, IntArrayRef, boo
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, output_size, align_corners, scales);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_341_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, bool, c10::optional<double>);
@@ -7162,7 +7162,7 @@ Tensor lowerToNextLayer<batch_rule_341_t,Tensor,const Tensor &, IntArrayRef, Int
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, output_size, input_size, align_corners, scales);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_342_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, bool, c10::optional<double>, c10::optional<double>);
@@ -7179,7 +7179,7 @@ Tensor lowerToNextLayer<batch_rule_342_t,Tensor,const Tensor &, IntArrayRef, boo
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, output_size, align_corners, scales_h, scales_w);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_343_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, bool, c10::optional<double>, c10::optional<double>);
@@ -7196,7 +7196,7 @@ Tensor lowerToNextLayer<batch_rule_343_t,Tensor,const Tensor &, IntArrayRef, Int
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, output_size, input_size, align_corners, scales_h, scales_w);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_344_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, bool, c10::optional<double>, c10::optional<double>, c10::optional<double>);
@@ -7213,7 +7213,7 @@ Tensor lowerToNextLayer<batch_rule_344_t,Tensor,const Tensor &, IntArrayRef, boo
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, output_size, align_corners, scales_d, scales_h, scales_w);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_345_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, bool, c10::optional<double>, c10::optional<double>, c10::optional<double>);
@@ -7230,7 +7230,7 @@ Tensor lowerToNextLayer<batch_rule_345_t,Tensor,const Tensor &, IntArrayRef, Int
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, output_size, input_size, align_corners, scales_d, scales_h, scales_w);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_346_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, c10::optional<double>);
@@ -7247,7 +7247,7 @@ Tensor lowerToNextLayer<batch_rule_346_t,Tensor,const Tensor &, IntArrayRef, c10
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, output_size, scales);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_347_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, c10::optional<double>);
@@ -7264,7 +7264,7 @@ Tensor lowerToNextLayer<batch_rule_347_t,Tensor,const Tensor &, IntArrayRef, Int
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, output_size, input_size, scales);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_348_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, c10::optional<double>, c10::optional<double>);
@@ -7281,7 +7281,7 @@ Tensor lowerToNextLayer<batch_rule_348_t,Tensor,const Tensor &, IntArrayRef, c10
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, output_size, scales_h, scales_w);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_349_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, c10::optional<double>, c10::optional<double>);
@@ -7298,7 +7298,7 @@ Tensor lowerToNextLayer<batch_rule_349_t,Tensor,const Tensor &, IntArrayRef, Int
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, output_size, input_size, scales_h, scales_w);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_350_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, c10::optional<double>, c10::optional<double>, c10::optional<double>);
@@ -7315,7 +7315,7 @@ Tensor lowerToNextLayer<batch_rule_350_t,Tensor,const Tensor &, IntArrayRef, c10
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, output_size, scales_d, scales_h, scales_w);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_351_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, c10::optional<double>, c10::optional<double>, c10::optional<double>);
@@ -7332,7 +7332,7 @@ Tensor lowerToNextLayer<batch_rule_351_t,Tensor,const Tensor &, IntArrayRef, Int
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, output_size, input_size, scales_d, scales_h, scales_w);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_352_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, c10::optional<double>);
@@ -7352,7 +7352,7 @@ Tensor lowerToNextLayer<batch_rule_352_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, self_value, self_bdim, eps);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_353_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, const c10::optional<Tensor> &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, IntArrayRef);
@@ -7377,7 +7377,7 @@ Tensor lowerToNextLayer<batch_rule_353_t,Tensor,const Tensor &, const Tensor &, 
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, weight_value, weight_bdim, kernel_size, bias_value, bias_bdim, stride, padding, output_padding, dilation);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_354_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, const c10::optional<Tensor> &, c10::optional<int64_t>, IntArrayRef, IntArrayRef);
@@ -7402,7 +7402,7 @@ Tensor lowerToNextLayer<batch_rule_354_t,Tensor,const Tensor &, const Tensor &, 
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, weight_value, weight_bdim, kernel_size, bias_value, bias_bdim, stride, padding);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_355_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, const c10::optional<Tensor> &, c10::optional<int64_t>, IntArrayRef, IntArrayRef);
@@ -7427,7 +7427,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_355_t,std::tuple<Te
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, weight_value, weight_bdim, kernel_size, bias_value, bias_bdim, stride, padding);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_356_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, IntArrayRef, const c10::optional<Tensor> &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef);
@@ -7452,7 +7452,7 @@ Tensor lowerToNextLayer<batch_rule_356_t,Tensor,const Tensor &, const Tensor &, 
       std::tie(bias_value, bias_bdim) = unwrapTensorAtLevel(bias.value(), cur_level);
   }
   auto results = batch_rule(self_value, self_bdim, weight_value, weight_bdim, kernel_size, bias_value, bias_bdim, stride, padding, dilation);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_357_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, IntArrayRef, IntArrayRef);
@@ -7469,7 +7469,7 @@ Tensor lowerToNextLayer<batch_rule_357_t,Tensor,const Tensor &, IntArrayRef, Int
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
   auto results = batch_rule(grad_output_value, grad_output_bdim, input_size, kernel_size, dilation, padding, stride);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_358_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, IntArrayRef, IntArrayRef);
@@ -7486,7 +7486,7 @@ Tensor lowerToNextLayer<batch_rule_358_t,Tensor,const Tensor &, IntArrayRef, Int
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, kernel_size, dilation, padding, stride);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_359_t)(const Tensor &, c10::optional<int64_t>, c10::optional<int64_t>, int64_t, c10::optional<c10::string_view>);
@@ -7503,7 +7503,7 @@ Tensor lowerToNextLayer<batch_rule_359_t,Tensor,const Tensor &, c10::optional<in
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, n, dim, norm);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_360_t)(const Tensor &, c10::optional<int64_t>, c10::optional<IntArrayRef>, IntArrayRef, c10::optional<c10::string_view>);
@@ -7520,7 +7520,7 @@ Tensor lowerToNextLayer<batch_rule_360_t,Tensor,const Tensor &, c10::optional<In
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, s, dim, norm);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_361_t)(const Tensor &, c10::optional<int64_t>, c10::optional<IntArrayRef>, c10::optional<IntArrayRef>, c10::optional<c10::string_view>);
@@ -7537,7 +7537,7 @@ Tensor lowerToNextLayer<batch_rule_361_t,Tensor,const Tensor &, c10::optional<In
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, s, dim, norm);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_362_t)(const Tensor &, c10::optional<int64_t>, c10::optional<IntArrayRef>);
@@ -7554,7 +7554,7 @@ Tensor lowerToNextLayer<batch_rule_362_t,Tensor,const Tensor &, c10::optional<In
   optional<int64_t> values_bdim;
   std::tie(values_value, values_bdim) = unwrapTensorAtLevel(values, cur_level);
   auto results = batch_rule(values_value, values_bdim, addends);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_363_t)(const Tensor &, c10::optional<int64_t>);
@@ -7571,7 +7571,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_363_t,std::tuple<Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_364_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>);
@@ -7600,7 +7600,7 @@ Tensor lowerToNextLayer<batch_rule_364_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> pivs_bdim;
   std::tie(pivs_value, pivs_bdim) = unwrapTensorAtLevel(pivs, cur_level);
   auto results = batch_rule(det_grad_value, det_grad_bdim, det_value, det_bdim, self_value, self_bdim, lu_value, lu_bdim, pivs_value, pivs_bdim);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_365_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, c10::optional<double>, c10::optional<c10::string_view>);
@@ -7620,7 +7620,7 @@ std::tuple<Tensor,Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_365_t,std::t
   optional<int64_t> b_bdim;
   std::tie(b_value, b_bdim) = unwrapTensorAtLevel(b, cur_level);
   auto results = batch_rule(self_value, self_bdim, b_value, b_bdim, rcond, driver);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)), makeBatched(std::get<6>(results), cur_level, std::get<7>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level), makeBatched(std::get<6>(results), std::get<7>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_366_t)(const Tensor &, c10::optional<int64_t>, c10::string_view);
@@ -7637,7 +7637,7 @@ std::tuple<Tensor,Tensor> lowerToNextLayer<batch_rule_366_t,std::tuple<Tensor,Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, mode);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_367_t)(const Tensor &, c10::optional<int64_t>, c10::string_view);
@@ -7654,7 +7654,7 @@ Tensor lowerToNextLayer<batch_rule_367_t,Tensor,const Tensor &, c10::string_view
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, p);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_368_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Scalar> &, c10::optional<IntArrayRef>, bool, c10::optional<ScalarType>);
@@ -7671,7 +7671,7 @@ Tensor lowerToNextLayer<batch_rule_368_t,Tensor,const Tensor &, const c10::optio
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, ord, dim, keepdim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_369_t)(const Tensor &, c10::optional<int64_t>, c10::string_view, c10::optional<IntArrayRef>, bool, c10::optional<ScalarType>);
@@ -7688,7 +7688,7 @@ Tensor lowerToNextLayer<batch_rule_369_t,Tensor,const Tensor &, c10::string_view
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, ord, dim, keepdim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_370_t)(const Tensor &, c10::optional<int64_t>, const Scalar &, c10::optional<IntArrayRef>, bool, c10::optional<ScalarType>);
@@ -7705,7 +7705,7 @@ Tensor lowerToNextLayer<batch_rule_370_t,Tensor,const Tensor &, const Scalar &, 
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, ord, dim, keepdim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_371_t)(const Tensor &, c10::optional<int64_t>, const Scalar &, IntArrayRef, bool, c10::optional<ScalarType>);
@@ -7722,7 +7722,7 @@ Tensor lowerToNextLayer<batch_rule_371_t,Tensor,const Tensor &, const Scalar &, 
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, ord, dim, keepdim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_372_t)(const Tensor &, c10::optional<int64_t>, c10::string_view, IntArrayRef, bool, c10::optional<ScalarType>);
@@ -7739,7 +7739,7 @@ Tensor lowerToNextLayer<batch_rule_372_t,Tensor,const Tensor &, c10::string_view
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, ord, dim, keepdim, dtype);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>,Tensor,c10::optional<int64_t>> (*batch_rule_373_t)(const Tensor &, c10::optional<int64_t>, bool);
@@ -7756,7 +7756,7 @@ std::tuple<Tensor,Tensor,Tensor> lowerToNextLayer<batch_rule_373_t,std::tuple<Te
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, full_matrices);
-  return std::make_tuple(makeBatched(std::get<0>(results), cur_level, std::get<1>(results)), makeBatched(std::get<2>(results), cur_level, std::get<3>(results)), makeBatched(std::get<4>(results), cur_level, std::get<5>(results)));
+  return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_374_t)(const Tensor &, c10::optional<int64_t>, const c10::optional<Scalar> &);
@@ -7773,7 +7773,7 @@ Tensor lowerToNextLayer<batch_rule_374_t,Tensor,const Tensor &, const c10::optio
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, p);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_375_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, c10::optional<IntArrayRef>);
@@ -7793,7 +7793,7 @@ Tensor lowerToNextLayer<batch_rule_375_t,Tensor,const Tensor &, const Tensor &, 
   optional<int64_t> other_bdim;
   std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
   auto results = batch_rule(self_value, self_bdim, other_value, other_bdim, dims);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_376_t)(const Tensor &, c10::optional<int64_t>, c10::optional<double>, bool);
@@ -7810,7 +7810,7 @@ Tensor lowerToNextLayer<batch_rule_376_t,Tensor,const Tensor &, c10::optional<do
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
   auto results = batch_rule(self_value, self_bdim, tol, hermitian);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_377_t)(const Tensor &, c10::optional<int64_t>, c10::optional<ArrayRef<double>>);
@@ -7827,7 +7827,7 @@ Tensor lowerToNextLayer<batch_rule_377_t,Tensor,const Tensor &, c10::optional<Ar
   optional<int64_t> values_bdim;
   std::tie(values_value, values_bdim) = unwrapTensorAtLevel(values, cur_level);
   auto results = batch_rule(values_value, values_bdim, addends);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_378_t)(const Tensor &, c10::optional<int64_t>, c10::string_view, c10::string_view);
@@ -7844,7 +7844,7 @@ Tensor lowerToNextLayer<batch_rule_378_t,Tensor,const Tensor &, c10::string_view
   optional<int64_t> dummy_bdim;
   std::tie(dummy_value, dummy_bdim) = unwrapTensorAtLevel(dummy, cur_level);
   auto results = batch_rule(dummy_value, dummy_bdim, a, b);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_379_t)(const Tensor &, c10::optional<int64_t>, int64_t, c10::string_view);
@@ -7861,7 +7861,7 @@ Tensor lowerToNextLayer<batch_rule_379_t,Tensor,const Tensor &, int64_t, c10::st
   optional<int64_t> dummy_bdim;
   std::tie(dummy_value, dummy_bdim) = unwrapTensorAtLevel(dummy, cur_level);
   auto results = batch_rule(dummy_value, dummy_bdim, a, b);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_380_t)(const Tensor &, c10::optional<int64_t>, c10::string_view, const c10::optional<Tensor> &, c10::optional<int64_t>, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t, bool, const c10::optional<Scalar> &);
@@ -7888,7 +7888,7 @@ Tensor lowerToNextLayer<batch_rule_380_t,Tensor,const Tensor &, c10::string_view
       std::tie(indices_value, indices_bdim) = unwrapTensorAtLevel(indices.value(), cur_level);
   }
   auto results = batch_rule(data_value, data_bdim, reduce, lengths_value, lengths_bdim, indices_value, indices_bdim, axis, unsafe, initial);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_381_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, c10::string_view, const c10::optional<Tensor> &, c10::optional<int64_t>, int64_t);
@@ -7916,7 +7916,7 @@ Tensor lowerToNextLayer<batch_rule_381_t,Tensor,const Tensor &, const Tensor &, 
       std::tie(lengths_value, lengths_bdim) = unwrapTensorAtLevel(lengths.value(), cur_level);
   }
   auto results = batch_rule(grad_value, grad_bdim, output_value, output_bdim, data_value, data_bdim, reduce, lengths_value, lengths_bdim, axis);
-  return makeBatched(std::get<0>(results), cur_level, std::get<1>(results));
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 }}

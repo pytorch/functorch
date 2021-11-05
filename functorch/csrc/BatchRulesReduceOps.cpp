@@ -150,7 +150,7 @@ void boxed_reduction_batch_rule(const c10::OperatorHandle& op, torch::jit::Stack
       if (is_scalar_case) {
         res = res.squeeze(-1);
       }
-      torch::jit::push(stack, makeBatched(res, cur_level, 0));
+      torch::jit::push(stack, makeBatched(res, 0, cur_level));
     } else {
       TORCH_INTERNAL_ASSERT(false, "This boxed batching rule does not currently support ops that return non-tensor values");
     }

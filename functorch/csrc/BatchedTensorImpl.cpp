@@ -14,7 +14,7 @@
 namespace at {
 namespace functorch {
 
-BatchedTensorImpl::BatchedTensorImpl(Tensor value, int64_t level, int64_t bdim)
+BatchedTensorImpl::BatchedTensorImpl(Tensor value, int64_t bdim, int64_t level)
   : TensorImpl(
       c10::DispatchKeySet(kBatchedKey),
       value.dtype(),
@@ -44,7 +44,7 @@ BatchedTensorImpl::BatchedTensorImpl(Tensor value, int64_t level, int64_t bdim)
   refresh_contiguous();
 }
 
-BatchedTensorImpl::BatchedTensorImpl(DispatchKeySet key_set, Tensor value, int64_t level, int64_t bdim)
+BatchedTensorImpl::BatchedTensorImpl(DispatchKeySet key_set, Tensor value, int64_t bdim, int64_t level)
   : TensorImpl(
       key_set.add(kBatchedKey),
       value.dtype(),
@@ -146,36 +146,18 @@ const char* BatchedTensorImpl::tensorimpl_type_name() const {
   return "BatchedTensorImpl";
 }
 
-Tensor makeBatched(const Tensor& tensor, int64_t level, int64_t bdim) {
+Tensor makeBatched(const Tensor& tensor, int64_t bdim, int64_t level) {
   DispatchKeySet key_set = getKeysToPropagateToWrapper(tensor);
   auto* batched = maybeGetBatchedImpl(tensor);
   if (batched) {
     auto batched_level = batched->level();
-    TORCH_INTERNAL_ASSERT(level > batched_level, "level: ", level, " batched_level: ", batched_level);
+    TORCH_INTERNAL_ASSERT(level > batched_level, " batched_level: ", batched_level, " level: ", level);
   }
-  return at::detail::make_tensor<BatchedTensorImpl>(key_set, tensor, level, bdim);
+  return at::detail::make_tensor<BatchedTensorImpl>(key_set, tensor, bdim, level);
 }
 
-Tensor addBatchDim(const Tensor& tensor, int64_t level, int64_t dim) {
-  return makeBatched(tensor, level, dim);
-}
-
-bool inplaceIsVmapCompatible(const Tensor& self, const Tensor& other) {
-  const auto* other_batched = maybeGetBatchedImpl(other);
-  if (!other_batched) {
-    return true;
-  }
-  const auto* self_batched = maybeGetBatchedImpl(self);
-  if (!self_batched) {
-    // self is not batched but other is batched
-    return false;
-  }
-  // TODO(vfdev): As BatchedTensorImpl is refactored and has only one dim and one level.
-  // Below code may be simplified.
-  // auto self_levels = createVmapLevelsBitset(self_batched->level());
-  // auto other_levels = createVmapLevelsBitset(other_batched->level());
-  // return self_levels == (self_levels | other_levels);
-  return self_batched->level() == other_batched->level();
+Tensor addBatchDim(const Tensor& tensor, int64_t dim, int64_t level) {
+  return makeBatched(tensor, dim, level);
 }
 
 }
