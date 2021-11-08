@@ -461,7 +461,6 @@ class TestOperators(TestCase):
         xfail('msort'),
         xfail('nanmedian'),
         xfail('nanquantile'),
-        xfail('nn.functional.adaptive_avg_pool2d'),
         xfail('nn.functional.conv_transpose2d'),
         xfail('nn.functional.gelu'),
         xfail('nn.functional.grid_sample'),
@@ -505,9 +504,6 @@ class TestOperators(TestCase):
         xfail('fft.ihfft2'),
         xfail('fft.ihfftn'),
         xfail('fft.rfft2'),
-        xfail('nn.functional.adaptive_avg_pool1d'),
-        xfail('nn.functional.adaptive_avg_pool3d'),
-        xfail('nn.functional.avg_pool3d'),
         xfail('nn.functional.embedding'),
     }))
     def test_vmapvjp_has_batch_rule(self, device, dtype, op):
