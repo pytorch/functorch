@@ -464,7 +464,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.conv_transpose2d'),
         xfail('nn.functional.gelu'),
         xfail('nn.functional.grid_sample'),
-        xfail('nn.functional.interpolate', 'area'),
         xfail('nn.functional.pad', 'circular'),
         xfail('nn.functional.pad', 'reflect'),
         xfail('nn.functional.pad', 'replicate'),
