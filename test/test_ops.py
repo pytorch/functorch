@@ -310,7 +310,6 @@ class TestOperators(TestCase):
         xfail('diag_embed'),
         xfail('eig'),
         xfail('nn.functional.conv_transpose2d'),
-        xfail('nn.functional.pad', 'constant'),
         xfail('view_as_complex'),
         xfail('fft.fft'),
         xfail('fft.ifft'),
@@ -389,7 +388,6 @@ class TestOperators(TestCase):
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vmapvjp_has_batch_rule', vmapvjp_fail.union({
-        xfail('nn.functional.pad', 'constant'),
         xfail('view_as_complex'),
         xfail('__getitem__'),
         xfail('__rpow__'),

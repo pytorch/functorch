@@ -3020,7 +3020,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('fft.rfftn'),
         xfail('nn.functional.batch_norm'),
         xfail('lu_unpack'),
-        xfail('nn.functional.pad', 'constant'),
         xfail('empty_like'),
         xfail('histogramdd'),
         xfail('nn.functional.embedding'),
