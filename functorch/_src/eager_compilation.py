@@ -169,13 +169,14 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
     for node in joint_module.graph.nodes:
         if node.target == operator.getitem and node.args[0] in dropout_nodes and node.args[1] == 1:
             saved_values.append(node)
+    primal_inputs = list(filter(is_primal, joint_module.graph.nodes))
+    tangent_inputs = list(filter(is_tangent, joint_module.graph.nodes))
     # Construct the forward module
-    fwd_graph = _extract_graph_with_inputs_outputs(joint_module.graph, list(filter(is_primal, joint_module.graph.nodes)), fwd_outputs + saved_values)
+    fwd_graph = _extract_graph_with_inputs_outputs(joint_module.graph, primal_inputs, fwd_outputs + saved_values)
     fwd_module = fx.GraphModule(joint_module, fwd_graph)
 
-    bwd_inputs = saved_values + list(filter(is_tangent, joint_module.graph.nodes))
     # Construct the backward module
-    bwd_graph = _extract_graph_with_inputs_outputs(joint_module.graph, bwd_inputs, bwd_outputs)
+    bwd_graph = _extract_graph_with_inputs_outputs(joint_module.graph, saved_values + tangent_inputs, bwd_outputs)
     bwd_module = fx.GraphModule(joint_module, bwd_graph)
 
     return fwd_module, bwd_module
