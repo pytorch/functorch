@@ -57,10 +57,7 @@ void decompose_functional(const c10::OperatorHandle& op, torch::jit::Stack* stac
 
   // Step 2: set up TLS such that we hit the functionalization kernels before the batching rules.
   // Note: this relies on the fact that Functionalization > BatchMode in DispatchKey.h
-  auto excluded_prev = c10::impl::tls_is_dispatch_key_excluded(c10::DispatchKey::Functionalize);
-  auto included_prev = c10::impl::tls_is_dispatch_key_included(c10::DispatchKey::Functionalize);
-  c10::impl::tls_set_dispatch_key_included(c10::DispatchKey::Functionalize, true);
-  c10::impl::tls_set_dispatch_key_excluded(c10::DispatchKey::Functionalize, false);
+  c10::impl::IncludeDispatchKeyGuard include_guard(c10::DispatchKeySet(c10::DispatchKey::Functionalize));
 
   // Step 3: redispatch to native kernel
   // TODO: this is technically kind of sketchy, since we're relying on the fact
@@ -89,10 +86,6 @@ void decompose_functional(const c10::OperatorHandle& op, torch::jit::Stack* stac
       (*stack)[returns_begin + idx] = c10::IValue(out_unwrapped);
     }
   }
-
-  // Step 5: Revert TLS state to what it was previously
-  c10::impl::tls_set_dispatch_key_included(c10::DispatchKey::Functionalize, included_prev);
-  c10::impl::tls_set_dispatch_key_excluded(c10::DispatchKey::Functionalize, excluded_prev);
 }
 
 #define DECOMPOSE_FUNCTIONAL(op) \
