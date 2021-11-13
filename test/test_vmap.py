@@ -30,6 +30,7 @@ from common_utils import (
     get_fallback_and_vmap_exhaustive,
     opinfo_in_dict,
     xfail,
+    skip,
     skipOps,
     check_vmap_fallback,
 )
@@ -189,7 +190,7 @@ class TestVmapAPI(TestCase):
         # Don't support non-tensor returns. This is a limitation of vmap;
         # functions that don't return tensors must be special cased
         with self.assertRaisesRegex(RuntimeError, 'Batching rule not implemented'):
-            vmap(torch.Tensor.item)(tensor)
+            vmap(torch.equal)(tensor, tensor)
 
     def test_nonzero_out_dims(self):
         # Basic test
@@ -450,6 +451,22 @@ class TestVmapAPI(TestCase):
         # Basic nested test.
         result = vmap(vmap(foo, 1, 1), 1, 1)(x)
         self.assertEqual(result, x * 2)
+
+    def test_item_throws(self):
+        def f(x):
+            return x.item()
+
+        with self.assertRaisesRegex(RuntimeError, r'item\(\) on a Tensor'):
+            vmap(f)(torch.randn(3))
+
+    def test_data_dependent_control_flow_throws(self):
+        def f(x):
+            if x:
+                return x
+            return 0
+
+        with self.assertRaisesRegex(RuntimeError, r'data-dependent control flow'):
+            vmap(f)(torch.randn(3))
 
     def test_accepts_nested_inputs(self):
         B0 = 2
@@ -3013,20 +3030,30 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('linalg.svd', device_type='cuda'),
         xfail('index_put'),
         xfail('matrix_exp'),
-        xfail('fft.fft'),
-        xfail('fft.ifft'),
-        xfail('fft.ihfft'),
-        xfail('fft.rfft'),
-        xfail('fft.rfftn'),
         xfail('nn.functional.batch_norm'),
         xfail('lu_unpack'),
-        xfail('nn.functional.pad', 'constant'),
-        xfail('bfloat16'),
-        xfail('empty_like'),
-        xfail('half'),
         xfail('histogramdd'),
         xfail('nn.functional.embedding'),
         xfail('randn_like'),
+        xfail('allclose'),
+        xfail('bfloat16', 'channels_last'),
+        xfail('byte', 'channels_last'),
+        xfail('char', 'channels_last'),
+        xfail('double', 'channels_last'),
+        xfail('float', 'channels_last'),
+        xfail('half', 'channels_last'),
+        xfail('int', 'channels_last'),
+        xfail('long', 'channels_last'),
+        xfail('short', 'channels_last'),
+        xfail('bool', 'channels_last'),
+        xfail('nn.functional.gaussian_nll_loss'),
+        xfail('rand_like'),
+        xfail('randint_like'),
+
+        # This is not a bug: testing for empty_like is flaky because the
+        # tensor has garbage values
+        skip('new_empty'),
+        skip('empty_like'),
     }
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestVmapOperatorsOpInfo', 'test_vmap_exhaustive', vmap_fail)
@@ -3096,7 +3123,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('nn.functional.cross_entropy', 'mean'),
         xfail('nn.functional.cross_entropy', 'none'),
         xfail('nn.functional.cross_entropy', 'sum'),
-        xfail('nn.functional.interpolate', 'area'),
         xfail('nn.functional.pad', 'circular'),
         xfail('nn.functional.unfold'),
         xfail('norm', 'fro'),
@@ -3133,6 +3159,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('_masked.amax'),
         xfail('_masked.amin'),
         xfail('_masked.sum'),
+        xfail('_masked.mean'),
         xfail('bucketize'),
         xfail('cholesky_solve'),
         xfail('fft.fft2'),
@@ -3145,10 +3172,47 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('fft.rfft2'),
         xfail('isinf'),
         xfail('isreal'),
-        xfail('nn.functional.adaptive_avg_pool1d'),
-        xfail('nn.functional.adaptive_avg_pool3d'),
-        xfail('nn.functional.avg_pool1d'),
-        xfail('nn.functional.avg_pool3d'),
+        xfail('allclose'),
+        xfail('argwhere'),
+        xfail('bfloat16', 'channels_last'),
+        xfail('byte', 'channels_last'),
+        xfail('char', 'channels_last'),
+        xfail('diagonal_scatter'),
+        xfail('double', 'channels_last'),
+        xfail('float', 'channels_last'),
+        xfail('half', 'channels_last'),
+        xfail('int', 'channels_last'),
+        xfail('bool', 'channels_last'),
+        xfail('linalg.cross'),
+        xfail('logical_xor'),
+        xfail('logical_or'),
+        xfail('logical_and'),
+        xfail('long', 'channels_last'),
+        xfail('new_empty'),
+        xfail('new_full'),
+        xfail('new_ones'),
+        xfail('new_zeros'),
+        xfail('rand_like'),
+        xfail('randint_like'),
+        xfail('searchsorted'),
+        xfail('select_scatter'),
+        xfail('short', 'channels_last'),
+        xfail('slice_scatter'),
+        xfail('unique_consecutive'),
+        xfail('unique'),
+        xfail('nn.functional.adaptive_max_pool1d'),
+        xfail('nn.functional.adaptive_max_pool2d'),
+        xfail('nn.functional.adaptive_max_pool3d'),
+        xfail('nn.functional.conv1d'),
+        xfail('nn.functional.cosine_embedding_loss'),
+        xfail('nn.functional.cross_entropy'),
+        xfail('nn.functional.ctc_loss'),
+        xfail('nn.functional.gaussian_nll_loss'),
+        xfail('nn.functional.group_norm'),
+        xfail('nn.functional.hinge_embedding_loss'),
+        xfail('nn.functional.huber_loss'),
+        xfail('nn.functional.instance_norm'),
+        xfail('nn.functional.poisson_nll_loss'),
         xfail('nn.functional.pixel_shuffle'),
         xfail('nn.functional.pixel_unshuffle'),
     }))

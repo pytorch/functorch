@@ -3,6 +3,7 @@
 [**Why functorch?**](#why-composable-function-transforms)
 | [**Install guide**](#install)
 | [**Transformations**](#what-are-the-transforms)
+| [**Documentation**](#documentation)
 | [**Future Plans**](#future-plans)
 
 **This library is currently under heavy development - if you have suggestions on the API or use-cases you'd like to be covered, please open an github issue or reach out. We'd love to hear about how you're using the library.**
@@ -34,11 +35,27 @@ transforms comes from the [JAX framework](https://github.com/google/jax).
 
 ## Install
 
-### Colab
+There are two ways to install functorch:
+1. functorch main
+2. functorch preview with PyTorch 1.10
+
+We recommend installing the functorch main development branch for the latest and
+greatest. This requires an installation of the latest PyTorch nightly.
+
+If you're looking for an older version of functorch that works with a stable
+version of PyTorch (1.10), please install the functorch preview. On the roadmap
+is more stable releases of functorch with future versions of PyTorch.
+
+### Installing functorch main
+
+<details><summary>Click to expand</summary>
+<p>
+
+#### Using Colab
 
 Follow the instructions [in this Colab notebook](https://colab.research.google.com/drive/1CrLkqIrydBYP_svnF89UUO-aQEqNPE8x?usp=sharing)
 
-### Binaries
+#### Locally
 
 First, set up an environment. We will be installing a nightly PyTorch binary
 as well as functorch. If you're using conda, create a conda environment:
@@ -79,7 +96,7 @@ Run a quick sanity check in python:
 >>> assert torch.allclose(y, x.sin())
 ```
 
-### From Source
+#### From Source
 
 `functorch` is a PyTorch C++ Extension module. To install,
 
@@ -92,6 +109,40 @@ Then, try to run some tests to make sure all is OK:
 pytest test/test_vmap.py -v
 pytest test/test_eager_transforms.py -v
 ```
+
+</p>
+</details>
+
+### Installing functorch preview with PyTorch 1.10
+
+<details><summary>Click to expand</summary>
+<p>
+
+#### Using Colab
+
+Follow the instructions [here](https://colab.research.google.com/drive/1GNfb01W_xf8JRu78ZKoNnLqiwcrJrbYG#scrollTo=HJ1srOGeNCGA)
+
+#### Locally
+
+Prerequisite: [Install PyTorch 1.10](https://pytorch.org/get-started/locally/)
+
+Next, run the following.
+```
+pip install ninja  # Makes the build go faster
+pip install --user "git+https://github.com/pytorch/functorch.git@release/torch_1.10_preview"
+```
+
+Finally, run a quick sanity check in python:
+```py
+>>> import torch
+>>> from functorch import vmap
+>>> x = torch.randn(3)
+>>> y = vmap(torch.sin)(x)
+>>> assert torch.allclose(y, x.sin())
+```
+
+</p>
+</details>
 
 ## What are the transforms?
 
@@ -262,6 +313,10 @@ per_sample_grads = vmap(grad(compute_loss), (None, 0, 0))(params, data, targets)
 
 If you're making an ensemble of models, you may find
 `combine_state_for_ensemble` useful.
+
+## Documentation
+
+For more documentation, see [our docs website](pytorch.org/functorch).
 
 ## Debugging
 `functorch._C.dump_tensor`: Dumps dispatch keys on stack

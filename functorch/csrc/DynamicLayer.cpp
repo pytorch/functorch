@@ -324,7 +324,7 @@ static bool batchedAtCurrentLevel(const Tensor& tensor) {
   if (!batched) {
     return false;
   }
-  auto batched_at_level = batched->bdims().back().level();
+  auto batched_at_level = batched->level();
   return batched_at_level == level;
 }
 
@@ -341,6 +341,10 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
     op.callBoxed(stack);
     return;
   }
+
+  // TODO: if is a grad transform, and the operation is in-place, and the mutated
+  // argument is not currently wrapped in a TensorWrapper, then we need to
+  // error out otherwise the result is silently incorrect
 
   // Unwrap dead GradWrappers, materialize live ones
   auto maybeTransformGradWrappers = [](const Tensor& tensor) {

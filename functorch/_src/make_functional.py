@@ -262,12 +262,12 @@ class FunctionalModule(nn.Module):
 def make_functional(model: nn.Module):
     """make_functional(model) -> func, params
 
-    Given a torch.nn.Module, make_functional extracts the state (params)
-    and returns a functional version of the model, `func`. This makes
-    it so that it is possible use transforms over the parameters of
-    `model`.
+    Given a ``torch.nn.Module``, :func:`make_functional` extracts the state
+    (params) and returns a functional version of the model, ``func``. This
+    makes it so that it is possible use transforms over the parameters of
+    ``model``.
 
-    `func` can be invoked as follows:
+    ``func`` can be invoked as follows:
 
     .. code-block:: python
 
@@ -313,11 +313,11 @@ def make_functional(model: nn.Module):
 def make_functional_with_buffers(model: nn.Module):
     """make_functional_with_buffers(model) -> func, params, buffers
 
-    Given a torch.nn.Module, make_functional_with_buffers extracts the state
-    (params and buffers) and returns a functional version of the model `func`
-    that can be invoked like a function.
+    Given a ``torch.nn.Module``, make_functional_with_buffers extracts the
+    state (params and buffers) and returns a functional version of the model
+    ``func`` that can be invoked like a function.
 
-    `func` can be invoked as follows:
+    ``func`` can be invoked as follows:
 
     .. code-block:: python
 
@@ -365,15 +365,15 @@ def combine_state_for_ensemble(models):
 
     Prepares a list of torch.nn.Modules for ensembling with :func:`vmap`.
 
-    Given a list of `M` nn.Modules of the same class, stacks all of their
-    parameters and buffers together to make `params` and `buffers`.
+    Given a list of ``M`` ``nn.Modules`` of the same class, stacks all of their
+    parameters and buffers together to make ``params`` and ``buffers``.
     Each parameter and buffer in the result will have an additional dimension
-    of size `M`.
+    of size ``M``.
 
-    `combine_state_for_ensemble` also returns `func`, a functional version
-    of one of the models in `models`. One cannot directly run
-    `func(params, buffers, *args, **kwargs)` directly, you probably want to
-    use `vmap(func, ...)(params, buffers, *args, **kwargs)`
+    :func:`combine_state_for_ensemble` also returns ``func``, a functional
+    version of one of the models in :attr:`models`. One cannot directly run
+    ``func(params, buffers, *args, **kwargs)`` directly, you probably want to
+    use ``vmap(func, ...)(params, buffers, *args, **kwargs)``
 
     Here's an example of how to ensemble over a very simple model:
 
@@ -405,12 +405,12 @@ def combine_state_for_ensemble(models):
 #         self.func_model = func_model
 #         self.params = params
 #         self.buffers = buffers if len(buffers) > 0 else None
-# 
+#
 #         in_dims_start = (0, 0) if self.buffers is not None else (0,)
 #         self.in_dims = in_dims_start + in_dims
 #         self.out_dims = out_dims
 #         self._vmap_func = vmap(func_model, self.in_dims, self.out_dims)
-# 
+#
 #     def forward(self, *args, **kwargs):
 #         return self._vmap_func(self.params, self.buffers, *args, **kwargs)
 

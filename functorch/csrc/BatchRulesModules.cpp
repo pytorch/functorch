@@ -401,13 +401,21 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT("cudnn_grid_sampler", GRID_SAMPLE_BATCH_RULE(cudnn_grid_sampler));
   VMAP_SUPPORT("cross", cross_batch_rule);
 
-  UNARY_POINTWISE(constant_pad_nd);
+  VARIADIC_BDIMS(constant_pad_nd);
   EXISTING_BDIM(reflection_pad1d);
   EXISTING_BDIM(reflection_pad2d);
   EXISTING_BDIM(reflection_pad3d);
   EXISTING_BDIM(replication_pad1d);
   EXISTING_BDIM(replication_pad2d);
   EXISTING_BDIM(replication_pad3d);
+
+  EXISTING_BDIM_ALL_BOXED(replication_pad1d_backward);
+  EXISTING_BDIM_ALL_BOXED(replication_pad2d_backward);
+  EXISTING_BDIM_ALL_BOXED(replication_pad3d_backward);
+
+  EXISTING_BDIM_ALL_BOXED(reflection_pad1d_backward);
+  EXISTING_BDIM_ALL_BOXED(reflection_pad2d_backward);
+  EXISTING_BDIM_ALL_BOXED(reflection_pad3d_backward);
 
   UPSAMPLE_BATCH(upsample_bicubic2d);
   UPSAMPLE_BATCH(upsample_bilinear2d);
