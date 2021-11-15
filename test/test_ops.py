@@ -455,7 +455,6 @@ class TestOperators(TestCase):
         xfail('nanquantile'),
         xfail('nn.functional.conv_transpose2d'),
         xfail('nn.functional.gelu'),
-        xfail('nn.functional.grid_sample'),
         xfail('nn.functional.pad', 'circular'),
         xfail('norm', 'fro'),
         xfail('norm', 'inf'),

@@ -155,7 +155,7 @@ def parse_return(return_t):
     return tuple([x.strip() for x in m.group(1).split(',')])
 
 def parse_args(args_t):
-    args = args_t.split(',')
+    args = args_t.split(', ')
     result = []
     for arg in args:
         split_idx = arg.rfind(' ')
@@ -169,8 +169,6 @@ def get_signatures(path='build/aten/src/ATen/RegistrationDeclarations.h', includ
     schemas = []
     for line in lines:
         if 'void' in line:
-            continue
-        if 'std::array' in line:
             continue
         m = re.match(r'(.*) \w+\((.*)\); // {"schema": "aten::(\w+\.?\w*)\(.*', line)
         if m is None:
