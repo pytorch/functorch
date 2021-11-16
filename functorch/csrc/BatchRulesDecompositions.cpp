@@ -229,6 +229,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(layer_norm);
   OP_DECOMPOSE(diag_backward);
   DECOMPOSE_FUNCTIONAL(diag_embed);
+  DECOMPOSE_FUNCTIONAL(block_diag);
 }
 
 }}

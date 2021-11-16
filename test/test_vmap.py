@@ -3089,7 +3089,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('vstack'),
         xfail('dstack'),
         xfail('linalg.multi_dot'),
-        xfail('block_diag'),
         xfail('nn.functional.dropout'),
         xfail('view_as_complex'),
         xfail('H'),
