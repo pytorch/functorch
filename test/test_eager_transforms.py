@@ -425,6 +425,39 @@ class TestGradTransform(TestCase):
         with self.assertRaisesRegex(RuntimeError, 'Expected pytree structure'):
             result, = vjp_fn(((v1, (v2, v3)),))
 
+    def test_vjp_err_check_strict(self):
+        def foo(a):
+            return a.detach()
+
+        def bar(a):
+            # Make a non-leaf Tensor that requires_grad but that is not connected to the input
+            return a.long().float().requires_grad_().clone()
+
+        inp = torch.rand(4)
+        v = torch.rand(4)
+        msg = "independent of"
+        with self.assertRaisesRegex(RuntimeError, msg):
+            res = vjp(foo, inp, strict=True)[1](v)
+
+        with self.assertRaisesRegex(RuntimeError, msg):
+            res = vjp(bar, inp, strict=True)[1](v)
+
+    def test_grad_err_check_strict(self):
+        def foo(a):
+            return a.detach().sum()
+
+        def bar(a):
+            # Make a non-leaf Tensor that requires_grad but that is not connected to the input
+            return a.long().float().requires_grad_().clone().sum()
+
+        inp = torch.rand(4)
+        msg = "independent of"
+        with self.assertRaisesRegex(RuntimeError, msg):
+            res = grad(foo, strict=True)(inp)
+
+        with self.assertRaisesRegex(RuntimeError, msg):
+            res = grad(bar, strict=True)(inp)
+
     def test_functional_init(self, device):
         class MLPClassifier(nn.Module):
             def __init__(self, hidden_dim=32, n_classes=2):

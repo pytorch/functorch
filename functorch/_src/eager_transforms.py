@@ -67,7 +67,8 @@ def _as_tuple(val):
     return (val,)
 
 # Version of autograd.grad that handles outputs that don't depend on inputs
-def _autograd_grad(outputs, inputs, grad_outputs=None, retain_graph=False, create_graph=True):
+def _autograd_grad(outputs, inputs, grad_outputs=None, retain_graph=False,
+                   create_graph=True, strict=False, strict_err_prelude=''):
     if grad_outputs is None:
         diff_outputs = tuple(out for out in outputs if out.requires_grad)
     else:
@@ -76,12 +77,20 @@ def _autograd_grad(outputs, inputs, grad_outputs=None, retain_graph=False, creat
             diff_outputs, grad_outputs = (), ()
         else:
             diff_outputs, grad_outputs = zip(*result)
+    if strict and len(diff_outputs) < len(outputs):
+        raise RuntimeError(
+            f"{strict_err_prelude}Some output(s) of the user-provided function is/are "
+            f"independent of the inputs. This is not allowed in strict mode.")
     if len(diff_outputs) == 0:
         return tuple(torch.zeros_like(inp) for inp in inputs)
     grad_inputs = torch.autograd.grad(diff_outputs, inputs, grad_outputs,
                                       retain_graph=retain_graph,
                                       create_graph=create_graph,
                                       allow_unused=True)
+    if strict and any(gi is None for gi in grad_inputs):
+        raise RuntimeError(
+            f"{strict_err_prelude}The output of the user-provided function is "
+            f"independent of some of the inputs. This is not allowed in strict mode.")
     grad_inputs = tuple(torch.zeros_like(inp) if gi is None else gi
                         for gi, inp in zip(grad_inputs, inputs))
     return grad_inputs
@@ -131,7 +140,7 @@ def _autograd_grad(outputs, inputs, grad_outputs=None, retain_graph=False, creat
 
 
 # How do we increment and decrement the nesting? I don't think we can.
-def vjp(f: Callable, *primals):
+def vjp(f: Callable, *primals, strict: bool = False):
     """
     Standing for the vector-Jacobian product, returns a tuple containing the
     results of :attr:`f` applied to :attr:`primals` and a function that, when
@@ -250,7 +259,8 @@ def vjp(f: Callable, *primals):
                     f'cotangents: {treespec_pprint(cotangents_spec)}, '
                     f'primal output: {treespec_pprint(primals_out_spec)}')
             result = _autograd_grad(flat_primals_out, flat_diff_primals, flat_cotangents,
-                                    retain_graph=retain_graph, create_graph=create_graph)
+                                    retain_graph=retain_graph, create_graph=create_graph,
+                                    strict=strict, strict_err_prelude='vjp(f, ..., strict=True): ')
             return tree_unflatten(result, primals_spec)
 
     finally:
@@ -632,7 +642,7 @@ def jacfwd(f, argnums=0):
         return tree_unflatten(jac_outs_ins, spec)
     return wrapper_fn
 
-def grad_and_value(func: Callable, argnums: argnums_t = 0, *, has_aux: bool = False) -> Callable:
+def grad_and_value(func: Callable, argnums: argnums_t = 0, *, has_aux: bool = False, strict: bool = False) -> Callable:
     """
     Returns a function to compute a tuple of the gradient and primal, or
     forward, computation.
@@ -689,7 +699,9 @@ def grad_and_value(func: Callable, argnums: argnums_t = 0, *, has_aux: bool = Fa
 
                 # NB: need create_graph so that backward pass isn't run in no_grad mode
                 flat_outputs = _as_tuple(output)
-                flat_grad_input = _autograd_grad(flat_outputs, flat_diff_args, create_graph=True)
+                flat_grad_input = _autograd_grad(
+                    flat_outputs, flat_diff_args, create_graph=True,
+                    strict=strict, strict_err_prelude='grad_and_value(f, strict=True): ')
                 grad_input = tree_unflatten(flat_grad_input, spec)
 
         finally:
@@ -705,7 +717,7 @@ def grad_and_value(func: Callable, argnums: argnums_t = 0, *, has_aux: bool = Fa
         return grad_input, output
     return wrapper
 
-def grad(func: Callable, argnums: argnums_t = 0, *, has_aux: bool = False) -> Callable:
+def grad(func: Callable, argnums: argnums_t = 0, *, has_aux: bool = False, strict: bool = True) -> Callable:
     """``grad`` operator helps computing gradients of :attr:`func` with respect to the
     input(s) specified by :attr:`argnums`. This operator can be nested to
     compute higher-order gradients.
@@ -797,7 +809,7 @@ def grad(func: Callable, argnums: argnums_t = 0, *, has_aux: bool = False) -> Ca
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
-        results = grad_and_value(func, argnums, has_aux=has_aux)(*args, **kwargs)
+        results = grad_and_value(func, argnums, has_aux=has_aux, strict=strict)(*args, **kwargs)
         if has_aux:
             grad, (_, aux) = results
             return grad, aux
