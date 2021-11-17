@@ -19,7 +19,6 @@
 using namespace torch::jit::tensorexpr;
 
 namespace {
-
 /// Record of thread-local state that changes operator behavior.
 struct LocalState {
   c10::impl::LocalDispatchKeySet dispatchModifier;
@@ -47,7 +46,7 @@ static uint8_t packFlags(const LocalState &state, const at::Tensor &v) {
 /// Per-tensor cache specialization key targetting dynamic shapes. Records
 /// dtype, dispatch options, aliasing, and per-dim contiguity/broadcasting
 /// information.
-#pragma pack(push, 1)
+
 struct DynamicArgSpecializationKey {
   /// Default constructor; does no initialization, use only for
   /// declarations, e.g., std::array.
@@ -82,9 +81,37 @@ struct DynamicArgSpecializationKey {
     return false;
   }
 
+  bool operator==(const DynamicArgSpecializationKey &other) const {
+    auto this_tie = std::tie(flags_, aliasGroup_, dispatchKey_, nDims_);
+    auto other_tie = std::tie(other.flags_, other.aliasGroup_,
+                              other.dispatchKey_, other.nDims_);
+    if (this_tie != other_tie) {
+      return false;
+    }
+
+    for (int dim = 0; dim < nDims_; dim++) {
+      if (dimflags_[dim] != other.dimflags_[dim]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /// Get the dispatch key for this specialization.
   at::DispatchKeySet dispatchKey() const {
     return at::DispatchKeySet(at::DispatchKeySet::RAW, dispatchKey_);
+  }
+
+  std::string to_string() {
+    std::string hash = "";
+    hash += std::to_string(flags_);
+    hash += std::to_string(aliasGroup_);
+    hash += std::to_string(dispatchKey_);
+    hash += std::to_string(nDims_);
+    for (auto dimFlag : dimflags_) {
+      hash += std::to_string(dimFlag);
+    }
+    return hash;
   }
 
 private:
@@ -163,9 +190,7 @@ private:
   // NOLINTNEXTLINE: C-style arrays
   std::vector<uint8_t> dimflags_;
 };
-#pragma pack(pop)
 
-#pragma pack(push, 1)
 /// Per-tensor cache specialization key targetting static shapes. Recordsdtype,
 /// dispatch options, aliasing, and full shapes and strides.
 struct StaticArgSpecializationKey {
@@ -204,6 +229,39 @@ struct StaticArgSpecializationKey {
     return false;
   }
 
+  bool operator==(const StaticArgSpecializationKey &other) const {
+    auto this_tie = std::tie(flags_, aliasGroup_, dispatchKey_, nDims_);
+    auto other_tie = std::tie(other.flags_, other.aliasGroup_,
+                              other.dispatchKey_, other.nDims_);
+    if (this_tie != other_tie) {
+      return false;
+    }
+
+    for (int dim = 0; dim < nDims_; dim++) {
+      auto this_tie = std::tie(shapes_[dim], strides_[dim]);
+      auto other_tie = std::tie(other.shapes_[dim], other.strides_[dim]);
+      if (this_tie != other_tie) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  std::string to_string() {
+    std::string hash = "";
+    hash += std::to_string(flags_);
+    hash += std::to_string(aliasGroup_);
+    hash += std::to_string(dispatchKey_);
+    hash += std::to_string(nDims_);
+    for (auto shape : shapes_) {
+      hash += std::to_string(shape);
+    }
+    for (auto stride : strides_) {
+      hash += std::to_string(stride);
+    }
+    return hash;
+  }
+
 private:
   /// Packed field with requires_grad and dtype.
   uint8_t flags_;
@@ -226,7 +284,6 @@ private:
   /// Record all tensor strides.
   std::vector<uint64_t> strides_;
 };
-#pragma pack(pop)
 
 /// This is the base class for recording Arg or Tensor propoerties. To create a
 /// new Compile cache, we can inherit from this base class and record the
@@ -254,33 +311,16 @@ struct ArgCompileCacheBase {
 
 /// ArgCompileCache is a templated class allowing plugging of different types of
 /// Hasher/Specialization Keys.
-template <int NUM_IN, class SpecializationKey>
-struct ArgsCompileCache : public ArgCompileCacheBase {
+struct CompileCache {
 public:
-  constexpr static int NUM_ARGS = NUM_IN;
-
-  /// Array of keys used for specializing kernels in this cache.
-  using SpecializationKeys = std::array<SpecializationKey, NUM_ARGS>;
+  CompileCache() = default;
+  ~CompileCache() = default;
 
   /// Array defining groups of aliased tensors.
-  using AliasGroups = std::array<int8_t, NUM_ARGS>;
+  using AliasGroups = std::vector<int8_t>;
 
   /// Cache type mapping specialization keys to compiled kernels.
-  using Cache = std::map<SpecializationKeys, py::object>;
-
-  /// Construct a kernel cache for a kernel with given name,
-  /// module_name, and signatures, using a given compilation function.
-  ArgsCompileCache(std::string name, std::string moduleName,
-                   const std::vector<std::string> &signatures)
-      : parser_(signatures), name_(std::move(name)),
-        moduleName_(std::move(moduleName_)) {
-    if (signatures.size() != 1) {
-      throw std::runtime_error("TODO: support overloaded signatures");
-    }
-  }
-
-  /// Returns name of kernel.
-  const std::string &getName() const { return name_; }
+  using Cache = std::unordered_map<std::string, py::object>;
 
   /// Compute aliasing relationships between tensors a and b.
   /// 0 means a/b don't alias.
@@ -302,15 +342,15 @@ public:
   }
 
   /// Compute aliasing groups: group of tensors that alias each other.
-  AliasGroups computeAliasGroups(at::Tensor *args) {
+  AliasGroups computeAliasGroups(std::vector<at::Tensor> args, int numArgs) {
     AliasGroups aliasGroups;
     int8_t currentId = 0;
-    for (int i = 0; i < NUM_ARGS; ++i) {
-      aliasGroups[i] = 0;
+    for (int i = 0; i < numArgs; ++i) {
+      aliasGroups.push_back(0);
     }
-    for (int i = 0; i < NUM_ARGS; ++i) {
+    for (int i = 0; i < numArgs; ++i) {
       if (aliasGroups[i] == 0) {
-        for (int j = i + 1; j < NUM_ARGS; ++j) {
+        for (int j = i + 1; j < numArgs; ++j) {
           int8_t alias_type = computeAliasing(args[i], args[j]);
           if (alias_type != 0) {
             if (aliasGroups[i] == 0)
@@ -326,177 +366,109 @@ public:
 
   /// Compute the set of specialization keys based on the inputs to
   /// the kernel.
-  SpecializationKeys computeCacheKey(at::Tensor *args) {
+  std::string computeCacheKey(std::vector<at::Tensor> args, int numArgs,
+                              std::string hasherType, int id) {
     LocalState state;
-    AliasGroups aliasGroups = computeAliasGroups(args);
-    SpecializationKeys key;
-    for (int i = 0; i < NUM_ARGS; ++i) {
-      key[i] = SpecializationKey(state, args[i], aliasGroups[i]);
+    AliasGroups aliasGroups = computeAliasGroups(args, numArgs);
+    std::string cacheKey;
+    for (int i = 0; i < numArgs; ++i) {
+      if (hasherType == "StaticShapeHasher") {
+        cacheKey += StaticArgSpecializationKey(state, args[i], aliasGroups[i])
+                        .to_string();
+      } else if (hasherType == "DynamicShapeHasher") {
+        cacheKey += DynamicArgSpecializationKey(state, args[i], aliasGroups[i])
+                        .to_string();
+      }
     }
-    return key;
+    cacheKey += std::to_string(id);
+    cacheKey += std::to_string(numArgs);
+    return cacheKey;
   }
 
-  /// Check if the function has already been compiled.
-  py::object at(PyObject *args, PyObject *kwargs) {
-    torch::ParsedArgs<NUM_ARGS> parsed_args;
-    torch::PythonArgs r = parser_.parse(args, kwargs, parsed_args);
-    at::Tensor tensorArgs[NUM_ARGS]; // NOLINT: c-style arrays
-    for (int i = 0; i < NUM_ARGS; ++i) {
-      tensorArgs[i] = r.tensor(i);
+  std::vector<std::string> buildSignature(int numArgs) {
+    std::string signature = "(";
+    for (int i = 0; i < numArgs; i++) {
+      signature += "Tensor inp" + std::to_string(i) + ", ";
     }
-
-    LocalState state;
-    SpecializationKeys key = computeCacheKey(tensorArgs);
-    auto item = cache_.find(key); // protected by GIL
-
-    if (C10_LIKELY(item != cache_.end())) {
-      return cache_.at(key);
-    }
-    return py::none();
+    signature += "*)";
+    std::vector<std::string> result;
+    result.push_back(signature);
+    return result;
   }
 
-  /// Insert a new compiled functions for new tensor properties.
-  void insert(const py::object &compileFn, PyObject *args, PyObject *kwargs) {
-    torch::ParsedArgs<NUM_ARGS> parsed_args;
-    torch::PythonArgs r = parser_.parse(args, kwargs, parsed_args);
-    at::Tensor tensorArgs[NUM_ARGS]; // NOLINT: c-style arrays
-    for (int i = 0; i < NUM_ARGS; ++i) {
-      tensorArgs[i] = r.tensor(i);
+  template <int N>
+  std::vector<at::Tensor> parsingN(const std::vector<std::string> &signatures,
+                                   PyObject *args, PyObject *kwargs) {
+    torch::PythonArgParser parser(signatures);
+    torch::ParsedArgs<N> parsed_args;
+    torch::PythonArgs r = parser.parse(args, kwargs, parsed_args);
+    std::vector<at::Tensor> tensorArgs; // NOLINT: c-style arrays
+    for (int i = 0; i < N; ++i) {
+      tensorArgs.push_back(r.tensor(i));
     }
-
-    LocalState state;
-    SpecializationKeys key = computeCacheKey(tensorArgs);
-    cache_.emplace(key, compileFn);
+    return tensorArgs;
   }
 
-  const int64_t size() const { return cache_.size(); }
+  std::vector<at::Tensor> parsing(int numArgs, PyObject *args,
+                                  PyObject *kwargs) {
 
-  /// Clear the cache.
-  void clear() {
-    cache_.clear();
-  }
-
-private:
-  /// Parser for kernel args.
-  torch::PythonArgParser parser_;
-
-  /// Name of kernel.
-  std::string name_;
-
-  /// Module name of kernel.
-  std::string moduleName_;
-
-  /// Compilation cache holding key and the compiled function.
-  Cache cache_;
-};
-
-/// This is the top CompileCache wrapper. In addition to Tensor/Arg properties,
-/// we can add function id etc in this cache. Essentially, this act as a 2
-/// levels of cachce. First one caches on function id and function signature and
-/// the second one caches on arg/tensor properties.
-struct CompileCache {
-  CompileCache() = default;
-  ~CompileCache() = default;
-
-  struct FunctionKey {
-    int64_t id_;
-    int numArgs_;
-
-    FunctionKey(const int64_t id, const int numArgs) {
-      id_ = id;
-      numArgs_ = numArgs;
-    }
-
-    bool operator==(const FunctionKey &other) const {
-      return id_ == other.id_ && numArgs_ == other.numArgs_;
-    }
-  };
-
-  struct FunctionKeyHash {
-    int64_t operator()(const FunctionKey &node) const {
-      return std::hash<int64_t>()(node.id_) ^
-             std::hash<int64_t>()(node.numArgs_);
-    }
-  };
-
-  /// Check if a key is present at two levels of caches.
-  py::object at(int64_t id, int numArgs, PyObject *args, PyObject *kwargs) {
-    auto key = FunctionKey(id, numArgs);
-    if (functions_.find(key) != functions_.end()) {
-      return functions_[key]->at(args, kwargs);
-    }
-    return py::none();
-  }
-
-  template <class HasherType>
-  ArgCompileCacheBase *getNewCache(const int64_t id,
-                                   const std::vector<std::string> &sig,
-                                   int numArgs) {
-    const std::string name = "fn_" + std::to_string(id);
-    const std::string moduleName = "module_" + std::to_string(id);
+    const std::vector<std::string> signatures = buildSignature(numArgs);
     switch (numArgs) {
     case 1:
-      return new ArgsCompileCache<1, HasherType>(name, moduleName, sig);
+      return parsingN<1>(signatures, args, kwargs);
     case 2:
-      return new ArgsCompileCache<2, HasherType>(name, moduleName, sig);
+      return parsingN<2>(signatures, args, kwargs);
     case 3:
-      return new ArgsCompileCache<3, HasherType>(name, moduleName, sig);
+      return parsingN<3>(signatures, args, kwargs);
     case 4:
-      return new ArgsCompileCache<4, HasherType>(name, moduleName, sig);
+      return parsingN<4>(signatures, args, kwargs);
     case 5:
-      return new ArgsCompileCache<5, HasherType>(name, moduleName, sig);
+      return parsingN<5>(signatures, args, kwargs);
     case 6:
-      return new ArgsCompileCache<6, HasherType>(name, moduleName, sig);
+      return parsingN<6>(signatures, args, kwargs);
     case 7:
-      return new ArgsCompileCache<7, HasherType>(name, moduleName, sig);
+      return parsingN<7>(signatures, args, kwargs);
     case 8:
-      return new ArgsCompileCache<8, HasherType>(name, moduleName, sig);
+      return parsingN<8>(signatures, args, kwargs);
     default:
       throw std::runtime_error("TODO: support other arg counts");
     }
   }
 
-  /// Insert a compiled function. First, we check if this function has been seen
-  /// before. If not, we instantiate a new arg/tensor level cache and keep track
-  /// of it.
-  void insert(int64_t id, const std::vector<std::string> &signatures,
-              int numArgs, const std::string hasherType,
+  /// Check if the function has already been compiled.
+  // py::object at(int64_t id, int numArgs, PyObject *args, PyObject *kwargs) {
+  py::object at(int64_t id, int numArgs, const std::string hasherType,
+                PyObject *args, PyObject *kwargs) {
+    std::vector<at::Tensor> tensorArgs = parsing(numArgs, args, kwargs);
+    LocalState state;
+    std::string cacheKey = computeCacheKey(tensorArgs, numArgs, hasherType, id);
+
+    auto item = cache_.find(cacheKey); // protected by GIL
+
+    if (C10_LIKELY(item != cache_.end())) {
+      auto c = cache_.at(cacheKey);
+      return c;
+    }
+    return py::none();
+  }
+
+  /// Insert a new compiled functions for new tensor properties.
+  void insert(int64_t id, int numArgs, const std::string hasherType,
               const py::object &compileFn, PyObject *args, PyObject *kwargs) {
-    auto key = FunctionKey(id, numArgs);
-    if (functions_.find(key) == functions_.end()) {
-      if (hasherType == "StaticShapeHasher") {
-        functions_[key] =
-            getNewCache<StaticArgSpecializationKey>(id, signatures, numArgs);
-      } else if (hasherType == "DynamicShapeHasher") {
-        functions_[key] =
-            getNewCache<DynamicArgSpecializationKey>(id, signatures, numArgs);
-      } else {
-        throw std::runtime_error("Unsupported Hasher key");
-      }
-    }
-    functions_[key]->insert(compileFn, args, kwargs);
+    std::vector<at::Tensor> tensorArgs = parsing(numArgs, args, kwargs);
+    LocalState state;
+    std::string cacheKey = computeCacheKey(tensorArgs, numArgs, hasherType, id);
+    cache_.emplace(cacheKey, compileFn);
   }
 
-  /// Sum up all the size of all compilations.
-  int size() {
-    int num_of_recompilations = 0;
-    for (auto c : functions_) {
-      num_of_recompilations += functions_[c.first]->size();
-    }
-    return num_of_recompilations;
-  }
+  const int64_t size() const { return cache_.size(); }
 
-  void clear() {
-    for (auto c : functions_) {
-      functions_[c.first]->clear();
-    }
-    functions_.clear();
-  }
+  /// Clear the cache.
+  void clear() { cache_.clear(); }
 
 private:
-  /// Compilation cache based on function properties.
-  std::unordered_map<FunctionKey, ArgCompileCacheBase *, FunctionKeyHash>
-      functions_;
+  /// Compilation cache holding key and the compiled function.
+  Cache cache_;
 };
 
 static CompileCache *createCompileCache() { return new CompileCache(); }
@@ -512,17 +484,16 @@ void initCompileCacheBindings(PyObject *module) {
   py::class_<CompileCache>(te, "CompileCache")
       .def(py::init(&createCompileCache))
       .def("at",
-           [](CompileCache &self, int64_t id, int numArgs, py::args args,
-              py::kwargs kwargs) {
-             return self.at(id, numArgs, args.ptr(), kwargs.ptr());
+           [](CompileCache &self, int64_t id, int numArgs,
+              const std::string hasherType, py::args args, py::kwargs kwargs) {
+             return self.at(id, numArgs, hasherType, args.ptr(), kwargs.ptr());
            })
       .def("insert",
-           [](CompileCache &self, int64_t id,
-              const std::vector<std::string> &signatures, int numArgs,
+           [](CompileCache &self, int64_t id, int numArgs,
               const std::string hasherType, const py::object &compileFn,
               py::args args, py::kwargs kwargs) {
-             self.insert(id, signatures, numArgs, hasherType, compileFn,
-                         args.ptr(), kwargs.ptr());
+             self.insert(id, numArgs, hasherType, compileFn, args.ptr(),
+                         kwargs.ptr());
            })
       .def("clear", [](CompileCache &self) { self.clear(); })
       .def("size", [](CompileCache &self) { return self.size(); });
