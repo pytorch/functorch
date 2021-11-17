@@ -82,36 +82,6 @@ max_pool2d_with_indices_batch_rule(
       reshape_dim_outof(0, bdim_size, std::get<1>(result)), 0);
 }
 
-template <typename A, A a, typename C>
-struct ExistingBdimMultiOutputBatchRuleHelper;
-
-template <typename F, F Func, typename A, typename... T>
-struct ExistingBdimMultiOutputBatchRuleHelper<F, Func, typelist<A, T...>> {
-  static std::tuple<Tensor,optional<int64_t>,Tensor,optional<int64_t>> apply(
-      const Tensor& self,
-      optional<int64_t> self_bdim,
-      T... extra_args) {
-    auto self_ = reshape_dim_into(*self_bdim, 0, self);
-    auto out = Func(self_, std::forward<T>(extra_args)...);
-    auto odim = self.sizes()[*self_bdim];
-    return std::make_tuple(
-        reshape_dim_outof(0, odim, std::get<0>(out)),
-        0,
-        reshape_dim_outof(0, odim, std::get<1>(out)),
-        0
-    );
-  }
-};
-
-#define EXISTING_BDIM_MULTIOUT_BATCH_RULE(fn) SINGLE_ARG(\
-    ExistingBdimMultiOutputBatchRuleHelper<\
-      decltype(&fn),\
-      &fn,\
-      c10::guts::function_traits<decltype(fn)>::parameter_types>::apply)
-
-#define EXISTING_BDIM_MULTIOUT(op) \
-  VMAP_SUPPORT(#op, EXISTING_BDIM_MULTIOUT_BATCH_RULE(ATEN_FN(op)));
-
 // We can't use ALL_TENSORS_HAVE_OPTIONAL_BDIM_BOXED because the CUDA
 // kernel rightfully assumes that indices is contiguous.
 template<typename F, F func, int N>
@@ -161,8 +131,8 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   EXISTING_BDIM(avg_pool3d);
   EXISTING_BDIM_ALL_BOXED(avg_pool2d_backward);
   EXISTING_BDIM_ALL_BOXED(avg_pool3d_backward);
-  EXISTING_BDIM_MULTIOUT(adaptive_max_pool2d);
-  EXISTING_BDIM_MULTIOUT(adaptive_max_pool3d);
+  EXISTING_BDIM_ALL_BOXED(adaptive_max_pool2d);
+  EXISTING_BDIM_ALL_BOXED(adaptive_max_pool3d);
   VMAP_SUPPORT("adaptive_max_pool2d_backward", ADAPTIVE_MAX_POOL_ND_BATCH_RULE(adaptive_max_pool2d_backward, 2));
   VMAP_SUPPORT("adaptive_max_pool3d_backward", ADAPTIVE_MAX_POOL_ND_BATCH_RULE(adaptive_max_pool3d_backward, 3));
 
