@@ -18,7 +18,7 @@ from .nnc_compile import nnc_compile
 from enum import Enum
 import warnings
 from contextlib import contextmanager
-import math
+
 aten = torch.ops.aten
 
 decomposition_table = {}
@@ -69,11 +69,15 @@ def hardsigmoid_backward_decomposition(grad_output: Tensor, self: Tensor):
 
 @register_decomposition(aten.hardtanh_backward)
 def hardtanh_backward_decomposition(grad_output: Tensor, self: Tensor, min_val: float, max_val: float):
-    return aten.where((self <= min_val) | (self >= max_val), torch.tensor(0.0, dtype=grad_output.dtype), grad_output)
+    return aten.where((self <= min_val) | (self >= max_val), aten.new_zeros(grad_out, ()), grad_output)
+
+@register_decomposition(aten.hardshrink_backward)
+def hardshrink_backward(grad_out: Tensor, self: Tensor, lambd: float):
+    return aten.where((self >= -lambd) & (self <= lambd), aten.new_zeros(grad_out, ()), grad_out)
 
 @register_decomposition(aten.threshold_backward)
 def threshold_backward_decomposition(grad_output: Tensor, self: Tensor, threshold: float):
-    return aten.where(self <= threshold, torch.tensor(0.0, dtype=grad_output.dtype), grad_output)
+    return aten.where(self <= threshold, aten.new_zeros(grad_out, ()), grad_output)
 
 @register_decomposition(aten.mse_loss_backward)
 def mse_loss_backward_decomposition(grad_output: Tensor, input: Tensor, target: Tensor, reduction: int):

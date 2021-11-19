@@ -874,7 +874,6 @@ class TestDecompositionOpInfo(TestCase):
                     _assertEqual(out, tree_map(unwrap_tensor, decomp_out))
 
                     decomp_grads = decomp_vjp_fn(cotangents)
-                    # import pdb; pdb.set_trace()
                     _assertEqual(expected_grads, tree_map(unwrap_tensor, decomp_grads))
 
                 else:
