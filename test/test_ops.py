@@ -358,7 +358,6 @@ class TestOperators(TestCase):
         xfail('double', 'channels_last'),
         xfail('nn.functional.gaussian_nll_loss'),
         xfail('nn.functional.poisson_nll_loss'),
-        xfail('nn.functional.conv1d', device_type='cuda'),
         xfail('fft.rfft2'),
         xfail('masked_select'),
         xfail('_masked.prod'), # calls aten::item
@@ -541,7 +540,6 @@ class TestOperators(TestCase):
         xfail('fill_'),
         xfail('gradient'),
         xfail('hsplit'),
-        xfail('nn.functional.pad', 'circular'),
         xfail('vsplit'),
         xfail('dstack'),
         xfail('hstack'),
