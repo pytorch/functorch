@@ -1,0 +1,10 @@
+hardtanh_backward
+threshold_backward
+softplus_backward
+tanh_backward
+sigmoid_backward
+elu_backward
+detach
+hardsigmoid_backward
+mse_loss_backward
+_s_where
