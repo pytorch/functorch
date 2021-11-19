@@ -18,7 +18,10 @@ from .nnc_compile import nnc_compile
 from enum import Enum
 import warnings
 from contextlib import contextmanager
+<<<<<<< HEAD
 
+=======
+>>>>>>> fix some decompositions
 aten = torch.ops.aten
 
 decomposition_table = {}
@@ -69,15 +72,7 @@ def hardsigmoid_backward_decomposition(grad_output: Tensor, self: Tensor):
 
 @register_decomposition(aten.hardtanh_backward)
 def hardtanh_backward_decomposition(grad_output: Tensor, self: Tensor, min_val: float, max_val: float):
-<<<<<<< HEAD
-    return aten.where((self <= min_val) | (self >= max_val), aten.new_zeros(grad_out, ()), grad_output)
-=======
-<<<<<<< HEAD
     return aten.where((self <= min_val) | (self >= max_val), aten.new_zeros(grad_output, ()), grad_output)
-=======
-    return aten.where((self <= min_val) | (self >= max_val), aten.new_zeros(grad_out, ()), grad_output)
->>>>>>> add a couple more decompositions
->>>>>>> add a couple more decompositions
 
 @register_decomposition(aten.hardshrink_backward)
 def hardshrink_backward(grad_out: Tensor, self: Tensor, lambd: float):
@@ -85,19 +80,11 @@ def hardshrink_backward(grad_out: Tensor, self: Tensor, lambd: float):
 
 @register_decomposition(aten.threshold_backward)
 def threshold_backward_decomposition(grad_output: Tensor, self: Tensor, threshold: float):
-<<<<<<< HEAD
-    return aten.where(self <= threshold, aten.new_zeros(grad_out, ()), grad_output)
-=======
-<<<<<<< HEAD
     return aten.where(self <= threshold, aten.new_zeros(grad_output, ()), grad_output)
->>>>>>> add a couple more decompositions
 
 @register_decomposition(aten.leaky_relu_backward)
 def leaky_relu_backward(grad_output: Tensor, self: Tensor, negative_slope: float, self_is_result: bool):
     return aten.where(self > 0, grad_output, grad_output * negative_slope)
-=======
-    return aten.where(self <= threshold, aten.new_zeros(grad_out, ()), grad_output)
->>>>>>> add a couple more decompositions
 
 @register_decomposition(aten.mse_loss_backward)
 def mse_loss_backward_decomposition(grad_output: Tensor, input: Tensor, target: Tensor, reduction: int):
