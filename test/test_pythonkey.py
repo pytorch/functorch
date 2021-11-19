@@ -345,7 +345,7 @@ class TestEagerFusionOpInfo(TestCase):
             return
         sample_inputs_itr = op.sample_inputs(device, dtype, requires_grad=True)
         new_f = None
-        for sample_input in sample_inputs_itr:
+        for sample_ijVnput in sample_inputs_itr:
             args = [sample_input.input] + list(sample_input.args)
             kwargs = sample_input.kwargs
             if not all([isinstance(i, torch.Tensor) and i.dtype == torch.float for i in args]):

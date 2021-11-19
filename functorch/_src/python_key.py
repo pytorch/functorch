@@ -18,7 +18,6 @@ from .nnc_compile import nnc_compile
 from enum import Enum
 import warnings
 from contextlib import contextmanager
-
 aten = torch.ops.aten
 
 decomposition_table = {}
@@ -100,8 +99,6 @@ def huber_loss_backward_decomposition(grad_output: Tensor, self: Tensor, target:
 #     res = mask.type_as(input) * input * (1./p)
 #     return [res, mask]
 
-
-# These all suck
 @register_decomposition(aten._s_where)
 def _s_where_canonicalization(a, b, c):
     return aten.where(a, b, c)
