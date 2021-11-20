@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 _s_where
 elu_backward
 hardshrink_backward
@@ -9,3 +10,17 @@ mse_loss_backward
 sigmoid_backward
 softplus_backward
 tanh_backward
+=======
+hardshrink_backward
+mse_loss_backward
+detach
+elu_backward
+tanh_backward
+threshold_backward
+_s_where
+sigmoid_backward
+leaky_relu_backward
+hardsigmoid_backward
+softplus_backward
+hardtanh_backward
+>>>>>>> changed some stuff
