@@ -758,6 +758,7 @@ class TestOperators(TestCase):
 class InplaceError(Exception):
     def __repr__(self):
         return "Decomposition Tensor with no elem was created (probably due to an in-place op)"
+
 class DecompositionTensor(torch.Tensor):
     run_decompositions = set()
     run_ops = set()

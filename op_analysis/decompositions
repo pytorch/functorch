@@ -36,6 +36,8 @@ _cudnn_init_dropout_state,private,False,False,False
 _debug_has_internal_overlap,private,True,False,False
 _fused_dropout,private,False,False,False
 _masked_scale,private,False,False,False
+native_dropout,backend,False,False,False
+native_dropout_backward,backward,False,False,False
 _sobol_engine_draw,private,True,False,False
 _sobol_engine_ff_,inplace,True,False,False
 _sobol_engine_scramble_,inplace,True,False,False
@@ -828,8 +830,8 @@ gelu_backward,backward,False,False,False
 infinitely_differentiable_gelu_backward,backward,True,False,False
 hardshrink.out,out,False,True,False
 hardshrink,core composite pointwise,False,True,False
-hardshrink_backward.grad_input,out,False,True,False
-hardshrink_backward,backward,False,True,False
+hardshrink_backward.grad_input,out,False,False,True
+hardshrink_backward,backward,False,False,True
 rsqrt,core composite pointwise,False,True,False
 rsqrt_,inplace,False,False,False
 rsqrt.out,out,False,True,False
@@ -1257,6 +1259,8 @@ scatter_add,core scatter/gather,False,True,False
 scatter_add_,inplace,False,True,False
 scatter_add.out,out,False,True,False
 scatter_add.dimname,core scatter/gather,True,True,False
+_scatter_reduce,private,False,False,False
+_scatter_reduce.out,out,False,False,False
 eq_.Scalar,inplace,False,False,False
 eq_.Tensor,inplace,False,False,False
 bitwise_and.Tensor_out,out,False,True,False
@@ -1497,6 +1501,9 @@ dist,core reduction,False,True,False
 atan2.out,out,False,True,False
 atan2_,inplace,False,False,False
 atan2,core primitive pointwise,False,True,False
+arctan2,core unknown,True,False,False
+arctan2.out,out,True,False,False
+arctan2_,inplace,True,False,False
 lerp.Scalar_out,out,False,True,False
 lerp.Tensor_out,out,False,True,False
 lerp.Scalar,core composite pointwise,False,True,False
@@ -1721,6 +1728,8 @@ searchsorted.Tensor_out,out,False,True,False
 searchsorted.Scalar,core misc,False,True,False
 _convert_indices_from_coo_to_csr,conv,False,False,False
 _convert_indices_from_coo_to_csr.out,out,False,False,False
+_convert_indices_from_csr_to_coo,conv,False,False,False
+_convert_indices_from_csr_to_coo.out,out,False,False,False
 mse_loss.out,out,False,True,False
 mse_loss,core reduction,False,True,False
 mse_loss_backward.grad_input,out,False,False,True
@@ -1789,8 +1798,8 @@ hardswish_,inplace,False,False,False
 hardswish_backward,backward,False,True,False
 leaky_relu.out,out,False,True,False
 leaky_relu,core composite pointwise,False,True,False
-leaky_relu_backward.grad_input,out,False,True,False
-leaky_relu_backward,backward,False,True,False
+leaky_relu_backward.grad_input,out,False,False,True
+leaky_relu_backward,backward,False,False,True
 leaky_relu_,inplace,False,False,False
 log_sigmoid.out,out,True,False,False
 log_sigmoid,core composite pointwise,True,False,False
@@ -1889,16 +1898,24 @@ upsample_linear1d.vec,core misc,False,True,False
 upsample_linear1d_backward.vec,backward,False,False,False
 upsample_bilinear2d.vec,core misc,False,True,False
 upsample_bilinear2d_backward.vec,backward,False,False,False
+_upsample_bilinear2d_aa.vec,private,False,False,False
+_upsample_bilinear2d_aa_backward.vec,backward,False,False,False
 upsample_trilinear3d.vec,core misc,False,True,False
 upsample_trilinear3d_backward.vec,backward,False,False,False
 upsample_bicubic2d.vec,core misc,False,True,False
 upsample_bicubic2d_backward.vec,backward,False,False,False
 upsample_nearest1d.vec,core misc,False,True,False
+_upsample_nearest_exact1d.vec,private,False,False,False
 upsample_nearest1d_backward.vec,backward,False,False,False
+_upsample_nearest_exact1d_backward.vec,backward,False,False,False
 upsample_nearest2d.vec,core misc,False,False,False
+_upsample_nearest_exact2d.vec,private,False,False,False
 upsample_nearest2d_backward.vec,backward,False,False,False
+_upsample_nearest_exact2d_backward.vec,backward,False,False,False
 upsample_nearest3d.vec,core misc,False,False,False
+_upsample_nearest_exact3d.vec,private,False,False,False
 upsample_nearest3d_backward.vec,backward,False,False,False
+_upsample_nearest_exact3d_backward.vec,backward,False,False,False
 upsample_linear1d.out,out,False,True,False
 upsample_linear1d,core misc,False,True,False
 upsample_linear1d_backward.grad_input,out,False,False,False
@@ -1907,6 +1924,10 @@ upsample_bilinear2d.out,out,False,True,False
 upsample_bilinear2d,core misc,False,True,False
 upsample_bilinear2d_backward.grad_input,out,False,False,False
 upsample_bilinear2d_backward,backward,False,False,False
+_upsample_bilinear2d_aa.out,out,False,False,False
+_upsample_bilinear2d_aa,private,False,False,False
+_upsample_bilinear2d_aa_backward.grad_input,out,False,False,False
+_upsample_bilinear2d_aa_backward,backward,False,False,False
 upsample_bicubic2d.out,out,False,True,False
 upsample_bicubic2d,core misc,False,True,False
 upsample_bicubic2d_backward.grad_input,out,False,False,False
@@ -1916,17 +1937,29 @@ upsample_trilinear3d,core misc,False,True,False
 upsample_trilinear3d_backward.grad_input,out,False,False,False
 upsample_trilinear3d_backward,backward,False,False,False
 upsample_nearest1d.out,out,False,True,False
+_upsample_nearest_exact1d.out,out,False,False,False
 upsample_nearest1d,core misc,False,True,False
+_upsample_nearest_exact1d,private,False,False,False
 upsample_nearest1d_backward.grad_input,out,False,False,False
+_upsample_nearest_exact1d_backward.grad_input,out,False,False,False
 upsample_nearest1d_backward,backward,False,False,False
+_upsample_nearest_exact1d_backward,backward,False,False,False
 upsample_nearest2d.out,out,False,False,False
+_upsample_nearest_exact2d.out,out,False,False,False
 upsample_nearest2d,core misc,False,False,False
+_upsample_nearest_exact2d,private,False,False,False
 upsample_nearest2d_backward.grad_input,out,False,False,False
+_upsample_nearest_exact2d_backward.grad_input,out,False,False,False
 upsample_nearest2d_backward,backward,False,False,False
+_upsample_nearest_exact2d_backward,backward,False,False,False
 upsample_nearest3d.out,out,False,False,False
+_upsample_nearest_exact3d.out,out,False,False,False
 upsample_nearest3d,core misc,False,False,False
+_upsample_nearest_exact3d,private,False,False,False
 upsample_nearest3d_backward.grad_input,out,False,False,False
+_upsample_nearest_exact3d_backward.grad_input,out,False,False,False
 upsample_nearest3d_backward,backward,False,False,False
+_upsample_nearest_exact3d_backward,backward,False,False,False
 sigmoid_backward.grad_input,out,False,False,True
 sigmoid_backward,backward,False,False,True
 logit_backward.grad_input,out,False,False,False
