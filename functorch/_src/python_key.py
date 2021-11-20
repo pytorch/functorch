@@ -50,9 +50,63 @@ def softplus_backward_decomposition(out_grad, x, beta, threshold, out):
 
 # @register_decomposition(aten._fused_dropout)
 # def _fused_dropout_decomposition(input, p, generator=None):
-#     mask = aten.to(aten.rand_like(input) < p, dtype=torch.uint8)
-#     res = mask.type_as(input) * input * (1./p)
-#     return [res, mask]
+#     # bool_mask = aten.rand_like(input) < torch.tensor(p, device='cuda', requires_grad=False)
+#     bool_mask = aten.rand_like(input) < p
+#     input_typed_mask = bool_mask.type_as(input)
+#     # res = input_typed_mask * input * torch.tensor((1./p), device='cuda', requires_grad=False)
+#     res = input_typed_mask * input * float(1./p)
+#     return [res, bool_mask.to(dtype=torch.uint8)]
+# 
+@register_decomposition(aten.native_dropout)
+def native_dropout_decomposition(input, p, generator=None):
+    # bool_mask = aten.rand_like(input) < torch.tensor(p, device='cuda', requires_grad=False)
+    bool_mask = aten.rand_like(input) < p
+    input_typed_mask = bool_mask.type_as(input)
+    # res = input_typed_mask * input * torch.tensor((1./p), device='cuda', requires_grad=False)
+    res = input_typed_mask * input * float(1./p)
+    return [res, input_typed_mask]
+
+
+# @register_decomposition(aten._masked_scale)
+# def _masked_scale_decomposition(input, mask, scale):
+#     # return input                                        # 39.44 reduced to 32.6
+#     # return input * mask.to(dtype=torch.float32)         # 39.44 increased to 62.61
+#     # return input * mask.type_as(input)                  # 39.44 increased to 46.08
+#     return input * mask.type_as(input) * scale           # 39.44 increased to 46.19
+
+# @register_decomposition(aten._to_copy)
+# def _to_copy_decomposition(x, dtype, layout, device):
+#     return x
+# 
+# @register_decomposition(aten.to)
+# def _to_decomposition(x, dtype):
+#     return x
+
+# REALLY BAD HACKS
+# @register_decomposition(aten.view)
+# def view_decomposition(x, size):
+#     return x
+
+
+# @register_decomposition(aten.sum)
+# def sum_decomposition(x, dim, keepdim):
+#     if keepdim:
+#         return aten.sum(x, dim, keepdim=False)
+
+
+# @register_decomposition(aten.to)
+# def to_decomposition(x, dtype):
+#     return x
+
+@register_decomposition(aten.expand)
+def expand_decomposition(x, dims):
+    return x
+
+# @register_decomposition(aten._to_copy)
+# def to_copy_decomposition(x, dtype):
+#     return x
+
+
 
 USE_DECOMPOSE = False
 

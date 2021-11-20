@@ -109,11 +109,17 @@ def _extract_graph_with_inputs_outputs(joint_graph, inputs, outputs):
     """
     new_graph = fx.Graph()
     tracer = GraphAppendingTracer(new_graph)
+
+    # Add new placeholder nodes in the order specified by the inputs
+    new_inputs = {}
+    for node in inputs:
+        new_node = new_graph.placeholder(node.name)
+        new_inputs[node.name] = new_node
+
     env = {}
     for node in joint_graph.nodes:
         if node in inputs:
-            new_node = new_graph.placeholder(node.name)
-            env[node] = fx.Proxy(new_node, tracer)
+            env[node] = fx.Proxy(new_inputs[node.name], tracer)
         elif node.op == 'placeholder':
             env[node] = InvalidNode
         elif node.op == 'call_function':
@@ -166,19 +172,27 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
     bwd_outputs = outputs[num_fwd_outputs:]
 
     saved_values = list(filter(is_primal, nodes))
+    # saved_values = []
 
     # Also save the mask from _fused_dropout
-    dropout_nodes = list(filter(lambda x: x.target == torch.ops.aten._fused_dropout, nodes))
+    dropout_nodes = list(filter(lambda x: x.target == torch.ops.aten._fused_dropout or x.target == torch.ops.aten.native_dropout, nodes))
     for node in joint_module.graph.nodes:
         if node.target == operator.getitem and node.args[0] in dropout_nodes and node.args[1] == 1:
             saved_values.append(node)
+        # elif node.target == torch.ops.aten.rand_like:
+        elif node.target == torch.ops.aten.type_as and node.args[0].target == torch.ops.aten.lt:
+            saved_values.append(node)
     primal_inputs = list(filter(is_primal, joint_module.graph.nodes))
     tangent_inputs = list(filter(is_tangent, joint_module.graph.nodes))
+
     # Construct the forward module
     fwd_graph = _extract_graph_with_inputs_outputs(joint_module.graph, primal_inputs, fwd_outputs + saved_values)
     fwd_module = fx.GraphModule(joint_module, fwd_graph)
+    print(fwd_module)
 
     # Construct the backward module
+    print(joint_module)
+    print(saved_values + tangent_inputs)
     bwd_graph = _extract_graph_with_inputs_outputs(joint_module.graph, saved_values + tangent_inputs, bwd_outputs)
     bwd_module = fx.GraphModule(joint_module, bwd_graph)
 

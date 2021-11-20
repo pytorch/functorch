@@ -1,6 +1,8 @@
+from torch._C import dtype
 from functorch._src.python_key import pythonkey_decompose
 import torch
 from torch import fx
+from torch.fx import subgraph_rewriter
 from torch.fx.proxy import GraphAppendingTracer
 from typing import Iterable
 from .aot_autograd import compiled_function, partition_with_recompute_fwd_in_bwd
@@ -80,8 +82,58 @@ def torchscript_nvfuser_compile(fx_module, flat_args):
             'Wrap the call with `with jit.fuser("fuser2") to turn nvfuser on'
         )
 
+    def canonicalize(fx_module):
+        for node in fx_module.graph.nodes:
+            if node.target == torch.ops.aten._to_copy:
+                new_dict = dict(node.kwargs)
+                new_dict['device'] = 'cuda'
+                node.kwargs = new_dict
+        fx_module.recompile()
+        fx_module.graph.lint()
+ 
+        # #def to_type_as_pattern(bool_mask, inp):
+        # #    uint8_mask = torch.ops.aten.to(bool_mask, torch.uint8)
+        # #    typed_mask = torch.ops.aten.type_as(uint8_mask, inp)
+        # #    return typed_mask
+        
+        # def to_type_as_pattern(bool_mask, inp):
+        #     uint8_mask = torch.ops.aten.to(bool_mask, torch.uint8)
+        #     typed_mask = torch.ops.aten.type_as(uint8_mask, inp)
+        #     return typed_mask
+ 
+        # def to_type_as_replacement(bool_mask, inp):
+        #     return torch.ops.aten.type_as(bool_mask, inp)
+        #     # return bool_mask
+
+        # # def sum_view_pattern(inp):
+        # #     sum1 = torch.ops.aten.sum(inp, [0, 1], True)
+        # #     view1 = torch.ops.aten.view(sum1, [1024])
+        # #     return view1
+        
+        # # def sum_view_replacement(inp):
+        # #     return torch.ops.aten.sum(inp, [0, 1], False)
+        
+        # subgraph_rewriter.replace_pattern(fx_module, to_type_as_pattern, to_type_as_replacement)
+        # # subgraph_rewriter.replace_pattern(fx_module, sum_view_pattern, sum_view_replacement)
+
+        
+        # for node in fx_module.graph.nodes:
+        #     if node.target == torch.ops.aten.rand_like:
+        #         node.kwargs = {}
+        #         # new_dict = dict(node.kwargs)
+        #         # new_dict['device'] = 'cuda'
+        #         # node.kwargs = new_dict
+        # fx_module.recompile()
+        # fx_module.graph.lint()
+        return fx_module
+    
+
+    # print("Before", fx_module)
+    # fx_module = canonicalize(fx_module)
+    print("After", fx_module)
     scripted_module = torch.jit.script(fx_module)
     frozen_module = torch.jit.freeze(scripted_module.eval())
+    # print(frozen_module.graph)
     return frozen_module
 
 
@@ -101,6 +153,7 @@ def torchscript_nnc_operator_authoring(fn, partition_fn, hasher_type):
 def torchscript_nvfuser_operator_authoring(fn, partition_fn, hasher_type):
     fw_compiler = torchscript_nvfuser_compile
     bw_compiler = torchscript_nvfuser_compile
+    # bw_compiler = lambda x, _: x
     return compiled_function(
         fn,
         fw_compiler,
