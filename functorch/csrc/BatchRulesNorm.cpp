@@ -8,6 +8,8 @@
 #include <functorch/csrc/PlumbingHelper.h>
 #include <functorch/csrc/BatchedFallback.h>
 #include <ATen/core/dispatch/Dispatcher.h>
+#include <ATen/native/layer_norm.h>
+#include <c10/util/SmallBuffer.h>
 
 namespace at { namespace functorch {
 
@@ -159,10 +161,46 @@ std::tuple<Tensor,Tensor,Tensor> native_group_norm_plumbing(
   return slow_fallback<Tensor,Tensor,Tensor>(op, { input, weight, bias, N, C, HxW, group, eps });
 }
 
+std::tuple<Tensor,Tensor,Tensor> native_layer_norm_decomp(
+    const Tensor& input,
+    IntArrayRef normalized_shape,
+    const c10::optional<Tensor>& weight_opt,
+    const c10::optional<Tensor>& bias_opt,
+    double eps) {
+  // See [Note: hacky wrapper removal for optional tensor]
+  c10::MaybeOwned<Tensor> weight_maybe_owned = at::borrow_from_optional_tensor(weight_opt);
+  const Tensor& weight = *weight_maybe_owned;
+  c10::MaybeOwned<Tensor> bias_maybe_owned = at::borrow_from_optional_tensor(bias_opt);
+  const Tensor& bias = *bias_maybe_owned;
+  at::native::_check_layer_norm_inputs(input, normalized_shape, weight, bias);
+
+  const auto normalized_shape_size = normalized_shape.size();
+  const auto input_rank = input.ndimension();
+
+  SmallBuffer<int64_t, 5> reduce_dims(normalized_shape_size);
+  for (const auto i : c10::irange(normalized_shape_size)) {
+    reduce_dims[i] = input_rank - normalized_shape_size + i;
+  }
+
+  const auto inp_var_mean = at::var_mean(input, reduce_dims, /*unbiased*/false, /*keepdim*/true);
+  const auto inp_mean = std::get<1>(inp_var_mean);
+  const auto inp_var = std::get<0>(inp_var_mean);
+  const auto inp_rstd = at::sqrt(inp_var + eps).reciprocal();
+
+  auto result = (input - inp_mean).mul_(inp_rstd);
+  if (weight.defined()) {
+    result = result * weight;
+  }
+  if (bias.defined()) {
+    result = result + bias;
+  }
+  return std::make_tuple(result, inp_mean, inp_rstd);
+}
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   m.impl("batch_norm", batch_norm_plumbing);
   m.impl("native_group_norm", native_group_norm_plumbing);
+  m.impl("native_layer_norm", native_layer_norm_decomp);
 }
 
 }}
