@@ -389,7 +389,6 @@ class TestOperators(TestCase):
     @skipOps('TestOperators', 'test_vmapvjp_has_batch_rule', vmapvjp_fail.union({
         xfail('view_as_complex'),
         xfail('__getitem__'),
-        xfail('__rpow__'),
         xfail('addr'),
         xfail('cdist'),
         xfail('cholesky'),
@@ -409,7 +408,6 @@ class TestOperators(TestCase):
         xfail('fft.rfftn'),
         xfail('cdist'),
         xfail('fill_'),
-        xfail('float_power'),
         xfail('fmax'),
         xfail('fmin'),
         xfail('index_add'),
@@ -461,7 +459,6 @@ class TestOperators(TestCase):
         xfail('norm', 'inf'),
         xfail('norm', 'nuc'),
         xfail('pinverse'),
-        xfail('pow'),
         xfail('prod'),
         xfail('put'),
         xfail('quantile'),
