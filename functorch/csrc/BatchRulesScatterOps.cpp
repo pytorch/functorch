@@ -375,105 +375,69 @@ std::tuple<Tensor,optional<int64_t>> gather_backward_batch_rule(
 }
 
 namespace {
-inline Tensor& get_expanded_index(Tensor& index_, IntArrayRef self_size, int64_t physical_dim) {
+inline Tensor get_expanded_index(const Tensor& index, IntArrayRef self_size, int64_t dim) {
+  if (index.dim() == 0) {
+    return index.expand(self_size);
+  }
+
   // setup new_index_shape as [BS, 1, ..., le, ..., 1]
   // to reshape index_
-  auto le = index_.size(1);  // get non-batch size of index tensor
+  auto le = index.size(0);  // get non-batch size of index tensor
+  Tensor index_;
   {
     VmapDimVector new_index_shape(self_size.size(), 1);
-    new_index_shape[0] = self_size[0]; // set up batch size
-    new_index_shape[physical_dim] = le;
-    index_ = index_.reshape(new_index_shape);
+    new_index_shape[dim] = le;
+    index_ = index.reshape(new_index_shape);
   }
   // Now apply expand to index_
   {
     VmapDimVector new_index_shape = {self_size.begin(), self_size.end()};
-    new_index_shape[physical_dim] = le;
+    new_index_shape[dim] = le;
     index_ = index_.expand(new_index_shape);
   }
-
   return index_;
 }
 }
 
-std::tuple<Tensor, optional<int64_t>> index_select_batch_rule(
-    const Tensor& self, optional<int64_t> self_bdim,
-    int64_t dim,
-    const Tensor& index, optional<int64_t> index_bdim) {
-
-  auto self_logical_rank = rankWithoutBatchDim(self, self_bdim);
-  auto index_logical_rank = rankWithoutBatchDim(index, index_bdim);
-  auto batch_size = bdim_size(self, self_bdim, index, index_bdim);
-
-  auto self_ = moveBatchDimToFront(self, self_bdim);
-  auto index_ = moveBatchDimToFront(index, index_bdim);
-
-  if (self_logical_rank == 0) {
-    self_ = self_.unsqueeze(-1);
-  }
-  if (index_logical_rank == 0) {
-    index_ = index_.unsqueeze(-1);
-  }
-  self_ = ensure_has_bdim(self_, self_bdim.has_value(), batch_size);
-  index_ = ensure_has_bdim(index_, index_bdim.has_value(), batch_size);
-  auto physical_dim = getPhysicalDim(self_, /*has_batch_dim*/true, dim);
-
-  if (index_.dim() < self_.dim()) {
-    index_ = get_expanded_index(index_, self_.sizes(), physical_dim);
+Tensor index_select_decomp(const Tensor &self, int64_t dim, const Tensor &index)
+{
+  Tensor index_ = index;
+  if (self.dim() > index.dim()) {
+    index_ = get_expanded_index(index, self.sizes(), dim);
   }
 
-  auto result = at::gather(self_, physical_dim, index_);
-  // result should have same rank as self
-  if (self_logical_rank == 0) {
+  auto result = at::gather(self, dim, index_);
+
+  // output of gather has same dimension as `index` while
+  // output of index_select has same dimension as self
+  // Eg. t = torch.tensor(1)
+  //     idx = torch.tensor([0])
+  //     torch.index_select(t, 0, idx) # 0-D
+  //     torch.gather(t, 0, idx) # 1-D
+  if (self.dim() == 0 && result.dim() != 0) {
     result = result.squeeze(-1);
   }
-  return std::make_tuple(result, 0);
+
+  return result;
 }
 
-std::tuple<Tensor, optional<int64_t>> index_copy_batch_rule(
-    const Tensor& self, optional<int64_t> self_bdim,
-    int64_t dim,
-    const Tensor& index, optional<int64_t> index_bdim,
-    const Tensor& source, optional<int64_t> source_bdim) {
-
-  auto self_logical_rank = rankWithoutBatchDim(self, self_bdim);
-  auto index_logical_rank = rankWithoutBatchDim(index, index_bdim);
-  auto source_logical_rank = rankWithoutBatchDim(source, source_bdim);
-  auto batch_size = bdim_size(self, self_bdim, index, index_bdim, source, source_bdim);
-
-  auto self_ = moveBatchDimToFront(self, self_bdim);
-  auto index_ = moveBatchDimToFront(index, index_bdim);
-  auto source_ = moveBatchDimToFront(source, source_bdim);
-
-  if (self_logical_rank == 0) {
-    self_ = self_.unsqueeze(-1);
-  }
-  if (index_logical_rank == 0) {
-    index_ = index_.unsqueeze(-1);
-  }
-  if (source_logical_rank == 0) {
-    source_ = source_.unsqueeze(-1);
-  }
-  self_ = ensure_has_bdim(self_, self_bdim.has_value(), batch_size);
-  index_ = ensure_has_bdim(index_, index_bdim.has_value(), batch_size);
-  source_ = ensure_has_bdim(source_, source_bdim.has_value(), batch_size);
-  auto physical_dim = getPhysicalDim(self_, /*has_batch_dim*/true, dim);
-
-  if (index_.dim() < self_.dim()) {
-    index_ = get_expanded_index(index_, self_.sizes(), physical_dim);
+Tensor index_copy_decomp(
+    const Tensor &self, int64_t dim,
+    const Tensor &index, const Tensor &source)
+{
+  Tensor index_ = index;
+  if (self.dim() > index.dim()) {
+    index_ = get_expanded_index(index, self.sizes(), dim);
   }
 
-  auto result = at::scatter(self_, physical_dim, index_, source_);
-  // result should have same rank as self
-  if (self_logical_rank == 0) {
-    result = result.squeeze(-1);
-  }
-  return std::make_tuple(result, 0);
+  return at::scatter(self, dim, index_, source);  ;
 }
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   m.impl("index.Tensor", index_plumbing);
   m.impl("index_put_", index_put__plumbing);
+  m.impl("index_copy", index_copy_decomp);
+  m.impl("index_select", index_select_decomp);
   VMAP_SUPPORT("gather", gather_batch_rule);
   VMAP_SUPPORT("gather_backward", gather_backward_batch_rule);
   VMAP_SUPPORT("scatter.value", scatter_value_batch_rule);
@@ -481,9 +445,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT("scatter_add", scatter_add_batch_rule);
   VMAP_SUPPORT("scatter.reduce", scatter_reduce_batch_rule);
   VMAP_SUPPORT("scatter.value_reduce", scatter_value_reduce_batch_rule);
-  VMAP_SUPPORT("index_select", index_select_batch_rule);
-  VMAP_SUPPORT("index_copy", index_copy_batch_rule);
-
 }
 
 }}
