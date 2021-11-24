@@ -434,7 +434,6 @@ class TestOperators(TestCase):
         xfail('linalg.tensorinv'),
         xfail('linalg.vector_norm'),
         xfail('logdet'),
-        xfail('logit'),
         xfail('lu'),
         xfail('lu_solve'),
         xfail('lu_unpack'),
