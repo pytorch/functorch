@@ -380,19 +380,19 @@ inline Tensor get_expanded_index(const Tensor& index, IntArrayRef self_size, int
     return index.expand(self_size);
   }
 
-  // setup new_index_shape as [BS, 1, ..., le, ..., 1]
+  // setup new_index_shape as [BS, 1, ..., idx_size, ..., 1]
   // to reshape index_
-  auto le = index.size(0);  // get non-batch size of index tensor
+  auto idx_size = index.size(0);  // get non-batch size of index tensor
   Tensor index_;
   {
     VmapDimVector new_index_shape(self_size.size(), 1);
-    new_index_shape[dim] = le;
+    new_index_shape[dim] = idx_size;
     index_ = index.reshape(new_index_shape);
   }
   // Now apply expand to index_
   {
     VmapDimVector new_index_shape = {self_size.begin(), self_size.end()};
-    new_index_shape[dim] = le;
+    new_index_shape[dim] = idx_size;
     index_ = index_.expand(new_index_shape);
   }
   return index_;
