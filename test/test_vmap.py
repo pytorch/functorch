@@ -3193,7 +3193,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('rand_like'),
         xfail('randint_like'),
         xfail('searchsorted'),
-        xfail('select_scatter'),
         xfail('short', 'channels_last'),
         xfail('slice_scatter'),
         xfail('unique_consecutive'),

@@ -423,9 +423,21 @@ std::tuple<Tensor, optional<int64_t>> index_select_batch_rule(
   return std::make_tuple(result, 0);
 }
 
+Tensor select_scatter_decomp(
+    const Tensor &self, const Tensor &source,
+    int64_t dim, int64_t index)
+{
+  // supports negative index
+  index = maybe_wrap_dim(index, self.size(dim));
+  auto index_ = at::scalar_tensor(index, self.options().dtype(kLong));
+
+  return at::scatter(self, dim, index_.expand_as(self), source.unsqueeze(dim).expand_as(self));
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   m.impl("index.Tensor", index_plumbing);
   m.impl("index_put_", index_put__plumbing);
+  m.impl("select_scatter", select_scatter_decomp);
   VMAP_SUPPORT("gather", gather_batch_rule);
   VMAP_SUPPORT("gather_backward", gather_backward_batch_rule);
   VMAP_SUPPORT("scatter.value", scatter_value_batch_rule);
