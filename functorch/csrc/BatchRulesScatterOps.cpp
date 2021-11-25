@@ -375,7 +375,7 @@ std::tuple<Tensor,optional<int64_t>> gather_backward_batch_rule(
 }
 
 namespace {
-inline Tensor get_expanded_index(const Tensor& index, IntArrayRef self_size, int64_t dim) {
+Tensor get_expanded_index(const Tensor& index, IntArrayRef self_size, int64_t dim) {
   if (index.dim() == 0) {
     return index.expand(self_size);
   }
