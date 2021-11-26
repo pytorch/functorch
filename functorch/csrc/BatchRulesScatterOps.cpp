@@ -423,9 +423,44 @@ std::tuple<Tensor, optional<int64_t>> index_select_batch_rule(
   return std::make_tuple(result, 0);
 }
 
+namespace {
+Tensor get_expanded_index(const Tensor& index, IntArrayRef self_size, int64_t dim) {
+  if (index.dim() == 0) {
+    return index.expand(self_size);
+  }
+
+  // setup new_index_shape as [BS, 1, ..., idx_size, ..., 1]
+  // to reshape index_
+  auto idx_size = index.size(0);  // get non-batch size of index tensor
+  Tensor index_;
+  {
+    VmapDimVector new_index_shape(self_size.size(), 1);
+    new_index_shape[dim] = idx_size;
+    index_ = index.reshape(new_index_shape);
+  }
+  // Now apply expand to index_
+  {
+    VmapDimVector new_index_shape = {self_size.begin(), self_size.end()};
+    new_index_shape[dim] = idx_size;
+    index_ = index_.expand(new_index_shape);
+  }
+  return index_;
+}
+}
+
+Tensor slice_scatter_decomp(const Tensor &self, const Tensor &src,
+                     int64_t dim, c10::optional<int64_t> start,
+                     c10::optional<int64_t> end, int64_t step) {              
+  auto idx = at::arange(start.value_or(0), end.value_or(self.size(dim)), step, self.options().dtype(kLong));
+  idx = get_expanded_index(idx, self.sizes(), dim);
+  return at::scatter(self, dim, idx, src);
+
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   m.impl("index.Tensor", index_plumbing);
   m.impl("index_put_", index_put__plumbing);
+  m.impl("slice_scatter", slice_scatter_decomp);
   VMAP_SUPPORT("gather", gather_batch_rule);
   VMAP_SUPPORT("gather_backward", gather_backward_batch_rule);
   VMAP_SUPPORT("scatter.value", scatter_value_batch_rule);
