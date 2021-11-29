@@ -898,8 +898,8 @@ class TestDecompositionOpInfo(TestCase):
             self.skipTest("op is inplace")
             return
         except RuntimeError as e:
-            if "not implemented for 'Half'" in str(e):
-                self.skipTest("(backwards) op not supported for Half")
+            if "not implemented for" in str(e):
+                self.skipTest(str(e))
                 return
             if "Mismatch in shape: grad_output" in str(e):
                 self.skipTest("Some weird issue with autograd engine and tensor subclasses")

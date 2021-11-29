@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
 _s_where
 elu_backward
 hardshrink_backward
@@ -11,25 +9,3 @@ mse_loss_backward
 sigmoid_backward
 softplus_backward
 tanh_backward
-=======
-hardshrink_backward
-mse_loss_backward
-=======
-_s_where
->>>>>>> updated generation
-detach
-elu_backward
-hardshrink_backward
-hardsigmoid_backward
-hardtanh_backward
-<<<<<<< HEAD
->>>>>>> changed some stuff
-=======
-huber_loss_backward
-leaky_relu_backward
-mse_loss_backward
-sigmoid_backward
-softplus_backward
-tanh_backward
-threshold_backward
->>>>>>> updated generation
