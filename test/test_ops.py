@@ -871,7 +871,7 @@ class TestDecompositionOpInfo(TestCase):
             func = op.get_op()
             for sample_input in samples:
                 if _requires_grad:
-                    fn, primals = normalize_op_for_vjp(func, sample_input)
+                    fn, primals = normalize_op_input_output(func, sample_input)
                     result = fn(*primals)
                     out, vjp_fn = ref_vjp(fn, *primals)
                     cotangents = tree_map(lambda x: torch.randn_like(x), out)

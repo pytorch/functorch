@@ -18,10 +18,7 @@ from .nnc_compile import nnc_compile
 from enum import Enum
 import warnings
 from contextlib import contextmanager
-<<<<<<< HEAD
 
-=======
->>>>>>> fix some decompositions
 aten = torch.ops.aten
 
 decomposition_table = {}
