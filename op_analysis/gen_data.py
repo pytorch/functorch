@@ -162,8 +162,6 @@ def gen_data(special_op_lists, analysis_name):
 
     with open(f"{analysis_name}", 'w') as f:
         for op in ops:
-            # if op['full_name'] == 'sigmoid_backward':
-            #     import pdb; pdb.set_trace()
             info = [op['full_name'], op['meta'], not (op['full_name'] in noncomposite_ops)] + [op['name'] in op_list for op_list in special_op_lists]
             f.write(','.join([str(i) for i in info]) + '\n')
 

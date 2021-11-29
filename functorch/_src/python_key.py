@@ -88,6 +88,12 @@ def mse_loss_backward_decomposition(grad_output: Tensor, input: Tensor, target: 
     norm = 2./input.numel() if reduction == Reduction.MEAN.value else 2.
     return norm * (input - target) * grad_output
 
+@register_decomposition(aten.huber_loss_backward)
+def huber_loss_backward_decomposition(grad_output: Tensor, self: Tensor, target: Tensor, reduction: int, delta: float):
+    norm = 1./self.numel() if reduction == Reduction.MEAN.value else 1.
+    x = self - target
+    return aten.where(x < -delta, -norm * grad_output * delta, aten.where(x > delta, norm * grad_output * delta, norm * x * grad_output))
+
 # @register_decomposition(aten._fused_dropout)
 # def _fused_dropout_decomposition(input, p, generator=None):
 #     mask = aten.to(aten.rand_like(input) < p, dtype=torch.uint8)
