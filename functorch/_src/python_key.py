@@ -68,7 +68,7 @@ def elu_backward_decomposition(grad_output: Tensor, alpha: float, scale: float, 
 
 @register_decomposition(aten.hardsigmoid_backward)
 def hardsigmoid_backward_decomposition(grad_output: Tensor, self: Tensor):
-    return aten.where((self > -3.0) & (self < 3.0), grad_output * (1.0/6.0), torch.tensor(0.0))
+    return aten.where((self > -3.0) & (self < 3.0), grad_output * (1.0/6.0), aten.new_zeros(grad_output, ()))
 
 @register_decomposition(aten.hardtanh_backward)
 def hardtanh_backward_decomposition(grad_output: Tensor, self: Tensor, min_val: float, max_val: float):
