@@ -772,7 +772,7 @@ class DecompositionTensor(torch.Tensor):
         # The wrapping tensor (PythonTensor) is just a meta tensor, so it
         # doesn't hold any memory (meta tensor is generally the preferred type
         # of tensor you want to make a subclass from)...
-        r = torch.Tensor._make_wrapper_subclass(  # type: ignore[attr-defined]
+        r = torch.Tensor._make_wrapper_subclass(
             cls, elem.size(),
             strides=elem.stride(), storage_offset=elem.storage_offset(),
             dtype=elem.dtype, layout=elem.layout,
@@ -788,7 +788,7 @@ class DecompositionTensor(torch.Tensor):
 
     @classmethod
     def __torch_dispatch__(cls, func, types, args=(), kwargs=None):
-        if func in decomposition_table:
+        if func in decomposition_table and func != torch.ops.aten.detach:
             decomposition = decomposition_table[func]
             DecompositionTensor.run_decompositions.add(func)
             return decomposition(*args, **kwargs)
@@ -808,6 +808,7 @@ class DecompositionTensor(torch.Tensor):
             return DecompositionTensor(e) if type(e) == torch.Tensor else e
         wrapped_out =  tree_map(wrap_tensor, real_out)
         return wrapped_out
+
 
 class TestDecompositionOpInfo(TestCase):
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=[torch.float32, torch.float64, torch.float16, torch.bfloat16] + [*integral_types()] )
@@ -898,6 +899,7 @@ class TestDecompositionOpInfo(TestCase):
             if "Mismatch in shape: grad_output" in str(e):
                 self.skipTest("Some weird issue with autograd engine and tensor subclasses")
             raise e
+        import gc; gc.collect()
 
     def test_placeholder(self):
         with open('op_analysis/run_ops.txt', 'w') as f:

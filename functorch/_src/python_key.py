@@ -45,8 +45,8 @@ def tanh_backward_decomposition(out_grad: Tensor, y: Tensor):
 def sigmoid_backward_decomposition(out_grad: Tensor, y: Tensor):
     return out_grad * (y * (1 - y))
 
+# This is only valid if we're running the graph without autograd, such as if the backward pass has been traced.
 @register_decomposition(aten.detach)
-# This is valid if we always sit behind autograd
 def detach_decomposition(x: Tensor):
     return x
 
@@ -78,9 +78,9 @@ def hardtanh_backward_decomposition(grad_output: Tensor, self: Tensor, min_val: 
 def hardshrink_backward(grad_out: Tensor, self: Tensor, lambd: float):
     return aten.where((self >= -lambd) & (self <= lambd), aten.new_zeros(grad_out, ()), grad_out)
 
-@register_decomposition(aten.threshold_backward)
-def threshold_backward_decomposition(grad_output: Tensor, self: Tensor, threshold: float):
-    return aten.where(self <= threshold, aten.new_zeros(grad_output, ()), grad_output)
+# @register_decomposition(aten.threshold_backward)
+# def threshold_backward_decomposition(grad_output: Tensor, self: Tensor, threshold: float):
+#     return aten.where(self <= threshold, aten.new_zeros(grad_output, ()), grad_output)
 
 @register_decomposition(aten.leaky_relu_backward)
 def leaky_relu_backward(grad_output: Tensor, self: Tensor, negative_slope: float, self_is_result: bool):
