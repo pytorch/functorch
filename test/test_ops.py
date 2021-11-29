@@ -901,11 +901,13 @@ class TestDecompositionOpInfo(TestCase):
 
     def test_placeholder(self):
         with open('op_analysis/run_ops.txt', 'w') as f:
-            for op in DecompositionTensor.run_ops:
-                f.write(f'{op.__name__}\n')
+            def get_names(l):
+                return sorted([x.__name__ for x in l])
+            for op in get_names(DecompositionTensor.run_ops):
+                f.write(f'{op}\n')
         with open('op_analysis/run_decompositions.txt', 'w') as f:
-            for op in DecompositionTensor.run_decompositions:
-                f.write(f'{op.__name__}\n')
+            for op in get_names(DecompositionTensor.run_decompositions):
+                f.write(f'{op}\n')
 
 only_for = ("cpu", "cuda")
 instantiate_device_type_tests(TestOperators, globals(), only_for=only_for)
