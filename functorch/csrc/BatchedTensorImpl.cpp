@@ -59,10 +59,10 @@ BatchedTensorImpl::BatchedTensorImpl(DispatchKeySet key_set, Tensor value, int64
   set_storage_access_should_throw();
   set_has_contiguity_policy(HasContiguityPolicy::CustomBehavior);
   checkInvariants();
-  refreshSizesAndStrides();
+  refreshTensorMetadata();
 }
 
-void BatchedTensorImpl::refreshSizesAndStrides() {
+void BatchedTensorImpl::refreshTensorMetadata() {
   const auto public_dims = value_.dim() - 1;
   const auto value_sizes = value_.sizes();
   const auto value_strides = value_.strides();

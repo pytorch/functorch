@@ -61,12 +61,12 @@ def _autograd_grad(outputs, inputs, grad_outputs=None, retain_graph=False, creat
     return tree_unflatten(result, inputs_spec)
 
 
-def diff_arg(arg, is_jvp=False):
+def diff_arg(arg, requires_grad=True):
     def is_differentiable_arg(arg):
-        if is_jvp:
-            return arg.is_floating_point() or arg.is_complex()
-        else:
+        if requires_grad:
             return arg.requires_grad
+        else:
+            return arg.is_floating_point() or arg.is_complex()
     if is_iterable_of_tensors(arg):
         if all([is_differentiable_arg(a) for a in arg]):
             return True
@@ -80,9 +80,9 @@ def diff_arg(arg, is_jvp=False):
 # - f' takes only positional arguments
 # - All arguments to f' are floating-point Tensors
 # - All outputs of f' are floating-point Tensors
-def normalize_op_input_output2(f, args, kwargs, output_process_fn_grad=None, is_jvp=False):
+def normalize_op_input_output2(f, args, kwargs, output_process_fn_grad=None, requires_grad=True):
     flat_args, args_spec = tree_flatten(args)
-    diff_argnums = tuple(i for i, arg in enumerate(flat_args) if diff_arg(arg, is_jvp=is_jvp))
+    diff_argnums = tuple(i for i, arg in enumerate(flat_args) if diff_arg(arg, requires_grad=requires_grad))
 
     assert len(diff_argnums) > 0
     primals = tuple(flat_args[i] for i in diff_argnums)
@@ -104,9 +104,9 @@ def normalize_op_input_output2(f, args, kwargs, output_process_fn_grad=None, is_
         return result
     return wrapped, primals
 
-def normalize_op_input_output(f, sample, is_jvp=False):
+def normalize_op_input_output(f, sample, requires_grad=True):
     args = tuple([sample.input] + list(sample.args))
-    return normalize_op_input_output2(f, args, sample.kwargs, sample.output_process_fn_grad, is_jvp=is_jvp)
+    return normalize_op_input_output2(f, args, sample.kwargs, sample.output_process_fn_grad, requires_grad=requires_grad)
 
 def ref_vjp(f, *primals):
     result = f(*primals)
@@ -120,9 +120,9 @@ def ref_jvp(f, primals, tangents):
     with fwAD.dual_level():
         duals = tuple(fwAD.make_dual(p, t) for p, t in zip(primals, tangents))
         result_duals = f(*duals)
-        result_duals, _ = tree_flatten(result_duals)
+        result_duals, spec = tree_flatten(result_duals)
         primals_out, tangents_out = zip(*(fwAD.unpack_dual(d) for d in result_duals))
-        return primals_out, tangents_out
+        return tree_unflatten(primals_out, spec), tree_unflatten(tangents_out, spec)
 
 # Returns a new function g(*args, *cotangents) that computes vjps and
 # sample (*args, *cotangents)
@@ -149,9 +149,9 @@ def get_vjpfull_variant(f, sample):
 def get_jvp_variant(f, sample):
     # We want this higher-order variant of jvp, so that it can
     # be used to wrap vmap
-    fn, primals = normalize_op_input_output(f, sample, is_jvp=True)
+    fn, primals = normalize_op_input_output(f, sample, requires_grad=False)
     tangents = _as_tuple(
-        tree_map(lambda x: torch.randn_like(x, requires_grad=True), primals))
+        tree_map(lambda x: torch.randn_like(x), primals))
 
     @functools.wraps(f)
     def wrapped(*args):
@@ -261,12 +261,12 @@ class TestOperators(TestCase):
             return
 
         for sample in samples:
-            fn, primals = normalize_op_input_output(op, sample, is_jvp=True)
+            fn, primals = normalize_op_input_output(op, sample, requires_grad=False)
             tangents = tree_map(lambda x: torch.randn_like(x), primals)
             primal_outs, tangent_outs = jvp(fn, primals, tangents)
             expected_primal_outs, expected_tangent_outs = ref_jvp(fn, primals, tangents)
-            self.assertEqual(_as_tuple(primal_outs), expected_primal_outs)
-            self.assertEqual(_as_tuple(tangent_outs), expected_tangent_outs)
+            self.assertEqual(primal_outs, expected_primal_outs)
+            self.assertEqual(tangent_outs, expected_tangent_outs)
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vjp', vjp_fail)
@@ -484,6 +484,14 @@ class TestOperators(TestCase):
         xfail('masked_fill'),
         xfail('masked_scatter'),
 
+        # These are issues that should be fixed in core. See repro in core:
+        # https://github.com/pytorch/functorch/pull/232#discussion_r751405155
+        # RuntimeError: expected scalar type double but found float
+        xfail('minimum'),
+        xfail('min', 'binary'),
+        xfail('maximum'),
+        xfail('max', 'binary'),
+
         # =============================================
         # NB: The above failures also fail in core.
         #     The failures below only fail in functorch
@@ -507,13 +515,9 @@ class TestOperators(TestCase):
         xfail('std_mean'),
         xfail('linalg.eigvalsh'),
 
-        # These are issues that should be fixed in core. See repro in core:
-        # https://github.com/pytorch/functorch/pull/232#discussion_r751405155
-        # RuntimeError: expected scalar type double but found float
-        xfail('minimum'),
-        xfail('min', 'binary'),
-        xfail('maximum'),
-        xfail('max', 'binary'),
+        # Other
+        xfail('double', 'channels_last'),
+        xfail('masked_select'),
     })
     def test_vmapjvp(self, device, dtype, op):
          # These are too annoying to put into the list above
@@ -537,7 +541,7 @@ class TestOperators(TestCase):
             kwarg_values = sample.kwargs
             args = tuple([*arg_values, *kwarg_values])
             fn, args = get_jvp_variant(op, sample)
-            for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}, first_dim_only=True):
+            for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}, bdims=(0,)):
                 self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
 
 
