@@ -62,7 +62,7 @@ def elu_backward_decomposition(grad_output: Tensor, alpha: float, scale: float, 
     poscoef = scale
     negiptcoef = input_scale
     if is_result:
-        return aten.where(b <= 0, grad_output * negiptcoef * (self_or_result + negcoef), self_or_result * poscoef)
+        return aten.where(self_or_result <= 0, grad_output * negiptcoef * (self_or_result + negcoef), self_or_result * poscoef)
     else:
         return aten.where(self_or_result <= 0, grad_output * negiptcoef * negcoef * aten.exp(self_or_result * negiptcoef), grad_output * poscoef)
 

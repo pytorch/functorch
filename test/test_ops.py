@@ -822,7 +822,8 @@ class TestDecompositionOpInfo(TestCase):
         xfail('to_sparse'),
         skip('tensor_split'),
         skip('nn.functional.ctc_loss'),
-        # Some weird matmul stuff with int64
+        skip('mvlgamma'),
+        # Some weird matmul stuff with int64 matmuls
         skip('__rmatmul__'),
         skip('linalg.multi_dot'),
         skip('matmul'),
