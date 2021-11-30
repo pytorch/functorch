@@ -3038,6 +3038,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('view_as_complex'),
         xfail('H'),
         xfail('mH'),
+        xfail('masked_select'),
 
         # entries in here don't work and need to be fixed.
         # Each one of these is a bug
@@ -3155,7 +3156,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('hstack'),
         xfail('linalg.multi_dot'),
         xfail('nanmean'),
-        xfail('nn.functional.layer_norm'),
         xfail('vstack'),
         xfail('block_diag'),
         xfail('nn.functional.dropout'),
@@ -3174,8 +3174,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('fft.ihfftn'),
         xfail('fft.irfft2'),
         xfail('fft.rfft2'),
-        xfail('isinf'),
-        xfail('isreal'),
         xfail('allclose'),
         xfail('argwhere'),
         xfail('bfloat16', 'channels_last'),
@@ -3192,7 +3190,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('rand_like'),
         xfail('randint_like'),
         xfail('searchsorted'),
-        xfail('select_scatter'),
         xfail('short', 'channels_last'),
         xfail('unique_consecutive'),
         xfail('unique'),
