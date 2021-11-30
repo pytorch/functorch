@@ -438,7 +438,7 @@ Tensor lowerToNextLayer<batch_rule_22_t,Tensor,const Tensor &, const Scalar &, c
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
-// ['addmv', 'addr', 'baddbmm', 'sspaddmm', '_sparse_addmm', 'addmm', 'addbmm']
+// ['addmv', 'addr', 'baddbmm', 'sspaddmm', '_sparse_addmm', 'sparse_sampled_addmm', 'addmm', 'addbmm']
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_23_t)(const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Tensor &, c10::optional<int64_t>, const Scalar &, const Scalar &);
 template <>
 Tensor lowerToNextLayer<batch_rule_23_t,Tensor,const Tensor &, const Tensor &, const Tensor &, const Scalar &, const Scalar &>(
@@ -8114,7 +8114,7 @@ Tensor lowerToNextLayer<batch_rule_363_t,Tensor,const Tensor &, const Tensor &, 
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
-// ['upsample_linear1d.vec', 'upsample_bilinear2d.vec', '_upsample_bilinear2d_aa.vec', 'upsample_trilinear3d.vec', 'upsample_bicubic2d.vec', '_upsample_bicubic2d_aa.vec']
+// ['upsample_linear1d.vec', 'upsample_bilinear2d.vec', '_upsample_bilinear2d_aa.vec', 'upsample_trilinear3d.vec', 'upsample_bicubic2d.vec']
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_364_t)(const Tensor &, c10::optional<int64_t>, c10::optional<IntArrayRef>, bool, c10::optional<ArrayRef<double>>);
 template <>
 Tensor lowerToNextLayer<batch_rule_364_t,Tensor,const Tensor &, c10::optional<IntArrayRef>, bool, c10::optional<ArrayRef<double>>>(
@@ -8132,7 +8132,7 @@ Tensor lowerToNextLayer<batch_rule_364_t,Tensor,const Tensor &, c10::optional<In
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
-// ['upsample_linear1d_backward.vec', 'upsample_bilinear2d_backward.vec', '_upsample_bilinear2d_aa_backward.vec', 'upsample_trilinear3d_backward.vec', 'upsample_bicubic2d_backward.vec', '_upsample_bicubic2d_aa_backward.vec']
+// ['upsample_linear1d_backward.vec', 'upsample_bilinear2d_backward.vec', '_upsample_bilinear2d_aa_backward.vec', 'upsample_trilinear3d_backward.vec', 'upsample_bicubic2d_backward.vec']
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_365_t)(const Tensor &, c10::optional<int64_t>, c10::optional<IntArrayRef>, IntArrayRef, bool, c10::optional<ArrayRef<double>>);
 template <>
 Tensor lowerToNextLayer<batch_rule_365_t,Tensor,const Tensor &, c10::optional<IntArrayRef>, IntArrayRef, bool, c10::optional<ArrayRef<double>>>(
@@ -8222,7 +8222,7 @@ Tensor lowerToNextLayer<batch_rule_369_t,Tensor,const Tensor &, IntArrayRef, Int
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
-// ['upsample_bilinear2d', '_upsample_bilinear2d_aa', 'upsample_bicubic2d', '_upsample_bicubic2d_aa']
+// ['upsample_bilinear2d', '_upsample_bilinear2d_aa', 'upsample_bicubic2d']
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_370_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, bool, c10::optional<double>, c10::optional<double>);
 template <>
 Tensor lowerToNextLayer<batch_rule_370_t,Tensor,const Tensor &, IntArrayRef, bool, c10::optional<double>, c10::optional<double>>(
@@ -8240,7 +8240,7 @@ Tensor lowerToNextLayer<batch_rule_370_t,Tensor,const Tensor &, IntArrayRef, boo
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
-// ['upsample_bilinear2d_backward', '_upsample_bilinear2d_aa_backward', 'upsample_bicubic2d_backward', '_upsample_bicubic2d_aa_backward']
+// ['upsample_bilinear2d_backward', '_upsample_bilinear2d_aa_backward', 'upsample_bicubic2d_backward']
 typedef std::tuple<Tensor,c10::optional<int64_t>> (*batch_rule_371_t)(const Tensor &, c10::optional<int64_t>, IntArrayRef, IntArrayRef, bool, c10::optional<double>, c10::optional<double>);
 template <>
 Tensor lowerToNextLayer<batch_rule_371_t,Tensor,const Tensor &, IntArrayRef, IntArrayRef, bool, c10::optional<double>, c10::optional<double>>(
