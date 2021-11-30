@@ -510,7 +510,7 @@ class TestOperators(TestCase):
         xfail('linalg.eigvalsh'),
 
         # functorch doesn't support channels_last
-        # PyTorch core's vmap doesn't have a batching rule for `double`, if it 
+        # PyTorch core's vmap doesn't have a batching rule for `double`, if it
         # did it would also not support channels last, so I'm including this
         # xfail "above the line".
         xfail('double', 'channels_last'),

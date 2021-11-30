@@ -157,6 +157,8 @@ def parse_return(return_t):
     return tuple([x.strip() for x in m.group(1).split(',')])
 
 def parse_args(args_t):
+    # There is an assumption made that args are separated with comma-space
+    # and types like std::array<bool,2> do not contain spaces after the comma
     args = args_t.split(', ')
     result = []
     for arg in args:
