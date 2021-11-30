@@ -16,6 +16,7 @@ import unittest
 from torch.testing._internal.common_device_type import instantiate_device_type_tests, \
     skipCUDAIfNoMagma
 from torch.testing._internal.common_device_type import ops, onlyCPU
+from torch.testing._internal.common_dtype import floating_types_and, integral_types
 from functorch_lagging_op_db import functorch_lagging_op_db
 from functorch_additional_op_db import additional_op_db
 from common_utils import (
@@ -30,7 +31,9 @@ from common_utils import (
 import types
 from torch.utils._pytree import tree_flatten, tree_unflatten, tree_map
 from functorch import grad, vjp, vmap
-from functorch._src.eager_transforms import _as_tuple
+import torch.autograd.forward_ad as fwAD
+from functorch._src.eager_transforms import _as_tuple, jvp
+from functorch.compile import decomposition_table
 
 # Version of autograd.grad that handles outputs that don't depend on inputs
 def _autograd_grad(outputs, inputs, grad_outputs=None, retain_graph=False, create_graph=True):
@@ -60,23 +63,29 @@ def _autograd_grad(outputs, inputs, grad_outputs=None, retain_graph=False, creat
     return tree_unflatten(result, inputs_spec)
 
 
-def diff_arg(arg):
+def diff_arg(arg, requires_grad=True):
+    def is_differentiable_arg(arg):
+        if requires_grad:
+            return arg.requires_grad
+        else:
+            return arg.is_floating_point() or arg.is_complex()
     if is_iterable_of_tensors(arg):
-        if all([a.requires_grad for a in arg]):
+        if all([is_differentiable_arg(a) for a in arg]):
             return True
-        if all([not a.requires_grad for a in arg]):
+        if all([not is_differentiable_arg(a) for a in arg]):
             return False
         raise RuntimeError("NYI: The test runner can't handle this")
-    return isinstance(arg, Tensor) and arg.requires_grad
+    return isinstance(arg, Tensor) and is_differentiable_arg(arg)
 
 
 # Given f, returns an f' such that:
 # - f' takes only positional arguments
 # - All arguments to f' are floating-point Tensors
 # - All outputs of f' are floating-point Tensors
-def normalize_op_for_vjp2(f, args, kwargs, output_process_fn_grad=None):
+def normalize_op_input_output2(f, args, kwargs, output_process_fn_grad=None, requires_grad=True):
     flat_args, args_spec = tree_flatten(args)
-    diff_argnums = tuple(i for i, arg in enumerate(flat_args) if diff_arg(arg))
+    diff_argnums = tuple(i for i, arg in enumerate(flat_args) if diff_arg(arg, requires_grad=requires_grad))
+
     assert len(diff_argnums) > 0
     primals = tuple(flat_args[i] for i in diff_argnums)
 
@@ -97,11 +106,9 @@ def normalize_op_for_vjp2(f, args, kwargs, output_process_fn_grad=None):
         return result
     return wrapped, primals
 
-
-def normalize_op_for_vjp(f, sample):
+def normalize_op_input_output(f, sample, requires_grad=True):
     args = tuple([sample.input] + list(sample.args))
-    return normalize_op_for_vjp2(f, args, sample.kwargs, sample.output_process_fn_grad)
-
+    return normalize_op_input_output2(f, args, sample.kwargs, sample.output_process_fn_grad, requires_grad=requires_grad)
 
 def ref_vjp(f, *primals):
     result = f(*primals)
@@ -111,11 +118,18 @@ def ref_vjp(f, *primals):
 
     return result, wrapped
 
+def ref_jvp(f, primals, tangents):
+    with fwAD.dual_level():
+        duals = tuple(fwAD.make_dual(p, t) for p, t in zip(primals, tangents))
+        result_duals = f(*duals)
+        result_duals, spec = tree_flatten(result_duals)
+        primals_out, tangents_out = zip(*(fwAD.unpack_dual(d) for d in result_duals))
+        return tree_unflatten(primals_out, spec), tree_unflatten(tangents_out, spec)
 
 # Returns a new function g(*args, *cotangents) that computes vjps and
 # sample (*args, *cotangents)
 def get_vjpfull_variant(f, sample):
-    fn, primals = normalize_op_for_vjp(f, sample)
+    fn, primals = normalize_op_input_output(f, sample)
     result = fn(*primals)
     cotangents = _as_tuple(
         tree_map(lambda x: torch.randn_like(x, requires_grad=True), result))
@@ -133,6 +147,27 @@ def get_vjpfull_variant(f, sample):
         return vjp_fn(cotangents)
 
     return wrapped, args
+
+def get_jvp_variant(f, sample):
+    # We want this higher-order variant of jvp, so that it can
+    # be used to wrap vmap
+    fn, primals = normalize_op_input_output(f, sample, requires_grad=False)
+    tangents = _as_tuple(
+        tree_map(lambda x: torch.randn_like(x), primals))
+
+    @functools.wraps(f)
+    def wrapped(*args):
+        tangents = args
+        primals_out, tangents_out = jvp(fn, primals, tangents)
+
+        if isinstance(primals_out, torch.Tensor):
+            return (primals_out, tangents_out)
+        else:
+            flat_primals_out, _ = tree_flatten(primals_out)
+            flat_tangents_out, _ = tree_flatten(tangents_out)
+            return tuple(flat_primals_out + flat_tangents_out)
+
+    return wrapped, tangents
 
 
 def is_inplace(op, variant):
@@ -194,6 +229,57 @@ class TestOperators(TestCase):
             self.assertEqual(result, expected)
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
+    @skipOps('TestOperators', 'test_jvp', set({
+        # See https://github.com/pytorch/pytorch/issues/69034
+        # RuntimeError: expected scalar type double but found float
+        xfail('minimum'),
+        xfail('min', 'binary'),
+        xfail('maximum'),
+        xfail('max', 'binary'),
+
+        # The following don't have a forward-mode AD formula in PyTorch core
+        # (check derivatives.yaml).
+        xfail('var_mean'),
+        xfail('std_mean'),
+        # https://gist.github.com/zou3519/f62a167fb46cda01d7f238f61dd9ccf9
+        xfail('linalg.eigvalsh'),
+        # https://gist.github.com/zou3519/b86616d01ca375a4bd17403277f49225
+        xfail('nn.functional.dropout', device_type='cuda'),
+
+        # =============================================
+        # NB: The above failures also fail using PyTorch core's
+        #     forward-mode AD and vmap.
+        #     The failures below are functorch-specific issues
+        # =============================================
+
+        # Composite ops that do bad things. Need to be fixed in PyTorch core.
+        # RuntimeError: Cannot access data pointer of Tensor that doesn't have storage
+        xfail('linalg.inv'),
+        xfail('linalg.matrix_power'),
+        xfail('linalg.cholesky'),
+        xfail('tensor_split'),
+    }))
+    def test_jvp(self, device, dtype, op):
+        # TODO: when we change supports_autograd to supports_backward_ad, also change in this file
+        if not op.supports_forward_ad:
+            self.skipTest("Skipped! Forward AD not supported.")
+            return
+
+        samples = op.sample_inputs(device, dtype, requires_grad=True)
+        # TODO: test in-place
+        if is_inplace(op, op.get_op()):
+            self.skipTest("Skipped! NYI: inplace-testing not supported.")
+            return
+
+        for sample in samples:
+            fn, primals = normalize_op_input_output(op, sample, requires_grad=False)
+            tangents = tree_map(lambda x: torch.randn_like(x), primals)
+            primal_outs, tangent_outs = jvp(fn, primals, tangents)
+            expected_primal_outs, expected_tangent_outs = ref_jvp(fn, primals, tangents)
+            self.assertEqual(primal_outs, expected_primal_outs)
+            self.assertEqual(tangent_outs, expected_tangent_outs)
+
+    @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vjp', vjp_fail)
     def test_vjp(self, device, dtype, op):
         if not op.supports_autograd:
@@ -209,7 +295,7 @@ class TestOperators(TestCase):
 
         def _test(_op):
             for sample in samples:
-                fn, primals = normalize_op_for_vjp(_op, sample)
+                fn, primals = normalize_op_input_output(_op, sample)
                 result = fn(*primals)
                 cotangents = tree_map(lambda x: torch.randn_like(x), result)
 
@@ -330,7 +416,6 @@ class TestOperators(TestCase):
         xfail('linalg.norm'),
         xfail('linalg.slogdet'),
         xfail('logdet'),
-        xfail('lu'),
         xfail('lu_unpack'),
         xfail('masked_fill'),
         xfail('masked_scatter'),
@@ -360,7 +445,7 @@ class TestOperators(TestCase):
         xfail('nn.functional.poisson_nll_loss'),
         xfail('nn.functional.conv1d', device_type='cuda'),
         xfail('fft.rfft2'),
-        xfail('masked_select'),
+        xfail('lu'),
         xfail('_masked.prod'), # calls aten::item
     })
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
@@ -385,11 +470,96 @@ class TestOperators(TestCase):
             for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}):
                 self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
 
+    # There are several variations we care about
+    # 1) primal batched (TODO)
+    # 2) tangent batched (batched grads) <--
+    # 3) both batched (TODO)
+    # The below tests (2) only.
+    @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
+    @skipOps('TestOperators', 'test_vmapjvp', {
+        xfail('nn.functional.dropout'),  # randomness
+
+        # TODO: fails in core due to in-place batched nto non-batched
+        # but fails here for a different reason
+        xfail('linalg.householder_product'),
+
+        # Try to in-place batched tensor into non-batched tensor
+        xfail('matrix_exp'),
+        xfail('lu'),
+        xfail('fill_'),
+        xfail('block_diag'),  # TODO: We expect this to fail in core, but it doesn't
+        xfail('index_add'),
+        xfail('index_copy'),
+        xfail('index_put'),
+        xfail('index_fill'),
+        xfail('masked_fill'),
+        xfail('masked_scatter'),
+
+        # These are issues that should be fixed in core. See repro in core:
+        # https://github.com/pytorch/functorch/pull/232#discussion_r751405155
+        # RuntimeError: expected scalar type double but found float
+        xfail('minimum'),
+        xfail('min', 'binary'),
+        xfail('maximum'),
+        xfail('max', 'binary'),
+
+        # Apprently these support forward AD, but we get "Trying to use forward AD..."
+        # These are cases where OpInfo has supports_forward_ad=True, but disables the test
+        xfail('var_mean'),
+        xfail('std_mean'),
+        xfail('linalg.eigvalsh'),
+
+        # functorch doesn't support channels_last
+        # PyTorch core's vmap doesn't have a batching rule for `double`, if it 
+        # did it would also not support channels last, so I'm including this
+        # xfail "above the line".
+        xfail('double', 'channels_last'),
+
+        # =============================================
+        # NB: The above failures also fail in PyTorch core.
+        #     The failures below only fail in functorch
+        # =============================================
+
+        # Composite ops that do bad things. Need to be fixed in PyTorch core.
+        # RuntimeError: Cannot access data pointer of Tensor that doesn't have storage
+        xfail('tensor_split'),
+        xfail('linalg.inv'),
+        xfail('linalg.matrix_power'),
+        xfail('linalg.cholesky'),
+
+        # Other
+        xfail('nn.functional.pad', 'circular'),
+    })
+    def test_vmapjvp(self, device, dtype, op):
+         # These are too annoying to put into the list above
+        if op.name in {'nn.functional.linear', 'nn.functional.conv2d'}:
+            self.skipTest("Skipped! Expected failures")
+            return
+
+        if is_inplace(op, op.get_op()):
+            # TODO: test in-place
+            self.skipTest("Skipped! NYI: inplace-testing not supported.")
+            return
+
+        samples = op.sample_inputs(device, dtype, requires_grad=False)
+
+        if not op.supports_forward_ad:
+            self.skipTest("Skipped! Forward AD not supported.")
+            return
+
+        for sample in samples:
+            arg_values = [sample.input] + list(sample.args)
+            kwarg_values = sample.kwargs
+            args = tuple([*arg_values, *kwarg_values])
+            fn, args = get_jvp_variant(op, sample)
+            for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}, bdims=(0,)):
+                self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
+
+
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vmapvjp_has_batch_rule', vmapvjp_fail.union({
         xfail('view_as_complex'),
         xfail('__getitem__'),
-        xfail('__rpow__'),
         xfail('addr'),
         xfail('cdist'),
         xfail('cholesky'),
@@ -409,7 +579,6 @@ class TestOperators(TestCase):
         xfail('fft.rfftn'),
         xfail('cdist'),
         xfail('fill_'),
-        xfail('float_power'),
         xfail('fmax'),
         xfail('fmin'),
         xfail('index_add'),
@@ -436,7 +605,6 @@ class TestOperators(TestCase):
         xfail('linalg.tensorinv'),
         xfail('linalg.vector_norm'),
         xfail('logdet'),
-        xfail('logit'),
         xfail('lu'),
         xfail('lu_solve'),
         xfail('lu_unpack'),
@@ -460,7 +628,6 @@ class TestOperators(TestCase):
         xfail('norm', 'inf'),
         xfail('norm', 'nuc'),
         xfail('pinverse'),
-        xfail('pow'),
         xfail('prod'),
         xfail('put'),
         xfail('quantile'),
@@ -497,7 +664,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.huber_loss'),
         xfail('nn.functional.instance_norm'),
         xfail('nn.functional.poisson_nll_loss'),
-        xfail('select_scatter'),
         xfail('slice_scatter'),
     }))
     def test_vmapvjp_has_batch_rule(self, device, dtype, op):
@@ -580,7 +746,7 @@ class TestOperators(TestCase):
 
             for batched_args, in_dims, kwargs in get_exhaustive_batched_inputs(args, kwargs):
                 vmapped_op = vmap(op, in_dims)
-                fn, primals = normalize_op_for_vjp2(vmapped_op, batched_args, kwargs,
+                fn, primals = normalize_op_input_output2(vmapped_op, batched_args, kwargs,
                                                     sample.output_process_fn_grad)
                 result = fn(*primals)
                 cotangents = tree_map(lambda x: torch.randn_like(x), result)
@@ -593,8 +759,170 @@ class TestOperators(TestCase):
 
                 self.assertEqual(result_vjps, expected_vjps)
 
+class InplaceError(Exception):
+    def __repr__(self):
+        return "Decomposition Tensor with no elem was created (probably due to an in-place op)"
+
+class DecompositionTensor(torch.Tensor):
+    run_decompositions = set()
+    run_ops = set()
+
+    elem: torch.Tensor
+
+    __slots__ = ['elem']
+
+    @staticmethod
+    def __new__(cls, elem):
+        # The wrapping tensor (PythonTensor) is just a meta tensor, so it
+        # doesn't hold any memory (meta tensor is generally the preferred type
+        # of tensor you want to make a subclass from)...
+        r = torch.Tensor._make_wrapper_subclass(
+            cls, elem.size(),
+            strides=elem.stride(), storage_offset=elem.storage_offset(),
+            dtype=elem.dtype, layout=elem.layout,
+            device=elem.device, requires_grad=elem.requires_grad
+        )
+
+        # ...the real tensor is held as an element on the tensor.
+        r.elem = elem
+        return r
+
+    def __repr__(self):
+        return f"DecompositionTensor(elem={self.elem})"
+
+    @classmethod
+    def __torch_dispatch__(cls, func, types, args=(), kwargs=None):
+        if func in decomposition_table and func != torch.ops.aten.detach:
+            decomposition = decomposition_table[func]
+            DecompositionTensor.run_decompositions.add(func)
+            return decomposition(*args, **kwargs)
+        DecompositionTensor.run_ops.add(func)
+        def unwrap_tensor(e):
+            if isinstance(e, DecompositionTensor):
+                if not hasattr(e, 'elem'):
+                    raise InplaceError()
+                return e.elem
+            return e
+
+        real_out = func(*tree_map(unwrap_tensor, args), **tree_map(unwrap_tensor, kwargs))
+
+        def wrap_tensor(e):
+            if e is None:
+                return DecompositionTensor(torch.empty(()))
+            return DecompositionTensor(e) if type(e) == torch.Tensor else e
+        wrapped_out =  tree_map(wrap_tensor, real_out)
+        return wrapped_out
+
+
+class TestDecompositionOpInfo(TestCase):
+    @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=[torch.float32, torch.float64, torch.float16, torch.bfloat16] + [*integral_types()] )
+    # entries in here need don't work and need to be fixed.
+    # Each one of these is a bug (or needs to be investigated)
+    @skipOps('TestDecompositionOpInfo', 'test_decomposition', {
+        skip('view_as_complex'),
+        xfail('linalg.cholesky'),
+        xfail('linalg.inv'),
+        xfail('linalg.matrix_power'),
+        xfail('to_sparse'),
+        skip('tensor_split'),
+        skip('nn.functional.ctc_loss'),
+        skip('mvlgamma'),
+        # Some weird matmul stuff with int64 matmuls
+        skip('__rmatmul__'),
+        skip('linalg.multi_dot'),
+        skip('matmul'),
+        # Can't be compared
+        skip('empty_like'),
+        skip('new_empty'),
+        # inplace op
+        skip('resize_'),
+        # ???
+        skip('nanmean'),
+    })
+    def test_decomposition(self, device, dtype, op):
+        if dtype not in op.supported_dtypes(dtype):
+            self.skipTest("Dtype not in op's supported dtypes")
+            return
+        if is_inplace(op, op.get_op()):
+            self.skipTest("op is inplace")
+            return
+        print(op.op)
+        _requires_grad = op.supports_autograd and dtype.is_floating_point
+        # print(dtype)
+
+        # print(_requires_grad)
+        samples = op.sample_inputs(device, dtype, requires_grad=_requires_grad)
+        # Acquires variants to test
+        def wrap_tensor(x):
+            if type(x) == torch.Tensor:
+                return DecompositionTensor(x)
+            return x
+
+        def unwrap_tensor(x):
+            if type(x) == DecompositionTensor:
+                if not hasattr(x, 'elem'):
+                    raise InplaceError()
+                return x.elem
+            return x
+
+        def _assertEqual(a, b):
+            if dtype == torch.half:
+                self.assertEqual(a, b, rtol=0.001, atol=1e-04)
+            else:
+                self.assertEqual(a, b)
+
+        try:
+            func = op.get_op()
+            for sample_input in samples:
+                if _requires_grad:
+                    fn, primals = normalize_op_input_output(func, sample_input)
+                    result = fn(*primals)
+                    out, vjp_fn = ref_vjp(fn, *primals)
+                    cotangents = tree_map(lambda x: torch.randn_like(x), out)
+                    expected_grads = vjp_fn(cotangents)
+
+                    decomp_out, decomp_vjp_fn = ref_vjp(fn, *tree_map(wrap_tensor, primals))
+                    _assertEqual(out, tree_map(unwrap_tensor, decomp_out))
+
+                    decomp_grads = decomp_vjp_fn(cotangents)
+                    _assertEqual(expected_grads, tree_map(unwrap_tensor, decomp_grads))
+
+                else:
+                    args = [sample_input.input] + list(sample_input.args)
+                    kwargs = sample_input.kwargs
+                    orig_out = func(*args, **kwargs)
+
+                    args = tree_map(wrap_tensor, args)
+                    kwargs = tree_map(wrap_tensor, kwargs)
+                    decomp_out = func(*args, **kwargs)
+                    self.assertEqual(orig_out, tree_map(unwrap_tensor, decomp_out))
+
+
+        except InplaceError:
+            self.skipTest("op is inplace")
+            return
+        except RuntimeError as e:
+            if "not implemented for" in str(e):
+                self.skipTest(str(e))
+                return
+            if "Mismatch in shape: grad_output" in str(e):
+                self.skipTest("Some weird issue with autograd engine and tensor subclasses")
+            raise e
+        import gc; gc.collect()
+
+    def test_placeholder(self):
+        with open('op_analysis/run_ops.txt', 'w') as f:
+            def get_names(l):
+                return sorted([x.__name__ for x in l])
+            for op in get_names(DecompositionTensor.run_ops):
+                f.write(f'{op}\n')
+        with open('op_analysis/run_decompositions.txt', 'w') as f:
+            for op in get_names(DecompositionTensor.run_decompositions):
+                f.write(f'{op}\n')
+
 only_for = ("cpu", "cuda")
 instantiate_device_type_tests(TestOperators, globals(), only_for=only_for)
+instantiate_device_type_tests(TestDecompositionOpInfo, globals(), only_for=only_for)
 
 if __name__ == '__main__':
     run_tests()
