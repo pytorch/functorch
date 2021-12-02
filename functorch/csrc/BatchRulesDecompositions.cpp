@@ -17,20 +17,16 @@ namespace at { namespace functorch {
 at::Tensor sync_and_unwrap_functional_output(at::Tensor out_functional) {
   TORCH_INTERNAL_ASSERT(at::functionalization::impl::isFunctionalTensor(out_functional));
   auto out_wrapper_impl = at::functionalization::impl::unsafeGetFunctionalWrapper(out_functional);
-  // sigh.. we can't just call sync(). sync() only runs if the current tensor is "not up to date".
-  // Where "not up to date" is defined as "has any aliases".
-  // Unfortunately at this point, any aliases to `out_functional` will have been deallocated,
-  // So we need to effectively force the sync.
-  out_wrapper_impl->apply_updates();
-  out_wrapper_impl->regenerate_from_base();
+  out_wrapper_impl->sync_();
   auto out_unwrapped = out_wrapper_impl->value();
   return out_unwrapped;
 }
 
-at::TensorList sync_and_unwrap_functional_output(const c10::List<at::Tensor>& t_list) {
-  std::vector<at::Tensor> outputs(t_list.size());
+c10::List<at::Tensor> sync_and_unwrap_functional_output(const c10::List<at::Tensor>& t_list) {
+  c10::List<Tensor> outputs;
+  outputs.reserve(t_list.size());
   for (const auto i : c10::irange(t_list.size())) {
-    outputs[i] = sync_and_unwrap_functional_output(t_list[i]);
+    outputs.push_back(sync_and_unwrap_functional_output(t_list[i]));
   }
   return outputs;
 }
