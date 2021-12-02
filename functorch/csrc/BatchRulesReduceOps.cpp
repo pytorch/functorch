@@ -275,6 +275,57 @@ std::tuple<Tensor, optional<int64_t>, Tensor, optional<int64_t>> aminmax_batchin
   return std::make_tuple(min, 0, max, 0);
 }
 
+Tensor moveBatchDimToFirstNonZeroFront(const Tensor& tensor, optional<int64_t> maybe_batch_dim) {
+  if (tensor.size(0) > 0) {
+    return moveBatchDimToFront(tensor, maybe_batch_dim);
+  } else if (maybe_batch_dim) {
+    // tensor is (0, ..., 0, S1, ... B, ...) -> (0, ...,0, B, S1, ...)
+    // find first non-zero size dimension
+    int64_t idx = 0;
+    for (auto s: tensor.sizes()) {
+      if (s > 0) {
+        break;
+      }
+      idx++;
+    }
+    return tensor.movedim(maybe_batch_dim.value(), idx);
+  }
+  return tensor;
+}
+
+std::tuple<Tensor,optional<int64_t>> cdist_batch_rule(
+    const Tensor& x1, optional<int64_t> x1_bdim,
+    const Tensor& x2, optional<int64_t> x2_bdim,
+    const double p, c10::optional<int64_t> compute_mode) {
+
+  auto x1_ = moveBatchDimToFront(x1, x1_bdim);
+  auto x2_ = moveBatchDimToFront(x2, x2_bdim);
+
+  int64_t d1 = static_cast<int64_t>(x1_bdim.has_value());
+  int64_t d2 = static_cast<int64_t>(x2_bdim.has_value());
+  while (x2_bdim && x1_.dim() - d1 > x2_.dim() - d2) {
+    // x1:                      [  S1, S2, .............., SK]
+    // x2: [B, D1, ..., DN]  -> [B, 1,  1, ..., 1, D1 ..., DN]
+    x2_ = x2_.unsqueeze(1);
+  }
+  while (x1_bdim && x2_.dim() - d2 > x1_.dim() - d1) {
+    // x2:                      [  S1, S2, .............., SK]
+    // x1: [B, D1, ..., DN]  -> [B, 1,  1, ..., 1, D1 ..., DN]
+    x1_ = x1_.unsqueeze(1);
+  }
+  return std::make_tuple(at::cdist(x1_, x2_, p, compute_mode), 0);
+}
+
+std::tuple<Tensor,optional<int64_t>> cdist_backward_batch_rule(
+    const Tensor& grad, optional<int64_t> grad_bdim,
+    const Tensor& x1, optional<int64_t> x1_bdim,
+    const Tensor& x2, optional<int64_t> x2_bdim,
+    const double p,
+    const Tensor& cdist, optional<int64_t> cdist_bdim) {
+
+  return std::make_tuple(at::_cdist_backward(grad, x1, x2, p, cdist), x1_bdim);
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   REDUCTION_BOXED(_fft_r2c);
   REDUCTION_BOXED(_fft_c2r);
@@ -285,6 +336,9 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   REDUCTION_BOXED(any.dim);
   REDUCTION_BOXED(argmax);
   REDUCTION_BOXED(argmin);
+  VMAP_SUPPORT("cdist", cdist_batch_rule);
+  VMAP_SUPPORT("_cdist_forward", cdist_batch_rule);
+  VMAP_SUPPORT("_cdist_backward", cdist_backward_batch_rule);
   REDUCTION_BOXED(count_nonzero.dim_IntList);
   REDUCTION_BOXED(cummax);
   REDUCTION_BOXED(cummin);
