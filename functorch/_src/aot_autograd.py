@@ -110,11 +110,17 @@ def _extract_graph_with_inputs_outputs(joint_graph, inputs, outputs):
     """
     new_graph = fx.Graph()
     tracer = GraphAppendingTracer(new_graph)
+
+    # Add new placeholder nodes in the order specified by the inputs
+    new_inputs = {}
+    for node in inputs:
+        new_node = new_graph.placeholder(node.name)
+        new_inputs[node.name] = new_node
+
     env = {}
     for node in joint_graph.nodes:
         if node in inputs:
-            new_node = new_graph.placeholder(node.name)
-            env[node] = fx.Proxy(new_node, tracer)
+            env[node] = fx.Proxy(new_inputs[node.name], tracer)
         elif node.op == 'placeholder':
             env[node] = InvalidNode
         elif node.op == 'call_function':
@@ -175,6 +181,7 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
             saved_values.append(node)
     primal_inputs = list(filter(is_primal, joint_module.graph.nodes))
     tangent_inputs = list(filter(is_tangent, joint_module.graph.nodes))
+
     # Construct the forward module
     fwd_graph = _extract_graph_with_inputs_outputs(joint_module.graph, primal_inputs, fwd_outputs + saved_values)
     fwd_module = fx.GraphModule(joint_module, fwd_graph)
@@ -247,9 +254,7 @@ def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, de
 
         @staticmethod
         def backward(ctx, *flat_args):
-            # hmm... this doesn't feel right. todo
-            contiguous_args = [t.contiguous() for t in flat_args]
-            out = normalize_as_list(compiled_bw(*ctx.saved_tensors, *contiguous_args))
+            out = normalize_as_list(compiled_bw(*ctx.saved_tensors, *flat_args))
             out_iter = iter(out)
             grad_out = [next(out_iter) if p else None for p in ctx.needs_input_grad]
             return tuple(grad_out)

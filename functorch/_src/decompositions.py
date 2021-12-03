@@ -55,8 +55,8 @@ def hardshrink_backward(grad_out: Tensor, self: Tensor, lambd: float):
     return aten.where((self >= -lambd) & (self <= lambd), aten.new_zeros(grad_out, ()), grad_out)
 
 @register_decomposition(aten.threshold_backward)
-def threshold_backward_decomposition(grad_output: Tensor, self: Tensor, threshold: float):
-    return aten.where(self <= threshold, aten.new_zeros(grad_output, ()), grad_output)
+def threshold_backward_decomposition(out_grad, x, threshold):
+    return (x <= threshold).type_as(out_grad) * out_grad
 
 @register_decomposition(aten.leaky_relu_backward)
 def leaky_relu_backward_decomposition(grad_output: Tensor, self: Tensor, negative_slope: float, self_is_result: bool):
@@ -165,3 +165,9 @@ def detach_decomposition(x: Tensor):
 @register_decomposition(aten._s_where)
 def _s_where_canonicalization(a, b, c):
     return aten.where(a, b, c)
+
+@register_decomposition(aten.native_dropout)
+def native_dropout_decomposition(input, p, generator=None):
+    bool_mask = aten.rand_like(input) < p
+    res = bool_mask * input * float(1.0 / p)
+    return [res, bool_mask]
