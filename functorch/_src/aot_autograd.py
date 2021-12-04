@@ -254,7 +254,9 @@ def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, de
 
         @staticmethod
         def backward(ctx, *flat_args):
-            out = normalize_as_list(compiled_bw(*ctx.saved_tensors, *flat_args))
+            # hmm... this doesn't feel right. todo
+            contiguous_args = [t.contiguous() for t in flat_args]
+            out = normalize_as_list(compiled_bw(*ctx.saved_tensors, *contiguous_args))
             out_iter = iter(out)
             grad_out = [next(out_iter) if p else None for p in ctx.needs_input_grad]
             return tuple(grad_out)
