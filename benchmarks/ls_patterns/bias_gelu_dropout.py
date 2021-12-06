@@ -44,12 +44,12 @@ opt_fn = memory_efficient_operator_authoring(
     bias_gelu_dropout, compiler_name="torchscript_nvfuser"
 )
 shapes = [
-    # (8, 256, 512),
-    # (8, 512, 1024),
-    # (4, 1024, 1024),
-    # (2, 2048, 2048),
+    (8, 256, 512),
+    (8, 512, 1024),
+    (4, 1024, 1024),
+    (2, 2048, 2048),
     (2, 4096, 4096),
-    # (1, 2048, 12288),
+    (1, 2048, 12288),
 ]
 
 results = {}

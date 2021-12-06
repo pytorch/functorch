@@ -251,7 +251,7 @@ def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, de
                     else:
                         fx_g = make_fx(joint_forward_backward)(*joint_inputs)
                 fw_module, bw_module = partition_fn(fx_g, joint_inputs)
-                print(fw_module.code, bw_module.code)
+                # print(fw_module.code, bw_module.code)
 
                 compiled_fw = fw_compiler(fw_module, flat_args)
                 fw_outs = normalize_as_list(compiled_fw(*flat_args))

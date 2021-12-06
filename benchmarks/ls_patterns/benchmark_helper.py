@@ -34,7 +34,7 @@ def profile_cuda_kernels(fn, args, string_id="Model time"):
             fwd_run()
     # import pdb; pdb.set_trace()
     res1 = prof.key_averages().total_average().self_cuda_time_total
-    print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=30))
+    # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=30))
     # print(f"###### Forward profile for {string_id} ends #####")
 
     # Backward profile
@@ -53,7 +53,7 @@ def profile_cuda_kernels(fn, args, string_id="Model time"):
             with record_function("baseline"):
                 loss.backward()
         res2 = prof.key_averages().total_average().self_cuda_time_total
-        print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=30))
+        # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=30))
         torch.cuda.synchronize()
         # print(f"###### Backward profile for {string_id} ends #####")
 
