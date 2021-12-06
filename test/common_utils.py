@@ -25,7 +25,9 @@ def loop(op, in_dims, out_dim, batch_size, *batched_args, **kwarg_values):
         flat_args, args_spec = pytree.tree_flatten(batched_args)
         flat_dims, dims_spec = pytree.tree_flatten(in_dims)
         assert(args_spec == dims_spec)
-        new_args = [a.select(in_dim, idx) if in_dim is not None else a for a, in_dim in zip(flat_args, flat_dims)]
+        # Tensors in new_args could be required to be contiguous for certain ops like cdist and cdist_backward
+        # Thus, a.select(...) -> a.select(...).contiguous()
+        new_args = [a.select(in_dim, idx).contiguous() if in_dim is not None else a for a, in_dim in zip(flat_args, flat_dims)]
         out = op(*pytree.tree_unflatten(new_args, args_spec), **kwarg_values)
         outs.append(out)
 

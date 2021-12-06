@@ -275,28 +275,9 @@ std::tuple<Tensor, optional<int64_t>, Tensor, optional<int64_t>> aminmax_batchin
   return std::make_tuple(min, 0, max, 0);
 }
 
-Tensor moveBatchDimToFirstNonZeroFront(const Tensor& tensor, optional<int64_t> maybe_batch_dim) {
-  if (tensor.size(0) > 0) {
-    return moveBatchDimToFront(tensor, maybe_batch_dim);
-  } else if (maybe_batch_dim) {
-    // tensor is (0, ..., 0, S1, ... B, ...) -> (0, ...,0, B, S1, ...)
-    // find first non-zero size dimension
-    int64_t idx = 0;
-    for (auto s: tensor.sizes()) {
-      if (s > 0) {
-        break;
-      }
-      idx++;
-    }
-    return tensor.movedim(maybe_batch_dim.value(), idx);
-  }
-  return tensor;
-}
-
-std::tuple<Tensor,optional<int64_t>> cdist_batch_rule(
+std::tuple<Tensor, Tensor> cdist_batch_rule_helper(
     const Tensor& x1, optional<int64_t> x1_bdim,
-    const Tensor& x2, optional<int64_t> x2_bdim,
-    const double p, c10::optional<int64_t> compute_mode) {
+    const Tensor& x2, optional<int64_t> x2_bdim) {
 
   auto x1_ = moveBatchDimToFront(x1, x1_bdim);
   auto x2_ = moveBatchDimToFront(x2, x2_bdim);
@@ -313,8 +294,45 @@ std::tuple<Tensor,optional<int64_t>> cdist_batch_rule(
     // x1: [B, D1, ..., DN]  -> [B, 1,  1, ..., 1, D1 ..., DN]
     x1_ = x1_.unsqueeze(1);
   }
-  return std::make_tuple(at::cdist(x1_, x2_, p, compute_mode), 0);
+  // Backward requires contiguous tensors
+  if (!x1_.is_contiguous()) {
+    x1_ = x1_.contiguous();
+  }
+  if (!x2_.is_contiguous()) {
+    x2_ = x2_.contiguous();
+  }
+  return std::make_tuple(x1_, x2_);
 }
+
+std::tuple<Tensor,optional<int64_t>> cdist_batch_rule(
+    const Tensor& x1, optional<int64_t> x1_bdim,
+    const Tensor& x2, optional<int64_t> x2_bdim,
+    const double p, c10::optional<int64_t> compute_mode) {
+
+  auto x12 = cdist_batch_rule_helper(x1, x1_bdim, x2, x2_bdim);
+  return std::make_tuple(at::cdist(std::get<0>(x12), std::get<1>(x12), p, compute_mode), 0);
+}
+
+std::tuple<Tensor,optional<int64_t>> cdist_forward_batch_rule(
+    const Tensor& x1, optional<int64_t> x1_bdim,
+    const Tensor& x2, optional<int64_t> x2_bdim,
+    const double p, c10::optional<int64_t> compute_mode) {
+
+  auto x12 = cdist_batch_rule_helper(x1, x1_bdim, x2, x2_bdim);
+  auto out = at::_cdist_forward(std::get<0>(x12), std::get<1>(x12), p, compute_mode);
+  return std::make_tuple(out, 0);
+}
+
+std::tuple<Tensor,optional<int64_t>> euclidean_dist_batch_rule(
+    const Tensor& x1, optional<int64_t> x1_bdim,
+    const Tensor& x2, optional<int64_t> x2_bdim) {
+
+  auto x1_ = moveBatchDimToFront(x1, x1_bdim);
+  auto x2_ = moveBatchDimToFront(x2, x2_bdim);
+  auto out = at::_euclidean_dist(x1_, x2_);
+  return std::make_tuple(out, 0);
+}
+
 
 std::tuple<Tensor,optional<int64_t>> cdist_backward_batch_rule(
     const Tensor& grad, optional<int64_t> grad_bdim,
@@ -323,7 +341,33 @@ std::tuple<Tensor,optional<int64_t>> cdist_backward_batch_rule(
     const double p,
     const Tensor& cdist, optional<int64_t> cdist_bdim) {
 
-  return std::make_tuple(at::_cdist_backward(grad, x1, x2, p, cdist), x1_bdim);
+  auto x1_ = x1;
+  if (cdist_bdim && !x1_bdim) {
+    auto bs = cdist.size(*cdist_bdim);
+    x1_ = ensure_has_bdim(x1, false, bs);
+    x1_ = x1_.contiguous();
+    x1_bdim = 0;
+  }
+
+  auto x12 = cdist_batch_rule_helper(x1_, x1_bdim, x2, x2_bdim);
+  x1_ = std::get<0>(x12);
+  Tensor x2_ = std::get<1>(x12);
+
+  auto grad_ = moveBatchDimToFront(grad, grad_bdim);
+  if ((x1_bdim || x2_bdim) && !grad_bdim) {
+    auto bs = get_bdim_size2(x1_, 0, x2_, 0);
+    grad_ = ensure_has_bdim(grad_, grad_bdim.has_value(), bs);
+    grad_ = grad_.contiguous();
+  }
+
+  auto out = at::_cdist_backward(grad_, x1_, x2_, p, cdist);
+
+  optional<int64_t> out_bdim = nullopt;
+  if (x1_bdim || x2_bdim) {
+    out_bdim = 0;
+  }
+
+  return std::make_tuple(out, out_bdim);
 }
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
@@ -337,7 +381,8 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   REDUCTION_BOXED(argmax);
   REDUCTION_BOXED(argmin);
   VMAP_SUPPORT("cdist", cdist_batch_rule);
-  VMAP_SUPPORT("_cdist_forward", cdist_batch_rule);
+  VMAP_SUPPORT("_euclidean_dist", euclidean_dist_batch_rule);
+  VMAP_SUPPORT("_cdist_forward", cdist_forward_batch_rule);
   VMAP_SUPPORT("_cdist_backward", cdist_backward_batch_rule);
   REDUCTION_BOXED(count_nonzero.dim_IntList);
   REDUCTION_BOXED(cummax);
