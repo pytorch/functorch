@@ -5,9 +5,9 @@ import time
 
 
 def profile_cuda_kernels(fn, args, string_id="Model time"):
-    print("################################################")
-    print(f"#### Profiling for {string_id} starts #########")
-    print("################################################")
+    # print("################################################")
+    # print(f"#### Profiling for {string_id} starts #########")
+    # print("################################################")
     warmup = 50
     old_args = args[:]
     n_repeats = 1
@@ -28,37 +28,39 @@ def profile_cuda_kernels(fn, args, string_id="Model time"):
                 arg.grad = None
             ref = fn(*args)
 
-    print(f"###### Forward profile for {string_id} starts #####")
+    # print(f"###### Forward profile for {string_id} starts #####")
     with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
         with record_function("baseline"):
             fwd_run()
+    # import pdb; pdb.set_trace()
+    res1 = prof.key_averages().total_average().self_cuda_time_total
     print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=30))
-    print(f"###### Forward profile for {string_id} ends #####")
+    # print(f"###### Forward profile for {string_id} ends #####")
 
     # Backward profile
-    def bwd_run():
-        for _ in range(0, n_repeats // n_layers):
-            args = list(old_args[:])
-            for arg in args:
-                arg.grad = None
-            ref = fn(*args)
-            loss = ref.sum()
+    for _ in range(0, n_repeats // n_layers):
+        args = list(old_args[:])
+        for arg in args:
+            arg.grad = None
+        ref = fn(*args)
+        loss = ref.sum()
 
-            print(f"###### Backward profile for {string_id} starts #####")
-            torch.cuda.synchronize()
-            with profile(
-                activities=[ProfilerActivity.CUDA], record_shapes=True
-            ) as prof:
-                with record_function("baseline"):
-                    loss.backward()
-            print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=30))
-            torch.cuda.synchronize()
-            print(f"###### Backward profile for {string_id} ends #####")
+        # print(f"###### Backward profile for {string_id} starts #####")
+        torch.cuda.synchronize()
+        with profile(
+            activities=[ProfilerActivity.CUDA], record_shapes=True
+        ) as prof:
+            with record_function("baseline"):
+                loss.backward()
+        res2 = prof.key_averages().total_average().self_cuda_time_total
+        print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=30))
+        torch.cuda.synchronize()
+        # print(f"###### Backward profile for {string_id} ends #####")
 
-    bwd_run()
-    print("################################################")
-    print(f"#### Profiling for {string_id} ends #########")
-    print("################################################\n\n\n\n")
+    return res1, res2
+    # print("################################################")
+    # print(f"#### Profiling for {string_id} ends #########")
+    # print("################################################\n\n\n\n")
 
 
 def time_with_torch_timer(fn, args, string_id):

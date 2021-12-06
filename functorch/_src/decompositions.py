@@ -156,6 +156,10 @@ def native_dropout_decomposition(input, p, generator=None):
     res = bool_mask * input * float(1.0 / p)
     return [res, bool_mask]
 
+# @register_decomposition(aten.rsub)
+# def rsub_decomposition(self, other, alpha=1):
+#     return -self  + other
+
 # @register_decomposition(aten._fused_dropout)
 # def _fused_dropout_decomposition(input, p, generator=None):
 #     mask = aten.to(aten.rand_like(input) < p, dtype=torch.uint8)
@@ -170,3 +174,4 @@ def detach_decomposition(x: Tensor):
 @register_decomposition(aten._s_where)
 def _s_where_canonicalization(a, b, c):
     return aten.where(a, b, c)
+    

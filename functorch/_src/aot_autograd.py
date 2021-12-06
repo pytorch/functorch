@@ -174,7 +174,7 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
 
     saved_values = list(filter(is_primal, nodes))
 
-    random_ops = set([torch.ops.aten.rand_like])
+    random_ops = set([torch.ops.aten.lt])
     random_nodes = list(filter(lambda x: x.target in random_ops, nodes))
 
     for node in random_nodes:
@@ -251,7 +251,7 @@ def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, de
                     else:
                         fx_g = make_fx(joint_forward_backward)(*joint_inputs)
                 fw_module, bw_module = partition_fn(fx_g, joint_inputs)
-                # print(fw_module.code, bw_module.code)
+                print(fw_module.code, bw_module.code)
 
                 compiled_fw = fw_compiler(fw_module, flat_args)
                 fw_outs = normalize_as_list(compiled_fw(*flat_args))
@@ -267,7 +267,7 @@ def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, de
         @staticmethod
         def backward(ctx, *flat_args):
             # hmm... this doesn't feel right. todo
-            contiguous_args = [t.contiguous() for t in flat_args]
+            contiguous_args = [t for t in flat_args]
             out = normalize_as_list(compiled_bw(*ctx.saved_tensors, *contiguous_args))
             out_iter = iter(out)
             grad_out = [next(out_iter) if p else None for p in ctx.needs_input_grad]

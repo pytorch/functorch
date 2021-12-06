@@ -130,15 +130,15 @@ with torch.jit.fuser("fuser2"):
 
 
 # Time it with Torch Timer
-benchmark_helper.time_with_torch_timer(fn, (input, bias, residual), "Eager")
-with torch.jit.fuser("fuser2"):
-    benchmark_helper.time_with_torch_timer(
-        opt_fn, (input, bias, residual), "AOTAutograd"
-    )
+# benchmark_helper.time_with_torch_timer(fn, (input, bias, residual), "Eager")
+# with torch.jit.fuser("fuser2"):
+#     benchmark_helper.time_with_torch_timer(
+#         opt_fn, (input, bias, residual), "AOTAutograd"
+#     )
 
-# Time it with manual Timer
-benchmark_helper.time_with_manual_timer(fn, (input, bias, residual), "Eager")
-with torch.jit.fuser("fuser2"):
-    benchmark_helper.time_with_manual_timer(
-        opt_fn, (input, bias, residual), "AOTAutograd"
-    )
+# # Time it with manual Timer
+# benchmark_helper.time_with_manual_timer(fn, (input, bias, residual), "Eager")
+# with torch.jit.fuser("fuser2"):
+#     benchmark_helper.time_with_manual_timer(
+#         opt_fn, (input, bias, residual), "AOTAutograd"
+#     )
