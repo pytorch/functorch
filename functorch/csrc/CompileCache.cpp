@@ -313,61 +313,39 @@ public:
     return cacheKey;
   }
 
-  std::vector<std::string> buildSignature(int numArgs) {
+  std::string buildSignature(int numArgs) {
     std::string signature = "(";
     for (int i = 0; i < numArgs; i++) {
       signature += "Tensor inp" + std::to_string(i) + ", ";
     }
     signature += "*)";
-    std::vector<std::string> result;
-    result.push_back(signature);
-    return result;
+    return signature;
   }
 
-  template <int N>
-  std::vector<at::Tensor> parsingN(const std::vector<std::string> &signatures,
-                                   PyObject *args, PyObject *kwargs) {
-    torch::PythonArgParser parser(signatures);
-    torch::ParsedArgs<N> parsed_args;
-    torch::PythonArgs r = parser.parse(args, kwargs, parsed_args);
-    std::vector<at::Tensor> tensorArgs; // NOLINT: c-style arrays
-    for (int i = 0; i < N; ++i) {
+  std::vector<at::Tensor> parsePythonArgs(int numArgs, PyObject *args,
+                                          PyObject *kwargs) {
+
+    // Build signature manually
+    auto signature = torch::FunctionSignature(buildSignature(numArgs), 0);
+
+    // Parse the signature and the PythonArgs
+    PyObject *parsed_args[numArgs];
+    signature.parse(nullptr, args, kwargs, parsed_args, true);
+    torch::PythonArgs r = torch::PythonArgs(false, signature, parsed_args);
+
+    // Convert to Tensor Args
+    std::vector<at::Tensor> tensorArgs;
+    for (int i = 0; i < numArgs; ++i) {
       tensorArgs.push_back(r.tensor(i));
     }
     return tensorArgs;
-  }
-
-  std::vector<at::Tensor> parsing(int numArgs, PyObject *args,
-                                  PyObject *kwargs) {
-
-    const std::vector<std::string> signatures = buildSignature(numArgs);
-    switch (numArgs) {
-    case 1:
-      return parsingN<1>(signatures, args, kwargs);
-    case 2:
-      return parsingN<2>(signatures, args, kwargs);
-    case 3:
-      return parsingN<3>(signatures, args, kwargs);
-    case 4:
-      return parsingN<4>(signatures, args, kwargs);
-    case 5:
-      return parsingN<5>(signatures, args, kwargs);
-    case 6:
-      return parsingN<6>(signatures, args, kwargs);
-    case 7:
-      return parsingN<7>(signatures, args, kwargs);
-    case 8:
-      return parsingN<8>(signatures, args, kwargs);
-    default:
-      throw std::runtime_error("TODO: support other arg counts");
-    }
   }
 
   /// Check if the function has already been compiled.
   // py::object at(int64_t id, int numArgs, PyObject *args, PyObject *kwargs) {
   py::object at(int64_t id, int numArgs, const std::string hasherType,
                 PyObject *args, PyObject *kwargs) {
-    std::vector<at::Tensor> tensorArgs = parsing(numArgs, args, kwargs);
+    std::vector<at::Tensor> tensorArgs = parsePythonArgs(numArgs, args, kwargs);
     LocalState state;
     std::string cacheKey = computeCacheKey(tensorArgs, numArgs, hasherType, id);
 
@@ -383,7 +361,7 @@ public:
   /// Insert a new compiled functions for new tensor properties.
   void insert(int64_t id, int numArgs, const std::string hasherType,
               const py::object &compileFn, PyObject *args, PyObject *kwargs) {
-    std::vector<at::Tensor> tensorArgs = parsing(numArgs, args, kwargs);
+    std::vector<at::Tensor> tensorArgs = parsePythonArgs(numArgs, args, kwargs);
     LocalState state;
     std::string cacheKey = computeCacheKey(tensorArgs, numArgs, hasherType, id);
     cache_.emplace(cacheKey, compileFn);
