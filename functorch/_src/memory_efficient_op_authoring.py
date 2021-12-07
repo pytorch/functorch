@@ -6,7 +6,6 @@ from typing import Iterable
 from .aot_autograd import compiled_function, partition_with_recompute_fwd_in_bwd
 
 
-
 def tensorexpr_compile(fx_module, flat_args):
     """Compiles the given fx_module using TensorExpr Kernel"""
     inp_devices = set([i.device for i in flat_args if isinstance(i, torch.Tensor)])

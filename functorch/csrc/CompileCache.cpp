@@ -63,40 +63,6 @@ struct DynamicArgSpecializationKey {
     initDimflags(v.sizes(), v.strides());
   }
 
-  // TODO (anijain) - Code seems expensive for each comparison. Revisit if cache
-  // latency is bad.
-  bool operator<(const DynamicArgSpecializationKey &other) const {
-    auto this_tie = std::tie(flags_, aliasGroup_, dispatchKey_, nDims_);
-    auto other_tie = std::tie(other.flags_, other.aliasGroup_,
-                              other.dispatchKey_, other.nDims_);
-    if (this_tie != other_tie) {
-      return this_tie < other_tie;
-    }
-
-    for (int dim = 0; dim < nDims_; dim++) {
-      if (dimflags_[dim] != other.dimflags_[dim]) {
-        return dimflags_[dim] < other.dimflags_[dim];
-      }
-    }
-    return false;
-  }
-
-  bool operator==(const DynamicArgSpecializationKey &other) const {
-    auto this_tie = std::tie(flags_, aliasGroup_, dispatchKey_, nDims_);
-    auto other_tie = std::tie(other.flags_, other.aliasGroup_,
-                              other.dispatchKey_, other.nDims_);
-    if (this_tie != other_tie) {
-      return false;
-    }
-
-    for (int dim = 0; dim < nDims_; dim++) {
-      if (dimflags_[dim] != other.dimflags_[dim]) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   /// Get the dispatch key for this specialization.
   at::DispatchKeySet dispatchKey() const {
     return at::DispatchKeySet(at::DispatchKeySet::RAW, dispatchKey_);
@@ -207,44 +173,6 @@ struct StaticArgSpecializationKey {
       shapes_.push_back(v.sizes()[dim]);
       strides_.push_back(v.strides()[dim]);
     }
-  }
-
-  // TODO (anijain) - Code seems expensive for each comparison. Revisit if cache
-  // latency is bad.
-  bool operator<(const StaticArgSpecializationKey &other) const {
-    auto this_tie = std::tie(flags_, aliasGroup_, dispatchKey_, nDims_);
-    auto other_tie = std::tie(other.flags_, other.aliasGroup_,
-                              other.dispatchKey_, other.nDims_);
-    if (this_tie != other_tie) {
-      return this_tie < other_tie;
-    }
-
-    for (int dim = 0; dim < nDims_; dim++) {
-      auto this_tie = std::tie(shapes_[dim], strides_[dim]);
-      auto other_tie = std::tie(other.shapes_[dim], other.strides_[dim]);
-      if (this_tie != other_tie) {
-        return this_tie < other_tie;
-      }
-    }
-    return false;
-  }
-
-  bool operator==(const StaticArgSpecializationKey &other) const {
-    auto this_tie = std::tie(flags_, aliasGroup_, dispatchKey_, nDims_);
-    auto other_tie = std::tie(other.flags_, other.aliasGroup_,
-                              other.dispatchKey_, other.nDims_);
-    if (this_tie != other_tie) {
-      return false;
-    }
-
-    for (int dim = 0; dim < nDims_; dim++) {
-      auto this_tie = std::tie(shapes_[dim], strides_[dim]);
-      auto other_tie = std::tie(other.shapes_[dim], other.strides_[dim]);
-      if (this_tie != other_tie) {
-        return false;
-      }
-    }
-    return true;
   }
 
   std::string to_string() {
