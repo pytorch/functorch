@@ -438,18 +438,11 @@ std::tuple<Tensor, optional<int64_t>> diagonal_scatter_batch_rule(
   self_ = ensure_has_bdim(self_, self_bdim.has_value(), batch_size);
   src_ = ensure_has_bdim(src_, src_bdim.has_value(), batch_size);
 
-  // we need `result` to be contiguous as we are going to write `src`
-  // With expanded `self_` tensor we may end up overwriting values.
-  auto result = self_.contiguous();
-
   auto self_logical_rank = rankWithoutBatchDim(self, self_bdim);
   dim1 = maybe_wrap_dim(dim1, self_logical_rank) + 1;
   dim2 = maybe_wrap_dim(dim2, self_logical_rank) + 1;
 
-  // mutates `result`: updates its diagonal to be filled with `src_`.
-  at::diagonal(result, offset, dim1, dim2).copy_(src_);
-
-  return std::make_tuple(result, 0);
+  return std::make_tuple(at::diagonal_scatter(self_, src_, offset, dim1, dim2), 0);
 }
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
