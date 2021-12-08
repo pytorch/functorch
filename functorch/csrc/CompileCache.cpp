@@ -47,165 +47,84 @@ static uint8_t packFlags(const LocalState &state, const at::Tensor &v) {
 /// dtype, dispatch options, aliasing, and per-dim contiguity/broadcasting
 /// information.
 
-struct DynamicArgSpecializationKey {
-  /// Default constructor; does no initialization, use only for
-  /// declarations, e.g., std::array.
-  DynamicArgSpecializationKey() {} // NOLINT: intentionally not initialized
 
-  /// Construct a specialization key from a given TLS state and
-  /// Tensor.
-  // NOLINTNEXTLINE: intentionally not initializing dimflags_
-  DynamicArgSpecializationKey(const LocalState &state, const at::Tensor &v)
-      : flags_(packFlags(state, v)),
-        dispatchKey_(state.apply(v.key_set()).raw_repr()),
-        nDims_(v.ndimension()) {
-    initDimflags(v.sizes(), v.strides());
-  }
+enum DimFlags {
+  /// A leading dimension implicitly added by broadcasting.
+  SIZE_MISSING = 1 << 0,
 
-  /// Get the dispatch key for this specialization.
-  at::DispatchKeySet dispatchKey() const {
-    return at::DispatchKeySet(at::DispatchKeySet::RAW, dispatchKey_);
-  }
+  /// Size == 1.
+  SIZE_ONE = 1 << 1,
 
-  std::string to_string() {
-    std::string hash = "";
-    hash += std::to_string(flags_);
-    hash += std::to_string(aliasGroup_);
-    hash += std::to_string(dispatchKey_);
-    hash += std::to_string(nDims_);
-    for (auto dimFlag : dimflags_) {
-      hash += std::to_string(dimFlag);
-    }
-    return hash;
-  }
+  /// Size > 1.
+  SIZE_OTHER = 1 << 2,
 
-private:
-  /// Flag bits indicating tensor shape properties like contiguity and
-  /// broadcasting that are relevant for codegen.
-  enum DimFlags {
-    /// A leading dimension implicitly added by broadcasting.
-    SIZE_MISSING = 1 << 0,
+  /// Stride == 0; broadcasting.
+  STRIDE_ZERO = 1 << 3,
 
-    /// Size == 1.
-    SIZE_ONE = 1 << 1,
+  /// Stride == 1; packed contiguously in memory.
+  STRIDE_ONE = 1 << 4,
 
-    /// Size > 1.
-    SIZE_OTHER = 1 << 2,
+  /// Stride = Stride[i + 1] * Size[i + 1].
+  /// Used to collapse dimensions.
+  STRIDE_CONTIGUOUS = 1 << 5,
 
-    /// Stride == 0; broadcasting.
-    STRIDE_ZERO = 1 << 3,
+  /// Stride = Stride[i - 1] * Size[i - 1].
+  /// Used to collapse dimensions in the other direction.
+  STRIDE_TRANSPOSED_CONTIGUOUS = 1 << 6, // stride[i-1] * sizes[i-1]
 
-    /// Stride == 1; packed contiguously in memory.
-    STRIDE_ONE = 1 << 4,
-
-    /// Stride = Stride[i + 1] * Size[i + 1].
-    /// Used to collapse dimensions.
-    STRIDE_CONTIGUOUS = 1 << 5,
-
-    /// Stride = Stride[i - 1] * Size[i - 1].
-    /// Used to collapse dimensions in the other direction.
-    STRIDE_TRANSPOSED_CONTIGUOUS = 1 << 6, // stride[i-1] * sizes[i-1]
-
-    /// Stride must be provided as an argument.
-    STRIDE_AS_ARG = 1 << 7,
-  };
-
-  /// Initialize the shape flags for each dimension.
-  void initDimflags(c10::IntArrayRef sizes, c10::IntArrayRef strides) {
-    // Pack all the properties for each dimension into a uint8.
-    dimflags_.reserve(nDims_);
-    for (int64_t dim = 0; dim < nDims_; ++dim) {
-      uint8_t flag =
-          (sizes[dim] == 0 ? SIZE_MISSING
-                           : (sizes[dim] == 1 ? SIZE_ONE : SIZE_OTHER));
-      if (strides[dim] == 0) {
-        flag |= STRIDE_ZERO;
-      } else if (strides[dim] == 1) {
-        flag |= STRIDE_ONE;
-      } else if (dim + 1 < (int64_t)sizes.size() &&
-                 strides[dim] == strides[dim + 1] * sizes[dim + 1]) {
-        flag |= STRIDE_CONTIGUOUS;
-      } else if (dim > 0 && strides[dim] == strides[dim - 1] * sizes[dim - 1] &&
-                 (dimflags_[dim - 1] & STRIDE_CONTIGUOUS) == 0) {
-        flag |= STRIDE_TRANSPOSED_CONTIGUOUS;
-      } else {
-        flag |= STRIDE_AS_ARG;
-      }
-      dimflags_.push_back(flag);
-    }
-  }
-
-private:
-  /// Packed field with requires_grad and dtype.
-  uint8_t flags_;
-
-  /// Bits indicating whether there is aliasing in this group.
-  /// 0 = no aliasing
-  /// >0 = same data, strides, and shapes within group
-  /// <0 = overlapping storage madness
-  int8_t aliasGroup_;
-
-  /// DispatchKeySet includes device/layout.
-  uint64_t dispatchKey_;
-
-  /// Saving the number of dimensions
-  int nDims_;
-
-  /// Per-dimension shape flags.
-  // NOLINTNEXTLINE: C-style arrays
-  std::vector<uint8_t> dimflags_;
+  /// Stride must be provided as an argument.
+  STRIDE_AS_ARG = 1 << 7,
 };
+
+std::vector<int> genDimFlags(c10::IntArrayRef sizes, c10::IntArrayRef strides) {
+  // Pack all the properties for each dimension into a uint8.
+  int nDims = sizes.size();
+  std::vector<int> dimflags(nDims);
+  for (int64_t dim = 0; dim < nDims; ++dim) {
+    uint8_t flag =
+        (sizes[dim] == 0 ? SIZE_MISSING
+                          : (sizes[dim] == 1 ? SIZE_ONE : SIZE_OTHER));
+    if (strides[dim] == 0) {
+      flag |= STRIDE_ZERO;
+    } else if (strides[dim] == 1) {
+      flag |= STRIDE_ONE;
+    } else if (dim + 1 < (int64_t)sizes.size() &&
+                strides[dim] == strides[dim + 1] * sizes[dim + 1]) {
+      flag |= STRIDE_CONTIGUOUS;
+    } else if (dim > 0 && strides[dim] == strides[dim - 1] * sizes[dim - 1] &&
+                (dimflags[dim - 1] & STRIDE_CONTIGUOUS) == 0) {
+      flag |= STRIDE_TRANSPOSED_CONTIGUOUS;
+    } else {
+      flag |= STRIDE_AS_ARG;
+    }
+    dimflags[dim] = flag;
+  }
+  return dimflags;
+}
+
+std::vector<int> dynamic_hasher(const LocalState &state, const at::Tensor &v) {
+    std::vector<int> hash = {
+      0,
+      static_cast<int>(packFlags(state, v)),
+      static_cast<int>(state.apply(v.key_set()).raw_repr()),
+      static_cast<int>(v.ndimension())};
+    auto dimFlags = genDimFlags(v.sizes(), v.strides());
+    hash.insert(hash.end(), dimFlags.begin(), dimFlags.end());
+    return hash;
+}
 
 /// Per-tensor cache specialization key targetting static shapes. Recordsdtype,
 /// dispatch options, aliasing, and full shapes and strides.
-struct StaticArgSpecializationKey {
-  /// Default constructor; does no initialization, use only for
-  /// declarations, e.g., std::array.
-  StaticArgSpecializationKey() {} // NOLINT: intentionally not initialized
-
-  StaticArgSpecializationKey(const LocalState &state, const at::Tensor &v)
-      : flags_(packFlags(state, v)),
-        dispatchKey_(state.apply(v.key_set()).raw_repr()),
-        nDims_(v.ndimension()), shapes_(v.sizes().vec()), strides_(v.strides().vec()) {
-  }
-
-  std::string to_string() {
-    std::string hash = "";
-    hash += std::to_string(flags_);
-    hash += std::to_string(aliasGroup_);
-    hash += std::to_string(dispatchKey_);
-    hash += std::to_string(nDims_);
-    for (auto shape : shapes_) {
-      hash += std::to_string(shape);
-    }
-    for (auto stride : strides_) {
-      hash += std::to_string(stride);
-    }
+std::vector<int> static_hasher(const LocalState &state, const at::Tensor &v) {
+    std::vector<int> hash = {
+      1,
+      static_cast<int>(packFlags(state, v)),
+      static_cast<int>(state.apply(v.key_set()).raw_repr()),
+      static_cast<int>(v.ndimension())};
+    hash.insert(hash.end(), v.sizes().begin(), v.sizes().end());
+    hash.insert(hash.end(), v.strides().begin(), v.strides().end());
     return hash;
-  }
-
-private:
-  /// Packed field with requires_grad and dtype.
-  uint8_t flags_;
-
-  /// Bits indicating whether there is aliasing in this group.
-  /// 0 = no aliasing
-  /// >0 = same data, strides, and shapes within group
-  /// <0 = overlapping storage madness
-  int8_t aliasGroup_;
-
-  /// DispatchKeySet includes device/layout.
-  uint64_t dispatchKey_;
-
-  /// Saving the number of dimensions
-  int nDims_;
-
-  /// Record all tensor shapes.
-  std::vector<int64_t> shapes_;
-
-  /// Record all tensor strides.
-  std::vector<int64_t> strides_;
-};
+}
 
 /// ArgCompileCache is a templated class allowing plugging of different types of
 /// Hasher/Specialization Keys.
@@ -215,43 +134,41 @@ public:
   ~CompileCache() = default;
 
   /// Array defining groups of aliased tensors.
-  using AliasGroups = std::vector<int8_t>;
 
   /// Cache type mapping specialization keys to compiled kernels.
-  using Cache = std::unordered_map<std::string, py::object>;
+  class vector_hasher {
+  public:
+    std::size_t operator()(std::vector<int> const& vec) const {
+      std::size_t seed = vec.size();
+      for(auto& i : vec) {
+        seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+      }
+      return seed;
+    }
+  };
+  using Cache = std::unordered_map<std::vector<int>, py::object, vector_hasher>;
 
   /// Compute the set of specialization keys based on the inputs to
   /// the kernel.
-  std::string computeCacheKey(std::vector<at::Tensor> args, int numArgs,
-                              std::string hasherType, int id) {
+  std::vector<int> computeCacheKey(const std::vector<at::Tensor>& args, int numArgs,
+                              const std::string& hasherType, int id) {
     LocalState state;
-    std::string cacheKey;
+    std::vector<int> cacheKey;
     for (int i = 0; i < numArgs; ++i) {
       if (hasherType == "StaticShapeHasher") {
-        cacheKey += StaticArgSpecializationKey(state, args[i])
-                        .to_string();
+        auto res = static_hasher(state, args[i]);
+        cacheKey.insert(cacheKey.end(), res.begin(), res.end());
       } else if (hasherType == "DynamicShapeHasher") {
-        cacheKey += DynamicArgSpecializationKey(state, args[i])
-                        .to_string();
+        auto res = dynamic_hasher(state, args[i]);
+        cacheKey.insert(cacheKey.end(), res.begin(), res.end());
       }
     }
-    cacheKey += std::to_string(id);
-    cacheKey += std::to_string(numArgs);
+    cacheKey.push_back(id);
+    cacheKey.push_back(numArgs);
     return cacheKey;
   }
 
-  std::string buildSignature(int numArgs) {
-    std::string signature = "(";
-    for (int i = 0; i < numArgs; i++) {
-      signature += "Tensor inp" + std::to_string(i) + ", ";
-    }
-    signature += "*)";
-    return signature;
-  }
-
   std::vector<at::Tensor> parsePythonArgs(int numArgs, PyObject *args) {
-
-    py::tuple py_args = py::make_tuple(py::handle(args));
     // Convert to Tensor Args
     std::vector<at::Tensor> tensorArgs(numArgs);
     for (int i = 0; i < numArgs; ++i) {
@@ -262,28 +179,25 @@ public:
 
   /// Check if the function has already been compiled.
   // py::object at(int64_t id, int numArgs, PyObject *args, PyObject *kwargs) {
-  py::object at(int64_t id, int numArgs, const std::string hasherType,
+  py::object at(int64_t id, int numArgs, const std::string &hasherType,
                 PyObject *args) {
-
     std::vector<at::Tensor> tensorArgs = parsePythonArgs(numArgs, args);
-    LocalState state;
-    std::string cacheKey = computeCacheKey(tensorArgs, numArgs, hasherType, id);
+    std::vector<int> cacheKey = computeCacheKey(tensorArgs, numArgs, hasherType, id);
 
     auto item = cache_.find(cacheKey); // protected by GIL
 
     if (C10_LIKELY(item != cache_.end())) {
-      auto c = cache_.at(cacheKey);
-      return c;
+      return item->second;
     }
     return py::none();
   }
 
   /// Insert a new compiled functions for new tensor properties.
-  void insert(int64_t id, int numArgs, const std::string hasherType,
+  void insert(int64_t id, int numArgs, const std::string &hasherType,
               const py::object &compileFn, PyObject *args) {
     std::vector<at::Tensor> tensorArgs = parsePythonArgs(numArgs, args);
     LocalState state;
-    std::string cacheKey = computeCacheKey(tensorArgs, numArgs, hasherType, id);
+    std::vector<int> cacheKey= computeCacheKey(tensorArgs, numArgs, hasherType, id);
     cache_.emplace(cacheKey, compileFn);
   }
 

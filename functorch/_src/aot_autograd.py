@@ -326,14 +326,15 @@ def compiled_function(
             compile_cache.insert(
                 fn_id, num_args, hasher_type, cached_fn, *flattened_args
             )
-        iters = 10000
-        begin = time.perf_counter()
-        # while True:
-        for _ in range(iters):
-            # continue
-            compile_cache.at(fn_id, num_args, hasher_type, *flattened_args)
-        print((time.perf_counter() - begin) / iters * 1e6)
-        pass
+        else:
+            iters = 10000
+            begin = time.perf_counter()
+            # while True:
+            for _ in range(iters):
+                # continue
+                compile_cache.at(fn_id, num_args, hasher_type, *flattened_args)
+            print((time.perf_counter() - begin) / iters * 1e6)
+            pass
 
         return cached_fn(*flattened_args)
 
