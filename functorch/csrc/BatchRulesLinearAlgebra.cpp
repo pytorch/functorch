@@ -165,10 +165,6 @@ householder_product_batch_rule(const Tensor &input, c10::optional<int64_t> input
   return std::make_tuple(at::linalg_householder_product(input_, tau_), 0);
 }
 
-Tensor orgqr_decomp(const Tensor& input, const Tensor& tau) {
-  return at::linalg_householder_product(input, tau);
-}
-
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT("bmm", bmm_batch_rule);
   m.impl("addmv", addmv_decomp);
@@ -178,7 +174,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT("mv", mv_batch_rule);
   VMAP_SUPPORT("mm", mm_batch_rule);
   m.impl("linear", linear_decomp);
-  m.impl("orgqr", orgqr_decomp);
 
   VARIADIC_BDIMS_BOXED(linalg_cholesky_ex);
   VARIADIC_BDIMS_BOXED(linalg_eig);
