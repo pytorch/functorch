@@ -151,6 +151,24 @@ Tensor linear_decomp(
   return result;
 }
 
+std::tuple<Tensor, c10::optional<int64_t>>
+householder_product_batch_rule(const Tensor &input, c10::optional<int64_t> input_bdim,
+                               const Tensor &tau, c10::optional<int64_t> tau_bdim)
+{
+  auto input_ = moveBatchDimToFront(input, input_bdim);
+  auto tau_ = moveBatchDimToFront(tau, tau_bdim);
+
+  auto batch_size = get_bdim_size2(input, input_bdim, tau, tau_bdim);
+
+  input_ = ensure_has_bdim(input_, input_bdim.has_value(), batch_size);
+  tau_ = ensure_has_bdim(tau_, tau_bdim.has_value(), batch_size);
+  return std::make_tuple(at::linalg_householder_product(input_, tau_), 0);
+}
+
+Tensor orgqr_decomp(const Tensor& input, const Tensor& tau) {
+  return at::linalg_householder_product(input, tau);
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT("bmm", bmm_batch_rule);
   m.impl("addmv", addmv_decomp);
@@ -160,6 +178,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT("mv", mv_batch_rule);
   VMAP_SUPPORT("mm", mm_batch_rule);
   m.impl("linear", linear_decomp);
+  m.impl("orgqr", orgqr_decomp);
 
   VARIADIC_BDIMS_BOXED(linalg_cholesky_ex);
   VARIADIC_BDIMS_BOXED(linalg_eig);
@@ -168,6 +187,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VARIADIC_BDIMS(linalg_pinv);
   VARIADIC_BDIMS_BOXED(linalg_qr);
   VARIADIC_BDIMS_BOXED(linalg_slogdet);
+  VMAP_SUPPORT("linalg_householder_product", householder_product_batch_rule);
 
   VARIADIC_BDIMS(cholesky);
   VARIADIC_BDIMS(cholesky_inverse);

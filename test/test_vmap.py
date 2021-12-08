@@ -3120,7 +3120,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('linalg.cholesky'),
         xfail('linalg.eigvals'),
         xfail('linalg.eigvalsh'),
-        xfail('linalg.householder_product'),
+        # xfail('linalg.householder_product'),
         xfail('linalg.inv'),
         xfail('linalg.lstsq'),
         xfail('linalg.matrix_norm'),
