@@ -304,9 +304,9 @@ def compiled_function(
         nonlocal cached_fn
         if HAS_TREE:
             flattened_args = tree.flatten((args, kwargs))
-            num_args = len(flattened_args)
         else:
             flattened_args, _ = pytree.tree_flatten((args, kwargs))
+        num_args = len(flattened_args)
         # Check if the fn is already compiled
         cached_fn = compile_cache.at(fn_id, num_args, hasher_type, *flattened_args)
 
