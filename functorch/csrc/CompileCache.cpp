@@ -55,9 +55,8 @@ struct DynamicArgSpecializationKey {
   /// Construct a specialization key from a given TLS state and
   /// Tensor.
   // NOLINTNEXTLINE: intentionally not initializing dimflags_
-  DynamicArgSpecializationKey(const LocalState &state, const at::Tensor &v,
-                              int8_t aliasGroup)
-      : flags_(packFlags(state, v)), aliasGroup_(aliasGroup),
+  DynamicArgSpecializationKey(const LocalState &state, const at::Tensor &v)
+      : flags_(packFlags(state, v)),
         dispatchKey_(state.apply(v.key_set()).raw_repr()),
         nDims_(v.ndimension()) {
     initDimflags(v.sizes(), v.strides());
@@ -164,15 +163,10 @@ struct StaticArgSpecializationKey {
   /// declarations, e.g., std::array.
   StaticArgSpecializationKey() {} // NOLINT: intentionally not initialized
 
-  StaticArgSpecializationKey(const LocalState &state, const at::Tensor &v,
-                             int8_t aliasGroup)
-      : flags_(packFlags(state, v)), aliasGroup_(aliasGroup),
+  StaticArgSpecializationKey(const LocalState &state, const at::Tensor &v)
+      : flags_(packFlags(state, v)),
         dispatchKey_(state.apply(v.key_set()).raw_repr()),
-        nDims_(v.ndimension()) {
-    for (int dim = 0; dim < nDims_; dim++) {
-      shapes_.push_back(v.sizes()[dim]);
-      strides_.push_back(v.strides()[dim]);
-    }
+        nDims_(v.ndimension()), shapes_(v.sizes().vec()), strides_(v.strides().vec()) {
   }
 
   std::string to_string() {
@@ -207,34 +201,10 @@ private:
   int nDims_;
 
   /// Record all tensor shapes.
-  std::vector<uint64_t> shapes_;
+  std::vector<int64_t> shapes_;
 
   /// Record all tensor strides.
-  std::vector<uint64_t> strides_;
-};
-
-/// This is the base class for recording Arg or Tensor propoerties. To create a
-/// new Compile cache, we can inherit from this base class and record the
-/// properties we are interested in.
-struct ArgCompileCacheBase {
-  /// Destructor.
-  virtual ~ArgCompileCacheBase() = default;
-
-  /// Check if a key (computed from args and kwargs) is present in the cache.
-  virtual py::object at(PyObject *args, PyObject *kwargs) = 0;
-
-  /// Inserts a new compiled_function for given args.
-  virtual void insert(const py::object &compileFn, PyObject *args,
-                      PyObject *kwargs) = 0;
-
-  /// Get name of kernel.
-  virtual const std::string &getName() const = 0;
-
-  /// Get the size of the cache. Helps in counting the number of recompilations.
-  virtual const int64_t size() const = 0;
-
-  /// Clear the cache.
-  virtual void clear() = 0;
+  std::vector<int64_t> strides_;
 };
 
 /// ArgCompileCache is a templated class allowing plugging of different types of
@@ -250,61 +220,18 @@ public:
   /// Cache type mapping specialization keys to compiled kernels.
   using Cache = std::unordered_map<std::string, py::object>;
 
-  /// Compute aliasing relationships between tensors a and b.
-  /// 0 means a/b don't alias.
-  /// 1 means a/b alias and are the same.
-  /// -1 means a/b have crazy aliasing overlaps.
-  int8_t computeAliasing(const at::Tensor &a, const at::Tensor &b) {
-    if (a.is_alias_of(b)) {
-      if (a.is_set_to(b)) {
-        return 1;
-      } else {
-        // TODO(jansel): check for non-overlapping and return 0 in cases where
-        // we can prove no aliasing. Possibly could take some logic from
-        // tensoriterator.
-        return -1;
-      }
-    } else {
-      return 0;
-    }
-  }
-
-  /// Compute aliasing groups: group of tensors that alias each other.
-  AliasGroups computeAliasGroups(std::vector<at::Tensor> args, int numArgs) {
-    AliasGroups aliasGroups;
-    int8_t currentId = 0;
-    for (int i = 0; i < numArgs; ++i) {
-      aliasGroups.push_back(0);
-    }
-    for (int i = 0; i < numArgs; ++i) {
-      if (aliasGroups[i] == 0) {
-        for (int j = i + 1; j < numArgs; ++j) {
-          int8_t alias_type = computeAliasing(args[i], args[j]);
-          if (alias_type != 0) {
-            if (aliasGroups[i] == 0)
-              ++currentId;
-            aliasGroups[i] = currentId;
-            aliasGroups[j] = currentId * alias_type;
-          }
-        }
-      }
-    }
-    return aliasGroups;
-  }
-
   /// Compute the set of specialization keys based on the inputs to
   /// the kernel.
   std::string computeCacheKey(std::vector<at::Tensor> args, int numArgs,
                               std::string hasherType, int id) {
     LocalState state;
-    AliasGroups aliasGroups = computeAliasGroups(args, numArgs);
     std::string cacheKey;
     for (int i = 0; i < numArgs; ++i) {
       if (hasherType == "StaticShapeHasher") {
-        cacheKey += StaticArgSpecializationKey(state, args[i], aliasGroups[i])
+        cacheKey += StaticArgSpecializationKey(state, args[i])
                         .to_string();
       } else if (hasherType == "DynamicShapeHasher") {
-        cacheKey += DynamicArgSpecializationKey(state, args[i], aliasGroups[i])
+        cacheKey += DynamicArgSpecializationKey(state, args[i])
                         .to_string();
       }
     }
@@ -322,21 +249,13 @@ public:
     return signature;
   }
 
-  std::vector<at::Tensor> parsePythonArgs(int numArgs, PyObject *args,
-                                          PyObject *kwargs) {
+  std::vector<at::Tensor> parsePythonArgs(int numArgs, PyObject *args) {
 
-    // Build signature manually
-    auto signature = torch::FunctionSignature(buildSignature(numArgs), 0);
-
-    // Parse the signature and the PythonArgs
-    PyObject *parsed_args[numArgs];
-    signature.parse(nullptr, args, kwargs, parsed_args, true);
-    torch::PythonArgs r = torch::PythonArgs(false, signature, parsed_args);
-
+    py::tuple py_args = py::make_tuple(py::handle(args));
     // Convert to Tensor Args
-    std::vector<at::Tensor> tensorArgs;
+    std::vector<at::Tensor> tensorArgs(numArgs);
     for (int i = 0; i < numArgs; ++i) {
-      tensorArgs.push_back(r.tensor(i));
+      tensorArgs[i] = THPVariable_Unpack(PyTuple_GET_ITEM(args, i));
     }
     return tensorArgs;
   }
@@ -344,8 +263,9 @@ public:
   /// Check if the function has already been compiled.
   // py::object at(int64_t id, int numArgs, PyObject *args, PyObject *kwargs) {
   py::object at(int64_t id, int numArgs, const std::string hasherType,
-                PyObject *args, PyObject *kwargs) {
-    std::vector<at::Tensor> tensorArgs = parsePythonArgs(numArgs, args, kwargs);
+                PyObject *args) {
+
+    std::vector<at::Tensor> tensorArgs = parsePythonArgs(numArgs, args);
     LocalState state;
     std::string cacheKey = computeCacheKey(tensorArgs, numArgs, hasherType, id);
 
@@ -360,8 +280,8 @@ public:
 
   /// Insert a new compiled functions for new tensor properties.
   void insert(int64_t id, int numArgs, const std::string hasherType,
-              const py::object &compileFn, PyObject *args, PyObject *kwargs) {
-    std::vector<at::Tensor> tensorArgs = parsePythonArgs(numArgs, args, kwargs);
+              const py::object &compileFn, PyObject *args) {
+    std::vector<at::Tensor> tensorArgs = parsePythonArgs(numArgs, args);
     LocalState state;
     std::string cacheKey = computeCacheKey(tensorArgs, numArgs, hasherType, id);
     cache_.emplace(cacheKey, compileFn);
@@ -391,15 +311,14 @@ void initCompileCacheBindings(PyObject *module) {
       .def(py::init(&createCompileCache))
       .def("at",
            [](CompileCache &self, int64_t id, int numArgs,
-              const std::string hasherType, py::args args, py::kwargs kwargs) {
-             return self.at(id, numArgs, hasherType, args.ptr(), kwargs.ptr());
+              const std::string hasherType, py::args args) {
+             return self.at(id, numArgs, hasherType, args.ptr());
            })
       .def("insert",
            [](CompileCache &self, int64_t id, int numArgs,
               const std::string hasherType, const py::object &compileFn,
               py::args args, py::kwargs kwargs) {
-             self.insert(id, numArgs, hasherType, compileFn, args.ptr(),
-                         kwargs.ptr());
+             self.insert(id, numArgs, hasherType, compileFn, args.ptr());
            })
       .def("clear", [](CompileCache &self) { self.clear(); })
       .def("size", [](CompileCache &self) { return self.size(); });

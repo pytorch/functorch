@@ -304,11 +304,11 @@ def compiled_function(
         nonlocal cached_fn
         if HAS_TREE:
             flattened_args = tree.flatten((args, kwargs))
+            num_args = len(flattened_args)
         else:
             flattened_args, _ = pytree.tree_flatten((args, kwargs))
-
         # Check if the fn is already compiled
-        cached_fn = compile_cache.at(fn_id, len(flattened_args), hasher_type, *flattened_args)
+        cached_fn = compile_cache.at(fn_id, num_args, hasher_type, *flattened_args)
 
         # Compile the function and save it in the cache
         if cached_fn is None:
@@ -324,8 +324,16 @@ def compiled_function(
 
             # Save the compiled_fn in the cache
             compile_cache.insert(
-                fn_id, len(flattened_args), hasher_type, cached_fn, *flattened_args
+                fn_id, num_args, hasher_type, cached_fn, *flattened_args
             )
+        iters = 10000
+        begin = time.perf_counter()
+        # while True:
+        for _ in range(iters):
+            # continue
+            compile_cache.at(fn_id, num_args, hasher_type, *flattened_args)
+        print((time.perf_counter() - begin) / iters * 1e6)
+        pass
 
         return cached_fn(*flattened_args)
 
