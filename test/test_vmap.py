@@ -3132,7 +3132,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('linalg.solve'),
         xfail('linalg.svdvals'),
         xfail('linalg.tensorinv'),
-        xfail('lu'),
         xfail('lu_solve'),
         xfail('lu_unpack'),
         xfail('masked_fill'),
