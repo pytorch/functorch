@@ -285,7 +285,7 @@ class TestOperators(TestCase):
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vjp', vjp_fail.union({
-	xfail('nn.functional.conv_transpose3d', device_type='cuda'),
+	skip('nn.functional.conv_transpose3d', device_type='cuda'),  # numerical precision
     }))
     def test_vjp(self, device, dtype, op):
         if not op.supports_autograd:
@@ -319,7 +319,9 @@ class TestOperators(TestCase):
             _test(a_op)
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
-    @skipOps('TestOperators', 'test_vjpvjp', vjp_fail)
+    @skipOps('TestOperators', 'test_vjpvjp', vjp_fail.union({
+        skip('nn.functional.conv_transpose3d'),  # numerical precision problem
+    }))
     def test_vjpvjp(self, device, dtype, op):
         if not op.supports_autograd:
             self.skipTest("Skipped! Autograd not supported.")
@@ -569,7 +571,6 @@ class TestOperators(TestCase):
     @skipOps('TestOperators', 'test_vmapvjp_has_batch_rule', vmapvjp_fail.union({
         xfail('view_as_complex'),
         xfail('__getitem__'),
-        xfail('addr'),
         xfail('cholesky'),
         xfail('clamp'),
         xfail('clamp', 'scalar'),
@@ -579,7 +580,6 @@ class TestOperators(TestCase):
         xfail('cummax'),
         xfail('cummin'),
         xfail('cumprod'),
-        xfail('diag'),
         xfail('diag_embed'),
         xfail('eig'),
         xfail('fft.ihfft'),
@@ -592,7 +592,6 @@ class TestOperators(TestCase):
         xfail('index_copy'),
         xfail('index_fill'),
         xfail('index_select'),
-        xfail('kthvalue'),
         xfail('linalg.cholesky'),
         xfail('linalg.cholesky_ex'),
         xfail('linalg.det'),
@@ -621,12 +620,8 @@ class TestOperators(TestCase):
         xfail('masked_select'),
         xfail('matrix_exp'),
         xfail('max', 'reduction_no_dim'),
-        xfail('max', 'reduction_with_dim'),
         xfail('median'),
         xfail('min', 'reduction_no_dim'),
-        xfail('min', 'reduction_with_dim'),
-        xfail('mode'),
-        xfail('msort'),
         xfail('nanmedian'),
         xfail('nanquantile'),
         xfail('nn.functional.conv_transpose2d'),
@@ -642,12 +637,10 @@ class TestOperators(TestCase):
         xfail('renorm'),
         xfail('repeat_interleave'),
         xfail('solve'),
-        xfail('sort'),
         xfail('symeig'),
         xfail('take'),
         xfail('tensor_split'),
         xfail('to_sparse'),
-        xfail('topk'),
         xfail('trace'),
         xfail('unfold'),
         xfail('vdot'),
@@ -657,13 +650,11 @@ class TestOperators(TestCase):
         xfail('nn.functional.dropout'),
         xfail('nn.functional.batch_norm'),
         xfail('_masked.prod'),
-        xfail('cholesky_solve'),
         xfail('fft.ihfft2'),
         xfail('fft.ihfftn'),
         xfail('fft.rfft2'),
         xfail('nn.functional.embedding'),
         xfail('cross'),
-        xfail('diagonal_scatter'),
         xfail('double', 'channels_last'),
         xfail('linalg.cross'),
         xfail('nn.functional.conv1d'),

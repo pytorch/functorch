@@ -29,6 +29,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE2(__or__, Scalar);
   OP_DECOMPOSE2(__xor__, Tensor);
   OP_DECOMPOSE2(__xor__, Scalar);
+  OP_DECOMPOSE(index_select_backward);
   OP_DECOMPOSE(absolute);
   OP_DECOMPOSE(avg_pool1d);
   OP_DECOMPOSE(adaptive_max_pool1d);
@@ -147,6 +148,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(cross_entropy_loss);
   OP_DECOMPOSE(arctan2);
   OP_DECOMPOSE(layer_norm);
+  OP_DECOMPOSE(diag_backward);
 }
 
 }}

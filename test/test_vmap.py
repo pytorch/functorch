@@ -3099,7 +3099,6 @@ class TestVmapOperatorsOpInfo(TestCase):
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestVmapOperatorsOpInfo', 'test_op_has_batch_rule', vmap_fail.union({
-        xfail('addr'),
         xfail('complex'),
         xfail('copysign'),
         xfail('diag_embed'),
@@ -3171,7 +3170,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('view_as_complex'),
         xfail('matrix_exp'),
         xfail('bucketize'),
-        xfail('cholesky_solve'),
         xfail('fft.fft2'),
         xfail('fft.hfft2'),
         xfail('fft.hfftn'),
@@ -3185,7 +3183,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('bfloat16', 'channels_last'),
         xfail('byte', 'channels_last'),
         xfail('char', 'channels_last'),
-        xfail('diagonal_scatter'),
         xfail('double', 'channels_last'),
         xfail('float', 'channels_last'),
         xfail('half', 'channels_last'),
