@@ -688,8 +688,8 @@ class TestGradTransform(TestCase):
 
         grad(grad(foo))(x)
         expected = textwrap.dedent("""\
-                GradTrackingTensor(lvl=3, value=
-                    GradTrackingTensor(lvl=2, value=
+                GradTrackingTensor(lvl=2, value=
+                    GradTrackingTensor(lvl=1, value=
                         tensor(3.1400)
                     )
                 )""")
@@ -1685,6 +1685,17 @@ class TestComposability(TestCase):
         y = vjp_fn(x)[0]
         # Honestly IDK what the result here is... but at least it runs
 
+    def test_grad_autograd(self, device):
+        x = torch.randn([], device=device, requires_grad=True)
+        g = grad(torch.sin)(x)
+        gg, = torch.autograd.grad(g, x)
+        self.assertEqual(gg, -x.sin())
+
+    def test_vmap_autograd(self, device):
+        x = torch.randn(3, device=device, requires_grad=True)
+        g = vmap(torch.sin)(x)
+        gg, = torch.autograd.grad(g.sum(), x)
+        self.assertEqual(gg, x.cos())
 
 class TestExamplesCorrectness(TestCase):
     def test_maml_regression(self, device):
