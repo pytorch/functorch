@@ -25,6 +25,43 @@ static DynmetaData& getGlobalDynmetaData() {
   return kDynMetaDataSingleton;
 }
 
+constexpr DispatchKeySet all_dynlayer_keyset = DispatchKeySet({
+  kDynamicLayerFrontModeKey,
+  kDynamicLayerBackModeKey,
+  kGradWrapperKey,
+  // DispatchKey::Batched,
+  kBatchedKey,
+  DispatchKey::ADInplaceOrView
+}) | autograd_dispatch_keyset;
+
+struct ForceLocalDispatchKeySet {
+ public:
+  ForceLocalDispatchKeySet(c10::impl::LocalDispatchKeySet key_set) :
+      saved_keyset_(c10::impl::tls_local_dispatch_key_set()) {
+    c10::impl::_force_tls_local_dispatch_key_set(key_set);
+  }
+  ~ForceLocalDispatchKeySet() {
+    c10::impl::_force_tls_local_dispatch_key_set(saved_keyset_);
+  }
+
+ private:
+  c10::impl::LocalDispatchKeySet saved_keyset_;
+};
+
+// removes functorch-tracked keys from local exclude and include set
+static ForceLocalDispatchKeySet resetFunctorchLocalDispatchKeySetRAII() {
+  auto new_local_dispatch_key_set = c10::impl::tls_local_dispatch_key_set();
+  new_local_dispatch_key_set.included_ = new_local_dispatch_key_set.included_ - all_dynlayer_keyset;
+  new_local_dispatch_key_set.excluded_ = new_local_dispatch_key_set.excluded_ - all_dynlayer_keyset;
+  return ForceLocalDispatchKeySet(new_local_dispatch_key_set);
+}
+
+static void setDynamicLayerFrontBackKeysIncluded(bool included) {
+  c10::impl::tls_set_dispatch_key_included(kDynamicLayerFrontModeKey, included);
+  c10::impl::tls_set_dispatch_key_included(kDynamicLayerBackModeKey, included);
+}
+
+
 class DynamicLayerStackHolder : public FuncTorchTLSBase {
  public:
   DynamicLayerStackHolder() {}
@@ -93,8 +130,7 @@ static DynamicLayer popDynamicLayer() {
       std::cout << "DynamicLayer off" << std::endl;
     }
 #endif
-    c10::impl::tls_set_dispatch_key_included(kDynamicLayerFrontModeKey, false);
-    c10::impl::tls_set_dispatch_key_included(kDynamicLayerBackModeKey, false);
+    setDynamicLayerFrontBackKeysIncluded(false);
   }
 
   return result;
@@ -107,8 +143,7 @@ static int64_t pushDynamicLayer(DynamicLayer&& dynamic_layer) {
   dynamicLayerStack.emplace_back(dynamic_layer);
 
   if (layerId == 2) {
-    c10::impl::tls_set_dispatch_key_included(kDynamicLayerFrontModeKey, true);
-    c10::impl::tls_set_dispatch_key_included(kDynamicLayerBackModeKey, true);
+    setDynamicLayerFrontBackKeysIncluded(true);
   }
 
   return layerId;
@@ -126,9 +161,7 @@ static int64_t pushDynamicLayer(
   dynamicLayerStack.emplace_back(key, layerId, batch_size, prev_grad_mode);
 
   if (layerId == 2) {
-    // std::cout << "DynamicLayer on" << std::endl;
-    c10::impl::tls_set_dispatch_key_included(kDynamicLayerFrontModeKey, true);
-    c10::impl::tls_set_dispatch_key_included(kDynamicLayerBackModeKey, true);
+    setDynamicLayerFrontBackKeysIncluded(true);
   }
 
   return layerId;
@@ -303,15 +336,6 @@ static bool anyTensors(
   return !allTensors(args, [&](const Tensor& self) { return !pred(self); });
 }
 
-constexpr DispatchKeySet all_dynlayer_keyset = DispatchKeySet({
-  kDynamicLayerFrontModeKey,
-  kDynamicLayerBackModeKey,
-  kGradWrapperKey,
-  // DispatchKey::Batched,
-  kBatchedKey,
-  DispatchKey::ADInplaceOrView
-}) | autograd_dispatch_keyset;
-
 static void sanityCheckStack(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   auto num_args = op.schema().arguments().size();
   foreachTensorInplace(*stack, stack->size() - num_args, stack->size(),
@@ -389,6 +413,23 @@ static void checkForInvalidMutationOnCaptures(
       "as inputs.");
 }
 
+static std::tuple<DispatchKeySet,DispatchKeySet> getIncludeExcludeSetsFor(DispatchKey key) {
+  DispatchKeySet include;
+  DispatchKeySet exclude = all_dynlayer_keyset;
+  exclude = exclude.remove(kDynamicLayerBackModeKey);
+
+  if (key == DispatchKey::Autograd) {
+    exclude = exclude - autograd_dispatch_keyset;
+    exclude = exclude.remove(DispatchKey::ADInplaceOrView);
+  } else if (key == kBatchedKey) {
+    exclude = exclude.remove(kBatchedKey);
+    include = include.add(kVmapModeKey);
+  } else {
+    TORCH_INTERNAL_ASSERT(false);
+  }
+  return std::make_tuple(include, exclude);
+}
+
 void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   auto& dynamicLayerStack = dynamicLayerStackAccessor();
 #ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
@@ -418,23 +459,18 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
 
   auto layer = dynamicLayerStack.back();
 
-  DispatchKeySet exclude = all_dynlayer_keyset;
-  exclude = exclude.remove(kDynamicLayerBackModeKey);
-  DispatchKeySet include;
-  if (layer.key() == DispatchKey::Autograd) {
-    exclude = exclude - autograd_dispatch_keyset;
-    exclude = exclude.remove(DispatchKey::ADInplaceOrView);
-  } else if (layer.key() == kBatchedKey) {
-    // Only enable dispatch on kBatchedKey if there are tensors batched
-    // at the current level.
+  auto include_exclude = getIncludeExcludeSetsFor(layer.key());
+  auto include = std::get<0>(include_exclude);
+  auto exclude = std::get<1>(include_exclude);
+  // Hack: only enable dispatch on kBatchedKey if there are tensors batched
+  // at the current level.
+  if (layer.key() == kBatchedKey) {
     const auto args = torch::jit::last(stack, op.schema().arguments().size());
-    if (anyTensors(args, batchedAtCurrentLevel)) {
-      exclude = exclude.remove(kBatchedKey);
+    if (!anyTensors(args, batchedAtCurrentLevel)) {
+      exclude = exclude.add(kBatchedKey);
     }
-    include = include.add(kVmapModeKey);
-  } else {
-    TORCH_INTERNAL_ASSERT(false);
   }
+
   c10::impl::ExcludeDispatchKeyGuard exclude_guard(exclude);
   c10::impl::IncludeDispatchKeyGuard include_guard(include);
 
@@ -527,13 +563,8 @@ void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* 
   WithoutTop guard;
 
   // "reset exclude set"
-  // TODO: Still a problem with composabiilty and AutoNonVariableTypeGuard.
-  // Users cannot do torch.no_grad otherwise there will be problems.
-  SaveLocalDispatchKeySet save_guard;
-  auto keyset = c10::impl::PODLocalDispatchKeySet();
-  c10::impl::_force_tls_local_dispatch_key_set(keyset);
-  c10::impl::tls_set_dispatch_key_included(kDynamicLayerFrontModeKey, true);
-  c10::impl::tls_set_dispatch_key_included(kDynamicLayerBackModeKey, true);
+  auto key_guard = resetFunctorchLocalDispatchKeySetRAII();
+  setDynamicLayerFrontBackKeysIncluded(true);
 
   // Re-dispatch
   if (cur_key == DispatchKey::Autograd && *prev_grad_mode == false) {
