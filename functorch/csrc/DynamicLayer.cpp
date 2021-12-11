@@ -62,12 +62,12 @@ static void setDynamicLayerFrontBackKeysIncluded(bool included) {
 }
 
 
-class DynamicLayerStackHolder : public FuncTorchTLSBase {
+class FuncTorchTLS : public FuncTorchTLSBase {
  public:
-  DynamicLayerStackHolder() {}
+  FuncTorchTLS() {}
 
   std::unique_ptr<FuncTorchTLSBase> deepcopy() const override {
-    auto result = std::make_unique<DynamicLayerStackHolder>();
+    auto result = std::make_unique<FuncTorchTLS>();
     result->dynamicLayerStack = dynamicLayerStack;
     return result;
   }
@@ -77,14 +77,19 @@ class DynamicLayerStackHolder : public FuncTorchTLSBase {
   std::vector<DynamicLayer> dynamicLayerStack = { DynamicLayer(DispatchKey::Autograd, 1, nullopt, true) };
 };
 
-static std::vector<DynamicLayer>& dynamicLayerStackAccessor() {
+static FuncTorchTLS* getRawFunctorchTLS() {
   auto& state = functorchTLSAccessor();
   if (state == nullptr) {
-    state = std::make_unique<DynamicLayerStackHolder>();
+    state = std::make_unique<FuncTorchTLS>();
   }
   // Raw pointer usage OK, `state` keeps the pointer alive
   FuncTorchTLSBase* raw_state = state.get();
-  DynamicLayerStackHolder* holder = static_cast<DynamicLayerStackHolder*>(raw_state);
+  FuncTorchTLS* result = static_cast<FuncTorchTLS*>(raw_state);
+  return result;
+}
+
+static std::vector<DynamicLayer>& dynamicLayerStackAccessor() {
+  auto holder = getRawFunctorchTLS();
   // TODO: Can memoize if perf is a problem
   return holder->dynamicLayerStack;
 }
@@ -156,15 +161,8 @@ static int64_t pushDynamicLayer(
   auto& dynamicLayerStack = dynamicLayerStackAccessor();
   TORCH_INTERNAL_ASSERT(key != DispatchKey::Undefined);
   TORCH_INTERNAL_ASSERT(key != DispatchKey::Batched);
-
   auto layerId = 1 + dynamicLayerStack.size();
-  dynamicLayerStack.emplace_back(key, layerId, batch_size, prev_grad_mode);
-
-  if (layerId == 2) {
-    setDynamicLayerFrontBackKeysIncluded(true);
-  }
-
-  return layerId;
+  return pushDynamicLayer(DynamicLayer(key, layerId, batch_size, prev_grad_mode));
 }
 
 int64_t initAndPushDynamicLayer(
@@ -439,7 +437,12 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
 #endif
   if (dynamicLayerStack.size() == 0) {
     sanityCheckStack(op, stack);
+
+    // TODO: what is a reasonable state?
+    // Ideally, when we make the first dynamic layer, we save the include/exclude
+    // sets on kfunctorchdispatchkeyset.
     c10::impl::ExcludeDispatchKeyGuard guard(all_dynlayer_keyset);
+
     op.callBoxed(stack);
     return;
   }
