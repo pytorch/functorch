@@ -18,6 +18,39 @@
 namespace at {
 namespace functorch {
 
+DynamicLayer::DynamicLayer(
+    DispatchKey key,
+    int64_t layerId,
+    optional<int64_t> batchSize,
+    optional<bool> prev_grad_mode)
+  :
+    key_(key),
+    layerId_(layerId),
+    batchSize_(batchSize),
+    prevGradMode_(prev_grad_mode)
+{
+  if (key_ == DispatchKey::Autograd) {
+    TORCH_INTERNAL_ASSERT(prev_grad_mode.has_value());
+  }
+}
+
+DispatchKey DynamicLayer::key() const {
+  return key_;
+}
+
+int64_t DynamicLayer::layerId() const {
+  return layerId_;
+}
+
+int64_t DynamicLayer::batchSize() const {
+  TORCH_INTERNAL_ASSERT(batchSize_);
+  return *batchSize_;
+}
+
+optional<bool> DynamicLayer::prevGradMode() const {
+  return prevGradMode_;
+}
+
 using DynmetaData = std::unordered_map<int64_t, std::shared_ptr<bool>>;
 DynmetaData kDynMetaDataSingleton;
 
