@@ -212,7 +212,7 @@ def create_joint_forward_backward(fn):
         out = fn(*primals)
         primals = [p for p in pytree.tree_flatten(primals)[0] if p.requires_grad]
         backward_out = []
-        if primals:
+        if primals: # todo(chilli): Make it support it if not all outputs have gradients
             backward_out = torch.autograd.grad(out, primals, grad_outputs=tangents, allow_unused=True)
         return out, backward_out
     return joint_forward_backward
