@@ -51,11 +51,8 @@ optional<bool> DynamicLayer::prevGradMode() const {
   return prevGradMode_;
 }
 
-using DynmetaData = std::unordered_map<int64_t, std::shared_ptr<bool>>;
-DynmetaData kDynMetaDataSingleton;
-
-static DynmetaData& getGlobalDynmetaData() {
-  return kDynMetaDataSingleton;
+const std::shared_ptr<bool>& DynamicLayer::lifeHandle() const {
+  return life_handle_;
 }
 
 constexpr DispatchKeySet all_dynlayer_keyset = DispatchKeySet({
@@ -140,9 +137,12 @@ static void setDynamicLayerFrontBackKeysIncluded(bool included) {
 
 
 std::shared_ptr<bool> getLifeHandleForLevel(int64_t level) {
-  auto it = getGlobalDynmetaData().find(level);
-  TORCH_INTERNAL_ASSERT(it != kDynMetaDataSingleton.end(), "level should be alive");
-  return it->second;
+  TORCH_INTERNAL_ASSERT(level >= 1);
+  int64_t idx = level - 1;
+  const auto& dls = dynamicLayerStackAccessor();
+  TORCH_INTERNAL_ASSERT(dls.size() > idx,
+      "Objects should be constructed when the associated DynamicLayer is on the stack");
+  return dls[idx].lifeHandle();
 }
 
 optional<DynamicLayer> maybeCurrentDynamicLayer() {
@@ -162,8 +162,8 @@ void setDynamicLayerStack(const std::vector<DynamicLayer>& stack) {
 }
 
 bool areTransformsActive() {
-  const auto& data = getGlobalDynmetaData();
-  return !data.empty();
+  // TODO: is this sufficient?
+  return c10::impl::tls_is_dispatch_key_included(kDynamicLayerBackModeKey);
 }
 
 static DynamicLayer popDynamicLayer() {
@@ -205,17 +205,6 @@ static int64_t pushDynamicLayer(DynamicLayer&& dynamic_layer) {
   return layerId;
 }
 
-static int64_t pushDynamicLayer(
-    DispatchKey key,
-    optional<int64_t> batch_size = nullopt,
-    optional<bool> prev_grad_mode = nullopt) {
-  auto& dynamicLayerStack = dynamicLayerStackAccessor();
-  TORCH_INTERNAL_ASSERT(key != DispatchKey::Undefined);
-  TORCH_INTERNAL_ASSERT(key != DispatchKey::Batched);
-  auto layerId = 1 + dynamicLayerStack.size();
-  return pushDynamicLayer(DynamicLayer(key, layerId, batch_size, prev_grad_mode));
-}
-
 int64_t initAndPushDynamicLayer(
     DispatchKey key,
     optional<int64_t> batch_size,
@@ -228,35 +217,19 @@ int64_t initAndPushDynamicLayer(
     TORCH_INTERNAL_ASSERT(getRawFunctorchTLS()->prev_local_keyset_.has_value());
   }
 
-  auto layerId = pushDynamicLayer(key, batch_size, prev_grad_mode);
-  auto& data = getGlobalDynmetaData();
-  TORCH_INTERNAL_ASSERT(data.find(layerId) == data.end());
+  TORCH_INTERNAL_ASSERT(key != DispatchKey::Undefined);
+  TORCH_INTERNAL_ASSERT(key != DispatchKey::Batched);
   if (key == DispatchKey::Autograd) {
     TORCH_INTERNAL_ASSERT(prev_grad_mode.has_value());
   }
-  data[layerId] = std::make_shared<bool>(true);
-  return layerId;
+  auto layerId = 1 + dynamicLayerStack.size();
+  return pushDynamicLayer(DynamicLayer(key, layerId, batch_size, prev_grad_mode));
 }
 
 DynamicLayer popDynamicLayerAndDeleteMetadata() {
   auto result = popDynamicLayer();
-  auto level = result.layerId();
-
-  // TODO: is this lock safe? No one else should be writing to the same bucket
-  // if (c10::show_dispatch_trace_enabled()) {
-  //   std::cout << "deleting metadata" << std::endl;
-  // }
-  auto& data = getGlobalDynmetaData();
-  auto it = data.find(level);
-  if (it == data.end()) {
-    return result;
-  }
-  // if (c10::show_dispatch_trace_enabled()) {
-  //   std::cout << "deleted metadata for level " << level << std::endl;
-  // }
-  // invalidate the thing
-  *(it->second) = false;
-  data.erase(level);
+  // NB: Thread safe because this operation can only be done from Python
+  *result.lifeHandle() = false;
 
   auto& dynamicLayerStack = dynamicLayerStackAccessor();
   const auto is_empty = dynamicLayerStack.size() == 0;
@@ -617,20 +590,22 @@ void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* 
     foreachTensorInplace(*stack, stack->size() - args_size, stack->size(), unwrap);
   }
 
-  // pop the top layer. Put it back on dtor.
-  WithoutTop guard;
+  {
+    // pop the top layer. Put it back on dtor.
+    WithoutTop guard;
 
-  // "reset exclude set"
-  auto key_guard = resetFunctorchLocalDispatchKeySetRAII();
-  setDynamicLayerFrontBackKeysIncluded(true);
+    // "reset exclude set"
+    auto key_guard = resetFunctorchLocalDispatchKeySetRAII();
+    setDynamicLayerFrontBackKeysIncluded(true);
 
-  // Re-dispatch
-  if (cur_key == DispatchKey::Autograd && *prev_grad_mode == false) {
-    // See NOTE [grad and vjp interaction with no_grad]
-    c10::AutoGradMode guard(*prev_grad_mode);
-    op.callBoxed(stack);
-  } else {
-    op.callBoxed(stack);
+    // Re-dispatch
+    if (cur_key == DispatchKey::Autograd && *prev_grad_mode == false) {
+      // See NOTE [grad and vjp interaction with no_grad]
+      c10::AutoGradMode guard(*prev_grad_mode);
+      op.callBoxed(stack);
+    } else {
+      op.callBoxed(stack);
+    }
   }
 
   // Step 4, 5, 6

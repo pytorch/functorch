@@ -18,7 +18,7 @@ namespace at {
 namespace functorch {
 
 struct TORCH_API DynamicLayer {
-  DynamicLayer(
+  explicit DynamicLayer(
       DispatchKey key,
       int64_t layerId,
       optional<int64_t> batchSize = nullopt,
@@ -26,6 +26,7 @@ struct TORCH_API DynamicLayer {
 
   DispatchKey key() const;
   int64_t layerId() const;
+  const std::shared_ptr<bool>& lifeHandle() const;
 
   // Only valid for vmap
   int64_t batchSize() const;
@@ -35,6 +36,9 @@ struct TORCH_API DynamicLayer {
  private:
   DispatchKey key_;
   int64_t layerId_;
+
+  // Reports false if the transform doesn't exist anymore.
+  std::shared_ptr<bool> life_handle_ = std::make_shared<bool>(true);
 
   // Honestly these should be a union or some extendable metadata class.
   // Not doing that for now because I don't think we'll use this mechanism for very long.
