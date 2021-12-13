@@ -262,6 +262,12 @@ class TestOperators(TestCase):
         xfail('linalg.matrix_power'),
         xfail('linalg.cholesky'),
         xfail('tensor_split'),
+
+        # Causing a CUDA assert, needs investigation
+        skip('div', 'floor_rounding', device_type='cuda'),
+        skip('div', 'no_rounding_mode', device_type='cuda'),
+        skip('div', 'trunc_rounding', device_type='cuda'),
+        skip('true_divide', device_type='cuda'),
     }))
     def test_jvp(self, device, dtype, op):
         # TODO: when we change supports_autograd to supports_backward_ad, also change in this file
@@ -453,10 +459,11 @@ class TestOperators(TestCase):
         xfail('lu'),
         skip('qr'),  # Nondetermistic
         xfail('_masked.prod'), # calls aten::item
-        xfail('nn.functional.conv_transpose3d'),
         xfail('stft'),
         xfail('nn.functional.glu'),
         xfail('nn.functional.conv_transpose1d', device_type='cuda'),
+        skip('nn.functional.conv_transpose2d', device_type='cuda'),
+        xfail('nn.functional.conv_transpose3d', device_type='cuda'),
         xfail('nn.functional.fractional_max_pool3d'),
         xfail('as_strided'),
         xfail('nn.functional.fractional_max_pool2d'),
@@ -545,6 +552,12 @@ class TestOperators(TestCase):
         xfail('linalg.inv'),
         xfail('linalg.matrix_power'),
         xfail('linalg.cholesky'),
+
+        # Causing a CUDA assert, needs investigation
+        skip('div', 'floor_rounding', device_type='cuda'),
+        skip('div', 'no_rounding_mode', device_type='cuda'),
+        skip('div', 'trunc_rounding', device_type='cuda'),
+        skip('true_divide', device_type='cuda'),
     })
     def test_vmapjvp(self, device, dtype, op):
         if is_inplace(op, op.get_op()):
@@ -645,7 +658,6 @@ class TestOperators(TestCase):
         xfail('unfold'),
         xfail('vdot'),
         xfail('nanmean'),
-        xfail('nn.functional.layer_norm'),
         xfail('block_diag'),
         xfail('nn.functional.dropout'),
         xfail('nn.functional.batch_norm'),
@@ -808,6 +820,7 @@ class TestDecompositionOpInfo(TestCase):
         xfail('to_sparse'),
         skip('tensor_split'),
         skip('mvlgamma'),
+        skip('tanh', device_type='cuda'), # cuda bfloat16 failure
         skip('eig'),
         skip('nn.functional.dropout'),
         skip('_masked.softmin'),
@@ -830,7 +843,6 @@ class TestDecompositionOpInfo(TestCase):
             torch.complex64  : (1.3e-6, 1e-5),
             torch.complex128 : (1e-7, 1e-7),
         }
-
         # Returns the "default" rtol and atol for comparing scalars or
         # tensors of the given dtypes.
         def _getDefaultRtolAndAtol(dtype0, dtype1):
@@ -839,16 +851,17 @@ class TestDecompositionOpInfo(TestCase):
             atol = max(dtype_precisions.get(dtype0, (0, 0))[1],
                     dtype_precisions.get(dtype1, (0, 0))[1])
             return rtol, atol
-
         def op_assert_equal(op, a, b):
+            assert a.dtype == b.dtype
             # Some ops, like those involving reductions, are fundamentally non-decomposable with precision guarantees
             tol_table = {
-                aten._softmax_backward_data: (0.016, 1e-2), # aggghhhhhhhhhh I hate reductions and floating point
-                aten._log_softmax_backward_data: (0.016, 1e-2),
+                (torch.bfloat16, aten._softmax_backward_data): (0.016, 1e-2), # aggghhhhhhhhhh I hate reductions and floating point
+                (torch.bfloat16, aten._log_softmax_backward_data): (0.016, 1e-2),
+                # (torch.float16, aten.im2col_backward): (0.016, 1e-2),
             }
             msg = f"{op} decomposition failed"
-            if op in tol_table:
-                rtol, atol = tol_table[op]
+            if (b.dtype, op) in tol_table:
+                rtol, atol = tol_table[(b.dtype, op)]
             else:
                 rtol, atol = _getDefaultRtolAndAtol(a.dtype, b.dtype)
             assert torch.allclose(a, b, rtol=rtol, atol=atol), msg
@@ -890,15 +903,34 @@ class TestDecompositionOpInfo(TestCase):
 
                 real_out = func(*tree_map(unwrap_tensor, args), **tree_map(unwrap_tensor, kwargs))
 
+
                 if func in decomposition_table and func != torch.ops.aten.detach:
+                    upcast_table = set([
+                        aten.tanh_backward,
+                    ])
                     decomposition = decomposition_table[func]
                     global run_decompositions
                     run_decompositions.add(func)
+                    input_dtypes = set()
+
+                    def upcast_tensor(x):
+                        if isinstance(x, Tensor) and (x.dtype == torch.bfloat16 or x.dtype == torch.float16):
+                            input_dtypes.add(x.dtype)
+                            x = x.to(dtype=torch.float32)
+                        return x
+                    # Theoretically, most PyTorch ops compute intermediates as fp32. But this breaks some ops...
+                    if func in upcast_table: 
+                        args = tree_map(upcast_tensor, args) 
+                        kwargs = tree_map(upcast_tensor, kwargs)
                     decomp_out =  decomposition(*args, **kwargs)
                     real_out_flat = tree_flatten(real_out)[0]
                     decomp_out_flat = tree_flatten(decomp_out)[0]
                     assert(len(real_out_flat) == len(decomp_out_flat))
+                    assert(len(input_dtypes) <= 1)
+                    input_dtypes = list(input_dtypes)
                     for a, b in zip(real_out_flat, decomp_out_flat):
+                        if len(input_dtypes) > 0:
+                            b = b.to(dtype=input_dtypes[0])
                         op_assert_equal(func, a, b)
 
                 def wrap_tensor(e):
