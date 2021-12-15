@@ -171,6 +171,27 @@ def get_jvp_variant(f, sample):
 
     return wrapped, tangents
 
+def get_jvp_variant_primals_tangents(f, sample):
+    # We want this higher-order variant of jvp, so that it can
+    # be used to wrap vmap
+    fn, primals = normalize_op_input_output(f, sample, requires_grad=False)
+    tangents = _as_tuple(
+        tree_map(lambda x: torch.randn_like(x), primals))
+
+    @functools.wraps(f)
+    def wrapped(*args):
+        primals_in = args[:len(primals)]
+        tangents_in = args[len(primals):]
+        primals_out, tangents_out = jvp(fn, primals_in, tangents_in)
+
+        if isinstance(primals_out, torch.Tensor):
+            return (primals_out, tangents_out)
+        else:
+            flat_primals_out, _ = tree_flatten(primals_out)
+            flat_tangents_out, _ = tree_flatten(tangents_out)
+            return tuple(flat_primals_out + flat_tangents_out)
+
+    return wrapped, primals + tangents
 
 def is_inplace(op, variant):
     if hasattr(variant, "__wrapped__"):
@@ -179,6 +200,8 @@ def is_inplace(op, variant):
 
 
 vjp_fail = {
+    skip('nn.functional.dropout'),  # randomness testing artifact
+    skip('nn.functional.rrelu'),  # randomness testing artifact
     xfail('linalg.cholesky'),
     xfail('linalg.inv'),
     xfail('linalg.matrix_power'),
@@ -234,6 +257,9 @@ class TestOperators(TestCase):
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_jvp', set({
+        skip('nn.functional.dropout'),  # randomness testing artifact; not actually a problem
+        skip('nn.functional.rrelu'),  # randomness testing artifact; not actually a problem
+
         # See https://github.com/pytorch/pytorch/issues/69034
         # RuntimeError: expected scalar type double but found float
         xfail('minimum'),
@@ -407,7 +433,6 @@ class TestOperators(TestCase):
                 self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
     vmapvjp_fail = vjp_fail.union({
         # All of the following are bugs and need to be fixed
-        xfail('clamp', ''),
         xfail('diag_embed'),
         xfail('eig'),
         xfail('view_as_complex'),
@@ -432,10 +457,6 @@ class TestOperators(TestCase):
         xfail('masked_fill'),
         xfail('masked_scatter'),
         xfail('matrix_exp'),
-        xfail('max', 'reduction_no_dim', device_type='cpu'),
-        xfail('median', device_type='cpu'),
-        xfail('min', 'reduction_no_dim', device_type='cpu'),
-        xfail('nanmedian', device_type='cpu'),
         xfail('nanquantile'),
         xfail('norm', 'fro'),
         xfail('norm', 'nuc'),
@@ -445,7 +466,6 @@ class TestOperators(TestCase):
         xfail('symeig'),
         xfail('take'),
         xfail('linalg.tensorinv'),
-        xfail('nn.functional.conv_transpose2d', device_type='cuda'),
         xfail('nanmean'),
         xfail('block_diag'),
         xfail('nn.functional.dropout'),
@@ -454,16 +474,14 @@ class TestOperators(TestCase):
         xfail('double', 'channels_last'),
         xfail('nn.functional.gaussian_nll_loss'),
         xfail('nn.functional.poisson_nll_loss'),
-        xfail('nn.functional.conv1d', device_type='cuda'),
+        skip('nn.functional.conv1d', device_type='cuda'),
         xfail('fft.rfft2'),
         xfail('lu'),
         skip('qr'),  # Nondetermistic
         xfail('_masked.prod'), # calls aten::item
         xfail('stft'),
         xfail('nn.functional.glu'),
-        xfail('nn.functional.conv_transpose1d', device_type='cuda'),
-        skip('nn.functional.conv_transpose2d', device_type='cuda'),
-        xfail('nn.functional.conv_transpose3d', device_type='cuda'),
+
         xfail('nn.functional.fractional_max_pool3d'),
         xfail('as_strided'),
         xfail('nn.functional.fractional_max_pool2d'),
@@ -472,7 +490,7 @@ class TestOperators(TestCase):
     @skipOps('TestOperators', 'test_vmapvjp', vmapvjp_fail)
     def test_vmapvjp(self, device, dtype, op):
         # These are too annoying to put into the list above
-        if op.name in {'nn.functional.linear', 'nn.functional.conv2d'}:
+        if op.name in {'nn.functional.linear'}:
             self.skipTest("Skipped! ExpectedF failures")
         if not op.supports_autograd:
             self.skipTest("Skipped! Autograd not supported.")
@@ -497,7 +515,8 @@ class TestOperators(TestCase):
     # The below tests (2) only.
     @ops(functorch_lagging_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vmapjvp', {
-        xfail('nn.functional.dropout'),  # randomness
+        skip('nn.functional.dropout'),  # randomness
+        skip('nn.functional.rrelu'),  # randomness
 
         # TODO: fails in core due to in-place batched nto non-batched
         # but fails here for a different reason
@@ -541,6 +560,16 @@ class TestOperators(TestCase):
         # See https://github.com/pytorch/pytorch/issues/66357
         xfail('nn.functional.pad', 'circular'),
 
+        # RuntimeError: expand: the number of sizes provided (1) must be greater or equal to the number of dimensions in the tensor (2)
+        xfail('nanquantile'),
+        xfail('quantile'),
+
+        # RuntimeError: vmap: inplace arithmetic(self, *extra_args)
+        xfail('nn.functional.gelu'),
+
+        # Not implemented
+        xfail('scatter'),
+
         # =============================================
         # NB: The above failures also fail in PyTorch core.
         #     The failures below only fail in functorch
@@ -579,13 +608,90 @@ class TestOperators(TestCase):
             for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}, bdims=(0,)):
                 self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
 
+    @ops(functorch_lagging_op_db, allowed_dtypes=(torch.float,))
+    @skipOps('TestOperators', 'test_vmapjvpall', {
+        skip('nn.functional.dropout'),  # randomness
+        skip('nn.functional.rrelu'),  # randomness
+
+        # Causing a CUDA assert, needs investigation
+        skip('div', 'floor_rounding', device_type='cuda'),
+        skip('div', 'no_rounding_mode', device_type='cuda'),
+        skip('div', 'trunc_rounding', device_type='cuda'),
+        skip('true_divide', device_type='cuda'),
+
+        # xfail list
+        xfail('linalg.inv'),
+        xfail('masked_fill'),
+        xfail('__rpow__'),
+        xfail('logit'),
+        xfail('linalg.tensorinv'),
+        xfail('nn.functional.pad', 'circular'),
+        xfail('linalg.matrix_power'),
+        xfail('cumprod'),
+        xfail('maximum'),
+        xfail('corrcoef'),
+        xfail('linalg.householder_product'),
+        xfail('tensor_split'),
+        xfail('nn.functional.gelu'),
+        xfail('quantile'),
+        xfail('var_mean'),
+        xfail('index_add'),
+        xfail('as_strided'),
+        xfail('linalg.eigvalsh'),
+        xfail('clamp', 'scalar'),
+        xfail('pow'),
+        xfail('fill_'),
+        xfail('linalg.cholesky'),
+        xfail('max', 'binary'),
+        xfail('nn.functional.gaussian_nll_loss'),
+        xfail('min', 'binary'),
+        xfail('index_fill'),
+        xfail('index_put'),
+        xfail('std_mean'),
+        xfail('double', 'channels_last'),
+        xfail('block_diag'),
+        xfail('float_power'),
+        xfail('diag_embed'),
+        xfail('fmin'),
+        xfail('minimum'),
+        xfail('scatter'),
+        xfail('fmax'),
+        xfail('matrix_exp'),
+        xfail('nanquantile'),
+        xfail('lu'),
+        xfail('nn.functional.linear'),
+        xfail('index_copy'),
+        xfail('masked_scatter'),
+        xfail('view_as_complex'),
+    })
+    # This is technically a superset of test_vmapjvp. We should either delete test_vmapjvp
+    # or figure out if we can split vmapjvpall. It's useful to keep test_vmapjvp intact
+    # because that coresponds to "batched forward-mode AD" testing in PyTorch core
+    def test_vmapjvpall(self, device, dtype, op):
+        if is_inplace(op, op.get_op()):
+            # TODO: test in-place
+            self.skipTest("Skipped! NYI: inplace-testing not supported.")
+            return
+
+        samples = op.sample_inputs(device, dtype, requires_grad=False)
+
+        if not op.supports_forward_ad:
+            self.skipTest("Skipped! Forward AD not supported.")
+            return
+
+        for sample in samples:
+            arg_values = [sample.input] + list(sample.args)
+            kwarg_values = sample.kwargs
+            args = tuple([*arg_values, *kwarg_values])
+            fn, args = get_jvp_variant_primals_tangents(op, sample)
+            for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}):
+                self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vmapvjp_has_batch_rule', vmapvjp_fail.union({
         xfail('view_as_complex'),
         xfail('__getitem__'),
         xfail('cholesky'),
-        xfail('clamp'),
         xfail('clamp', 'scalar'),
         xfail('complex'),
         xfail('copysign'),
@@ -669,7 +775,7 @@ class TestOperators(TestCase):
         xfail('cross'),
         xfail('double', 'channels_last'),
         xfail('linalg.cross'),
-        xfail('nn.functional.conv1d'),
+        skip('nn.functional.conv1d'),
         xfail('nn.functional.gaussian_nll_loss'),
         xfail('nn.functional.hardsigmoid'),
         xfail('nn.functional.huber_loss'),
@@ -737,7 +843,6 @@ class TestOperators(TestCase):
         xfail('index_put'),
         xfail('linalg.multi_dot'),
         xfail('vstack'),
-        xfail('block_diag'),
         xfail('nn.functional.batch_norm'),
         xfail('lu_solve'),
         xfail('lu_unpack'),
@@ -821,6 +926,7 @@ class TestDecompositionOpInfo(TestCase):
         skip('tensor_split'),
         skip('mvlgamma'),
         skip('tanh', device_type='cuda'), # cuda bfloat16 failure
+        skip('nn.functional.tanhshrink', device_type='cuda'), # cuda bfloat16 failure
         skip('eig'),
         skip('nn.functional.dropout'),
         skip('_masked.softmin'),

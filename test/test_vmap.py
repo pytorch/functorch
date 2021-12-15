@@ -143,6 +143,12 @@ class TestVmapAPI(TestCase):
         output = vmap(vmap(vmap(torch.mul)))(x, y)
         self.assertEqual(output, x * y)
 
+    def test_nested_with_diag_embed(self):
+        # diag_embed requires special testing because it is registered with conditional functionalization.
+        x = torch.randn(3, 3, 5)
+        output = vmap(vmap(torch.diag_embed))(x)
+        self.assertEqual(output, torch.diag_embed(x))
+
     def test_nested_with_different_map_dim(self):
         x = torch.randn(2, 3)
         y = torch.randn(5, 3)
@@ -2867,7 +2873,6 @@ class TestVmapBatchedGradient(Namespace.TestVmapBase):
         self._test_arithmetic(lambda x, y: x / y, device)
 
     @allowVmapFallbackUsage
-    @unittest.expectedFailure
     def test_binary_cross_entropy(self, device):
         x = F.sigmoid(torch.randn(3, 2, device=device, requires_grad=True))
         target = torch.rand(3, 2, device=device)
@@ -3089,7 +3094,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('vstack'),
         xfail('dstack'),
         xfail('linalg.multi_dot'),
-        xfail('block_diag'),
         xfail('nn.functional.dropout'),
         xfail('view_as_complex'),
         xfail('H'),
@@ -3157,7 +3161,6 @@ class TestVmapOperatorsOpInfo(TestCase):
     @skipOps('TestVmapOperatorsOpInfo', 'test_op_has_batch_rule', vmap_fail.union({
         xfail('complex'),
         xfail('copysign'),
-        xfail('diag_embed'),
         xfail('dsplit'),
         xfail('eig'),
         xfail('fft.fftn'),
@@ -3187,14 +3190,12 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('linalg.solve'),
         xfail('linalg.svdvals'),
         xfail('linalg.tensorinv'),
-        xfail('lu'),
         xfail('lu_solve'),
         xfail('lu_unpack'),
         xfail('masked_fill'),
         xfail('masked_scatter'),
         xfail('masked_select'),
         xfail('nanquantile'),
-        xfail('nn.functional.conv_transpose2d'),
         xfail('norm', 'fro'),
         xfail('norm', 'nuc'),
         xfail('ormqr'),
@@ -3218,7 +3219,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('linalg.multi_dot'),
         xfail('nanmean'),
         xfail('vstack'),
-        xfail('block_diag'),
         xfail('nn.functional.dropout'),
         xfail('nn.functional.conv2d', ''),
         xfail('nn.functional.batch_norm'),
@@ -3263,7 +3263,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('nn.functional.poisson_nll_loss'),
         xfail('nn.functional.max_pool3d'),
         xfail('histc'),
-        xfail('nn.functional.conv_transpose1d'),
         xfail('as_strided'),
         xfail('istft'),
         xfail('nonzero'),
@@ -3280,7 +3279,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('isclose'),
         xfail('cartesian_prod'),
         xfail('nn.functional.fractional_max_pool3d'),
-        xfail('nn.functional.conv_transpose3d'),
         xfail('nn.functional.rrelu'),
         xfail('nn.functional.bilinear'),
         xfail('nn.functional.embedding_bag'),
