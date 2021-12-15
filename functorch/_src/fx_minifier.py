@@ -3,33 +3,37 @@ import copy
 import torch
 import math
 
+
 class ConcreteProp(torch.fx.Interpreter):
-        def run_node(self, n):
-                result = super().run_node(n)
+    def run_node(self, n):
+        result = super().run_node(n)
 
-                found_tensor = False
+        found_tensor = False
 
-                def extract_tensor_meta(obj):
-                        if isinstance(obj, torch.Tensor):
-                                nonlocal found_tensor
-                                found_tensor = True
-                                return obj
-                        else:
-                                return obj
+        def extract_tensor_meta(obj):
+            if isinstance(obj, torch.Tensor):
+                nonlocal found_tensor
+                found_tensor = True
+                return obj
+            else:
+                return obj
 
-                from torch.fx.node import map_aggregate
-                concrete_value = map_aggregate(result, extract_tensor_meta)
-                if found_tensor:
-                        n.meta['concrete_value'] = concrete_value
-                return result
+        from torch.fx.node import map_aggregate
+        concrete_value = map_aggregate(result, extract_tensor_meta)
+        if found_tensor:
+            n.meta['concrete_value'] = concrete_value
+        return result
 
-        def propagate(self, *args):
-                return super().run(*args)
+    def propagate(self, *args):
+        return super().run(*args)
+
 
 def _get_placeholders(graph):
     return list(filter(lambda x: x.op == 'placeholder', graph.nodes))
 
 # inplace modifies node/inps
+
+
 def _convert_node_to_placeholder(node, inps):
     node.op = 'placeholder'
     node.args = ()
@@ -42,13 +46,15 @@ def _convert_node_to_placeholder(node, inps):
         for tuple_user in list(node.users):
             _convert_node_to_placeholder(tuple_user, inps)
 
+
 def minimizer(fail_f: fx.GraphModule, inps, pass_checker):
     """
     Minimizes a FX graph with given inputs, such that the resulting FX graph still fails the pass_checker.
 
     Does 2 main strategies:
     1. Truncates suffix: Removes some suffix from the graph and sets a new output.
-    2. Delta Debugging: Tries replacing half of the graph with inputs. If fails, tries replacing quarter of the graph, etc.
+    2. Delta Debugging: Tries replacing half of the graph with inputs. If fails, tries
+        replacing quarter of the graph, etc.
 
     >>> failing_function = fx.symbolic_trace(f)
     >>> minimize(failing_function, [torch.randn(5)], lambda fx_g, inps: fx_g(*inps))
@@ -94,7 +100,6 @@ def minimizer(fail_f: fx.GraphModule, inps, pass_checker):
         print("FAIL: Could not remove suffix")
         return (cur_graph, cur_inps), False
 
-
     def remove_unused_inputs(cur_graph, cur_inps):
         print("Strategy: Remove unused inputs")
         assert not graph_passes(cur_graph, cur_inps)
@@ -131,7 +136,7 @@ def minimizer(fail_f: fx.GraphModule, inps, pass_checker):
                 new_node = new_graph.node_copy(node, lambda x: env[x])
                 env[node] = new_node
         return new_graph
-            
+
     def delta_debugging(cur_graph: fx.Graph, cur_inps):
         print("Strategy: Delta Debugging")
         assert not graph_passes(cur_graph, cur_inps)
@@ -150,23 +155,25 @@ def minimizer(fail_f: fx.GraphModule, inps, pass_checker):
                         is_removing = True
                         _convert_node_to_placeholder(new_node, new_inps)
                 if not is_removing:
-                    continue 
+                    continue
                 new_graph = consolidate_placeholders(new_graph)
                 if not graph_passes(new_graph, new_inps):
-                    print(f"SUCCESS: Went from {starting_placeholders} placeholders to {len(_get_placeholders(new_graph))}")
+                    print(
+                        f"SUCCESS: Went from {starting_placeholders} placeholders "
+                        f"to {len(_get_placeholders(new_graph))}"
+                    )
                     return (new_graph, new_inps), True
             gap //= 2
 
         print("FAIL: Could not remove prefix")
         return (cur_graph, inps), False
 
-
     while True:
         any_succeeded = False
         for strategy in [remove_suffix, remove_unused_inputs, delta_debugging, remove_unused_inputs]:
-            print(f"###################")
+            print("###################")
             print(f"Current size: {len(failing_graph.nodes)}")
-            print(f"###################")
+            print("###################")
             out = strategy(copy.deepcopy(failing_graph), inps[:])
             (cur_graph, cur_inps), succeeded = out
             if succeeded:

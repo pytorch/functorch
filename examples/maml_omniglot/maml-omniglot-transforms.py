@@ -245,8 +245,6 @@ def test(db, net, device, epoch, log):
     })
 
 
-
-
 def plot(log):
     # Generally you should pull your plotting code out of your training
     # script but we are doing it here for brevity.

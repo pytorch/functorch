@@ -39,6 +39,16 @@ binary_common: &binary_common
     CU_VERSION: << parameters.cu_version >>
 
 jobs:
+
+  check_code_formatting:
+    steps:
+      - checkout
+      - run:
+        name: "Check python code formatting"
+        command: |
+          pip isntall flake8
+          flake8 functorch
+
   unittest_linux_cpu:
     <<: *binary_common
     machine:
@@ -118,6 +128,8 @@ jobs:
 workflows:
   unittest:
     jobs:
+      - check_code_formatting:
+          name: "Check code formatting"
       - unittest_linux_cpu:
           name: unittest_linux_<< matrix.cu_version >>_py<< matrix.python_version >>
           matrix:

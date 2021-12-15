@@ -202,7 +202,6 @@ def test(db, net, device, epoch, log):
     for batch_idx in range(n_test_iter):
         x_spt, y_spt, x_qry, y_qry = db.next('test')
 
-
         task_num, setsz, c_, h, w = x_spt.size()
         querysz = x_qry.size(1)
 
@@ -241,8 +240,6 @@ def test(db, net, device, epoch, log):
         'mode': 'test',
         'time': time.time(),
     })
-
-
 
 
 def plot(log):
