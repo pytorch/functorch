@@ -41,13 +41,16 @@ binary_common: &binary_common
 jobs:
 
   check_code_formatting:
+    machine:
+      image: ubuntu-2004:202111-01
+    resource_class: medium
     steps:
       - checkout
       - run:
-        name: "Check python code formatting"
-        command: |
-          pip isntall flake8
-          flake8 functorch
+          name: "Check python code formatting"
+          command: |
+            pip3 install flake8
+            flake8 functorch
 
   unittest_linux_cpu:
     <<: *binary_common
