@@ -3,7 +3,6 @@ from functools import partial
 from .aot_autograd import draw_graph, aot_function
 import time
 
-
 def ts_compile(fx_g, _):
     for node in fx_g.graph.nodes:
         if node.target == torch.ops.aten.new_zeros:
@@ -12,6 +11,8 @@ def ts_compile(fx_g, _):
                 args[1] = [1]
                 node.args = tuple(args)
     fx_g.graph.lint()
+
+    # print(set([i.target for i in fx_g.graph.nodes if i.op == 'call_function']))
     # Works around this NVFuser issue: https://github.com/csarofeen/pytorch/issues/1311
     for i in range(1000):
         attr = f'_tensor_constant{i}'
@@ -21,6 +22,7 @@ def ts_compile(fx_g, _):
             break
 
     fx_g.recompile()
+
     f = torch.jit.script(fx_g)
 
     # Works around alias analysis issues in TS
@@ -107,7 +109,6 @@ def tvm_compile(name):
 
 
 def nop(f, _):
-    print(f.code)
     return f
 
 
