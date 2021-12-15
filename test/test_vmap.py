@@ -4,20 +4,19 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from unittest.case import skipIf, skip
 from torch.testing._internal.common_utils import TestCase, run_tests
 import torch
 import torch.nn.functional as F
-import torch.utils._pytree as pytree
 from torch import Tensor
 import functools
 import itertools
 import textwrap
 import warnings
 import unittest
-import re
 from torch.testing._internal.common_device_type import instantiate_device_type_tests, \
     skipCUDAIfNoMagma
-from torch.testing._internal.common_device_type import ops, onlyCPU
+from torch.testing._internal.common_device_type import ops
 from torch.testing._internal.common_utils import (
     parametrize,
     instantiate_parametrized_tests,
@@ -25,12 +24,9 @@ from torch.testing._internal.common_utils import (
 )
 from functorch_lagging_op_db import functorch_lagging_op_db
 from functorch_additional_op_db import additional_op_db
-from torch.utils._pytree import tree_map
 from common_utils import (
     get_fallback_and_vmap_exhaustive,
-    opinfo_in_dict,
     xfail,
-    skip,
     skipOps,
     check_vmap_fallback,
 )
@@ -146,6 +142,12 @@ class TestVmapAPI(TestCase):
 
         output = vmap(vmap(vmap(torch.mul)))(x, y)
         self.assertEqual(output, x * y)
+
+    def test_nested_with_diag_embed(self):
+        # diag_embed requires special testing because it is registered with conditional functionalization.
+        x = torch.randn(3, 3, 5)
+        output = vmap(vmap(torch.diag_embed))(x)
+        self.assertEqual(output, torch.diag_embed(x))
 
     def test_nested_with_different_map_dim(self):
         x = torch.randn(2, 3)
@@ -998,6 +1000,66 @@ class TestVmapAPI(TestCase):
                     )
                 )""")
         self.assertEqual(buf, expected)
+
+    def _test_vmap_autocast(self, device):
+
+        if torch.device(device).type == "cpu":
+            amp_dtype = torch.bfloat16
+        else:
+            amp_dtype = torch.float16
+
+        a_float32 = torch.rand(4, 2, 3, device=device)
+        b_float32 = torch.rand(4, 3, 2, device=device)
+        c_float32 = torch.rand(4, 2, 2, device=device)
+        d_float32 = torch.rand(4, 3, 2, device=device)
+
+        # Case 1, autocast inside vmapped function
+        def func1(x, y, z, w):
+            with torch.autocast(dtype=amp_dtype, device_type=device):
+                e_float16 = torch.matmul(x, y)
+                assert e_float16.dtype == amp_dtype, e_float16.dtype
+                f_float16 = torch.matmul(z, e_float16)
+                assert f_float16.dtype == amp_dtype, f_float16.dtype
+            return torch.matmul(w, f_float16.float())
+
+        expected = func1(a_float32, b_float32, c_float32, d_float32)
+        out = vmap(func1)(a_float32, b_float32, c_float32, d_float32)
+        assert expected.allclose(out)
+
+        # Case 2, autocast decorator inside vmapped function
+        @torch.autocast(dtype=amp_dtype, device_type=device)
+        def func2(x, y, z, w):
+            e_float16 = torch.matmul(x, y)
+            assert e_float16.dtype == amp_dtype, e_float16.dtype
+            f_float16 = torch.matmul(z, e_float16)
+            assert f_float16.dtype == amp_dtype, f_float16.dtype
+            return torch.matmul(w, f_float16)
+
+        expected = func2(a_float32, b_float32, c_float32, d_float32)
+        out = vmap(func2)(a_float32, b_float32, c_float32, d_float32)
+        assert expected.allclose(out)
+
+        # Case 3, autocast is outside vmapped function
+        def func3(x, y, z, w):
+            e_float16 = torch.matmul(x, y)
+            assert e_float16.dtype == amp_dtype, e_float16.dtype
+            f_float16 = torch.matmul(z, e_float16)
+            assert f_float16.dtype == amp_dtype, f_float16.dtype
+            return torch.matmul(w, f_float16)
+
+        with torch.autocast(dtype=amp_dtype, device_type=device):
+            expected = func3(a_float32, b_float32, c_float32, d_float32)
+            out = vmap(func3)(a_float32, b_float32, c_float32, d_float32)
+
+        assert expected.allclose(out)
+
+    @skip("Somehow, vmap and autocast do not work on CPU")
+    def test_vmap_autocast_cpu(self):
+        self._test_vmap_autocast("cpu")
+
+    @skipIf(not torch.cuda.is_available(), "CUDA is unavailable")
+    def test_vmap_autocast_cuda(self):
+        self._test_vmap_autocast("cuda")
 
 
 def slice_inputs(inputs, bdims, i):
@@ -2811,7 +2873,6 @@ class TestVmapBatchedGradient(Namespace.TestVmapBase):
         self._test_arithmetic(lambda x, y: x / y, device)
 
     @allowVmapFallbackUsage
-    @unittest.expectedFailure
     def test_binary_cross_entropy(self, device):
         x = F.sigmoid(torch.randn(3, 2, device=device, requires_grad=True))
         target = torch.rand(3, 2, device=device)
@@ -3033,7 +3094,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('vstack'),
         xfail('dstack'),
         xfail('linalg.multi_dot'),
-        xfail('block_diag'),
         xfail('nn.functional.dropout'),
         xfail('view_as_complex'),
         xfail('H'),
@@ -3099,11 +3159,9 @@ class TestVmapOperatorsOpInfo(TestCase):
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestVmapOperatorsOpInfo', 'test_op_has_batch_rule', vmap_fail.union({
-        xfail('addr'),
         xfail('cdist'),
         xfail('complex'),
         xfail('copysign'),
-        xfail('diag_embed'),
         xfail('dsplit'),
         xfail('eig'),
         xfail('fft.fftn'),
@@ -3132,7 +3190,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('linalg.solve'),
         xfail('linalg.svdvals'),
         xfail('linalg.tensorinv'),
-        xfail('lu'),
         xfail('lu_solve'),
         xfail('lu_unpack'),
         xfail('masked_fill'),
@@ -3163,7 +3220,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('linalg.multi_dot'),
         xfail('nanmean'),
         xfail('vstack'),
-        xfail('block_diag'),
         xfail('nn.functional.dropout'),
         xfail('nn.functional.conv2d', ''),
         xfail('nn.functional.batch_norm'),
@@ -3171,7 +3227,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('view_as_complex'),
         xfail('matrix_exp'),
         xfail('bucketize'),
-        xfail('cholesky_solve'),
         xfail('fft.fft2'),
         xfail('fft.hfft2'),
         xfail('fft.hfftn'),
@@ -3226,7 +3281,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('isclose'),
         xfail('cartesian_prod'),
         xfail('nn.functional.fractional_max_pool3d'),
-        xfail('nn.functional.feature_alpha_dropout'),
         xfail('nn.functional.conv_transpose3d'),
         xfail('nn.functional.rrelu'),
         xfail('nn.functional.bilinear'),

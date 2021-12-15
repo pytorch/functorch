@@ -31,6 +31,7 @@ from functorch.experimental import (
     jvp, jacfwd, hessian,
 )
 from functorch._src.eager_transforms import _argnums_partial
+from functorch._src.custom_function import custom_vjp
 
 # NB: numpy is a testing dependency!
 import numpy as np
@@ -602,6 +603,37 @@ class TestGradTransform(TestCase):
         with self.assertRaisesRegex(RuntimeError, 'Expected pytree structure'):
             result, = vjp_fn(((v1, (v2, v3)),))
 
+    def test_vjp_aux_tensor(self, device):
+        def f(x):
+            y = x.sin()
+            return y, x.cos()
+
+        x = torch.randn(3, device=device)
+
+        out, vjp_fn, aux = vjp(f, x, has_aux=True)
+        self.assertEqual(aux, x.cos())
+        self.assertEqual(out, x.sin())
+
+        v = torch.randn(3, device=device)
+        grad_x, = vjp_fn(v)
+        self.assertEqual(grad_x, v * x.cos())
+
+    def test_vjp_aux_pytree(self, device):
+        def f(x):
+            y = x.sin()
+            return y, {'a': x.cos(), 'b': [x.tan()]}
+
+        x = torch.randn(3, device=device)
+
+        out, vjp_fn, aux = vjp(f, x, has_aux=True)
+        expected_out, expected_aux = f(x)
+        self.assertEqual(out, expected_out)
+        self.assertEqual(aux, expected_aux)
+
+        v = torch.randn(3, device=device)
+        grad_x, = vjp_fn(v)
+        self.assertEqual(grad_x, v * x.cos())
+
     def test_functional_init(self, device):
         class MLPClassifier(nn.Module):
             def __init__(self, hidden_dim=32, n_classes=2):
@@ -1112,6 +1144,31 @@ class TestJac(TestCase):
         self.assertEqual(result, x.new_ones(1, 1))
 
     @FIXME_jacrev_only
+    def test_aux_tensor(self, device, jacapi):
+        def f(x):
+            y = x.clone()
+            return y, y.cos()
+
+        x = torch.randn(3, device=device)
+        result, aux = jacapi(f, has_aux=True)(x)
+
+        self.assertEqual(result, torch.eye(3, 3, device=device))
+        self.assertEqual(aux, x.cos())
+
+    @FIXME_jacrev_only
+    def test_aux_pytree(self, device, jacapi):
+        def f(x):
+            y = x.clone()
+            return y, {'a': y.cos(), 'b': [y.tan()]}
+
+        x = torch.randn(3, device=device)
+        result, aux = jacapi(f, has_aux=True)(x)
+
+        self.assertEqual(result, torch.eye(3, 3, device=device))
+        expected_aux = {'a': x.cos(), 'b': [x.tan()]}
+        self.assertEqual(aux, expected_aux)
+
+    @FIXME_jacrev_only
     def test_multiple_inputs_outputs_pytree(self, device, jacapi):
         def f(a, b, c):
             a0, a1 = a
@@ -1569,6 +1626,39 @@ class TestJvp(TestCase):
             jvp(g, (x,), (t,))
         with self.assertRaisesRegex(RuntimeError, "a Tensor or Tensors"):
             jvp(h, (x,), (t,))
+
+class TestCustomFunction(TestCase):
+    @onlyCPU
+    def test_basic(self, device):
+        called_impl = False
+        called_vjp = False
+
+        def my_sin_impl(args):
+            x, = args
+            nonlocal called_impl
+            called_impl = True
+            return x.sin(), x
+
+        def my_sin_vjp(args):
+            grad_y, result, x = args
+            nonlocal called_vjp
+            called_vjp = True
+            return (grad_y * 3 * x.cos(),)
+
+        def filter_fn(args):
+            return args[0]
+
+        my_sin = custom_vjp('my_sin', filter_fn, my_sin_impl, my_sin_vjp)
+
+        x = torch.tensor([1., 2.], requires_grad=True, device=device)
+
+        y = my_sin(x)
+        self.assertTrue(called_impl)
+
+        y.sum().backward()
+        self.assertTrue(called_vjp)
+
+        assert torch.allclose(x.grad, 3 * x.cos())
 
 class TestComposability(TestCase):
     def test_grad_grad(self, device):
@@ -2058,7 +2148,11 @@ instantiate_device_type_tests(
     globals(),
     only_for=only_for,
 )
-
+instantiate_device_type_tests(
+    TestCustomFunction,
+    globals(),
+    only_for=only_for,
+)
 
 if __name__ == '__main__':
     run_tests()
