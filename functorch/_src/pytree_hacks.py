@@ -7,20 +7,26 @@
 import torch.utils._pytree as _pytree
 from torch.utils._pytree import tree_flatten, tree_unflatten, TreeSpec
 from typing import List, Any
+import torch
+import inspect
+
+
+for name in dir(torch.return_types):
+    if name.startswith('__'):
+        continue
+    attr = getattr(torch.return_types, name)
+    if inspect.isclass(attr):
+        return_type_class = attr
+        _pytree._register_pytree_node(return_type_class, lambda x: (
+            tuple(x), None), lambda x, c, constructor=return_type_class: constructor(x))
+
 
 # TODO: The following function should only be used with vmap.
-# torch.return_types should be registered as PyTree nodes.
-# I can't figure out how to do that, so we are turning all of them
-# into normal Tuples for now (this is what vmap used to do anyways).
-# We probably want some special behavior for named tuples?
 def tree_flatten_hack(pytree):
     if _pytree._is_leaf(pytree) and not isinstance(pytree, tuple):
         return [pytree], _pytree.LeafSpec()
 
-    if isinstance(pytree, tuple):
-        typ = tuple
-    else:
-        typ = type(pytree)
+    typ = type(pytree)
 
     flatten_fn = _pytree.SUPPORTED_NODES[typ].flatten_fn
     child_pytrees, context = flatten_fn(pytree)
