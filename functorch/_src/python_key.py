@@ -22,6 +22,7 @@ from contextlib import contextmanager
 
 
 USE_DECOMPOSE = False
+USE_META = False
 
 @contextmanager
 def pythonkey_decompose():
@@ -31,6 +32,16 @@ def pythonkey_decompose():
         yield USE_DECOMPOSE
     finally:
         USE_DECOMPOSE = False
+
+
+@contextmanager
+def pythonkey_meta():
+    global USE_META
+    USE_META = True
+    try:
+        yield USE_META
+    finally:
+        USE_META = False
 
 class PythonTensor(torch.Tensor):
     elem: torch.Tensor
@@ -52,6 +63,8 @@ class PythonTensor(torch.Tensor):
 
         # ...the real tensor is held as an element on the tensor.
         r.elem = elem
+        if USE_META:
+            r.elem = r.elem.to('meta')
         r.proxy = proxy
         return r
 
