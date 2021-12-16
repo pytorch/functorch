@@ -207,6 +207,7 @@ def minimizer(fail_f: fx.GraphModule, inps, module_fails):
 
 
 def check_nvfuser_subprocess(f, inps):
+
     f.to_folder("temp")
     with open("_temp.py", 'w') as fil:
         fil.write(f'''
