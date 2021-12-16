@@ -17,6 +17,8 @@ for name in dir(torch.return_types):
     attr = getattr(torch.return_types, name)
     if inspect.isclass(attr):
         return_type_class = attr
+        # Note: We capture the current `return_type_class` with default argument `constructor`
+        # in the lambda otherwise we will point to the last value of `return_type_class` for all lambdas
         _pytree._register_pytree_node(return_type_class, lambda x: (
             tuple(x), None), lambda x, c, constructor=return_type_class: constructor(x))
 
