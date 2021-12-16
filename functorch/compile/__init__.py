@@ -9,7 +9,6 @@ from .._src.aot_autograd import (
     aot_module,
     compiled_function,
     compiled_module,
-    tvm_compile,
     draw_joint_graph,
     default_partition,
     partition_with_recompute_fwd_in_bwd,
@@ -17,3 +16,4 @@ from .._src.aot_autograd import (
     clear_compile_cache,
     draw_graph,
 )
+from .._src.compilers import ts_compile, tvm_compile, draw_graph_compile, nop
