@@ -200,6 +200,7 @@ for reduction in ['mean', 'sum', 'none']:
                dtypesIfCUDA=floating_types_and(torch.half, torch.bfloat16),
                supports_out=True))
 
+
 # TODO: split embedding in pytorch core
 def sample_inputs_embedding(op_info, device, dtype, requires_grad, **kwargs):
     def make_input(shape):
@@ -247,6 +248,7 @@ def sample_inputs_embedding(op_info, device, dtype, requires_grad, **kwargs):
             yield SampleInput(weights, args=(idx,), kwargs={'scale_grad_by_freq': True},)
 
     return list(generator())
+
 
 additional_op_db.append(
     OpInfo(
