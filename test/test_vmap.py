@@ -2701,8 +2701,9 @@ class TestVmapOperators(Namespace.TestVmapBase):
             for loop_out, batched_out in get_fallback_and_vmap_exhaustive(conv_fn, arg_values, kwarg_values):
                 self.assertEqual(loop_out, batched_out)
 
-            mod2 = torch.nn.Conv2d(4, 8, kernel_size=3, groups=2, stride=3, padding=1, dilation=2)
+            mod2 = conv_mod(4, 8, kernel_size=3, groups=2, stride=3, padding=1, dilation=2)
             arg_values = [torch.randn(inp_shape), mod2.weight, mod2.bias]
+            kwarg_values = dict(groups=2, stride=3, padding=1, dilation=2)
             for loop_out, batched_out in get_fallback_and_vmap_exhaustive(conv_fn, arg_values, kwarg_values):
                 self.assertEqual(loop_out, batched_out)
 
