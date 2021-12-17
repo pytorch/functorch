@@ -1,3 +1,4 @@
+import timeit
 from functorch import compiled_module, tvm_compile
 import torch.nn as nn
 import torch
@@ -47,7 +48,6 @@ compiled_mod.orig_module.param.grad = None
 for a, b in zip(run(mod, input), run(compiled_mod, input)):
     torch.testing.assert_allclose(a, b)
 
-import timeit
 for _ in range(5):
     i = 10000
     t = timeit.Timer("mod(input)", globals=globals()).timeit(10000)

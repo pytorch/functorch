@@ -1,5 +1,4 @@
 from functorch import compiled_function, tvm_compile
-import torch.nn as nn
 import torch
 from functools import partial
 import time

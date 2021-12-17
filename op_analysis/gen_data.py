@@ -145,7 +145,8 @@ def gen_data(special_op_lists, analysis_name):
                 categorization['non_tensor'] += 1
                 op['meta'] = 'non_tensor'
                 continue
-            if 'cudnn' in op['name'] or 'mkldnn' in op['name'] or 'miopen' in op['name'] or 'native' in op['name'] or 'thnn' in op['name'] or 'slow' in op['name']:
+            if 'cudnn' in op['name'] or 'mkldnn' in op['name'] or 'miopen' in op['name'] or \
+                    'native' in op['name'] or 'thnn' in op['name'] or 'slow' in op['name']:
                 categorization['backend'] += 1
                 op['meta'] = 'backend'
                 continue
@@ -159,7 +160,9 @@ def gen_data(special_op_lists, analysis_name):
 
     with open(f"{analysis_name}", 'w') as f:
         for op in ops:
-            info = [op['full_name'], op['meta'], not (op['full_name'] in noncomposite_ops)] + [check(op) for check in special_op_lists]
+            info = [
+                op['full_name'], op['meta'], not (op['full_name'] in noncomposite_ops)
+            ] + [check(op) for check in special_op_lists]
             f.write(','.join([str(i) for i in info]) + '\n')
 
 

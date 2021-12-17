@@ -24,7 +24,7 @@ jobs:
       - name: Run flake8
         run: |
           set -eux
-          flake8 functorch
+          flake8 .
 
 concurrency:
   group: lint-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' }}

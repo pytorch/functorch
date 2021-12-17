@@ -6,7 +6,6 @@
 
 import argparse
 from typing import Tuple, List
-from collections import defaultdict
 import re
 
 
@@ -133,7 +132,9 @@ def lower(returns: Tuple[str], args: List[Tuple[str, str]], unique_count: int, o
             wrapped_returns.append(f'makeBatched(std::get<{idx}>(results), std::get<{idx + 1}>(results), cur_level)')
             idx += 2
         elif is_vector_tensor(ret):
-            wrapped_returns.append(f'makeBatchedVector(std::get<{idx}>(results), std::get<{idx + 1}>(results), cur_level)')
+            wrapped_returns.append(
+                f'makeBatchedVector(std::get<{idx}>(results), std::get<{idx + 1}>(results), cur_level)'
+            )
             idx += 2
         else:
             wrapped_returns.append(f'std::get<{idx}>(results)')

@@ -10,17 +10,14 @@
 #       http://www.apache.org/licenses/LICENSE-2.0
 #
 
+from functorch import grad, vmap
+import matplotlib.pyplot as plt
 import math
-import random
 import torch
 import numpy as np
-from torch import nn
 from torch.nn import functional as F
 import matplotlib as mpl
 mpl.use('Agg')
-import matplotlib.pyplot as plt
-
-from functorch import grad, vmap
 
 
 def net(params, x):

@@ -24,7 +24,6 @@ from opacus.utils.module_modification import convert_batchnorm_modules
 from torchvision.datasets import CIFAR10
 from tqdm import tqdm
 
-from functools import partial
 import functorch
 from functorch import vmap, grad_and_value
 from functorch import make_functional
