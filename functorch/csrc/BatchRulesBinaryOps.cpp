@@ -22,7 +22,6 @@ static void handleScalarTypePromotion(Tensor& logical_scalar_tensor, Tensor& sec
   }
 }
 
-template<bool contig_input>
 std::tuple<Tensor, Tensor> _binary_pointwise_helper(
     const Tensor& tensor, optional<int64_t> tensor_batch_dim,
     const Tensor& other, optional<int64_t> other_batch_dim) {
@@ -51,26 +50,16 @@ std::tuple<Tensor, Tensor> _binary_pointwise_helper(
   tensor_ = maybePadToLogicalRank(tensor_, tensor_batch_dim, max_logical_rank);
   other_ = maybePadToLogicalRank(other_, other_batch_dim, max_logical_rank);
 
-  if (contig_input) {
-    // Certain ops may have backward pass that requires contiguous tensors
-    if (!tensor_.is_contiguous()) {
-      tensor_ = tensor_.contiguous();
-    }
-    if (!other_.is_contiguous()) {
-      other_ = other_.contiguous();
-    }
-  }
-
   return std::make_tuple(tensor_, other_);
 }
 
-template <typename F, F Func, bool contig_input, typename... ExtraArgs>
+template <typename F, F Func, typename... ExtraArgs>
 std::tuple<Tensor,optional<int64_t>> _binary_pointwise_batch_rule(
     const Tensor& tensor, optional<int64_t> tensor_batch_dim,
     const Tensor& other, optional<int64_t> other_batch_dim,
     ExtraArgs... extra_args) {
 
-  auto tensor_other = _binary_pointwise_helper<contig_input>(
+  auto tensor_other = _binary_pointwise_helper(
       tensor, tensor_batch_dim, other, other_batch_dim);
   auto tensor_ = std::get<0>(tensor_other);
   auto other_ = std::get<1>(tensor_other);
@@ -79,16 +68,16 @@ std::tuple<Tensor,optional<int64_t>> _binary_pointwise_batch_rule(
   return std::make_tuple(result, 0);
 }
 
-template <typename A, A a, bool contig_input, typename C>
+template <typename A, A a, typename C>
 struct BinaryPointwiseBatchRuleHelper;
 
-template <typename F, F Func, bool contig_input, typename T1, typename T2, typename... T>
-struct BinaryPointwiseBatchRuleHelper<F, Func, contig_input, typelist<T1, T2, T...>> {
+template <typename F, F Func, typename T1, typename T2, typename... T>
+struct BinaryPointwiseBatchRuleHelper<F, Func, typelist<T1, T2, T...>> {
   static std::tuple<Tensor,optional<int64_t>> apply(
       const Tensor& tensor, optional<int64_t> tensor_batch_dim,
       const Tensor& other, optional<int64_t> other_batch_dim,
       T... extra_args) {
-    return _binary_pointwise_batch_rule<F, Func, contig_input, T...>(
+    return _binary_pointwise_batch_rule<F, Func, T...>(
         tensor, tensor_batch_dim, other, other_batch_dim,
         std::forward<T>(extra_args)...);
   }
@@ -98,14 +87,6 @@ struct BinaryPointwiseBatchRuleHelper<F, Func, contig_input, typelist<T1, T2, T.
     BinaryPointwiseBatchRuleHelper<\
       decltype(&fn),\
       &fn,\
-      false,\
-      c10::guts::function_traits<decltype(fn)>::parameter_types>::apply)
-
-#define BINARY_POINTWISE_BATCH_RULE_CONTIG(fn) SINGLE_ARG(\
-    BinaryPointwiseBatchRuleHelper<\
-      decltype(&fn),\
-      &fn,\
-      true,\
       c10::guts::function_traits<decltype(fn)>::parameter_types>::apply)
 
 template <typename M, M Meth, typename... ExtraArgs>
@@ -215,7 +196,7 @@ std::tuple<Tensor,optional<int64_t>> cdist_backward_batch_rule(
 
   // We need to apply the same preprocessing on x1 and x2 as in the forward pass
   // _binary_pointwise_batch_rule
-  auto x12 = _binary_pointwise_helper<true>(x1_, x1_bdim, x2, x2_bdim);
+  auto x12 = _binary_pointwise_helper(x1_, x1_bdim, x2, x2_bdim);
   x1_ = std::get<0>(x12);
   auto x2_ = std::get<1>(x12);
 
@@ -245,8 +226,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT(#op"."#overload, BINARY_POINTWISE_BATCH_RULE(ATEN_FN2(op, overload)));
 #define BINARY_POINTWISE(op) \
   VMAP_SUPPORT(#op, BINARY_POINTWISE_BATCH_RULE(ATEN_FN(op)));
-#define BINARY_POINTWISE_CONTIG(op) \
-  VMAP_SUPPORT(#op, BINARY_POINTWISE_BATCH_RULE_CONTIG(ATEN_FN(op)));
 #define UNARY_POINTWISE2(op, overload) \
   VMAP_SUPPORT(#op"."#overload, BASIC_UNARY_BATCH_RULE(ATEN_FN2(op, overload)));
 #define UNARY_POINTWISE(op) \
@@ -298,7 +277,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   POINTWISE_BOXED(clamp_max_);
 
   VARIADIC_BDIMS_BOXED(_euclidean_dist);
-  BINARY_POINTWISE_CONTIG(_cdist_forward);
+  BINARY_POINTWISE(_cdist_forward);
   VMAP_SUPPORT("_cdist_backward", cdist_backward_batch_rule);
 
   // Commented out so we have a test op
