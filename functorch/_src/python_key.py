@@ -5,15 +5,12 @@
 # LICENSE file in the root directory of this source tree.
 from dataclasses import dataclass
 import functools
-from typing import Any, Dict, NamedTuple, Optional, Set, Tuple, List, Callable, Union
+from typing import Any, Dict, Optional, Tuple, Callable, Union
 import torch
 from torch._C import _disabled_torch_function_impl
-from torch.fx.node import map_aggregate
 import torch.utils._pytree as pytree
 from torch.fx import Tracer, GraphModule
 import torch.fx as fx
-import torch.fx._pytree as fx_pytree
-from torch import Tensor
 from .nnc_compile import nnc_compile
 from .decompositions import decomposition_table
 from enum import Enum
@@ -22,6 +19,8 @@ from contextlib import contextmanager
 
 
 USE_DECOMPOSE = False
+USE_META = False
+
 
 @contextmanager
 def pythonkey_decompose():
@@ -32,22 +31,39 @@ def pythonkey_decompose():
     finally:
         USE_DECOMPOSE = False
 
+
+@contextmanager
+def pythonkey_meta():
+    global USE_META
+    USE_META = True
+    try:
+        yield USE_META
+    finally:
+        USE_META = False
+
+
 class PythonTensor(torch.Tensor):
     elem: torch.Tensor
 
     __slots__ = ['elem', 'proxy']
 
     @staticmethod
-    def __new__(cls, elem, proxy):
+    def __new__(cls, elem, proxy, device=None):
         # The wrapping tensor (PythonTensor) is just a meta tensor, so it
         # doesn't hold any memory (meta tensor is generally the preferred type
         # of tensor you want to make a subclass from)...
-        meta = elem.new_empty((0,))
-        meta.set_(meta.storage(), 0, elem.size(), elem.stride())
-        r = torch.Tensor._make_subclass(cls, meta, elem.requires_grad)
+
+        r = torch.Tensor._make_wrapper_subclass(
+            cls, elem.size(),
+            strides=elem.stride(), storage_offset=elem.storage_offset(),
+            dtype=elem.dtype, layout=elem.layout, requires_grad=elem.requires_grad,
+            device=(elem.device if device is None else device),
+        )
 
         # ...the real tensor is held as an element on the tensor.
         r.elem = elem
+        if USE_META:
+            r.elem = r.elem.to('meta')
         r.proxy = proxy
         return r
 
@@ -55,41 +71,67 @@ class PythonTensor(torch.Tensor):
         return f"PythonTensor({self.elem})"
 
     __torch_function__ = _disabled_torch_function_impl
+
     @classmethod
     def __torch_dispatch__(cls, func, types, args=(), kwargs=None):
         if func in decomposition_table and USE_DECOMPOSE:
             return decomposition_table[func](*args, **kwargs)
+
         def unwrap_proxy(e):
             return e.proxy if isinstance(e, PythonTensor) else e
 
         def unwrap_tensor(e):
             return e.elem if isinstance(e, PythonTensor) else e
+
+        # Used to infer the output device
+        input_devices = list(set([i.device for i in pytree.tree_flatten(args)[0] +
+                             pytree.tree_flatten(kwargs)[0] if isinstance(i, PythonTensor)]))
+        assert len(input_devices) == 1
+        output_device = input_devices[0]
         proxy_args = pytree.tree_map(unwrap_proxy, args)
         proxy_kwargs = pytree.tree_map(unwrap_proxy, kwargs)
         proxy_out = func(*proxy_args, **proxy_kwargs)
-        real_out = func(*pytree.tree_map(unwrap_tensor, args), **pytree.tree_map(unwrap_tensor, kwargs))
+        args = pytree.tree_map(unwrap_tensor, args)
+        kwargs = pytree.tree_map(unwrap_tensor, kwargs)
+        try:
+            real_out = func(*args, **kwargs)
+        except NotImplementedError:
+            args = pytree.tree_map(lambda x: torch.ones_like(x, device=output_device)
+                                   if isinstance(x, torch.Tensor) else x, args)
+            kwargs = pytree.tree_map(lambda x: torch.ones_like(x, device=output_device)
+                                     if isinstance(x, torch.Tensor) else x, kwargs)
+            real_out = func(*args, **kwargs)
 
-        def wrap_with_proxy(e, idx):
-            # Some ops (like native_batch_norm_backward) return undefined tensors that get converted into None in python.
-            # As the function signature expects tensors, if we directly return these None tensors back to C++, we'll error.
+        def wrap_with_proxy(e, proxy):
+            # Some ops (like native_batch_norm_backward) return undefined tensors that get
+            # converted into None in python.
+            # As the function signature expects tensors, if we directly return these None
+            # tensors back to C++, we'll error.
             if e is None:
-                return PythonTensor(torch.empty(()), proxy_out[idx])
-            return PythonTensor(e, proxy_out[idx]) if type(e) == torch.Tensor else e
+                e = torch.empty(())
+            # Currently assuming that all inputs to an op are the same device - not totally
+            # sure that's true
+            if type(e) == torch.Tensor:
+                return PythonTensor(e, proxy, output_device)
+            else:
+                return e
         if isinstance(real_out, tuple):
-            return tuple([wrap_with_proxy(e, idx) for idx, e in enumerate(real_out)])
+            return tuple([wrap_with_proxy(e, proxy_out[idx]) for idx, e in enumerate(real_out)])
         elif isinstance(real_out, list):
-            return list([wrap_with_proxy(e, idx) for idx, e in enumerate(real_out)])
+            return list([wrap_with_proxy(e, proxy_out[idx]) for idx, e in enumerate(real_out)])
         elif isinstance(real_out, torch.Tensor):
-            return PythonTensor(real_out, proxy_out)
+            return PythonTensor(real_out, proxy_out, output_device)
         else:
             return real_out
+
 
 class PythonKeyTracer(Tracer):
     def __init__(self):
         super().__init__()
 
-
-    def call_module(self, m: torch.nn.Module, forward: Callable[..., Any], args : Tuple[Any, ...], kwargs : Dict[str, Any]) -> Any:
+    def call_module(
+        self, m: torch.nn.Module, forward: Callable[..., Any], args: Tuple[Any, ...], kwargs: Dict[str, Any]
+    ) -> Any:
         return forward(*args, **kwargs)
 
     def _module_getattr(self, attr, attr_val, parameter_proxy_cache):
@@ -111,7 +153,7 @@ class PythonKeyTracer(Tracer):
             for n, p in self.root.named_parameters():
                 if a is p:
                     return self.create_node('get_attr', n, (), {})
-            qualname : Optional[str] = None
+            qualname: Optional[str] = None
 
             if not qualname:
                 i = 0
@@ -126,14 +168,18 @@ class PythonKeyTracer(Tracer):
         return super().create_arg(a)
 
 
-def pythonkey_trace(root : Union[torch.nn.Module, Callable], concrete_args: Optional[Dict[str, Any]] = None) -> GraphModule:
+def pythonkey_trace(
+    root: Union[torch.nn.Module, Callable], concrete_args: Optional[Dict[str, Any]] = None
+) -> GraphModule:
     tracer = PythonKeyTracer()
     graph = tracer.trace(root, concrete_args)
     name = root.__class__.__name__ if isinstance(root, torch.nn.Module) else root.__name__
     return GraphModule(tracer.root, graph, name)
 
+
 def wrap_key(f, inps):
     flat_inps, inp_spec = pytree.tree_flatten(inps)
+
     @functools.wraps(f)
     def wrapped(*args):
         flat_args, args_spec = pytree.tree_flatten(args)
@@ -154,6 +200,7 @@ def wrap_key(f, inps):
 
     return wrapped
 
+
 def make_fx(f):
     @functools.wraps(f)
     def wrapped(*args):
@@ -163,6 +210,7 @@ def make_fx(f):
 
     return wrapped
 
+
 @dataclass(eq=True, frozen=True)
 class TensorSpec:
     shape: Tuple[int, ...]
@@ -170,14 +218,17 @@ class TensorSpec:
     dtype: torch.dtype
     device: torch.device
 
+
 @dataclass(eq=True, frozen=True)
 class ConcreteValueSpec:
     value: Any
+
 
 @dataclass(eq=True, frozen=True)
 class SpecializationKey:
     func: Callable
     specs: Tuple[Union[TensorSpec, ConcreteValueSpec], ...]
+
 
 def get_spec(arg):
     if isinstance(arg, torch.Tensor):
@@ -188,16 +239,20 @@ def get_spec(arg):
             arg.device)
     return ConcreteValueSpec(arg)
 
+
 def construct_specialization_key(f, args):
     flat_args, _ = pytree.tree_flatten(args)
     return SpecializationKey(f, tuple(get_spec(arg) for arg in flat_args))
 
+
 nnc_jit_cache: Dict[Callable, Dict[SpecializationKey, Callable]] = {}
+
 
 class RetrievalStatus(Enum):
     Success = 0
     UnknownFunc = 1
     UnknownSpecialization = 2
+
 
 def retrieve_from_cache(f, key):
     if f not in nnc_jit_cache:
@@ -207,14 +262,17 @@ def retrieve_from_cache(f, key):
         return RetrievalStatus.UnknownSpecialization, None
     return RetrievalStatus.Success, cache_for_f[key]
 
+
 def add_to_cache(f, key, compiled_f):
     if f not in nnc_jit_cache:
         nnc_jit_cache[f] = {key: compiled_f}
     else:
         nnc_jit_cache[f][key] = compiled_f
 
-def nnc_jit(f, static_argnums=None, skip_specialization = False):
+
+def nnc_jit(f, static_argnums=None, skip_specialization=False):
     local_cache = None
+
     @functools.wraps(f)
     def compiled(*args):
         nonlocal local_cache, static_argnums
@@ -248,6 +306,7 @@ def nnc_jit(f, static_argnums=None, skip_specialization = False):
         add_to_cache(f, key, compiled_f)
         return compiled_f(*args)
     return compiled
+
 
 def make_nnc(f):
     @functools.wraps(f)

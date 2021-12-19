@@ -7,35 +7,23 @@
 from torch.testing._internal.common_utils import TestCase, run_tests
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.utils._pytree as pytree
 import unittest
-import functools
-import itertools
 import warnings
-import math
-from typing import Callable, Type
-from torch.testing._internal.common_device_type import instantiate_device_type_tests, \
-    skipCUDAIfNoMagma, onlyCPU
-import types
-from functools import partial, wraps
-
-import functorch
+from torch.testing._internal.common_device_type import instantiate_device_type_tests
 from functorch import (
-    grad, vjp, vmap, jacrev, grad_and_value,
+    grad, vjp, vmap, jacrev,
     make_fx
 )
 from functorch.compile import (
     nnc_jit, compiled_function, compiled_module,
-    partition_with_recompute_fwd_in_bwd, pythonkey_decompose, decomposition_table
+    partition_with_recompute_fwd_in_bwd, pythonkey_decompose, aot_function, aot_module
 )
 
-from torch.testing._internal.common_device_type import ops, onlyCPU
+from torch.testing._internal.common_device_type import ops
 from functorch_lagging_op_db import functorch_lagging_op_db
 from functorch_additional_op_db import additional_op_db
 from common_utils import (
-    get_fallback_and_vmap_exhaustive,
-    opinfo_in_dict,
     xfail,
     skip,
     skipOps,
@@ -52,7 +40,7 @@ except ImportError:
                   UserWarning)
 
 # NB: numpy is a testing dependency!
-import numpy as np
+
 
 class TestPythonKey(TestCase):
     def test_make_fx(self, device):
@@ -190,6 +178,7 @@ class TestPythonKey(TestCase):
     @unittest.skipIf(not USE_TORCHVISION, "test requires torchvision")
     def test_resnet18_backward_trace(self, device):
         mod = torchvision.models.resnet18()
+
         def f(x):
             out = mod(x)
             out.sum().backward()
@@ -215,17 +204,19 @@ make_fx_failures = {
     xfail('linalg.eigvals'),
     xfail('nn.functional.ctc_loss'),
     xfail('nn.functional.fractional_max_pool3d', device_type='cpu'),
-    xfail('randn_like'), # randomness
-    xfail('rand_like'), # randomness
-    xfail('randint_like'), # randomness
-    skip('new_empty'), # nondeterministic
-    skip('empty_like'), # nondeterministic
-    skip('linalg.lstsq', 'grad_oriented'), # flaky
+    xfail('randn_like'),  # randomness
+    xfail('rand_like'),  # randomness
+    xfail('randint_like'),  # randomness
+    skip('new_empty'),  # nondeterministic
+    skip('empty_like'),  # nondeterministic
+    skip('linalg.lstsq', 'grad_oriented'),  # flaky
 }
+
+
 class TestPythonKeyOperatorsOpInfo(TestCase):
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestPythonKeyOperatorsOpInfo', 'test_make_fx_exhaustive', make_fx_failures
-    )
+             )
     def test_make_fx_exhaustive(self, device, dtype, op):
 
         def f(args, kwargs):
@@ -246,53 +237,73 @@ class TestPythonKeyOperatorsOpInfo(TestCase):
                     arg.uniform_(0, 1)
             try:
                 old_out = f(args, kwargs)
-            except:
+            except Exception:
                 continue
             new_out = new_f(args, kwargs)
             self.assertEqual(new_out, old_out)
             pass
 
+
 def _nop_compile(x, _):
     return x
 
+
 def _outs_and_grads(fn, inps):
     outs = fn(*inps)
-    [out.sum().backward(retain_graph=True) for out in outs]
-    grads = [inp.grad for inp in inps]
-    for inp in inps:
+    [out.sum().backward(retain_graph=True) for out in pytree.tree_flatten(outs)[0]]
+    grads = [inp.grad for inp in pytree.tree_flatten(inps)[0]]
+    for inp in pytree.tree_flatten(inps)[0]:
         inp.grad = None
     return outs, grads
 
-class TestEagerFusion(TestCase):
-    def test_single_output(self):
-        def f(a, b):
-            return a + b
-        compiled_f = compiled_function(f, _nop_compile, _nop_compile)
-        inp = [torch.randn(3, 3, requires_grad=True), torch.randn(3, 3)]
+
+class TestAOTAutograd(TestCase):
+    def verify_aot_autograd(self, f, inp):
+        if isinstance(f, nn.Module):
+            compiled_f = aot_module(f, _nop_compile, _nop_compile)
+        else:
+            compiled_f = aot_function(f, _nop_compile, _nop_compile)
         ref_out, ref_grad = _outs_and_grads(f, inp)
         test_out, test_grad = _outs_and_grads(compiled_f, inp)
         self.assertEqual(ref_out, test_out)
         self.assertEqual(ref_grad, test_grad)
+
+    def test_single_output(self):
+        def f(a, b):
+            return a + b
+        inp = [torch.randn(3, 3, requires_grad=True), torch.randn(3, 3)]
+        self.verify_aot_autograd(f, inp)
 
     def test_multi_output(self):
         def f(a, b):
             return a + b, a - b
-        compiled_f = compiled_function(f, _nop_compile, _nop_compile)
         inp = [torch.randn(3, 3, requires_grad=True), torch.randn(3, 3)]
-        ref_out, ref_grad = _outs_and_grads(f, inp)
-        test_out, test_grad = _outs_and_grads(compiled_f, inp)
-        self.assertEqual(ref_out, test_out)
-        self.assertEqual(ref_grad, test_grad)
+        self.verify_aot_autograd(f, inp)
 
     def test_multi_output_list(self):
         def f(a, b):
             return [a + b, a - b]
-        compiled_f = compiled_function(f, _nop_compile, _nop_compile)
         inp = [torch.randn(3, 3, requires_grad=True), torch.randn(3, 3)]
-        ref_out, ref_grad = _outs_and_grads(f, inp)
-        test_out, test_grad = _outs_and_grads(compiled_f, inp)
-        self.assertEqual(ref_out, test_out)
-        self.assertEqual(ref_grad, test_grad)
+        self.verify_aot_autograd(f, inp)
+
+    def test_output_dict(self):
+        def f(x):
+            return {'a': x, 'b': x}
+        inp = [torch.randn(3, 3, requires_grad=True)]
+        self.verify_aot_autograd(f, inp)
+
+        def f(x, y):
+            return {'a': x, 'b': y + x}
+        inp = [torch.randn(3, requires_grad=True), torch.randn(3)]
+        self.verify_aot_autograd(f, inp)
+
+        def f(x):
+            new_d = {}
+            for k in x:
+                new_d[k] = x[k] * 2
+            return new_d
+        inp = [{'a': torch.randn(3, requires_grad=True), 'b': torch.randn(3, requires_grad=True)}]
+        self.verify_aot_autograd(f, inp)
 
     def test_module(self):
         mod = nn.Sequential(nn.Linear(32, 32), nn.ReLU())
@@ -310,6 +321,7 @@ class TestEagerFusion(TestCase):
         mod = compiled_module(nn.BatchNorm2d(4), _nop_compile, _nop_compile)
         x = torch.ones(1, 4, 2, 2)
         mod(x).sum().backward()
+
 
 class TestEagerFusionOpInfo(TestCase):
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
@@ -345,7 +357,6 @@ class TestEagerFusionOpInfo(TestCase):
         if not op.supports_autograd:
             return
         sample_inputs_itr = op.sample_inputs(device, dtype, requires_grad=True)
-        new_f = None
         for sample_input in sample_inputs_itr:
             args = [sample_input.input] + list(sample_input.args)
             kwargs = sample_input.kwargs
@@ -367,7 +378,7 @@ class TestEagerFusionOpInfo(TestCase):
             def get_grads(args):
                 return pytree.tree_map(lambda x: x.grad, args)
 
-            compiled_f = compiled_function(f, lambda x,_: x, lambda x,_: x)
+            compiled_f = compiled_function(f, lambda x, _: x, lambda x, _: x)
 
             reset_grads()
             compiled_f(args, kwargs).sum().backward()
@@ -392,6 +403,7 @@ class TestEagerFusionOpInfo(TestCase):
             orig_grad = get_grads(args)
             self.assertEqual(orig_grad, compiled_grad)
 
+
 class TestPartitioning(TestCase):
     def test_recompute_partitioning(self):
         def fn(a, b):
@@ -406,7 +418,10 @@ class TestPartitioning(TestCase):
         # Compiled function calculation
         res_a = ref_a.clone().detach().requires_grad_(True)
         res_b = ref_b.clone().detach().requires_grad_(True)
-        compile_fn = lambda x, _ : x
+
+        def compile_fn(x, _):
+            return x
+
         compiled_fn = compiled_function(fn, compile_fn, compile_fn, partition_with_recompute_fwd_in_bwd)
         res = compiled_fn(res_a, res_b)
         res.sum().backward()

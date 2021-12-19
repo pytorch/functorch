@@ -1,5 +1,4 @@
-from functorch import make_fx
-import time
+import os
 import torch
 import torch.nn as nn
 from functorch import make_functional_with_buffers, make_fx
@@ -10,19 +9,17 @@ from torch.fx import immutable_collections
 import torch.utils._pytree as pytree
 import torch.utils.dlpack
 from torch.fx.passes import graph_drawer
-import operator
-import os
-import inspect
 from functorch._C import CompileCache
-from functools import partial
-from typing import Callable
 from .python_key import pythonkey_decompose
 from .decompositions import register_decomposition
 
-pytree._register_pytree_node(immutable_collections.immutable_list, lambda x: (list(x), None), lambda x, c: immutable_collections.immutable_list(x))
-pytree._register_pytree_node(immutable_collections.immutable_dict, lambda x: (list(x.values()), list(x.keys())), lambda x, c: immutable_collections.immutable_dict({key: value for key, value in zip(c, x)}))
+pytree._register_pytree_node(immutable_collections.immutable_list, lambda x: (
+    list(x), None), lambda x, c: immutable_collections.immutable_list(x))
+pytree._register_pytree_node(immutable_collections.immutable_dict, lambda x: (list(x.values()), list(
+    x.keys())), lambda x, c: immutable_collections.immutable_dict({key: value for key, value in zip(c, x)}))
 
 aten = torch.ops.aten
+
 
 def draw_graph(traced: torch.fx.GraphModule, fname: str, figname: str = "fx_graph"):
     base, ext = os.path.splitext(fname)
@@ -34,6 +31,8 @@ def draw_graph(traced: torch.fx.GraphModule, fname: str, figname: str = "fx_grap
     getattr(x, "write_" + ext.lstrip("."))(f"{base}{ext}")
 
 # todo(chilli): clean this up/make it more understandable
+
+
 def default_partition(fx_module: fx.GraphModule, _joint_inputs):
     bw_nodes = set()
     saved_nodes = set()
@@ -72,7 +71,7 @@ def default_partition(fx_module: fx.GraphModule, _joint_inputs):
 
     for node in fx_module.graph.nodes:
         if node in bw_nodes or node in bw_outputs:
-            value_remap[node] = bw_graph.node_copy(node, lambda n : value_remap[n])
+            value_remap[node] = bw_graph.node_copy(node, lambda n: value_remap[n])
 
     assert(num_fwd_outputs + num_bwd_outputs == len(output_node.args[0]))
     bwd_outputs = [value_remap[i] for i in bw_outputs]
@@ -85,9 +84,10 @@ def default_partition(fx_module: fx.GraphModule, _joint_inputs):
     value_remap = {}
     for node in fx_module.graph.nodes:
         if node not in bw_nodes and node.op != 'output':
-            value_remap[node] = fw_graph.node_copy(node, lambda n : value_remap[n])
+            value_remap[node] = fw_graph.node_copy(node, lambda n: value_remap[n])
 
-    fwd_outputs = [value_remap[i] for i in output_node.args[0][:num_fwd_outputs]] + [value_remap[n] for n in saved_nodes]
+    fwd_outputs = [value_remap[i] for i in output_node.args[0]
+                   [:num_fwd_outputs]] + [value_remap[n] for n in saved_nodes]
     if len(fwd_outputs) == 1:
         fwd_outputs = fwd_outputs[0]
     fw_graph.output(fwd_outputs)
@@ -96,10 +96,14 @@ def default_partition(fx_module: fx.GraphModule, _joint_inputs):
     bw_module.graph.lint()
     return fw_module, bw_module
 
+
 class InvalidNodeBase(object):
     def __repr__(self):
         return "Invalid Node"
+
+
 InvalidNode = InvalidNodeBase()
+
 
 def _extract_graph_with_inputs_outputs(joint_graph, inputs, outputs):
     """
@@ -153,6 +157,7 @@ def _extract_graph_with_inputs_outputs(joint_graph, inputs, outputs):
     new_graph.lint()
     return new_graph
 
+
 def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inputs):
     """
     Partitions the joint graph such that the backward recomputes the forward.
@@ -162,7 +167,6 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
     outputs to just original forward or backward outputs. And then we run the
     resulting graphs through dead code elimintation.
     """
-
 
     def is_primal(node):
         return node.op == "placeholder" and "tangents" not in node.target
@@ -198,7 +202,7 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
                     break
 
     # Now, we re-generate the fwd/bwd graphs.
-    # NB: This might increase compilation time, but I doubt it matters  
+    # NB: This might increase compilation time, but I doubt it matters
     fwd_graph = _extract_graph_with_inputs_outputs(joint_module.graph, primal_inputs, fwd_outputs + saved_values)
     bwd_graph = _extract_graph_with_inputs_outputs(joint_module.graph, saved_values + tangent_inputs, bwd_outputs)
 
@@ -207,19 +211,22 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
 
     return fwd_module, bwd_module
 
+
 def create_joint_forward_backward(fn):
     def joint_forward_backward(primals, tangents):
         out = fn(*primals)
         primals = [p for p in pytree.tree_flatten(primals)[0] if p.requires_grad]
         backward_out = []
-        if primals:
+        if primals:  # todo(chilli): Make it support it if not all outputs have gradients
             backward_out = torch.autograd.grad(out, primals, grad_outputs=tangents, allow_unused=True)
         return out, backward_out
     return joint_forward_backward
 
+
 def draw_joint_graph(graph, joint_inputs, file_name="full_graph.png"):
     draw_graph(graph, file_name)
     return default_partition(graph, joint_inputs)
+
 
 def normalize_as_list(x):
     if isinstance(x, tuple):
@@ -227,6 +234,7 @@ def normalize_as_list(x):
     elif isinstance(x, list):
         return x
     return [x]
+
 
 def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, decompose):
 
@@ -275,8 +283,6 @@ def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, de
                 compiled_bw = bw_compiler(bw_module, bw_args)
             fw_outs = normalize_as_list(compiled_fw(*flat_args))
             ctx.save_for_backward(*fw_outs[num_outs:])
-            if num_outs == 1:
-                return fw_outs[0]
             return tuple(fw_outs[0:num_outs])
 
         @staticmethod
@@ -303,6 +309,30 @@ except ImportError:
     HAS_TREE = False
 compile_cache = None
 
+# Inspired by autodidax (thanks!)
+
+
+class PytreeThunk:
+    spec = None
+    # These are some kinda dumb microoptimizations that save about 3-4 us of overhead.
+    is_simple = None  # if the output spec is a tuple/list, we won't bother unflattening it.
+    is_really_simple = None  # if the output spec is a LeafSpec
+
+    def set(self, spec):
+        assert self.spec is None or self.spec == spec
+        self.spec = spec
+        if type(self.spec) in [tuple, list] and all([isinstance(i, pytree.LeafSpec) for i in spec.children_specs]):
+            self.is_simple = True
+        if isinstance(self.spec, pytree.LeafSpec):
+            self.is_really_simple = True
+
+    def unflatten(self, x):
+        if self.is_really_simple:
+            return x[0]
+        if self.is_simple:
+            return x
+        return pytree.tree_unflatten(x, self.spec)
+
 
 def compiled_function(
     fn, fw_compiler, bw_compiler, partition_fn=default_partition, decompose=False, hasher_type="StaticShapeHasher"
@@ -310,39 +340,46 @@ def compiled_function(
     global compile_cache
     if compile_cache is None:
         compile_cache = CompileCache()
-    cached_fn = None
+    cached_res = None
 
     fn_id = id(fn)
 
     def returned_function(*args, **kwargs):
         global compile_cache
-        nonlocal cached_fn
+        nonlocal cached_res
         if HAS_TREE:
             flattened_args = tree.flatten((args, kwargs))
         else:
             flattened_args, _ = pytree.tree_flatten((args, kwargs))
         num_args = len(flattened_args)
         # Check if the fn is already compiled
-        cached_fn = compile_cache.at(fn_id, num_args, hasher_type, *flattened_args)
+        cached_res = compile_cache.at(fn_id, num_args, hasher_type, *flattened_args)
 
         # Compile the function and save it in the cache
-        if cached_fn is None:
+        if cached_res is None:
             # Compile a new function
             flattened_args, args_spec = pytree.tree_flatten((args, kwargs))
-            def flat_fn(*args):
-                args, kwargs = pytree.tree_unflatten(args, args_spec)
-                return fn(*args, **kwargs)
+            out_spec = PytreeThunk()
 
-            cached_fn = create_compiled_function(
+            def flat_fn(*args):
+                nonlocal out_spec
+                args, kwargs = pytree.tree_unflatten(args, args_spec)
+                tree_out = fn(*args, **kwargs)
+                flat_out = pytree.tree_flatten(tree_out)
+                out_spec.set(flat_out[1])
+                return flat_out[0]
+            compiled_fn = create_compiled_function(
                 flat_fn, fw_compiler, bw_compiler, partition_fn, decompose
             ).apply
-
+            cached_res = (compiled_fn, out_spec)
             # Save the compiled_fn in the cache
             compile_cache.insert(
-                fn_id, num_args, hasher_type, cached_fn, *flattened_args
+                fn_id, num_args, hasher_type, cached_res, *flattened_args
             )
 
-        return cached_fn(*flattened_args)
+        cached_fn, out_spec = cached_res
+        out = cached_fn(*flattened_args)
+        return out_spec.unflatten(out)
 
     return returned_function
 
@@ -360,54 +397,6 @@ def clear_compile_cache():
         compile_cache.clear()
         compile_cache = None
 
-def tvm_compile(fx_module, example_inputs, name = None):
-    import tvm
-    from tvm import relay, auto_scheduler
-    from tvm.contrib import graph_executor
-    import os
-
-    jit_mod = torch.jit.script(fx_module)
-    # jit_mod = torch.jit.trace(fx_module, example_inputs)
-
-    shape_list = [(f"inp_{idx}", i.shape) for idx, i in enumerate(example_inputs)]
-    mod, params = relay.frontend.from_pytorch(jit_mod, shape_list)
-    target = tvm.target.Target("llvm -mcpu=core-avx2")
-    tasks, task_weights = auto_scheduler.extract_tasks(mod['main'], params, target)
-    for task in tasks:
-        print(task.compute_dag)
-    if name is None:
-        log_file = f'{time.time()}.json'
-    else:
-        log_file = f'{name}.json'
-    if len(tasks) != 0:
-        tuner = auto_scheduler.TaskScheduler(tasks, task_weights)
-        if not os.path.exists(log_file):
-            tune_option = auto_scheduler.TuningOptions(
-                num_measure_trials=10000,  # change this to 20000 to achieve the best performance
-                measure_callbacks=[auto_scheduler.RecordToFile(log_file)],
-                # early_stopping=1000,
-                # verbose=2,
-            )
-            tuner.tune(tune_option)
-
-    dev = tvm.cpu(0)
-    with auto_scheduler.ApplyHistoryBest(log_file):
-        with tvm.transform.PassContext(opt_level=3, config={"relay.backend.use_auto_scheduler": True}):
-            lib = relay.build(mod, target=target, params=params)
-    dtype = "float32"
-    m = graph_executor.GraphModule(lib["default"](dev))
-    def exec_tvm(*args):
-        for idx, arg in enumerate(args, 0):
-            if arg.dim() != 0:
-
-                m.set_input(f"inp_{idx}", tvm.nd.from_dlpack(torch.utils.dlpack.to_dlpack(arg)))
-        m.run()
-        outs = [torch.utils.dlpack.from_dlpack(m.get_output(i).to_dlpack()) for i in range(m.get_num_outputs())]
-        return outs
-    return exec_tvm
-
-def tvm_function(fn, name):
-    return compiled_function(fn, partial(tvm_compile, name=f'fw_{name}'), partial(tvm_compile, name=f'bw_{name}'))
 
 def compiled_module(mod, *args, **kwargs):
     func_mod, params, buffers = make_functional_with_buffers(mod)
@@ -427,6 +416,7 @@ def compiled_module(mod, *args, **kwargs):
             )
 
     return CompiledModule()
+
 
 aot_function = compiled_function
 aot_module = compiled_module
