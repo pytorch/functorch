@@ -2,13 +2,12 @@ import torch
 import copy
 from torch.testing._internal.common_methods_invocations import op_db
 from enum import Enum
-from functorch_lagging_op_db import functorch_lagging_op_db
 import functorch._src.top_operators_github_usage as top_ops
 import pprint
 
 # Importing these files make modifications to the op_db that we need
-import test_ops
-import test_vmap
+import test_ops  # noqa: F401
+import test_vmap  # noqa: F401
 
 all_overridable = list(torch.overrides.get_testing_overrides().keys())
 
@@ -22,7 +21,9 @@ public_docs = [
 ]
 
 # torch.abs, Tensor.abs, Tensor.abs_ are all considered to be different
-def get_public_overridable_apis(pytorch_root='/raid/rzou/pt/whiteboard'):
+
+
+def get_public_overridable_apis(pytorch_root='/raid/rzou/pt/quick'):
     results = {}
     all_overridable_apis = set(torch.overrides.get_testing_overrides().keys())
     for module, module_name, src in public_docs:
@@ -40,6 +41,7 @@ def get_public_overridable_apis(pytorch_root='/raid/rzou/pt/whiteboard'):
             if api in all_overridable_apis:
                 results[f'{module_name}.{line}'] = api
     return results
+
 
 denylist = {
     'torch.Tensor.data_ptr',
@@ -74,6 +76,7 @@ denylist = {
     'torch.Tensor.storage_type',
 }
 
+
 def get_method_only_ops_we_care_about():
     apis = get_public_overridable_apis()
     result = []
@@ -91,6 +94,8 @@ def get_method_only_ops_we_care_about():
     return result
 
 # Deduplicates torch.abs and Tensor.abs
+
+
 def get_public_overridable_ops():
     results = get_public_overridable_apis()
     cpy = copy.deepcopy(results)
@@ -102,6 +107,7 @@ def get_public_overridable_ops():
             del results[key]
     return results
 
+
 def get_public_overridable_outplace_ops():
     results = get_public_overridable_ops()
     cpy = copy.deepcopy(results)
@@ -110,6 +116,7 @@ def get_public_overridable_outplace_ops():
         if key.endswith('_'):
             del results[key]
     return results
+
 
 def get_public_overridable_outplace_we_care_about():
     results = get_public_overridable_outplace_ops()
@@ -128,6 +135,8 @@ def get_public_overridable_outplace_we_care_about():
     return results
 
 # e.g. nn.functional.softmax
+
+
 def get_op(dotted_name):
     names = dotted_name.split('.')
     mod = torch
@@ -138,6 +147,8 @@ def get_op(dotted_name):
     return mod
 
 # Maps function -> [OpInfo]
+
+
 def get_ops_covered_by_opinfos():
     ops = {}
 
@@ -159,18 +170,27 @@ def get_ops_covered_by_opinfos():
             safe_append(ops, alias.op, opinfo)
     return ops
 
+
+factory_fns = {
+    'tensor', 'zeros', 'ones', 'randn', 'arange', 'rand', 'empty', 'randperm',
+    'linspace', 'logspace', 'hann_window', 'full', 'eye', 'blackman_window',
+    'barlett_window', 'randint', 'range', 'arange',
+}
+
+
 def get_top_ops(torch_threshold, nn_fn_threshold):
     denylist = set({
-        'tensor', 'load', 'zeros', 'no_grad', 'save', 'from_numpy',
-        'manual_seed', 'ones', 'randn', 'arange', 'rand',
-        'empty', 'randperm', 'linspace', 'set_grad_enabled',
-        'isnan', 'set_default_tensor_type', 'set_num_threads',
-        'set_printoptions', 'range', 'numel',
+        # These are either not real "operators", factory functions
+        # that trivially work, or not-documented ops.
+        'load', 'no_grad', 'save', 'from_numpy',
+        'manual_seed', 'set_grad_enabled',
+        'set_default_tensor_type', 'set_num_threads',
+        'set_printoptions', 'numel',
         'set_default_dtype', 'sparse_coo_tensor', 'set_rng_state',
         'get_rng_state', 'get_default_dtype', 'initial_seed',
-        'get_num_threads', 'quantize_per_tensor', 'logspace',
-        'hann_window', 'is_tensor', 'as_tensor', 'full', 'eye',
-        'equal', 'enable_grad', 'seed', 'is_storage', 'hamming_window',
+        'get_num_threads', 'quantize_per_tensor',
+        'hann_window', 'is_tensor', 'as_tensor',
+        'equal', 'enable_grad', 'seed', 'is_storage',
         'is_floating_point', 'nn.functional.torch',
         'set_flush_denormal', 'set_num_interop_threads', 'dequantize',
         'get_num_interop_threads', 'nn.functional.math',
@@ -191,8 +211,6 @@ def get_top_ops(torch_threshold, nn_fn_threshold):
         'nn.functional.fractional_max_pool3d_with_indices',
         'is_complex',
         'grad',
-        'bartlett_window',
-        'blackman_window',
         'quantize_per_channel',
         'nn.functional.max_pool2d_with_indices',
         'nn.functional.max_pool3d_with_indices',
@@ -202,14 +220,17 @@ def get_top_ops(torch_threshold, nn_fn_threshold):
         'nn.functional.relu_',
         'nn.functional.boolean_dispatch',
         'nn.functional.assert_int_or_pair',
-        'fft', # is namespace
+        'fft',  # is namespace
     })
 
-    torch_ops = [op[0] for op in top_ops.top_torch[:torch_threshold]]
-    nn_fn_ops = [op[0] for op in top_ops.get_nn_functional_top_list()[:nn_fn_threshold]]
-    ops = torch_ops + nn_fn_ops
-    ops = [op for op in ops if op not in denylist]
+    torch_ops = [op[0] for op in top_ops.top_torch]
+    nn_fn_ops = [op[0] for op in top_ops.get_nn_functional_top_list()]
+    torch_ops = [op for op in torch_ops if op not in denylist]
+    nn_fn_ops = [op for op in nn_fn_ops if op not in denylist]
+
+    ops = torch_ops[:torch_threshold] + nn_fn_ops[:nn_fn_threshold]
     return ops
+
 
 def get_top_ops_not_covered_by_opinfo(torch_threshold=0, nn_fn_threshold=0):
     ops = get_top_ops(torch_threshold, nn_fn_threshold)
@@ -222,7 +243,9 @@ def get_top_ops_not_covered_by_opinfo(torch_threshold=0, nn_fn_threshold=0):
 
     result = [op for op in ops if op not in ops_with_opinfo]
     result = [op for op in result if op not in denylist]
+    result = [op for op in result if op not in factory_fns]
     return result
+
 
 def get_covered_ops(ops_list, invert=False):
     ops_covered_by_opinfo = get_ops_covered_by_opinfos()
@@ -236,9 +259,11 @@ def get_covered_ops(ops_list, invert=False):
             results[key] = op
     return results
 
+
 class Status(Enum):
     Correct = 0
     Fast = 1
+
 
 tests = {
     'test_vmap_exhaustive',
@@ -249,6 +274,7 @@ tests = {
     'test_jvp',
     'test_vmapjvp',
 }
+
 
 def get_statuses(for_subset=None, invert=False):
     overridable_outplace_we_care_about = get_public_overridable_outplace_we_care_about()
@@ -261,7 +287,7 @@ def get_statuses(for_subset=None, invert=False):
         }
     op_to_opinfo = get_ops_covered_by_opinfos()
     result = {}
-    x = get_covered_ops(overridable_outplace_we_care_about)
+    _ = get_covered_ops(overridable_outplace_we_care_about)
 
     def get_covered_tests(op):
         opinfos = op_to_opinfo[op]
@@ -288,6 +314,7 @@ def get_statuses(for_subset=None, invert=False):
         result[name] = failed_tests if invert else successful_tests
     return result
 
+
 def transpose_statuses(for_subset=None, invert=False):
     statuses = get_statuses(for_subset, invert=invert)
     result = {}
@@ -297,6 +324,7 @@ def transpose_statuses(for_subset=None, invert=False):
         for test in supported:
             result[test].add(op)
     return result
+
 
 overridable_apis = get_public_overridable_apis()
 
@@ -340,20 +368,22 @@ for op in top_ops_not_covered_by_opinfo:
 # for op in top_ops_not_covered_by_opinfo:
 #     print(f'{op}, {top_ops.usage_count[op]}')
 
-#print("top ops not covered by opinfo: ")
-#top_ops_not_covered_by_opinfo = get_top_ops_not_covered_by_opinfo(220, 92)
-#for op in top_ops_not_covered_by_opinfo:
+# print("top ops not covered by opinfo: ")
+# top_ops_not_covered_by_opinfo = get_top_ops_not_covered_by_opinfo(220, 92)
+# for op in top_ops_not_covered_by_opinfo:
 #    print(f'{op}, {top_ops.usage_count[op]}')
 
-#print("top ops not covered by opinfo: ")
+# print("top ops not covered by opinfo: ")
 # top_ops_not_covered_by_opinfo = get_top_ops_not_covered_by_opinfo(999, 999)
 # for op in top_ops_not_covered_by_opinfo:
 #     print(f'{op}, {top_ops.usage_count[op]}')
+
 
 def remove_from_set(parent, to_remove):
     for to_remove_elt in to_remove:
         if to_remove_elt in parent:
             parent.remove(to_remove_elt)
+
 
 def print_coverage_info(th=100, nn=25):
     print('=' * 80)
@@ -363,18 +393,21 @@ def print_coverage_info(th=100, nn=25):
 
     # testing problems
     exemptions = {
-        'torch.nn.functional.dropout', # randomness
+        'torch.nn.functional.dropout',  # randomness
     }
 
     # Allowed exemptions
     vmap_exemptions = {
-        'torch.randn_like', # randomness
-        'torch.allclose', # number output
-        'torch.unique', # dynamic
-        'torch.nonzero', # dynamic
-        'torch.masked_select', # dynamic
-        'torch.prod', # dynamic (backward)
-        'torch.norm', # norm with nuc is not commonly used.
+        'torch.randn_like',  # randomness
+        'torch.rand_like',  # randomness
+        'torch.allclose',  # number output
+        'torch.unique',  # dynamic
+        'torch.nonzero',  # dynamic
+        'torch.masked_select',  # dynamic
+        'torch.prod',  # dynamic (backward)
+        'torch.norm',  # norm with nuc is not commonly used; we support the other cases.
+        'torch.svd',  # There isn't a bug, it is just nondeterministic so we can't test it.
+        'torch.nn.functional.embedding',  # We support everything except the sparse option.
     }
     remove_from_set(statuses['test_vmap_exhaustive'], vmap_exemptions)
     remove_from_set(statuses['test_vmapvjp'], vmap_exemptions)
@@ -387,8 +420,16 @@ def print_coverage_info(th=100, nn=25):
     print(f"total ops in set: {th + nn}")
     print(f"tested by OpInfo: {th + nn - len(top_ops_not_covered_by_opinfo)}")
     for test in tests:
+        if test in {'test_jvp', 'test_vmapjvp'}:
+            continue
         print(f'{test} failing coverage {len(statuses[test])}')
+
+    # We don't care about these yet
+    del statuses['test_jvp']
+    del statuses['test_vmapjvp']
+
     pprint.pprint(statuses)
+
 
 print_coverage_info(100, 25)
 # print_coverage_info(200, 50)
