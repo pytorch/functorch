@@ -277,6 +277,8 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   POINTWISE_BOXED(clamp_max_);
 
   VARIADIC_BDIMS_BOXED(_euclidean_dist);
+  // Implementation note: _binary_pointwise_helper performs a dtype promotion if args are scalars,
+  // but cdist can't work with scalars, at least 2d tensors.
   BINARY_POINTWISE(_cdist_forward);
   VMAP_SUPPORT("_cdist_backward", cdist_backward_batch_rule);
 
