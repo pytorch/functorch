@@ -350,28 +350,11 @@ void foreachTensorInplace(std::vector<IValue>& args, int64_t begin, int64_t end,
     foreachTensorInplaceWithIdx(args, begin, end, [&func](const Tensor& t, size_t) { return func(t); });
 }
 
-// Either delete this (it was mostly helpful for debugging), or fold it into foreachTensorInplace
-void foreachTensor(std::vector<IValue>& args, int64_t begin, int64_t end, std::function<void(const Tensor&)> func) {
-  for (int64_t idx = begin; idx < end; idx++) {
-    auto ivalue = args[idx];
-    if (ivalue.isTensorList()) {
-      auto list = ivalue.toTensorList();
-      for (const auto list_idx : c10::irange(0, list.size())) {
-        func(list[list_idx]);
-      }
-    }
-    if (!ivalue.isTensor()) {
-      continue;
-    }
-    Tensor value = ivalue.toTensor();
-    func(value);
-  }
-}
-
 void sanityCheckNotFunctional(const c10::OperatorHandle& op, torch::jit::Stack* stack, size_t num_args) {
-  foreachTensor(*stack, stack->size() - num_args, stack->size(),
-      [](const Tensor& tensor) -> void{
+  foreachTensorInplace(*stack, stack->size() - num_args, stack->size(),
+      [](const Tensor& tensor) {
         TORCH_INTERNAL_ASSERT(!at::functionalization::impl::isFunctionalTensor(tensor));
+        return tensor;
       });
 }
 
@@ -736,7 +719,6 @@ void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* 
     // Step 6
     stack->erase(stack->end() - (args_size + ret_size), stack->end() - ret_size);
   } else if (cur_key == DispatchKey::Functionalize) {
-    sanityCheckNotFunctional(op, stack, ret_size);
     sanityCheckNotFunctional(op, stack, ret_size);
   }
 }

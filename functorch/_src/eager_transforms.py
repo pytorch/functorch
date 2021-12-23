@@ -1193,17 +1193,24 @@ def grad(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Calla
         return grad
     return wrapper
 
-def assert_wrapped_functional(unwrapped_tensor_inputs: List[torch.Tensor], wrapped_tensor_inputs: List[torch.Tensor]) -> None:
+
+def assert_wrapped_functional(
+        unwrapped_tensor_inputs: List[torch.Tensor],
+        wrapped_tensor_inputs: List[torch.Tensor]) -> None:
     if len(unwrapped_tensor_inputs) != len(wrapped_tensor_inputs):
         raise Exception()
     for i in range(len(unwrapped_tensor_inputs)):
         _assert_wrapped_functional(unwrapped_tensor_inputs[i], wrapped_tensor_inputs[i])
 
-def propagate_functional_input_mutations(unwrapped_tensor_inputs: List[torch.Tensor], wrapped_tensor_inputs: List[torch.Tensor]) -> None:
+
+def propagate_functional_input_mutations(
+        unwrapped_tensor_inputs: List[torch.Tensor],
+        wrapped_tensor_inputs: List[torch.Tensor]) -> None:
     if len(unwrapped_tensor_inputs) != len(wrapped_tensor_inputs):
         raise Exception()
     for i in range(len(unwrapped_tensor_inputs)):
         _propagate_functional_input_mutation(unwrapped_tensor_inputs[i], wrapped_tensor_inputs[i])
+
 
 def functionalize(func: Callable) -> Callable:
     @wraps(func)

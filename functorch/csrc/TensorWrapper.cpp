@@ -202,7 +202,7 @@ TORCH_LIBRARY_IMPL(_, FT_GRAD_WRAPPER_KEY, m) {
 
 TORCH_LIBRARY_IMPL(aten, FT_GRAD_WRAPPER_KEY, m) {
   // In order to preserve semantics for functions that mutate inputs,
-  // an input batched tensor needs to know one mutate operation: copy_.
+  // an input tensor wrapper needs to know one mutate operation: copy_.
   m.impl("copy_", copy_wrapper_tensor_);
 }
 
