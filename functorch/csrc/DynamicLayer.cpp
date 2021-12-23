@@ -23,6 +23,7 @@ constexpr DispatchKeySet all_dynlayer_keyset = DispatchKeySet({
   kDynamicLayerFrontModeKey,
   kDynamicLayerBackModeKey,
   kGradWrapperKey,
+  DispatchKey::Functionalize,
   // DispatchKey::Batched,
   kBatchedKey,
   DispatchKey::ADInplaceOrView
@@ -210,7 +211,9 @@ int64_t initAndPushDynamicLayer(
     optional<RandomnessType> randomness,
     optional<bool> prev_grad_mode,
     optional<bool> prev_fwd_grad_mode) {
-  TORCH_INTERNAL_ASSERT(key == DispatchKey::Autograd || key == kBatchedKey);
+  TORCH_INTERNAL_ASSERT(key == DispatchKey::Autograd
+                     || key == kBatchedKey
+                     || key == DispatchKey::Functionalize);
   const auto& dynamicLayerStack = dynamicLayerStackAccessor();
   const auto layerId = 1 + dynamicLayerStack.size();
   DynamicLayer new_layer(key, layerId, batch_size, randomness, prev_grad_mode, prev_fwd_grad_mode);
@@ -369,7 +372,6 @@ void sanityCheckNotFunctional(const c10::OperatorHandle& op, torch::jit::Stack* 
   foreachTensor(*stack, stack->size() - num_args, stack->size(),
       [](const Tensor& tensor) -> void{
         TORCH_INTERNAL_ASSERT(!at::functionalization::impl::isFunctionalTensor(tensor));
-        return tensor;
       });
 }
 
@@ -411,16 +413,6 @@ static bool anyTensors(
   // Demorgan's law
   return !allTensors(args, [&](const Tensor& self) { return !pred(self); });
 }
-
-constexpr DispatchKeySet all_dynlayer_keyset = DispatchKeySet({
-  kDynamicLayerFrontModeKey,
-  kDynamicLayerBackModeKey,
-  kGradWrapperKey,
-  DispatchKey::Functionalize,
-  // DispatchKey::Batched,
-  kBatchedKey,
-  DispatchKey::ADInplaceOrView
-}) | autograd_dispatch_keyset;
 
 static void sanityCheckStack(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   auto num_args = op.schema().arguments().size();
@@ -494,6 +486,8 @@ static DispatchKeySet keysForEnteringDynamicLayer(DispatchKey key) {
     return DispatchKeySet({kBatchedKey});
   } else if (key == DispatchKey::Autograd) {
     return autograd_dispatch_keyset.add(DispatchKey::ADInplaceOrView);
+  } else if (key == DispatchKey::Functionalize) {
+    return DispatchKeySet({DispatchKey::Functionalize});
   } else {
     TORCH_INTERNAL_ASSERT(false, "Unsupported key: ", key);
   }
@@ -558,7 +552,6 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
 
   DispatchKeySet exclude = keysToExcludeWhenEnteringDynamicLayer(layer.key());
   DispatchKeySet hacky_include;
-  bool fix_up_functional_level = false;
   // hack
   if (layer.key() == kBatchedKey) {
     hacky_include = hacky_include.add(kVmapModeKey);
@@ -566,11 +559,11 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
     const auto args = torch::jit::last(stack, op.schema().arguments().size());
     bool any_tensor_args = anyTensors(args, [&](const Tensor& tensor) { return true; });
     bool any_functional_args = anyTensors(args, functionalAtCurrentLevel);
-    // For the functionalization pass, need to make sure that factory ops hit the functionalization kernel
-    // So their outputs get wrapped properly
-    if (any_functional_args || !any_tensor_args) {
-      exclude = exclude.remove(DispatchKey::Functionalize);
-      fix_up_functional_level = true;
+    // Only enable dispatch on Functionalize if either:
+    // - there are any functional tensors at the current level
+    // - we hit a factory op
+    if (!any_functional_args && any_tensor_args) {
+      exclude = exclude.add(DispatchKey::Functionalize);
     }
     hacky_include = hacky_include.add(DispatchKey::Functionalize);
   }
@@ -587,7 +580,8 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
 
   // Re-dispatch
   op.callBoxed(stack);
-  if (layer.key() == DispatchKey::Functionalize && fix_up_functional_level) {
+  // checking exclude set because we should only do this if we actually hit a functionalization kernel.
+  if (layer.key() == DispatchKey::Functionalize && !exclude.has(DispatchKey::Functionalize)) {
     auto ret_size = op.schema().returns().size();
     foreachTensorInplace(*stack, stack->size() - ret_size, stack->size(),
       [&](const Tensor& tensor) {
