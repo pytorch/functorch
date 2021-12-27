@@ -513,7 +513,6 @@ class TestOperators(TestCase):
         xfail('fmax'),
         xfail('fmin'),
         xfail('index_copy'),
-        xfail('index_fill'),
         xfail('linalg.det', ''),
         xfail('linalg.eigh'),
         xfail('linalg.householder_product'),
@@ -595,7 +594,6 @@ class TestOperators(TestCase):
         xfail('block_diag'),  # TODO: We expect this to fail in core, but it doesn't
         xfail('index_copy'),
         xfail('index_put'),
-        xfail('index_fill'),
         xfail('masked_fill'),
         xfail('masked_scatter'),
 
@@ -701,7 +699,6 @@ class TestOperators(TestCase):
         xfail('max', 'binary'),
         xfail('nn.functional.gaussian_nll_loss'),
         xfail('min', 'binary'),
-        xfail('index_fill'),
         xfail('index_put'),
         xfail('std_mean'),
         xfail('double', 'channels_last'),
@@ -760,7 +757,7 @@ class TestOperators(TestCase):
         xfail('fmax'),
         xfail('fmin'),
         xfail('index_copy'),
-        xfail('index_fill'),
+        xfail('index_fill'),  # RuntimeError: aten::_unique hit the vmap fallback which is currently disabled
         xfail('linalg.cholesky'),
         xfail('linalg.cholesky_ex'),
         xfail('linalg.det'),
