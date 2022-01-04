@@ -9,7 +9,6 @@ from torch.fx import immutable_collections
 import torch.utils._pytree as pytree
 import torch.utils.dlpack
 from torch.fx.passes import graph_drawer
-import os
 import copy
 from functorch._C import CompileCache
 from .python_key import pythonkey_decompose
@@ -21,6 +20,7 @@ pytree._register_pytree_node(immutable_collections.immutable_dict, lambda x: (li
     x.keys())), lambda x, c: immutable_collections.immutable_dict({key: value for key, value in zip(c, x)}))
 
 aten = torch.ops.aten
+
 
 def draw_graph(traced: torch.fx.GraphModule, fname: str, figname: str = "fx_graph", clear_meta = True):
     if clear_meta:
@@ -249,6 +249,7 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
     norm_ops = [aten.instance_norm, aten._batch_norm_impl_index, aten.native_batch_norm, aten.batch_norm, aten._batch_norm_impl_index_backward, aten.native_layer_norm, aten.layer_norm, aten.native_layer_norm_backward]
     misc_ops = [aten.to, aten.type_as]
 
+    # Not used by default since NVFuser can't fuse view ops
     view_ops = [aten.expand, aten.clone, aten.transpose, aten.t, aten.view, aten._unsafe_view, aten.permute, aten.transpose, aten.t, aten._reshape_alias, aten.squeeze, aten.unsqueeze, aten.reshape]
 
     recomputable_ops = set(
@@ -256,6 +257,7 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
         + reduction_ops
         + norm_ops
         + misc_ops
+        # + view_ops
     )
 
     print("recomputable ops", set([i.target for i in full_bw_graph.nodes if i.op == 'call_function']) & set(recomputable_ops))
@@ -268,7 +270,7 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
             nx_graph.add_edge("source", node.name+"_in", capacity=math.inf)
             is_input = True
 
-        if node.target not in recomputable_ops:
+        if node.op == 'call_function' and node.target not in recomputable_ops:
             nx_graph.add_edge("source", node.name+"_in", capacity=math.inf)
         
         if not 'tensor_meta' in node.meta:
