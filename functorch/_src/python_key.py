@@ -10,6 +10,7 @@ from torch._C import _disabled_torch_function_impl
 import torch.utils._pytree as pytree
 from torch.fx import Tracer, GraphModule
 import torch.fx as fx
+from torch.fx.passes.shape_prop import _extract_tensor_metadata
 from .decompositions import decomposition_table
 from contextlib import contextmanager
 
@@ -48,12 +49,14 @@ def get_output_device(devices):
                 return device
         raise RuntimeError("Couldn't infer output device from input device")
 
+
 in_place_ops = set([
     aten.relu_,
     aten.add_,
     aten.hardtanh_,
     aten.hardswish_,
 ])
+
 
 class PythonTensor(torch.Tensor):
     elem: torch.Tensor
@@ -99,7 +102,7 @@ class PythonTensor(torch.Tensor):
             return e.elem if isinstance(e, PythonTensor) else e
 
         input_devices = list(set([i.device for i in pytree.tree_flatten(args)[0] +
-                                pytree.tree_flatten(kwargs)[0] if isinstance(i, PythonTensor)]))
+                                  pytree.tree_flatten(kwargs)[0] if isinstance(i, PythonTensor)]))
         output_device = get_output_device(input_devices)
 
         proxy_args = pytree.tree_map(unwrap_proxy, args)

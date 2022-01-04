@@ -3,6 +3,7 @@ from functools import partial
 from .aot_autograd import draw_graph, aot_function
 import time
 
+
 def ts_compile(fx_g, _):
     for node in fx_g.graph.nodes:
         if node.target == torch.ops.aten.new_zeros:

@@ -28,6 +28,7 @@ class ConcreteProp(torch.fx.Interpreter):
     def propagate(self, *args):
         return super().run(*args)
 
+
 def _get_placeholders(graph):
     return list(filter(lambda x: x.op == 'placeholder', graph.nodes))
 
@@ -35,7 +36,7 @@ def _get_placeholders(graph):
 
 
 def _convert_node_to_placeholder(node, inps):
-    if node.op  == 'output':
+    if node.op == 'output':
         return
     node.op = 'placeholder'
     node.args = ()
