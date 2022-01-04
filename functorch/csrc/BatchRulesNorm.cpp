@@ -66,7 +66,7 @@ batch_norm_batch_rule(
   c10::MaybeOwned<Tensor> running_var_maybe_owned = at::borrow_from_optional_tensor(running_var_opt);
   auto running_var_ = *running_var_maybe_owned;
 
-  if (input_bdim.has_value() && ((running_mean_.defined() && !running_mean_bdim.has_value()) || (running_var_.defined() && !running_var_bdim.has_value()))) {
+  if (input_bdim && ((running_mean_.defined() && !running_mean_bdim) || (running_var_.defined() && !running_var_bdim))) {
     throw std::runtime_error("Batch norm got a batched tensor as input while the running_mean or running_var, which will be updated in place, were not batched.");
   }
   auto input_ = input;
@@ -89,20 +89,22 @@ batch_norm_batch_rule(
     running_var_ = reshape_dim_into(*running_var_bdim, 0, running_var_);
   }
 
-  const auto input_logical_rank = rankWithoutBatchDim(input, input_bdim);
   const auto dummy_weight = at::ones(input_.size(1), input_.options());
   const auto dummy_bias = at::zeros(input_.size(1), input_.options()); // can't use efficientzeros because cudnn expects contiguous
   const auto result = Func(input_, dummy_weight, dummy_bias, running_mean_, running_var_, training, momentum, eps);
   auto result0 = std::get<0>(result);
-  const auto mean = std::get<1>(result);
-  const auto rstd = std::get<2>(result);
-  const auto stats_bdim = compute_stat_bdim(input_bdim, mean);
+  auto mean = std::get<1>(result);
+  auto rstd = std::get<2>(result);
 
   result0 = result0.transpose(0, 1);                              // [B, (B0, C), *] -> [(B0, C), B, *]
   if (bdim_size) {
     result0 = reshape_dim_outof(0, bdim_size.value(), result0);   // [B0, C, B, *]
+    mean = reshape_dim_outof(0, bdim_size.value(), mean);         // [B0, C]
+    rstd = reshape_dim_outof(0, bdim_size.value(), rstd);         // [B0, C]
   }
+  const auto stats_bdim = compute_stat_bdim(bdim_size, mean);
 
+  const auto input_logical_rank = rankWithoutBatchDim(input, input_bdim);
   if (weight.defined()) {
     auto weight_ = moveBatchDimToFront(weight, weight_bdim);
     weight_ = padRight(weight_, weight_bdim, input_logical_rank);
@@ -118,6 +120,175 @@ batch_norm_batch_rule(
   }
   result0 = result0.transpose(1, 2);  // [B0, B, C, *], because some arg must have been batched, the output must be batched
   return std::make_tuple(result0, 0, mean, stats_bdim, rstd, stats_bdim);
+}
+
+template<typename F, F Func>
+std::tuple<at::Tensor,optional<int64_t>> batch_norm_backward_no_weight_bias_batch_rule(
+    const at::Tensor & grad_out, optional<int64_t> grad_out_bdim,
+    const at::Tensor & input, optional<int64_t> input_bdim,
+    const c10::optional<at::Tensor> & running_mean_opt, optional<int64_t> running_mean_bdim,
+    const c10::optional<at::Tensor> & running_var_opt, optional<int64_t> running_var_bdim,
+    const at::Tensor & mean, optional<int64_t> mean_bdim,
+    const at::Tensor & rstd, optional<int64_t> rstd_bdim,
+    bool training, double eps) {
+  c10::MaybeOwned<Tensor> running_mean_maybe_owned = at::borrow_from_optional_tensor(running_mean_opt);
+  const Tensor& running_mean = *running_mean_maybe_owned;
+  c10::MaybeOwned<Tensor> running_var_maybe_owned = at::borrow_from_optional_tensor(running_var_opt);
+  const Tensor& running_var = *running_var_maybe_owned;
+
+  if (!grad_out_bdim.has_value() && !input_bdim.has_value() && !running_mean_bdim.has_value() && !running_var_bdim.has_value()) {
+    // for either of these to have bdims, the input, running_mean, or running_var must have had a bdim
+    TORCH_INTERNAL_ASSERT(!mean_bdim);
+    TORCH_INTERNAL_ASSERT(!rstd_bdim);
+    const auto dummy_weight = at::ones(input.size(1), input.options());
+    const auto result = Func(
+        grad_out, input, dummy_weight, running_mean_opt, running_var_opt, mean, rstd, training, eps, {true, false, false});
+    return std::make_tuple(std::get<0>(result), nullopt);
+  }
+
+  auto grad_out_ = moveBatchDimToFront(grad_out, grad_out_bdim);
+  auto input_ = moveBatchDimToFront(input, input_bdim);
+  auto mean_ = moveBatchDimToFront(mean, mean_bdim);
+  auto rstd_ = moveBatchDimToFront(rstd, rstd_bdim);
+
+  // ensure grad_out / input have bdim.
+  const auto bdim_size = get_bdim_size4(grad_out, grad_out_bdim, input, input_bdim, running_mean, running_mean_bdim, running_var, running_var_bdim);
+  grad_out_ = ensure_has_bdim(grad_out_, grad_out_bdim.has_value(), bdim_size);
+  input_ = ensure_has_bdim(input_, input_bdim.has_value(), bdim_size);
+  mean_ = ensure_has_bdim(mean_, mean_bdim.has_value(), bdim_size);
+  rstd_ = ensure_has_bdim(rstd_, rstd_bdim.has_value(), bdim_size);
+
+  optional<Tensor> running_mean_;
+  optional<Tensor> running_var_;
+  if (running_mean.defined()) {
+    const auto running_mean_int = moveBatchDimToFront(running_mean, running_mean_bdim);
+    running_mean_ = ensure_has_bdim(running_mean_int, running_mean_bdim.has_value(), bdim_size).contiguous();
+    running_mean_ = reshape_dim_into(0, 0, *running_mean_);
+  }
+  if (running_var.defined()) {
+    const auto running_var_int = moveBatchDimToFront(running_var, running_var_bdim);
+    running_var_ = ensure_has_bdim(running_var_int, running_var_bdim.has_value(), bdim_size).contiguous();
+    running_var_ = reshape_dim_into(0, 0, *running_var_);
+  }
+
+  input_ = reshape_dim_into(0, /*channels dim*/1, input_);
+  TORCH_INTERNAL_ASSERT(mean_.dim() == 2);
+  TORCH_INTERNAL_ASSERT(rstd_.dim() == 2);
+  mean_ = reshape_dim_into(0, 0, mean_);
+  rstd_ = reshape_dim_into(0, 0, rstd_);
+  grad_out_ = grad_out_.transpose(0, 1).flatten(1, 2); // [B0, B, C, *] -> [B, (B0, C), *]
+
+  const auto dummy_weight = at::ones(input_.size(1), input_.options());
+  auto result = at::native_batch_norm_backward(
+      grad_out_.contiguous(),
+      input_.contiguous(),
+      dummy_weight,
+      running_mean_,
+      running_var_,
+      mean_.contiguous(),
+      rstd_.contiguous(),
+      training, eps, {true, false, false});
+  auto result0 = std::get<0>(result);
+  result0 = reshape_dim_outof(1, bdim_size, result0); // [B, B0, C, *]
+  result0 = result0.transpose(0, 1); // [B0, B, C, *]
+  return std::make_tuple(result0, 0);
+}
+
+template<typename F, F Func>
+std::tuple<at::Tensor,at::Tensor,at::Tensor> batch_norm_backward_plumbing(
+    const at::Tensor & grad_out,
+    const at::Tensor & input,
+    const c10::optional<at::Tensor> & weight_opt,
+    const c10::optional<at::Tensor> & running_mean_opt,
+    const c10::optional<at::Tensor> & running_var_opt,
+    const c10::optional<at::Tensor> & save_mean_opt,
+    const c10::optional<at::Tensor> & save_rstd_opt,
+    bool training,
+    double eps,
+    std::array<bool,3> output_mask) {
+  // See [Note: hacky wrapper removal for optional tensor]
+  c10::MaybeOwned<Tensor> weight_maybe_owned = at::borrow_from_optional_tensor(weight_opt);
+  const Tensor& weight = *weight_maybe_owned;
+  c10::MaybeOwned<Tensor> running_mean_maybe_owned = at::borrow_from_optional_tensor(running_mean_opt);
+  const Tensor& running_mean = *running_mean_maybe_owned;
+  c10::MaybeOwned<Tensor> running_var_maybe_owned = at::borrow_from_optional_tensor(running_var_opt);
+  const Tensor& running_var = *running_var_maybe_owned;
+  // NB: not sure why these are optional...these are required from the forward
+  const Tensor& save_mean = *save_mean_opt;
+  const Tensor& save_rstd = *save_rstd_opt;
+  TORCH_INTERNAL_ASSERT(save_mean.defined());
+  TORCH_INTERNAL_ASSERT(save_rstd.defined());
+
+  // plumbing
+  auto maybe_layer = maybeCurrentDynamicLayer();
+  TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
+  int64_t cur_level = maybe_layer->layerId();
+  Tensor grad_out_value;
+  optional<int64_t> grad_out_bdim;
+  std::tie(grad_out_value, grad_out_bdim) = unwrapTensorAtLevel(grad_out, cur_level);
+  Tensor input_value;
+  optional<int64_t> input_bdim;
+  std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
+  Tensor mean_value;
+  optional<Tensor> weight_value;
+  optional<int64_t> weight_bdim;
+  if (weight.defined()) {
+    std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
+  }
+  optional<Tensor> running_mean_value;
+  optional<int64_t> running_mean_bdim;
+  if (running_mean.defined()) {
+    std::tie(running_mean_value, running_mean_bdim) = unwrapTensorAtLevel(running_mean, cur_level);
+  }
+  optional<Tensor> running_var_value;
+  optional<int64_t> running_var_bdim;
+  if (running_var.defined()) {
+    std::tie(running_var_value, running_var_bdim) = unwrapTensorAtLevel(running_var, cur_level);
+  }
+  Tensor save_mean_value;
+  optional<int64_t> save_mean_bdim;
+  std::tie(save_mean_value, save_mean_bdim) = unwrapTensorAtLevel(save_mean, cur_level);
+  Tensor save_rstd_value;
+  optional<int64_t> save_rstd_bdim;
+  std::tie(save_rstd_value, save_rstd_bdim) = unwrapTensorAtLevel(save_rstd, cur_level);
+
+  // results
+  Tensor grad_bias;
+  Tensor grad_weight;
+  Tensor grad_input;
+
+  TORCH_INTERNAL_ASSERT(grad_out_value.dim() > 1);  // batch_norm can't operate on 1D tensors so the output will be at least 2D
+  if (output_mask[2]) {
+    grad_bias = grad_out.transpose(0, 1).sum(range(1, grad_out.dim()));
+  }
+  if (output_mask[1] && weight_value.has_value()) {
+    // NB: output isn't saved...
+    auto mean = training ? save_mean : running_mean;
+    auto var = training ? save_rstd : (1 / at::sqrt(running_var + eps));
+    const auto normalized_input = (input.transpose(0, 1) - padRight(mean, nullopt, input.dim())) * padRight(var, nullopt, input.dim());
+    const auto expanded_grad_weight = normalized_input * grad_out.transpose(0, 1);
+    grad_weight = expanded_grad_weight.sum(range(1, grad_out.dim()));
+  }
+  if (output_mask[0]) {
+    const auto grad_normalized_input = weight.defined() ?
+      grad_out.transpose(0, 1) * padRight(weight, nullopt, grad_out.dim()) : grad_out.transpose(0, 1);           // [B0, C, B, *]
+    Tensor grad_normalized_input_value;
+    optional<int64_t> grad_normalized_input_bdim;
+    std::tie(grad_normalized_input_value, grad_normalized_input_bdim) =
+        unwrapTensorAtLevel(grad_normalized_input.transpose(0, 1), cur_level);       // [B0, B, C, *]
+
+    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
+    const auto results = batch_norm_backward_no_weight_bias_batch_rule<F, Func>(
+        grad_normalized_input_value, grad_normalized_input_bdim,
+        input_value, input_bdim,
+        running_mean_value, running_mean_bdim,
+        running_var_value, running_var_bdim,
+        save_mean_value, save_mean_bdim,
+        save_rstd_value, save_rstd_bdim,
+        training, eps);
+    grad_input = makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
+  }
+  return std::make_tuple(grad_input, grad_weight, grad_bias);
 }
 
 std::tuple<Tensor,int64_t,Tensor,int64_t,Tensor,int64_t>
@@ -417,7 +588,7 @@ struct CudnnBatchNormBatchRuleHelper {
     const c10::optional<Tensor>& running_mean_opt, optional<int64_t> running_mean_bdim,
     const c10::optional<Tensor>& running_var_opt, optional<int64_t> running_var_bdim,
     bool training, double momentum, double eps) {
-    auto reserve = at::tensor({0}, input.options().dtype(kByte));
+    auto reserve = at::empty({0}, input.options().dtype(kByte));  // in experiments, reserve was never set to anything other than empty by cuda
     auto res = batch_norm_batch_rule<F, Func>(
         input, input_bdim, weight_opt, weight_bdim, bias_opt, bias_bdim, 
         running_mean_opt, running_mean_bdim, running_var_opt, running_var_bdim, training, momentum, eps);
@@ -455,10 +626,110 @@ struct MiopenBatchNormBatchRuleHelper {
       decltype(&ATEN_FN(fn)),\
       &ATEN_FN(fn)>::apply)
 
+template <typename F, F Func>
+struct NativeBatchNormBackwardBatchRuleHelper {
+  static std::tuple<Tensor,Tensor,Tensor> apply(
+    const at::Tensor & grad_out,
+    const at::Tensor & input,
+    const c10::optional<at::Tensor> & weight_opt,
+    const c10::optional<at::Tensor> & running_mean_opt,
+    const c10::optional<at::Tensor> & running_var_opt,
+    const c10::optional<at::Tensor> & save_mean_opt,
+    const c10::optional<at::Tensor> & save_rstd_opt,
+    bool training,
+    double eps,
+    std::array<bool,3> output_mask) {
+    return batch_norm_backward_plumbing<F, Func>(
+        grad_out, input, weight_opt, running_mean_opt, running_var_opt, save_mean_opt, save_rstd_opt, training, eps, output_mask);
+  }
+};
+
+template <typename F, F Func>
+struct CudnnBatchNormBackwardBatchRuleHelper {
+  static std::tuple<Tensor,Tensor,Tensor> apply(
+    const at::Tensor & input,
+    const at::Tensor & grad_out,
+    const at::Tensor & weight,
+    const c10::optional<at::Tensor> & running_mean_opt,
+    const c10::optional<at::Tensor> & running_var_opt,
+    const c10::optional<at::Tensor> & save_mean_opt,
+    const c10::optional<at::Tensor> & save_rstd_opt,
+    double eps,
+    const at::Tensor & reserve) {
+    return batch_norm_backward_plumbing<F, Func>(
+        grad_out, input, weight, running_mean_opt, running_var_opt, save_mean_opt, save_rstd_opt, true, eps, {true, true, true});
+  }
+};
+
+template <typename F, F Func>
+struct MiopenBatchNormBackwardBatchRuleHelper {
+  static std::tuple<Tensor,Tensor,Tensor> apply(
+    const at::Tensor & input,
+    const at::Tensor & grad_out,
+    const at::Tensor & weight,
+    const c10::optional<at::Tensor> & running_mean_opt,
+    const c10::optional<at::Tensor> & running_var_opt,
+    const c10::optional<at::Tensor> & save_mean_opt,
+    const c10::optional<at::Tensor> & save_rstd_opt,
+    double eps) {
+    return batch_norm_backward_plumbing<F, Func>(
+        grad_out, input, weight, running_mean_opt, running_var_opt, save_mean_opt, save_rstd_opt, true, eps, {true, true, true});
+  }
+};
+
+#define NATIVE_BATCH_NORM_BACKWARD_BATCH_RULE(fn) SINGLE_ARG(\
+    NativeBatchNormBackwardBatchRuleHelper<\
+      decltype(&ATEN_FN(fn)),\
+      &ATEN_FN(fn)>::apply)
+
+#define CUDNN_BATCH_NORM_BACKWARD_BATCH_RULE(fn) SINGLE_ARG(\
+   CudnnBatchNormBackwardBatchRuleHelper<\
+      decltype(&fn),\
+      &fn>::apply)
+
+#define MIOPEN_BATCH_NORM_BACKWARD_BATCH_RULE(fn) SINGLE_ARG(\
+    MiopenBatchNormBackwardBatchRuleHelper<\
+      decltype(&fn),\
+      &fn>::apply)
+
+std::tuple<at::Tensor,at::Tensor,at::Tensor> cudnn_batch_norm_backward_wrapper(
+    const at::Tensor & grad_out,
+    const at::Tensor & input,
+    const at::Tensor& weight_opt,
+    const c10::optional<at::Tensor> & running_mean_opt,
+    const c10::optional<at::Tensor> & running_var_opt,
+    const c10::optional<at::Tensor> & save_mean_opt,
+    const c10::optional<at::Tensor> & save_rstd_opt,
+    bool training,
+    double eps,
+    std::array<bool,3> output_mask) {
+    TORCH_INTERNAL_ASSERT(!training);
+    auto reserve = at::empty({0}, input.options().dtype(kByte));
+    return at::cudnn_batch_norm_backward(input, grad_out, weight_opt, running_mean_opt, running_var_opt, save_mean_opt, save_rstd_opt, eps, reserve);
+  }
+
+  std::tuple<at::Tensor,at::Tensor,at::Tensor> miopen_batch_norm_backward_wrapper(
+    const at::Tensor & grad_out,
+    const at::Tensor & input,
+    const at::Tensor& weight_opt,
+    const c10::optional<at::Tensor> & running_mean_opt,
+    const c10::optional<at::Tensor> & running_var_opt,
+    const c10::optional<at::Tensor> & save_mean_opt,
+    const c10::optional<at::Tensor> & save_rstd_opt,
+    bool training,
+    double eps,
+    std::array<bool,3> output_mask) {
+    TORCH_INTERNAL_ASSERT(!training); // this should be ensured by batch_norm_impl
+    return at::miopen_batch_norm_backward(input, grad_out, weight_opt, running_mean_opt, running_var_opt, save_mean_opt, save_rstd_opt, eps);
+  }
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT("native_batch_norm", NATIVE_BATCH_NORM_BATCH_RULE(native_batch_norm));
   VMAP_SUPPORT("cudnn_batch_norm", CUDNN_BATCH_NORM_BATCH_RULE(cudnn_batch_norm));
   VMAP_SUPPORT("miopen_batch_norm", MIOPEN_BATCH_NORM_BATCH_RULE(miopen_batch_norm));
+  m.impl("native_batch_norm_backward", NATIVE_BATCH_NORM_BACKWARD_BATCH_RULE(native_batch_norm_backward));
+  m.impl("cudnn_batch_norm_backward", CUDNN_BATCH_NORM_BACKWARD_BATCH_RULE(at::functorch::cudnn_batch_norm_backward_wrapper));
+  m.impl("miopen_batch_norm_backward", MIOPEN_BATCH_NORM_BACKWARD_BATCH_RULE(at::functorch::miopen_batch_norm_backward_wrapper));
   m.impl("native_group_norm", native_group_norm_plumbing);
   VMAP_SUPPORT("native_layer_norm", native_layer_norm_batch_rule);
   m.impl("native_layer_norm_backward", native_layer_norm_backward_plumbing);
