@@ -3,26 +3,26 @@ import torch
 import functorch
 from torch.testing._internal.common_utils import run_tests, TestCase
 
-from functorch.compile import aot_function
+from functorch.compile import aot_function, nop
 from functorch.compile import memory_efficient_pointwise_fusion
 
 
 class TestCompileCache(TestCase):
+    def check(self, a, b, aot_fn, fn):
+        a_clone = a.clone().detach().requires_grad_(True)
+        b_clone = b.clone().detach().requires_grad_(True)
+        ref = fn(a, b)
+        ref.sum().backward()
+
+        res = aot_fn(a_clone, b_clone)
+        res.sum().backward()
+        assert torch.allclose(res, ref)
+        assert torch.allclose(a.grad, a_clone.grad)
+        assert torch.allclose(b.grad, b_clone.grad)
+
     def test_recompilation_on_broadcast(self):
         def fn(x, bias):
             return x + bias
-
-        def check(a, b, mem_optimized_fn, fn):
-            a_clone = a.clone().detach().requires_grad_(True)
-            b_clone = b.clone().detach().requires_grad_(True)
-            ref = fn(a, b)
-            ref.sum().backward()
-
-            res = mem_optimized_fn(a_clone, b_clone)
-            res.sum().backward()
-            assert torch.allclose(res, ref)
-            assert torch.allclose(a.grad, a_clone.grad)
-            assert torch.allclose(b.grad, b_clone.grad)
 
         for hasher_type in ["DynamicShapeHasher", "StaticShapeHasher"]:
             functorch.compile.clear_compile_cache()
@@ -35,11 +35,11 @@ class TestCompileCache(TestCase):
 
             a = torch.randn(10, 20, requires_grad=True)
             b = torch.randn(20, requires_grad=True)
-            check(a, b, mem_optimized_fn, fn)
+            self.check(a, b, mem_optimized_fn, fn)
 
             a = torch.randn(10, 20, requires_grad=True)
             b = torch.randn(10, 20, requires_grad=True)
-            check(a, b, mem_optimized_fn, fn)
+            self.check(a, b, mem_optimized_fn, fn)
 
             end_num_recomps = functorch.compile.num_of_recompilations()
 
@@ -49,18 +49,6 @@ class TestCompileCache(TestCase):
     def test_compilation_for_dynamic_shape(self):
         def fn(x, bias):
             return x + bias
-
-        def check(a, b, mem_optimized_fn, fn):
-            a_clone = a.clone().detach().requires_grad_(True)
-            b_clone = b.clone().detach().requires_grad_(True)
-            ref = fn(a, b)
-            ref.sum().backward()
-
-            res = mem_optimized_fn(a_clone, b_clone)
-            res.sum().backward()
-            assert torch.allclose(res, ref)
-            assert torch.allclose(a.grad, a_clone.grad)
-            assert torch.allclose(b.grad, b_clone.grad)
 
         for hasher_type in ["DynamicShapeHasher", "StaticShapeHasher"]:
             functorch.compile.clear_compile_cache()
@@ -72,12 +60,12 @@ class TestCompileCache(TestCase):
             for s in range(10, 20):
                 a = torch.randn(s, requires_grad=True)
                 b = torch.randn(s, requires_grad=True)
-                check(a, b, mem_optimized_fn, fn)
+                self.check(a, b, mem_optimized_fn, fn)
 
             for s in range(10, 20):
                 a = torch.randn(s, requires_grad=True)
                 b = torch.randn(s, requires_grad=True)
-                check(a, b, mem_optimized_fn, fn)
+                self.check(a, b, mem_optimized_fn, fn)
 
             end_num_recomps = functorch.compile.num_of_recompilations()
 
@@ -90,7 +78,7 @@ class TestCompileCache(TestCase):
             for s in range(10, 20):
                 a = torch.randn(s, s, requires_grad=True)
                 b = torch.randn(s, s, requires_grad=True)
-                check(a, b, mem_optimized_fn, fn)
+                self.check(a, b, mem_optimized_fn, fn)
 
             end_num_recomps = functorch.compile.num_of_recompilations()
 
@@ -104,31 +92,14 @@ class TestCompileCache(TestCase):
         def f(x, bias):
             return x + bias
 
-        def _nop_compile(x, _):
-            return x
-
         def g(x, bias):
-            return aot_function(
-                f, _nop_compile, _nop_compile, hasher_type="DynamicShapeHasher"
-            )(x, bias)
-
-        def check(a, b, mem_optimized_fn, fn):
-            a_clone = a.clone().detach().requires_grad_(True)
-            b_clone = b.clone().detach().requires_grad_(True)
-            ref = fn(a, b)
-            ref.sum().backward()
-
-            res = mem_optimized_fn(a_clone, b_clone)
-            res.sum().backward()
-            assert torch.allclose(res, ref)
-            assert torch.allclose(a.grad, a_clone.grad)
-            assert torch.allclose(b.grad, b_clone.grad)
+            return aot_function(f, nop, nop, hasher_type="DynamicShapeHasher")(x, bias)
 
         start_num_recomps = functorch.compile.num_of_recompilations()
         for _ in range(10):
             a = torch.randn(10, 20, requires_grad=True)
             b = torch.randn(10, 20, requires_grad=True)
-            check(a, b, g, f)
+            self.check(a, b, g, f)
 
         end_num_recomps = functorch.compile.num_of_recompilations()
         total_recomps = end_num_recomps - start_num_recomps
@@ -140,18 +111,6 @@ class TestCompileCache(TestCase):
 
         def g(x, y):
             return x * y
-
-        def check(a, b, mem_optimized_fn, fn):
-            a_clone = a.clone().detach().requires_grad_(True)
-            b_clone = b.clone().detach().requires_grad_(True)
-            ref = fn(a, b)
-            ref.sum().backward()
-
-            res = mem_optimized_fn(a_clone, b_clone)
-            res.sum().backward()
-            assert torch.allclose(res, ref)
-            assert torch.allclose(a.grad, a_clone.grad)
-            assert torch.allclose(b.grad, b_clone.grad)
 
         for hasher_type in ["DynamicShapeHasher", "StaticShapeHasher"]:
             functorch.compile.clear_compile_cache()
@@ -165,11 +124,11 @@ class TestCompileCache(TestCase):
             start_num_recomps = functorch.compile.num_of_recompilations()
             a = torch.randn(10, requires_grad=True)
             b = torch.randn(10, requires_grad=True)
-            check(a, b, mem_optimized_f, f)
+            self.check(a, b, mem_optimized_f, f)
 
             a = torch.randn(10, requires_grad=True)
             b = torch.randn(10, requires_grad=True)
-            check(a, b, mem_optimized_g, g)
+            self.check(a, b, mem_optimized_g, g)
 
             end_num_recomps = functorch.compile.num_of_recompilations()
             total_recomps = end_num_recomps - start_num_recomps
@@ -178,7 +137,7 @@ class TestCompileCache(TestCase):
             # Force recompilation for function f and check num of recompilations again
             a = torch.randn(10, 20, requires_grad=True)
             b = torch.randn(10, 20, requires_grad=True)
-            check(a, b, mem_optimized_f, f)
+            self.check(a, b, mem_optimized_f, f)
 
             end_num_recomps = functorch.compile.num_of_recompilations()
             total_recomps = end_num_recomps - start_num_recomps
@@ -205,83 +164,57 @@ class TestCompileCache(TestCase):
         for hasher_type in ["DynamicShapeHasher", "StaticShapeHasher"]:
             functorch.compile.clear_compile_cache()
 
-            def _nop_compile(x, _):
-                return x
-
-            aot_autograd_f = aot_function(
-                f, _nop_compile, _nop_compile, hasher_type=hasher_type
-            )
+            aot_autograd_f = aot_function(f, nop, nop, hasher_type=hasher_type)
 
             args = [torch.randn(10, requires_grad=True) for _ in range(100)]
             check(args, aot_autograd_f, f)
 
-    def test_non_tensor_args(self):
+
+class TestCompileCacheNonTensorArgs(TestCase):
+    def check(self, a, b, mem_optimized_fn, fn):
+        a_clone = a.clone().detach().requires_grad_(True)
+        ref = fn(a, b)
+        ref.sum().backward()
+
+        res = mem_optimized_fn(a_clone, b)
+        res.sum().backward()
+        assert torch.allclose(res, ref)
+        assert torch.allclose(a.grad, a_clone.grad)
+
+    def test_simple(self):
         def fn(x, p):
             return x * p
-
-        def fn_dropout(x, prob):
-            return torch.nn.functional.dropout(x, p=prob)
-
-        def check(a, b, mem_optimized_fn, fn):
-            a_clone = a.clone().detach().requires_grad_(True)
-            ref = fn(a, b)
-            ref.sum().backward()
-
-            res = mem_optimized_fn(a_clone, b)
-            res.sum().backward()
-            assert torch.allclose(res, ref)
-            assert torch.allclose(a.grad, a_clone.grad)
 
         for hasher_type in ["DynamicShapeHasher", "StaticShapeHasher"]:
             functorch.compile.clear_compile_cache()
 
-            def _nop_compile(x, _):
-                return x
-
             start_num_recomps = functorch.compile.num_of_recompilations()
 
-            aot_autograd_f = aot_function(
-                fn, _nop_compile, _nop_compile, hasher_type=hasher_type
-            )
+            aot_autograd_f = aot_function(fn, nop, nop, hasher_type=hasher_type)
 
             a = torch.randn(2, 2, requires_grad=True)
             b = 2
-            check(a, b, aot_autograd_f, fn)
+            self.check(a, b, aot_autograd_f, fn)
 
             a = torch.randn(2, 2, requires_grad=True)
             b = 3
-            check(a, b, aot_autograd_f, fn)
+            self.check(a, b, aot_autograd_f, fn)
 
             end_num_recomps = functorch.compile.num_of_recompilations()
 
             total_recomps = end_num_recomps - start_num_recomps
             assert total_recomps == 2
 
-    def test_non_tensor_args_dropout(self):
+    def test_dropout(self):
         def fn(x, prob):
             return torch.nn.functional.dropout(x, p=prob)
-
-        def check(a, b, mem_optimized_fn, fn):
-            a_clone = a.clone().detach().requires_grad_(True)
-            ref = fn(a, b)
-            ref.sum().backward()
-
-            res = mem_optimized_fn(a_clone, b)
-            res.sum().backward()
-            assert torch.allclose(res, ref)
-            assert torch.allclose(a.grad, a_clone.grad)
 
         for hasher_type in ["DynamicShapeHasher", "StaticShapeHasher"]:
             functorch.compile.clear_compile_cache()
 
-            def _nop_compile(x, _):
-                return x
-
             start_num_recomps = functorch.compile.num_of_recompilations()
 
-            aot_autograd_f = aot_function(
-                fn, _nop_compile, _nop_compile, hasher_type=hasher_type
-            )
+            aot_autograd_f = aot_function(fn, nop, nop, hasher_type=hasher_type)
 
             a = torch.randn(2, 2, requires_grad=True)
             b = 0.3
@@ -290,7 +223,69 @@ class TestCompileCache(TestCase):
             # Setting the prob to 0. This should cause recompilation.
             a = torch.randn(2, 2, requires_grad=True)
             b = 0
-            check(a, b, aot_autograd_f, fn)
+            self.check(a, b, aot_autograd_f, fn)
+
+            end_num_recomps = functorch.compile.num_of_recompilations()
+
+            total_recomps = end_num_recomps - start_num_recomps
+            assert total_recomps == 2
+
+    def test_if_condition(self):
+        def fn(x, state: bool):
+            if state:
+                return torch.sin(x)
+            else:
+                return torch.cos(x)
+
+        for hasher_type in ["DynamicShapeHasher", "StaticShapeHasher"]:
+            functorch.compile.clear_compile_cache()
+
+            start_num_recomps = functorch.compile.num_of_recompilations()
+
+            aot_autograd_f = aot_function(fn, nop, nop, hasher_type=hasher_type)
+
+            a = torch.randn(2, 2, requires_grad=True)
+            b = True
+            self.check(a, b, aot_autograd_f, fn)
+
+            a = torch.randn(2, 2, requires_grad=True)
+            b = False
+            self.check(a, b, aot_autograd_f, fn)
+
+            end_num_recomps = functorch.compile.num_of_recompilations()
+
+            total_recomps = end_num_recomps - start_num_recomps
+            assert total_recomps == 2
+
+    def test_custom(self):
+        class Record:
+            def __init__(self, name, multiplier):
+                self.name = name
+                self.multiplier = multiplier
+
+            def __eq__(self, other):
+                return self.name == other.name and self.multiplier == other.multiplier
+
+            def __hash__(self):
+                return hash((self.name, self.multiplier))
+
+        def fn(x, record):
+            return x * record.multiplier
+
+        for hasher_type in ["DynamicShapeHasher", "StaticShapeHasher"]:
+            functorch.compile.clear_compile_cache()
+
+            start_num_recomps = functorch.compile.num_of_recompilations()
+
+            aot_autograd_f = aot_function(fn, nop, nop, hasher_type=hasher_type)
+
+            a = torch.randn(2, 2, requires_grad=True)
+            b = Record("Foo", 0.5)
+            self.check(a, b, aot_autograd_f, fn)
+
+            a = torch.randn(2, 2, requires_grad=True)
+            b = Record("Bar", 10.2)
+            self.check(a, b, aot_autograd_f, fn)
 
             end_num_recomps = functorch.compile.num_of_recompilations()
 
