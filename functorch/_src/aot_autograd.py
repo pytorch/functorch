@@ -2,6 +2,7 @@ import os
 import math
 import torch
 import torch.nn as nn
+from torch import Tensor
 from functorch import make_functional_with_buffers, make_fx
 import torch.fx as fx
 from torch.fx import immutable_collections
@@ -235,7 +236,7 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
 def create_joint_forward_backward(fn):
     def joint_forward_backward(primals, tangents):
         out = fn(*primals)
-        primals = [p for p in pytree.tree_flatten(primals)[0] if isinstance(p, torch.Tensor) and p.requires_grad]
+        primals = [p for p in pytree.tree_flatten(primals)[0] if isinstance(p, Tensor) and p.requires_grad]
         backward_out = []
         if primals:  # todo(chilli): Make it support it if not all outputs have gradients
             backward_out = torch.autograd.grad(out, primals, grad_outputs=tangents, allow_unused=True)
@@ -357,27 +358,19 @@ class PytreeThunk:
         return pytree.tree_unflatten(x, self.spec)
 
 
-def num_of_tensor_args(args):
-    count = 0
-    for arg in args:
-        if isinstance(arg, torch.Tensor):
-            count += 1
-    return count
-
-
 def handle_non_tensor_args(flattened_args):
     """
     Store the hash of non tensor args. Also, reorder the args such that the
     tensor args are at the beginning of the list.
     """
-    tensor_args = list()
-    non_tensor_args = list()
+    tensor_args = []
+    non_tensor_args = []
     for flat_arg in flattened_args:
-        if isinstance(flat_arg, torch.Tensor):
+        if isinstance(flat_arg, Tensor):
             tensor_args.append(flat_arg)
         else:
             non_tensor_args.append(flat_arg.__hash__())
-    return tensor_args + non_tensor_args
+    return len(tensor_args), tensor_args + non_tensor_args
 
 
 def compiled_function(
@@ -404,10 +397,9 @@ def compiled_function(
             flattened_args = tree.flatten((args, kwargs))
         else:
             flattened_args, _ = pytree.tree_flatten((args, kwargs))
-        num_tensor_args = num_of_tensor_args(flattened_args)
 
         # Check if the fn is already compiled
-        flattened_args_for_cache = handle_non_tensor_args(flattened_args)
+        num_tensor_args, flattened_args_for_cache = handle_non_tensor_args(flattened_args)
         cached_res = compile_cache.at(fn_id, num_tensor_args, hasher_type, *flattened_args_for_cache)
 
         # Compile the function and save it in the cache
@@ -428,7 +420,7 @@ def compiled_function(
             ).apply
             cached_res = (compiled_fn, out_spec)
             # Save the compiled_fn in the cache
-            flattened_args_for_cache = handle_non_tensor_args(flattened_args)
+            num_tensor_args, flattened_args_for_cache = handle_non_tensor_args(flattened_args)
             compile_cache.insert(
                 fn_id, num_tensor_args, hasher_type, cached_res, *flattened_args_for_cache
             )
