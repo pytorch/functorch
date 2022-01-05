@@ -560,6 +560,7 @@ class TestOperators(TestCase):
         xfail('__getitem__', ''),
         xfail('index_put'),
         xfail('lu_solve'),
+        xfail('nn.functional.instance_norm'),
     })
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
