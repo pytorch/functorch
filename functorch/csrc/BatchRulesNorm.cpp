@@ -5,7 +5,6 @@
 // LICENSE file in the root directory of this source tree.
 
 #include <functorch/csrc/BatchRulesHelper.h>
-#include <iostream>
 #include <functorch/csrc/PlumbingHelper.h>
 #include <functorch/csrc/BatchedFallback.h>
 #include <ATen/core/dispatch/Dispatcher.h>
@@ -42,12 +41,6 @@ static Tensor padRight(const Tensor& tensor, optional<int64_t> has_bdim, int64_t
   return tensor.view(new_sizes);
 }
 
-static Tensor repeatForUpdatedValues(const Tensor& input, int64_t batch_size) {
-  VmapDimVector repeat_sizes(input.dim(), 1);
-  repeat_sizes[1] = batch_size;
-  return input.repeat(repeat_sizes);
-}
-
 template<typename F, F Func>
 std::tuple<Tensor,optional<int64_t>,Tensor,optional<int64_t>,Tensor,optional<int64_t>>
 batch_norm_batch_rule(
@@ -62,50 +55,57 @@ batch_norm_batch_rule(
   c10::MaybeOwned<Tensor> bias_maybe_owned = at::borrow_from_optional_tensor(bias_opt);
   const Tensor& bias = *bias_maybe_owned;
   c10::MaybeOwned<Tensor> running_mean_maybe_owned = at::borrow_from_optional_tensor(running_mean_opt);
-  auto running_mean_ = *running_mean_maybe_owned;
+  auto running_mean = *running_mean_maybe_owned;
   c10::MaybeOwned<Tensor> running_var_maybe_owned = at::borrow_from_optional_tensor(running_var_opt);
-  auto running_var_ = *running_var_maybe_owned;
+  auto running_var = *running_var_maybe_owned;
 
-  if (input_bdim && ((running_mean_.defined() && !running_mean_bdim) || (running_var_.defined() && !running_var_bdim))) {
+  if (input_bdim && ((running_mean.defined() && !running_mean_bdim) || (running_var.defined() && !running_var_bdim))) {
     throw std::runtime_error("Batch norm got a batched tensor as input while the running_mean or running_var, which will be updated in place, were not batched.");
   }
-  auto input_ = input;
   c10::optional<int64_t> bdim_size;
-  if (input_bdim) {
-    bdim_size = input.size(*input_bdim);
-    input_ = reshape_dim_into(*input_bdim, /*channels dim*/1, input);
-  } else if (running_mean_bdim) {
-    bdim_size = running_mean_.size(*running_mean_bdim);
-    input_ = repeatForUpdatedValues(input_, *bdim_size);
-  } else if (running_var_bdim) {
-    bdim_size = running_var_.size(*running_var_bdim);
-    input_ = repeatForUpdatedValues(input_, *bdim_size);
-  }
+  Tensor result0;
+  Tensor mean;
+  Tensor rstd;
+  if (!input_bdim && !running_mean_bdim && !running_var_bdim) {
+    const auto dummy_weight = at::ones(input.size(1), input.options());  // cudnn and miopen require a weight
+    const auto dummy_bias = at::zeros(input.size(1), input.options());   // without this, get "strides() called on undefined Tensor" on cuda
+    const auto result = Func(input, dummy_weight, dummy_bias, running_mean_opt, running_var_opt, training, momentum, eps);
+    result0 = std::get<0>(result).transpose(0, 1);          // [C, B, *]
+    mean = std::get<1>(result);
+    rstd = std::get<2>(result);
+  } else {
+    bdim_size = get_bdim_size3(input, input_bdim, running_mean, running_mean_bdim, running_var, running_mean_bdim);
+    auto input_ = moveBatchDimToFront(input, input_bdim);
+    input_ = ensure_has_bdim(input_, input_bdim.has_value(), bdim_size.value());
+    input_ = reshape_dim_into(0, /*channels dim*/1, input_);
 
-  if (running_mean_bdim) {
-    running_mean_ = reshape_dim_into(*running_mean_bdim, 0, running_mean_);
-  }
-  if (running_var_bdim) {
-    running_var_ = reshape_dim_into(*running_var_bdim, 0, running_var_);
-  }
+    c10::optional<Tensor> running_mean_;
+    c10::optional<Tensor> running_var_;
+    if (running_mean.defined()) {
+      running_mean_ = moveBatchDimToFront(running_mean, running_mean_bdim);
+      running_mean_ = ensure_has_bdim(*running_mean_, running_mean_bdim.has_value(), bdim_size.value());
+      running_mean_ = reshape_dim_into(0, 0, *running_mean_);
+    }
+    if (running_var.defined()) {
+      running_var_ = moveBatchDimToFront(running_var, running_var_bdim);
+      running_var_ = ensure_has_bdim(*running_var_, running_var_bdim.has_value(), bdim_size.value());
+      running_var_ = reshape_dim_into(0, 0, *running_var_);
+    }
 
-  const auto dummy_weight = at::ones(input_.size(1), input_.options());
-  const auto dummy_bias = at::zeros(input_.size(1), input_.options()); // can't use efficientzeros because cudnn expects contiguous
-  const auto result = Func(input_, dummy_weight, dummy_bias, running_mean_, running_var_, training, momentum, eps);
-  auto result0 = std::get<0>(result);
-  auto mean = std::get<1>(result);
-  auto rstd = std::get<2>(result);
-
-  result0 = result0.transpose(0, 1);                              // [B, (B0, C), *] -> [(B0, C), B, *]
-  if (bdim_size) {
+    const auto dummy_weight = at::ones(input_.size(1), input_.options());  // cudnn and miopen require a weight
+    const auto dummy_bias = at::zeros(input_.size(1), input_.options());   // without this, get "strides() called on undefined Tensor" on cuda
+    const auto result = Func(input_, dummy_weight, dummy_bias, running_mean_, running_var_, training, momentum, eps);
+    result0 = std::get<0>(result).transpose(0, 1);                // [(B0, C), B, *]
     result0 = reshape_dim_outof(0, bdim_size.value(), result0);   // [B0, C, B, *]
+    mean = std::get<1>(result);
     mean = reshape_dim_outof(0, bdim_size.value(), mean);         // [B0, C]
+    rstd = std::get<2>(result);
     rstd = reshape_dim_outof(0, bdim_size.value(), rstd);         // [B0, C]
   }
-  const auto stats_bdim = compute_stat_bdim(bdim_size, mean);
 
-  const auto input_logical_rank = rankWithoutBatchDim(input, input_bdim);
+  const auto stats_bdim = compute_stat_bdim(bdim_size, mean);
   if (weight.defined()) {
+    const auto input_logical_rank = rankWithoutBatchDim(input, input_bdim);
     auto weight_ = moveBatchDimToFront(weight, weight_bdim);
     weight_ = padRight(weight_, weight_bdim, input_logical_rank);
     result0 = result0 * weight_;
@@ -151,7 +151,7 @@ std::tuple<at::Tensor,optional<int64_t>> batch_norm_backward_no_weight_bias_batc
   auto mean_ = moveBatchDimToFront(mean, mean_bdim);
   auto rstd_ = moveBatchDimToFront(rstd, rstd_bdim);
 
-  // ensure grad_out / input have bdim.
+  // ensure all inputs have bdim.
   const auto bdim_size = get_bdim_size4(grad_out, grad_out_bdim, input, input_bdim, running_mean, running_mean_bdim, running_var, running_var_bdim);
   grad_out_ = ensure_has_bdim(grad_out_, grad_out_bdim.has_value(), bdim_size);
   input_ = ensure_has_bdim(input_, input_bdim.has_value(), bdim_size);
@@ -161,14 +161,14 @@ std::tuple<at::Tensor,optional<int64_t>> batch_norm_backward_no_weight_bias_batc
   optional<Tensor> running_mean_;
   optional<Tensor> running_var_;
   if (running_mean.defined()) {
-    const auto running_mean_int = moveBatchDimToFront(running_mean, running_mean_bdim);
-    running_mean_ = ensure_has_bdim(running_mean_int, running_mean_bdim.has_value(), bdim_size).contiguous();
-    running_mean_ = reshape_dim_into(0, 0, *running_mean_);
+    running_mean_ = moveBatchDimToFront(running_mean, running_mean_bdim);
+    running_mean_ = ensure_has_bdim(*running_mean_, running_mean_bdim.has_value(), bdim_size);
+    running_mean_ = reshape_dim_into(0, 0, *running_mean_).contiguous();
   }
   if (running_var.defined()) {
-    const auto running_var_int = moveBatchDimToFront(running_var, running_var_bdim);
-    running_var_ = ensure_has_bdim(running_var_int, running_var_bdim.has_value(), bdim_size).contiguous();
-    running_var_ = reshape_dim_into(0, 0, *running_var_);
+    running_var_ = moveBatchDimToFront(running_var, running_var_bdim);
+    running_var_ = ensure_has_bdim(*running_var_, running_var_bdim.has_value(), bdim_size);
+    running_var_ = reshape_dim_into(0, 0, *running_var_).contiguous();
   }
 
   input_ = reshape_dim_into(0, /*channels dim*/1, input_);
@@ -183,8 +183,8 @@ std::tuple<at::Tensor,optional<int64_t>> batch_norm_backward_no_weight_bias_batc
       grad_out_.contiguous(),
       input_.contiguous(),
       dummy_weight,
-      running_mean_,
-      running_var_,
+      running_mean_,  // contiguous called if there is a tensor given
+      running_var_,   // contiguous called if there is a tensor given
       mean_.contiguous(),
       rstd_.contiguous(),
       training, eps, {true, false, false});

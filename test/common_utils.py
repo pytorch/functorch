@@ -107,11 +107,11 @@ def get_exhaustive_batched_inputs_for_batch_norm(arg_values, kwarg_values, batch
                                          batch_size=batch_size, bdims=bdims, for_batch_norm=True)
 
 
-def get_fallback_and_vmap_exhaustive(op, arg_values, kwarg_values, op_info=None, compute_loop_out=True, bdims=(0, -1)):
+def get_fallback_and_vmap_exhaustive(op, arg_values, kwarg_values, opinfo=None, compute_loop_out=True, bdims=(0, -1)):
     out_dim = 0
     batch_size = 4
     generator = get_exhaustive_batched_inputs(arg_values, kwarg_values, batch_size, bdims=bdims)
-    if op_info is not None and op_info.name == "nn.functional.batch_norm":
+    if opinfo is not None and opinfo.name == "nn.functional.batch_norm":
         generator = get_exhaustive_batched_inputs_for_batch_norm(arg_values, kwarg_values, batch_size, bdims=bdims)
     for batched_args, in_dims, kwarg_values in generator:
         if compute_loop_out:
