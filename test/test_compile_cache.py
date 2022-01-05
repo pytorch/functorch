@@ -3,7 +3,7 @@ import torch
 import functorch
 from torch.testing._internal.common_utils import run_tests, TestCase
 
-from functorch.compile import compiled_function
+from functorch.compile import aot_function
 from functorch.compile import memory_efficient_pointwise_fusion
 
 
@@ -108,7 +108,7 @@ class TestCompileCache(TestCase):
             return x
 
         def g(x, bias):
-            return compiled_function(
+            return aot_function(
                 f, _nop_compile, _nop_compile, hasher_type="DynamicShapeHasher"
             )(x, bias)
 
@@ -208,7 +208,7 @@ class TestCompileCache(TestCase):
             def _nop_compile(x, _):
                 return x
 
-            aot_autograd_f = compiled_function(
+            aot_autograd_f = aot_function(
                 f, _nop_compile, _nop_compile, hasher_type=hasher_type
             )
 
@@ -240,7 +240,7 @@ class TestCompileCache(TestCase):
 
             start_num_recomps = functorch.compile.num_of_recompilations()
 
-            aot_autograd_f = compiled_function(
+            aot_autograd_f = aot_function(
                 fn, _nop_compile, _nop_compile, hasher_type=hasher_type
             )
 
@@ -279,13 +279,13 @@ class TestCompileCache(TestCase):
 
             start_num_recomps = functorch.compile.num_of_recompilations()
 
-            aot_autograd_f = compiled_function(
+            aot_autograd_f = aot_function(
                 fn, _nop_compile, _nop_compile, hasher_type=hasher_type
             )
 
             a = torch.randn(2, 2, requires_grad=True)
             b = 0.3
-            res = aot_autograd_f(a, b)
+            aot_autograd_f(a, b)
 
             # Setting the prob to 0. This should cause recompilation.
             a = torch.randn(2, 2, requires_grad=True)
