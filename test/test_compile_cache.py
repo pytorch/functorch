@@ -170,7 +170,7 @@ class TestCompileCache(TestCase):
             check(args, aot_autograd_f, f)
 
 
-class TestCompileCacheNonTensorArgs(TestCase):
+class TestCompileCacheStaticArgs(TestCase):
     def check(self, a, b, aot_autograd_fn, fn):
         a_clone = a.clone().detach().requires_grad_(True)
         ref = fn(a, b)
@@ -198,8 +198,8 @@ class TestCompileCacheNonTensorArgs(TestCase):
             pass
 
     def test_simple(self):
-        def fn(x, p):
-            return x * p
+        def fn(x, static_arg):
+            return x * static_arg
 
         functorch.compile.clear_compile_cache()
 
@@ -226,9 +226,9 @@ class TestCompileCacheNonTensorArgs(TestCase):
         total_recomps = end_num_recomps - start_num_recomps
         assert total_recomps == 2
 
-    def test_simple_different_ordering(self):
-        def fn(p, x):
-            return p - x
+    def test_static_arg_before_tensor_arg(self):
+        def fn(static_arg, x):
+            return static_arg - x
 
         def check(a, b, aot_autograd_fn, fn):
             b_clone = b.clone().detach().requires_grad_(True)
@@ -253,6 +253,41 @@ class TestCompileCacheNonTensorArgs(TestCase):
         a = 3
         b = torch.randn(2, 2, requires_grad=True)
         check(a, b, aot_autograd_f, fn)
+
+        end_num_recomps = functorch.compile.num_of_recompilations()
+
+        total_recomps = end_num_recomps - start_num_recomps
+        assert total_recomps == 2
+
+    def test_interleaved_static_args(self):
+        def fn(static_arg1, x, static_arg2):
+            return static_arg1 - x - static_arg2
+
+        def check(a, b, c, aot_autograd_fn, fn):
+            b_clone = b.clone().detach().requires_grad_(True)
+            ref = fn(a, b, c)
+            ref.sum().backward()
+
+            res = aot_autograd_fn(a, b_clone, c)
+            res.sum().backward()
+            assert torch.allclose(res, ref)
+            assert torch.allclose(b.grad, b_clone.grad)
+
+        functorch.compile.clear_compile_cache()
+
+        start_num_recomps = functorch.compile.num_of_recompilations()
+
+        aot_autograd_f = aot_function(fn, nop, nop, static_argnums=(0, 2))
+
+        a = 2
+        b = torch.randn(2, 2, requires_grad=True)
+        c = 0.1
+        check(a, b, c, aot_autograd_f, fn)
+
+        a = 3
+        b = torch.randn(2, 2, requires_grad=True)
+        c = 0.1
+        check(a, b, c, aot_autograd_f, fn)
 
         end_num_recomps = functorch.compile.num_of_recompilations()
 
@@ -341,6 +376,189 @@ class TestCompileCacheNonTensorArgs(TestCase):
         a = torch.randn(2, 2, requires_grad=True)
         b = Record("Bar", 10.2)
         self.check(a, b, aot_autograd_f, fn)
+
+        end_num_recomps = functorch.compile.num_of_recompilations()
+
+        total_recomps = end_num_recomps - start_num_recomps
+        assert total_recomps == 2
+
+    def test_tuple(self):
+        def fn(a_tuple, static_arg):
+            return torch.sin(a_tuple[0]) - a_tuple[1] - static_arg
+
+        def check(a_tuple, b, aot_autograd_fn, fn):
+            a0 = a_tuple[0]
+            a1 = a_tuple[1]
+
+            a0_clone = a0.clone().detach().requires_grad_(True)
+            a1_clone = a1.clone().detach().requires_grad_(True)
+            ref = fn(a, b)
+            ref.sum().backward()
+
+            res = aot_autograd_fn((a0_clone, a1_clone), b)
+            res.sum().backward()
+            assert torch.allclose(res, ref)
+            assert torch.allclose(a0.grad, a0_clone.grad)
+            assert torch.allclose(a1.grad, a1_clone.grad)
+
+        functorch.compile.clear_compile_cache()
+
+        start_num_recomps = functorch.compile.num_of_recompilations()
+
+        aot_autograd_f = aot_function(fn, nop, nop, static_argnums=(1,))
+
+        a = (
+            torch.randn(2, 2, requires_grad=True),
+            torch.randn(2, 2, requires_grad=True),
+        )
+        b = 0.1
+        check(a, b, aot_autograd_f, fn)
+
+        a = (
+            torch.randn(2, 2, requires_grad=True),
+            torch.randn(2, 2, requires_grad=True),
+        )
+        b = 1
+        check(a, b, aot_autograd_f, fn)
+
+        end_num_recomps = functorch.compile.num_of_recompilations()
+
+        total_recomps = end_num_recomps - start_num_recomps
+        assert total_recomps == 2
+
+    def test_tuple_with_first_arg_as_static(self):
+        def fn(static_arg, a_tuple):
+            return torch.sin(a_tuple[0]) - a_tuple[1] - static_arg
+
+        def check(a, b_tuple, aot_autograd_fn, fn):
+            b0 = b_tuple[0]
+            b1 = b_tuple[1]
+
+            b0_clone = b0.clone().detach().requires_grad_(True)
+            b1_clone = b1.clone().detach().requires_grad_(True)
+            ref = fn(a, b_tuple)
+            ref.sum().backward()
+
+            res = aot_autograd_fn(a, (b0_clone, b1_clone))
+            res.sum().backward()
+            assert torch.allclose(res, ref)
+            assert torch.allclose(b0.grad, b0_clone.grad)
+            assert torch.allclose(b1.grad, b1_clone.grad)
+
+        functorch.compile.clear_compile_cache()
+
+        start_num_recomps = functorch.compile.num_of_recompilations()
+
+        aot_autograd_f = aot_function(fn, nop, nop, static_argnums=(0,))
+
+        a = 0.1
+        b = (
+            torch.randn(2, 2, requires_grad=True),
+            torch.randn(2, 2, requires_grad=True),
+        )
+        check(a, b, aot_autograd_f, fn)
+
+        a = 1
+        b = (
+            torch.randn(2, 2, requires_grad=True),
+            torch.randn(2, 2, requires_grad=True),
+        )
+        check(a, b, aot_autograd_f, fn)
+
+        end_num_recomps = functorch.compile.num_of_recompilations()
+
+        total_recomps = end_num_recomps - start_num_recomps
+        assert total_recomps == 2
+
+    def test_dict(self):
+        def fn(a_dict, static_arg):
+            return torch.sin(a_dict["foo"]) - a_dict["bar"] - static_arg
+
+        def check(a_dict, b, aot_autograd_fn, fn):
+
+            a0 = a_dict["foo"]
+            a1 = a_dict["bar"]
+
+            a0_clone = a0.clone().detach().requires_grad_(True)
+            a1_clone = a1.clone().detach().requires_grad_(True)
+            ref = fn(a_dict, b)
+            ref.sum().backward()
+
+            a_clone = {}
+            a_clone["foo"] = a0_clone
+            a_clone["bar"] = a1_clone
+            res = aot_autograd_fn(a_clone, b)
+            res.sum().backward()
+            assert torch.allclose(res, ref)
+            assert torch.allclose(a0.grad, a0_clone.grad)
+            assert torch.allclose(a1.grad, a1_clone.grad)
+
+        functorch.compile.clear_compile_cache()
+
+        start_num_recomps = functorch.compile.num_of_recompilations()
+
+        aot_autograd_f = aot_function(fn, nop, nop, static_argnums=(1,))
+
+        a = {}
+        a["foo"] = torch.zeros(2, 2, requires_grad=True)
+        a["bar"] = torch.ones(2, 2, requires_grad=True)
+        b = 0
+        check(a, b, aot_autograd_f, fn)
+
+        a = {}
+        a["foo"] = torch.randn(2, 2, requires_grad=True)
+        a["bar"] = torch.randn(2, 2, requires_grad=True)
+        b = 0.2
+        check(a, b, aot_autograd_f, fn)
+
+        end_num_recomps = functorch.compile.num_of_recompilations()
+
+        total_recomps = end_num_recomps - start_num_recomps
+        assert total_recomps == 2
+
+    def test_dict_with_static_arg_before_dict(self):
+        def fn(static_arg, a_dict):
+            return torch.sin(a_dict["foo"]) - a_dict["bar"] - static_arg
+
+        def check(a, b_dict, aot_autograd_fn, fn):
+
+            ref = fn(a, b_dict)
+            res = aot_autograd_fn(a, b_dict)
+            assert torch.allclose(res, ref)
+
+            b0 = b_dict["foo"]
+            b1 = b_dict["bar"]
+
+            b0_clone = b0.clone().detach().requires_grad_(True)
+            b1_clone = b1.clone().detach().requires_grad_(True)
+            ref.sum().backward()
+
+            b_clone = {}
+            b_clone["foo"] = b0_clone
+            b_clone["bar"] = b1_clone
+            res = aot_autograd_fn(a, b_clone)
+            res.sum().backward()
+            assert torch.allclose(res, ref)
+            assert torch.allclose(b0.grad, b0_clone.grad)
+            assert torch.allclose(b1.grad, b1_clone.grad)
+
+        functorch.compile.clear_compile_cache()
+
+        start_num_recomps = functorch.compile.num_of_recompilations()
+
+        aot_autograd_f = aot_function(fn, nop, nop, static_argnums=(0,))
+
+        a = 0.1
+        b = {}
+        b["foo"] = torch.randn(2, 2, requires_grad=True)
+        b["bar"] = torch.randn(2, 2, requires_grad=True)
+        check(a, b, aot_autograd_f, fn)
+
+        a = 0.2
+        b = {}
+        b["foo"] = torch.randn(2, 2, requires_grad=True)
+        b["bar"] = torch.randn(2, 2, requires_grad=True)
+        check(a, b, aot_autograd_f, fn)
 
         end_num_recomps = functorch.compile.num_of_recompilations()
 

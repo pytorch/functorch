@@ -12,11 +12,25 @@ from torch.fx.passes import graph_drawer
 import copy
 from functorch._C import CompileCache
 from .decompositions import register_decomposition
+from typing import List, Dict, Any, Tuple
 
 pytree._register_pytree_node(immutable_collections.immutable_list, lambda x: (
     list(x), None), lambda x, c: immutable_collections.immutable_list(x))
 pytree._register_pytree_node(immutable_collections.immutable_dict, lambda x: (list(x.values()), list(
     x.keys())), lambda x, c: immutable_collections.immutable_dict({key: value for key, value in zip(c, x)}))
+
+# TODO - move this to PyTorch core. This overrides the pytree implementation for
+# dict to maintain parity with Deepmind pytree.
+Context = Any
+def _dict_flatten(d: Dict[Any, Any]) -> Tuple[List[Any], Context]:
+    keys = list(sorted(d.keys()))
+    values = [d[key] for key in keys]
+    return values, keys
+
+def _dict_unflatten(values: List[Any], context: Context) -> Dict[Any, Any]:
+    return {key: value for key, value in zip(context, values)}
+
+pytree._register_pytree_node(dict, _dict_flatten, _dict_unflatten)
 
 aten = torch.ops.aten
 
@@ -427,6 +441,7 @@ def compiled_function(
     elif static_argnums is not None and len(static_argnums) == 0:
         static_argnums = None
     elif static_argnums is not None:
+        static_argnums = list(static_argnums)
         static_argnums.sort()
 
     def returned_function(*args, **kwargs):
