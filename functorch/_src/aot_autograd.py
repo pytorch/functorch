@@ -358,15 +358,15 @@ class PytreeThunk:
         return pytree.tree_unflatten(x, self.spec)
 
 
-def handle_non_tensor_args(flattened_args):
+def handle_static_args(flattened_args, static_argnums):
     """
     Store the hash of non tensor args. Also, reorder the args such that the
     tensor args are at the beginning of the list.
     """
     tensor_args = []
     non_tensor_args = []
-    for flat_arg in flattened_args:
-        if isinstance(flat_arg, Tensor):
+    for idx, flat_arg in enumerate(flattened_args):
+        if idx not in static_argnums:
             tensor_args.append(flat_arg)
         else:
             non_tensor_args.append(flat_arg.__hash__())
@@ -379,7 +379,8 @@ def compiled_function(
     bw_compiler=None,
     partition_fn=default_partition,
     decompositions={},
-    hasher_type="StaticShapeHasher"
+    hasher_type="StaticShapeHasher",
+    static_argnums=None,
 ):
     global compile_cache
     if compile_cache is None:
@@ -390,6 +391,9 @@ def compiled_function(
 
     fn_id = id(fn)
 
+    if isinstance(static_argnums, int):
+        static_argnums = [static_argnums]
+
     def returned_function(*args, **kwargs):
         global compile_cache
         nonlocal cached_res
@@ -399,8 +403,12 @@ def compiled_function(
             flattened_args, _ = pytree.tree_flatten((args, kwargs))
 
         # Check if the fn is already compiled
-        num_tensor_args, flattened_args_for_cache = handle_non_tensor_args(flattened_args)
-        cached_res = compile_cache.at(fn_id, num_tensor_args, hasher_type, *flattened_args_for_cache)
+        if static_argnums is None or len(static_argnums) == 0:
+            num_tensor_args = len(flattened_args)
+            cached_res = compile_cache.at(fn_id, num_tensor_args, hasher_type, *flattened_args)
+        else:
+            num_tensor_args, flattened_args_for_cache = handle_static_args(flattened_args, static_argnums)
+            cached_res = compile_cache.at(fn_id, num_tensor_args, hasher_type, *flattened_args_for_cache)
 
         # Compile the function and save it in the cache
         if cached_res is None:
@@ -420,7 +428,7 @@ def compiled_function(
             ).apply
             cached_res = (compiled_fn, out_spec)
             # Save the compiled_fn in the cache
-            num_tensor_args, flattened_args_for_cache = handle_non_tensor_args(flattened_args)
+            num_tensor_args, flattened_args_for_cache = handle_static_args(flattened_args, static_argnums)
             compile_cache.insert(
                 fn_id, num_tensor_args, hasher_type, cached_res, *flattened_args_for_cache
             )

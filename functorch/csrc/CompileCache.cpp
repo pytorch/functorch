@@ -177,7 +177,12 @@ public:
     // Convert to Tensor Args
     std::vector<at::Tensor> tensorArgs(numTensorArgs);
     for (int i = 0; i < numTensorArgs; ++i) {
-      tensorArgs[i] = THPVariable_Unpack(PyTuple_GET_ITEM(args, i));
+      PyObject *arg = PyTuple_GET_ITEM(args, i);
+      if (!THPVariable_Check(arg)) {
+        throw std::runtime_error("Encountered a non-tensor argument. Set up "
+                                 "static_argnums correctly.");
+      }
+      tensorArgs[i] = THPVariable_Unpack(arg);
     }
     return tensorArgs;
   }

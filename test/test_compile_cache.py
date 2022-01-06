@@ -171,64 +171,117 @@ class TestCompileCache(TestCase):
 
 
 class TestCompileCacheNonTensorArgs(TestCase):
-    def check(self, a, b, mem_optimized_fn, fn):
+    def check(self, a, b, aot_autograd_fn, fn):
         a_clone = a.clone().detach().requires_grad_(True)
         ref = fn(a, b)
         ref.sum().backward()
 
-        res = mem_optimized_fn(a_clone, b)
+        res = aot_autograd_fn(a_clone, b)
         res.sum().backward()
         assert torch.allclose(res, ref)
         assert torch.allclose(a.grad, a_clone.grad)
+
+    def test_failure(self):
+        # Test that not setting up static_argnums should raise exception
+        def fn(x, p):
+            return x * p
+
+        aot_autograd_f = aot_function(fn, nop, nop)
+
+        a = torch.randn(2, 2, requires_grad=True)
+        b = 2
+        try:
+            # Since b is not marked as static, it should raise exception
+            aot_autograd_f(a, b)
+            assert False
+        except RuntimeError:
+            pass
 
     def test_simple(self):
         def fn(x, p):
             return x * p
 
-        for hasher_type in ["DynamicShapeHasher", "StaticShapeHasher"]:
-            functorch.compile.clear_compile_cache()
+        functorch.compile.clear_compile_cache()
 
-            start_num_recomps = functorch.compile.num_of_recompilations()
+        start_num_recomps = functorch.compile.num_of_recompilations()
 
-            aot_autograd_f = aot_function(fn, nop, nop, hasher_type=hasher_type)
+        aot_autograd_f = aot_function(fn, nop, nop, static_argnums=1)
 
-            a = torch.randn(2, 2, requires_grad=True)
-            b = 2
-            self.check(a, b, aot_autograd_f, fn)
+        a = torch.randn(2, 2, requires_grad=True)
+        b = 2
+        self.check(a, b, aot_autograd_f, fn)
 
-            a = torch.randn(2, 2, requires_grad=True)
-            b = 3
-            self.check(a, b, aot_autograd_f, fn)
+        # Same type of args, so no recompilation
+        a = torch.randn(2, 2, requires_grad=True)
+        b = 2
+        self.check(a, b, aot_autograd_f, fn)
 
-            end_num_recomps = functorch.compile.num_of_recompilations()
+        # Trigger recompilation
+        a = torch.randn(2, 2, requires_grad=True)
+        b = 3
+        self.check(a, b, aot_autograd_f, fn)
 
-            total_recomps = end_num_recomps - start_num_recomps
-            assert total_recomps == 2
+        end_num_recomps = functorch.compile.num_of_recompilations()
+
+        total_recomps = end_num_recomps - start_num_recomps
+        assert total_recomps == 2
+
+    def test_simple_different_ordering(self):
+        def fn(p, x):
+            return p * x
+
+        def check(a, b, aot_autograd_fn, fn):
+            b_clone = b.clone().detach().requires_grad_(True)
+            ref = fn(a, b)
+            ref.sum().backward()
+
+            res = aot_autograd_fn(a, b_clone)
+            res.sum().backward()
+            assert torch.allclose(res, ref)
+            assert torch.allclose(b.grad, b_clone.grad)
+
+        functorch.compile.clear_compile_cache()
+
+        start_num_recomps = functorch.compile.num_of_recompilations()
+
+        aot_autograd_f = aot_function(fn, nop, nop, static_argnums=0)
+
+        a = 2
+        b = torch.randn(2, 2, requires_grad=True)
+        check(a, b, aot_autograd_f, fn)
+
+        a = 3
+        b = torch.randn(2, 2, requires_grad=True)
+        check(a, b, aot_autograd_f, fn)
+
+        end_num_recomps = functorch.compile.num_of_recompilations()
+
+        total_recomps = end_num_recomps - start_num_recomps
+        assert total_recomps == 2
 
     def test_dropout(self):
         def fn(x, prob):
             return torch.nn.functional.dropout(x, p=prob)
 
-        for hasher_type in ["DynamicShapeHasher", "StaticShapeHasher"]:
-            functorch.compile.clear_compile_cache()
+        functorch.compile.clear_compile_cache()
 
-            start_num_recomps = functorch.compile.num_of_recompilations()
+        start_num_recomps = functorch.compile.num_of_recompilations()
 
-            aot_autograd_f = aot_function(fn, nop, nop, hasher_type=hasher_type)
+        aot_autograd_f = aot_function(fn, nop, nop, static_argnums=[1])
 
-            a = torch.randn(2, 2, requires_grad=True)
-            b = 0.3
-            aot_autograd_f(a, b)
+        a = torch.randn(2, 2, requires_grad=True)
+        b = 0.3
+        aot_autograd_f(a, b)
 
-            # Setting the prob to 0. This should cause recompilation.
-            a = torch.randn(2, 2, requires_grad=True)
-            b = 0
-            self.check(a, b, aot_autograd_f, fn)
+        # Setting the prob to 0. This should cause recompilation.
+        a = torch.randn(2, 2, requires_grad=True)
+        b = 0
+        self.check(a, b, aot_autograd_f, fn)
 
-            end_num_recomps = functorch.compile.num_of_recompilations()
+        end_num_recomps = functorch.compile.num_of_recompilations()
 
-            total_recomps = end_num_recomps - start_num_recomps
-            assert total_recomps == 2
+        total_recomps = end_num_recomps - start_num_recomps
+        assert total_recomps == 2
 
     def test_if_condition(self):
         def fn(x, state: bool):
@@ -237,25 +290,28 @@ class TestCompileCacheNonTensorArgs(TestCase):
             else:
                 return torch.cos(x)
 
-        for hasher_type in ["DynamicShapeHasher", "StaticShapeHasher"]:
-            functorch.compile.clear_compile_cache()
+        functorch.compile.clear_compile_cache()
 
-            start_num_recomps = functorch.compile.num_of_recompilations()
+        start_num_recomps = functorch.compile.num_of_recompilations()
 
-            aot_autograd_f = aot_function(fn, nop, nop, hasher_type=hasher_type)
+        aot_autograd_f = aot_function(fn, nop, nop, static_argnums=[1])
 
-            a = torch.randn(2, 2, requires_grad=True)
-            b = True
-            self.check(a, b, aot_autograd_f, fn)
+        a = torch.randn(2, 2, requires_grad=True)
+        b = True
+        self.check(a, b, aot_autograd_f, fn)
 
-            a = torch.randn(2, 2, requires_grad=True)
-            b = False
-            self.check(a, b, aot_autograd_f, fn)
+        a = torch.randn(2, 2, requires_grad=True)
+        b = True
+        self.check(a, b, aot_autograd_f, fn)
 
-            end_num_recomps = functorch.compile.num_of_recompilations()
+        a = torch.randn(2, 2, requires_grad=True)
+        b = False
+        self.check(a, b, aot_autograd_f, fn)
 
-            total_recomps = end_num_recomps - start_num_recomps
-            assert total_recomps == 2
+        end_num_recomps = functorch.compile.num_of_recompilations()
+
+        total_recomps = end_num_recomps - start_num_recomps
+        assert total_recomps == 2
 
     def test_custom(self):
         class Record:
@@ -272,25 +328,24 @@ class TestCompileCacheNonTensorArgs(TestCase):
         def fn(x, record):
             return x * record.multiplier
 
-        for hasher_type in ["DynamicShapeHasher", "StaticShapeHasher"]:
-            functorch.compile.clear_compile_cache()
+        functorch.compile.clear_compile_cache()
 
-            start_num_recomps = functorch.compile.num_of_recompilations()
+        start_num_recomps = functorch.compile.num_of_recompilations()
 
-            aot_autograd_f = aot_function(fn, nop, nop, hasher_type=hasher_type)
+        aot_autograd_f = aot_function(fn, nop, nop, static_argnums=[1])
 
-            a = torch.randn(2, 2, requires_grad=True)
-            b = Record("Foo", 0.5)
-            self.check(a, b, aot_autograd_f, fn)
+        a = torch.randn(2, 2, requires_grad=True)
+        b = Record("Foo", 0.5)
+        self.check(a, b, aot_autograd_f, fn)
 
-            a = torch.randn(2, 2, requires_grad=True)
-            b = Record("Bar", 10.2)
-            self.check(a, b, aot_autograd_f, fn)
+        a = torch.randn(2, 2, requires_grad=True)
+        b = Record("Bar", 10.2)
+        self.check(a, b, aot_autograd_f, fn)
 
-            end_num_recomps = functorch.compile.num_of_recompilations()
+        end_num_recomps = functorch.compile.num_of_recompilations()
 
-            total_recomps = end_num_recomps - start_num_recomps
-            assert total_recomps == 2
+        total_recomps = end_num_recomps - start_num_recomps
+        assert total_recomps == 2
 
 
 if __name__ == "__main__":
