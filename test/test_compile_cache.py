@@ -228,7 +228,7 @@ class TestCompileCacheNonTensorArgs(TestCase):
 
     def test_simple_different_ordering(self):
         def fn(p, x):
-            return p * x
+            return p - x
 
         def check(a, b, aot_autograd_fn, fn):
             b_clone = b.clone().detach().requires_grad_(True)
