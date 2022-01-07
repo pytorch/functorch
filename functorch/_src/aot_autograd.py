@@ -22,13 +22,17 @@ pytree._register_pytree_node(immutable_collections.immutable_dict, lambda x: (li
 # TODO - move this to PyTorch core. This overrides the pytree implementation for
 # dict to maintain parity with Deepmind pytree.
 Context = Any
+
+
 def _dict_flatten(d: Dict[Any, Any]) -> Tuple[List[Any], Context]:
     keys = list(sorted(d.keys()))
     values = [d[key] for key in keys]
     return values, keys
 
+
 def _dict_unflatten(values: List[Any], context: Context) -> Dict[Any, Any]:
     return {key: value for key, value in zip(context, values)}
+
 
 pytree._register_pytree_node(dict, _dict_flatten, _dict_unflatten)
 
@@ -409,7 +413,6 @@ def rearrange(tensor_args, static_args, static_argnums):
     while tensor_index < len(tensor_args):
         args.append(tensor_args[tensor_index])
         tensor_index += 1
-
 
     while static_index < len(static_args):
         args.append(static_args[static_index])
