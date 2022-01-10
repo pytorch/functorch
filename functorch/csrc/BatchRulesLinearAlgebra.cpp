@@ -185,6 +185,8 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
 
   VARIADIC_BDIMS_BOXED(_det_lu_based_helper);
   VARIADIC_BDIMS_BOXED(_lu_with_info);
+  VARIADIC_BDIMS_BOXED(linalg_lu_factor_ex);
+  VARIADIC_BDIMS_BOXED(linalg_lu_factor);
 }
 }}
 

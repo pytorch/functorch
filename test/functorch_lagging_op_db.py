@@ -242,6 +242,8 @@ _functorch_lagging_meta = {
     ('linalg.inv_ex', ''),
     ('linalg.lstsq', ''),
     ('linalg.lstsq', 'grad_oriented'),
+    ('linalg.lu_factor', ''),
+    ('linalg.lu_factor_ex', ''),
     ('linalg.matrix_norm', ''),
     ('linalg.matrix_power', ''),
     ('linalg.matrix_rank', ''),
