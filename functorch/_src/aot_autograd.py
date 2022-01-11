@@ -175,6 +175,57 @@ def prod(x):
     return s
 
 
+def apply_heuristics(full_bw_graph, recomputable_ops, cut_nodes):
+    # Min cut can have multiple valid solutions. But, since min cut algorithm
+    # does not fully capture the implications of forming one vs many fusion
+    # groups, practically one solution can be slightly better than the other.
+    # So, here are a couple of heuristics to further fine tune the cut point.
+
+    # Build the _find_parents data structure to assist in graph analysis
+    _find_parents = {}
+    def build_parents():
+        def _is_valid(node):
+            return isinstance(node, torch.fx.node.Node) and (
+                node.op == "placeholder" or node.op == "call_function"
+            )
+        for node in full_bw_graph.nodes:
+            _find_parents[node] = [n for n in node.args if _is_valid(n)]
+
+    build_parents()
+
+    # Heuristics 1 - mm + sigmoid + sigmoid + sigmoid. In this case, we want to
+    # cut after the mm. Min-cut algorithm cuts after first sigmoid. Cutting
+    # after first sigmoid prevents fusion of 3 sigmoids in the forward pass.  To
+    # fine tune this cut, we can keep hoisting the cut as long as there is a
+    # single path, sizes for tensors are same, and ops are recomputable/fusible
+
+    def _has_one_parent_with_one_child(node):
+        if len(_find_parents[node]) != 1:
+            return False
+        parent = _find_parents[node][0]
+        return len(parent.users) == 1
+
+    def _same_size(node1, node2):
+        if 'tensor_meta' in node1.meta and 'tensor_meta' in node2.meta:
+            node1_size =  prod(node1.meta['tensor_meta'].shape)
+            node2_size =  prod(node2.meta['tensor_meta'].shape)
+            return node1_size == node2_size
+
+    fine_tuned_cut_nodes = []
+    for cut_node in cut_nodes:
+        node = cut_node
+        if 'tensor_meta' in node.meta:
+            while (
+                node.target in recomputable_ops
+                and _has_one_parent_with_one_child(node)
+                and _same_size(node, _find_parents[node][0])
+            ):
+                node = _find_parents[node][0]
+        fine_tuned_cut_nodes.append(node.name)
+
+    return fine_tuned_cut_nodes
+
+
 def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inputs):
     """
     Partitions the joint graph such that the backward recomputes the forward.
@@ -266,6 +317,10 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
         cut_nodes.add(node_name)
     # print(len(cut_nodes), sorted(list(cut_nodes)))
 
+    APPLY_HEURISTICS = False
+    if APPLY_HEURISTICS:
+        cut_nodes = [name_to_node[node] for node in cut_nodes]
+        cut_nodes = apply_heuristics(full_bw_graph, recomputable_ops, cut_nodes)
     saved_values = [name_to_node[node] for node in cut_nodes]
 
     return _extract_fwd_bwd_modules(joint_module, saved_values)
