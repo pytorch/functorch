@@ -34,20 +34,6 @@ void setDynamicLayerFrontBackKeysIncluded(bool included) {
   c10::impl::tls_set_dispatch_key_included(kDynamicLayerBackModeKey, included);
 }
 
-struct ForceLocalDispatchKeySet {
- public:
-  ForceLocalDispatchKeySet(c10::impl::LocalDispatchKeySet key_set) :
-      saved_keyset_(c10::impl::tls_local_dispatch_key_set()) {
-    c10::impl::_force_tls_local_dispatch_key_set(key_set);
-  }
-  ~ForceLocalDispatchKeySet() {
-    c10::impl::_force_tls_local_dispatch_key_set(saved_keyset_);
-  }
-
- private:
-  c10::impl::LocalDispatchKeySet saved_keyset_;
-};
-
 DynamicLayer::DynamicLayer(
     DispatchKey key,
     int64_t layerId,
