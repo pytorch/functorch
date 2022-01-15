@@ -3181,7 +3181,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('gradient'),
         xfail('histogram'),
         xfail('hsplit'),
-        xfail('index_fill'),
         xfail('index_put'),
         xfail('isin'),
         xfail('linalg.cholesky'),

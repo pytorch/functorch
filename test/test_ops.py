@@ -528,7 +528,6 @@ class TestOperators(TestCase):
         xfail('fmax'),
         xfail('fmin'),
         xfail('index_copy'),
-        xfail('index_fill'),
         xfail('linalg.det', ''),
         xfail('linalg.eigh'),
         xfail('linalg.householder_product'),
@@ -787,7 +786,7 @@ class TestOperators(TestCase):
         xfail('fmax'),
         xfail('fmin'),
         xfail('index_copy'),
-        xfail('index_fill'),
+        xfail('index_fill'),  # RuntimeError: aten::_unique hit the vmap fallback which is currently disabled
         xfail('linalg.cholesky'),
         xfail('linalg.cholesky_ex'),
         xfail('linalg.det'),
