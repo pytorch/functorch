@@ -24,7 +24,7 @@ in_dims_t = Union[int, Tuple]
 out_dims_t = Union[int, Tuple[int, ...]]
 
 
-def register_namedtuple_return_types():
+def register_torch_return_types():
     # Register torch.return_types as pytree node.
     for name in dir(torch.return_types):
         if name.startswith('__'):
@@ -35,10 +35,10 @@ def register_namedtuple_return_types():
             # Note: We capture the current `return_type_class` with default argument `constructor`
             # in the lambda otherwise we will point to the last value of `return_type_class` for all lambdas
             torch.utils._pytree._register_pytree_node(return_type_class, lambda x: (
-                tuple(x), None), lambda x, c, constructor=return_type_class: constructor(x))
+                list(x), None), lambda x, c, constructor=return_type_class: constructor(x))
 
 
-register_namedtuple_return_types()
+register_torch_return_types()
 
 # Checks that all args-to-be-batched have the same batch dim size
 

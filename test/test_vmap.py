@@ -3435,6 +3435,13 @@ class TestVmapOperatorsOpInfo(TestCase):
 
         test(self, op, tuple(inputs), in_dims=tuple(in_dims))
 
+    def test_torch_return_types_returns(self, device):
+        t = torch.randn(3, 2, 2, device=device)
+        self.assertTrue(isinstance(vmap(torch.min, (0, None))(t, 0), torch.return_types.min))
+        self.assertTrue(isinstance(vmap(torch.max, (0, None))(t, 0), torch.return_types.max))
+        self.assertTrue(isinstance(vmap(torch.topk, (0, None, None))(t, 1, 0), torch.return_types.topk))
+        self.assertTrue(isinstance(vmap(torch.linalg.eig, (0))(t), torch.return_types.linalg_eig))
+    
     def test_namedtuple_returns(self, device):
         t = torch.randn(3, 2, 2, device=device)
         self.assertTrue(isinstance(vmap(torch.min, (0, None))(t, 0), torch.return_types.min))
