@@ -1,27 +1,51 @@
 import os
+import math
 import torch
 import torch.nn as nn
+from torch import Tensor
 from functorch import make_functional_with_buffers, make_fx
-from torch.fx.node import map_arg
 import torch.fx as fx
-from torch.fx.proxy import GraphAppendingTracer
 from torch.fx import immutable_collections
 import torch.utils._pytree as pytree
 import torch.utils.dlpack
 from torch.fx.passes import graph_drawer
+import copy
+import operator
 from functorch._C import CompileCache
-from .python_key import pythonkey_decompose
 from .decompositions import register_decomposition
+from typing import List, Dict, Any, Tuple
 
 pytree._register_pytree_node(immutable_collections.immutable_list, lambda x: (
     list(x), None), lambda x, c: immutable_collections.immutable_list(x))
 pytree._register_pytree_node(immutable_collections.immutable_dict, lambda x: (list(x.values()), list(
     x.keys())), lambda x, c: immutable_collections.immutable_dict({key: value for key, value in zip(c, x)}))
 
+# TODO - move this to PyTorch core. This overrides the pytree implementation for
+# dict to maintain parity with Deepmind pytree.
+Context = Any
+
+
+def _dict_flatten(d: Dict[Any, Any]) -> Tuple[List[Any], Context]:
+    keys = list(sorted(d.keys()))
+    values = [d[key] for key in keys]
+    return values, keys
+
+
+def _dict_unflatten(values: List[Any], context: Context) -> Dict[Any, Any]:
+    return {key: value for key, value in zip(context, values)}
+
+
+pytree._register_pytree_node(dict, _dict_flatten, _dict_unflatten)
+
 aten = torch.ops.aten
 
 
-def draw_graph(traced: torch.fx.GraphModule, fname: str, figname: str = "fx_graph"):
+def draw_graph(traced: torch.fx.GraphModule, fname: str, figname: str = "fx_graph", clear_meta=True):
+    if clear_meta:
+        new_graph = copy.deepcopy(traced.graph)
+        traced = fx.GraphModule(traced, new_graph)
+    for node in traced.graph.nodes:
+        node.meta = {}
     base, ext = os.path.splitext(fname)
     if not ext:
         ext = ".svg"
@@ -29,72 +53,6 @@ def draw_graph(traced: torch.fx.GraphModule, fname: str, figname: str = "fx_grap
     g = graph_drawer.FxGraphDrawer(traced, figname)
     x = g.get_main_dot_graph()
     getattr(x, "write_" + ext.lstrip("."))(f"{base}{ext}")
-
-# todo(chilli): clean this up/make it more understandable
-
-
-def default_partition(fx_module: fx.GraphModule, _joint_inputs):
-    bw_nodes = set()
-    saved_nodes = set()
-    output_node = None
-    for n in fx_module.graph.nodes:
-        if n.op == 'placeholder' and 'tangents' in n.target:
-            bw_nodes.add(n)
-        elif n.op != 'output':
-            has_color = False
-
-            def is_colored(a):
-                nonlocal has_color
-                if a in bw_nodes or a in saved_nodes:
-                    has_color = True
-
-            def add_saved(a):
-                if a not in bw_nodes:
-                    saved_nodes.add(a)
-            map_arg(n.args, lambda x: is_colored(x))
-            map_arg(n.kwargs, lambda x: is_colored(x))
-            if has_color:
-                bw_nodes.add(n)
-                map_arg(n.args, lambda x: add_saved(x))
-                map_arg(n.kwargs, lambda x: add_saved(x))
-        elif n.op == 'output':
-            output_node = n
-
-    num_fwd_outputs = fx_module._out_spec.children_specs[0].num_leaves
-    num_bwd_outputs = fx_module._out_spec.children_specs[1].num_leaves
-    bw_outputs = output_node.args[0][num_fwd_outputs:]
-
-    bw_graph = fx.Graph()
-    value_remap = {}
-    for saved_node in saved_nodes:
-        value_remap[saved_node] = bw_graph.placeholder(saved_node.name)
-
-    for node in fx_module.graph.nodes:
-        if node in bw_nodes or node in bw_outputs:
-            value_remap[node] = bw_graph.node_copy(node, lambda n: value_remap[n])
-
-    assert(num_fwd_outputs + num_bwd_outputs == len(output_node.args[0]))
-    bwd_outputs = [value_remap[i] for i in bw_outputs]
-    if len(bwd_outputs) == 1:
-        bwd_outputs = bwd_outputs[0]
-    bw_graph.output(bwd_outputs)
-    bw_module = fx.GraphModule(fx_module, bw_graph)
-
-    fw_graph = fx.Graph()
-    value_remap = {}
-    for node in fx_module.graph.nodes:
-        if node not in bw_nodes and node.op != 'output':
-            value_remap[node] = fw_graph.node_copy(node, lambda n: value_remap[n])
-
-    fwd_outputs = [value_remap[i] for i in output_node.args[0]
-                   [:num_fwd_outputs]] + [value_remap[n] for n in saved_nodes]
-    if len(fwd_outputs) == 1:
-        fwd_outputs = fwd_outputs[0]
-    fw_graph.output(fwd_outputs)
-    fw_module = fx.GraphModule(fx_module, fw_graph)
-    fw_module.graph.lint()
-    bw_module.graph.lint()
-    return fw_module, bw_module
 
 
 class InvalidNodeBase(object):
@@ -116,79 +74,66 @@ def _extract_graph_with_inputs_outputs(joint_graph, inputs, outputs):
     in valid proxies. Then, all dead code is eliminated.
     """
     new_graph = fx.Graph()
-    tracer = GraphAppendingTracer(new_graph)
     env = {}
 
     # Add new placeholder nodes in the order specified by the inputs
-    new_inputs = {}
     for node in inputs:
         new_node = new_graph.placeholder(node.name)
-        new_inputs[node.name] = new_node
+        # Can't use node_copy here as we may be turning previous call_function into placeholders
+        new_node.meta = node.meta
+        env[node] = new_node
 
     for node in joint_graph.nodes:
         if node in inputs:
-            env[node] = fx.Proxy(new_inputs[node.name], tracer)
+            continue
         elif node.op == 'placeholder':
             env[node] = InvalidNode
         elif node.op == 'call_function':
-            def map_arg_to_proxy(x):
-                if isinstance(x, fx.Node):
-                    out = env[x]
-                    return out
-                else:
-                    return x
             all_args = pytree.tree_flatten((node.args, node.kwargs))[0]
             all_args = [isinstance(env[x], InvalidNodeBase) for x in all_args if isinstance(x, fx.Node)]
             if any(all_args):
                 env[node] = InvalidNode
                 continue
-            args = pytree.tree_map(map_arg_to_proxy, node.args)
-            kwargs = pytree.tree_map(map_arg_to_proxy, node.kwargs)
-            out = node.target(*args, **kwargs)
-            env[node] = out
+            env[node] = new_graph.node_copy(node, lambda x: env[x])
         elif node.op == 'get_attr':
-            new_node = new_graph.node_copy(node, lambda x: env[x])
-            env[node] = fx.Proxy(new_node, tracer)
+            env[node] = new_graph.node_copy(node, lambda x: env[x])
         elif node.op == 'output':
             pass
-    new_graph.output([env[x].node for x in outputs])
+    output_values = []
+    for x in outputs:
+        if isinstance(x, fx.Node):
+            if x not in env:
+                raise RuntimeError(f"Node {x} couldn't be found in env")
+            output_values.append(env[x])
+        else:
+            output_values.append(x)
+    new_graph.output(output_values)
 
     new_graph.eliminate_dead_code()
     new_graph.lint()
     return new_graph
 
 
-def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inputs):
-    """
-    Partitions the joint graph such that the backward recomputes the forward.
-    Recopmuting helps in trading off memory bandwidth with computation.
+def _is_primal(node):
+    return node.op == "placeholder" and "tangents" not in node.target
 
-    To create the fwd and bwd graph, we copy the joint graph, manually set the
-    outputs to just original forward or backward outputs. And then we run the
-    resulting graphs through dead code elimintation.
-    """
 
-    def is_primal(node):
-        return node.op == "placeholder" and "tangents" not in node.target
+def _is_tangent(node):
+    return node.op == "placeholder" and "tangents" in node.target
 
-    def is_tangent(node):
-        return node.op == "placeholder" and "tangents" in node.target
-    nodes = joint_module.graph.nodes
+
+def _extract_fwd_bwd_outputs(joint_module: fx.GraphModule):
     num_fwd_outputs = joint_module._out_spec.children_specs[0].num_leaves
-    outputs = pytree.tree_flatten([node.args for node in nodes if node.op == 'output'])[0]
+    outputs = pytree.tree_flatten([node.args for node in joint_module.graph.nodes if node.op == 'output'])[0]
     fwd_outputs = outputs[:num_fwd_outputs]
     bwd_outputs = outputs[num_fwd_outputs:]
+    return fwd_outputs, bwd_outputs
 
-    saved_values = list(filter(is_primal, nodes))
 
-    random_ops = set([torch.ops.aten.rand_like])
-    random_nodes = list(filter(lambda x: x.target in random_ops, nodes))
-
-    for node in random_nodes:
-        saved_values.append(node)
-
-    primal_inputs = list(filter(is_primal, joint_module.graph.nodes))
-    tangent_inputs = list(filter(is_tangent, joint_module.graph.nodes))
+def _extract_fwd_bwd_modules(joint_module: fx.GraphModule, saved_values):
+    fwd_outputs, bwd_outputs = _extract_fwd_bwd_outputs(joint_module)
+    primal_inputs = list(filter(_is_primal, joint_module.graph.nodes))
+    tangent_inputs = list(filter(_is_tangent, joint_module.graph.nodes))
     # Construct the forward module
     fwd_graph = _extract_graph_with_inputs_outputs(joint_module.graph, primal_inputs, fwd_outputs + saved_values)
     bwd_graph = _extract_graph_with_inputs_outputs(joint_module.graph, saved_values + tangent_inputs, bwd_outputs)
@@ -208,14 +153,152 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
 
     fwd_module = fx.GraphModule(joint_module, fwd_graph)
     bwd_module = fx.GraphModule(joint_module, bwd_graph)
-
     return fwd_module, bwd_module
+
+
+def default_partition(joint_module: fx.GraphModule, _joint_inputs):
+    primal_inputs = list(filter(_is_primal, joint_module.graph.nodes))
+    fwd_outputs, bwd_outputs = _extract_fwd_bwd_outputs(joint_module)
+    forward_only_graph = _extract_graph_with_inputs_outputs(joint_module.graph, primal_inputs, fwd_outputs)
+    forward_node_names = set([node.name for node in forward_only_graph.nodes if node.op != 'output'])
+
+    def node_saved(node):
+        return node.name in forward_node_names and 'tensor_meta' in node.meta
+    saved_values = [node for node in joint_module.graph.nodes if node_saved(node)]
+    return _extract_fwd_bwd_modules(joint_module, saved_values)
+
+
+def prod(x):
+    s = 1
+    for i in x:
+        s *= i
+    return s
+
+
+def size_of(metadata):
+    sizes = {
+        torch.float: 4,
+        torch.float16: 2,
+        torch.float32: 4,
+        torch.float64: 8,
+        torch.int: 4,
+        torch.int8: 1,
+        torch.int16: 2,
+        torch.int32: 4,
+        torch.int64: 8,
+        torch.uint8: 1,
+        torch.bool: 1,
+    }
+
+    numel = prod(metadata.shape)
+    dtype = metadata.dtype
+
+    if dtype not in sizes:
+        raise NotImplementedError("Don't know the size of dtype ", dtype)
+
+    return numel * sizes[dtype]
+
+
+def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inputs):
+    """
+    Partitions the joint graph such that the backward recomputes the forward.
+    Recomputing helps in trading off memory bandwidth with computation.
+
+    To create the fwd and bwd graph, we copy the joint graph, manually set the
+    outputs to just original forward or backward outputs. And then we run the
+    resulting graphs through dead code elimintation.
+    """
+    try:
+        import networkx as nx
+    except ImportError:
+        raise RuntimeError("Need networkx installed to perform smart recomputation heuristics")
+    # draw_graph(joint_module, "joint.svg")
+    full_bw_graph = joint_module.graph
+
+    nx_graph = nx.DiGraph()
+    tangent_closure = set()
+    name_to_node = {}
+    for node in full_bw_graph.nodes:
+        name_to_node[node.name] = node
+        if node.op == 'placeholder' and "tangents" in node.target:
+            tangent_closure.add(node)
+        if node in tangent_closure:
+            for user in node.users:
+                tangent_closure.add(user)
+
+    pointwise_ops = [aten.add, aten.sub, aten.div, aten.atan2, aten.mul, aten.max, aten.min, aten.pow, aten.remainder, aten.fmod, aten.__and__, aten.__or__, aten.__xor__, aten.__lshift__, aten.__rshift__, aten.eq, aten.ne, aten.ge, aten.gt, aten.le, aten.lt, aten.abs, aten.bitwise_not, aten.ceil, aten.floor, aten.frac, aten.neg, aten.relu, aten.round, aten.silu, aten.trunc, aten.log, aten.log10, aten.log1p, aten.log2, aten.lgamma, aten.exp, aten.expm1, aten.erf, aten.erfc, aten.cos, aten.acos, aten.cosh, aten.sin, aten.asin, aten.sinh, aten.tan, aten.atan, aten.tanh, aten.atanh, aten.sqrt, aten.rsqrt,  aten.reciprocal, aten.sigmoid, aten.softplus, aten.threshold, aten.threshold_backward, aten.clamp, aten.where, aten.lerp, aten.addcmul, aten.gelu, aten.gelu_backward]  # noqa: E501
+    reduction_ops = [aten.softmax, aten._softmax, aten._softmax_backward_data, aten.sum, aten.mean, aten._grad_sum_to_size, aten.sum_to_size, aten.amax]  # noqa: E501
+    misc_ops = [aten.to, aten.type_as, operator.getitem]
+
+    # not recomputed by default since these are kinda expensive/hard to fuse into
+    # norm_ops = [aten.instance_norm, aten._batch_norm_impl_index, aten.native_batch_norm, aten.batch_norm, aten._batch_norm_impl_index_backward, aten.native_layer_norm, aten.layer_norm, aten.native_layer_norm_backward]  # noqa: E501
+
+    # Not used by default since NVFuser can't fuse view ops
+    # view_ops = [aten.expand, aten.clone, aten.transpose, aten.t, aten.view, aten._unsafe_view, aten.permute, aten.transpose, aten.t, aten._reshape_alias, aten.squeeze, aten.unsqueeze, aten.reshape, aten.cat, aten.slice, aten.split, aten.select, aten.repeat]  # noqa: E501
+
+    unrecomputable_ops = [aten.mm, aten.convolution, aten.convolution_backward, aten.bmm, aten.addmm, aten.native_dropout, aten.rand_like, aten.randn_like, aten.upsample_bilinear2d]  # noqa: E501
+
+    recomputable_ops = set(
+        pointwise_ops
+        + reduction_ops
+        + misc_ops
+        # + norm_ops
+        # + view_ops
+    )
+    # ops = set([i.target for i in joint_module.graph.nodes if i.op == 'call_function'])
+    # print(ops - recomputable_ops)
+    AGGRESSIVE_RECOMPUTATION = False
+    for node in full_bw_graph.nodes:
+        if node in tangent_closure:
+            nx_graph.add_edge(node.name+"_in", "sink", capacity=math.inf)
+            continue
+        is_input = False
+        if node.op == 'placeholder' and "primals" in node.target:
+            nx_graph.add_edge("source", node.name+"_in", capacity=math.inf)
+            is_input = True
+
+        if AGGRESSIVE_RECOMPUTATION:
+            if node.op == 'call_function' and node.target in unrecomputable_ops:
+                nx_graph.add_edge("source", node.name+"_in", capacity=math.inf)
+        else:
+            if node.op == 'call_function' and node.target not in recomputable_ops:
+                nx_graph.add_edge("source", node.name+"_in", capacity=math.inf)
+
+        if 'tensor_meta' not in node.meta:
+            weight = math.inf
+        else:
+            mem_sz = size_of(node.meta['tensor_meta'])
+            if is_input:
+                weight = mem_sz
+            else:
+                weight = mem_sz * 2
+
+        nx_graph.add_edge(node.name+"_in", node.name+"_out", capacity=weight)
+        for user in node.users:
+            nx_graph.add_edge(node.name+"_out", user.name+"_in", capacity=math.inf)
+
+    cut_value, partition = nx.minimum_cut(nx_graph, "source", "sink")
+    reachable, non_reachable = partition
+    cutset = set()
+    for u, nbrs in ((n, nx_graph[n]) for n in reachable):
+        cutset.update((u, v) for v in nbrs if v in non_reachable)
+
+    cut_nodes = set()
+    for node_in, node_out in cutset:
+        assert node_in[:-3] == node_out[:-4]
+        node_name = node_in[:-3]
+        cut_nodes.add(node_name)
+    # print(len(cut_nodes), sorted(list(cut_nodes)))
+
+    saved_values = [name_to_node[node] for node in cut_nodes]
+
+    return _extract_fwd_bwd_modules(joint_module, saved_values)
 
 
 def create_joint_forward_backward(fn):
     def joint_forward_backward(primals, tangents):
         out = fn(*primals)
-        primals = [p for p in pytree.tree_flatten(primals)[0] if p.requires_grad]
+        primals = [p for p in pytree.tree_flatten(primals)[0] if isinstance(p, Tensor) and p.requires_grad]
         backward_out = []
         if primals:  # todo(chilli): Make it support it if not all outputs have gradients
             backward_out = torch.autograd.grad(out, primals, grad_outputs=tangents, allow_unused=True)
@@ -236,18 +319,22 @@ def normalize_as_list(x):
     return [x]
 
 
-def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, decompose):
+aot_autograd_decompositions = {}
 
+
+@register_decomposition(aten.rsub, aot_autograd_decompositions)
+def rsub(a, b, alpha=1):
+    return -aten.sub(a, b)
+
+
+@register_decomposition(aten._reshape_alias, aot_autograd_decompositions)
+def _reshape_alias(x, shape, strides):
+    return aten.view(x, shape)
+
+
+def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, decompositions):
     # putting these decompositions here since they shouldn't always be used
     # Kinda sketchy ... we use torch.sub here to have the correct scalar => tensor promotion logic
-    @register_decomposition(aten.rsub)
-    def rsub(a, b, alpha=1):
-        return -aten.sub(a, b)
-
-    # This is only valid if we're running the graph without autograd, such as if the backward pass has been traced.
-    @register_decomposition(aten.detach)
-    def detach_decomposition(x):
-        return x
 
     joint_forward_backward = create_joint_forward_backward(flat_fn)
 
@@ -267,12 +354,9 @@ def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, de
                     num_outs = 1
 
                 joint_inputs = (flat_args, out)
+                aot_decompositions = {**aot_autograd_decompositions, **decompositions}
                 with torch.enable_grad():
-                    if decompose:
-                        with pythonkey_decompose():
-                            fx_g = make_fx(joint_forward_backward)(*joint_inputs)
-                    else:
-                        fx_g = make_fx(joint_forward_backward)(*joint_inputs)
+                    fx_g = make_fx(joint_forward_backward, aot_decompositions)(*joint_inputs)
                 fw_module, bw_module = partition_fn(fx_g, joint_inputs)
                 # print(fw_module.code, bw_module.code)
 
@@ -281,14 +365,16 @@ def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, de
 
                 bw_args = fw_outs[num_outs:] + fw_outs[0:num_outs]
                 compiled_bw = bw_compiler(bw_module, bw_args)
-            fw_outs = normalize_as_list(compiled_fw(*flat_args))
+            else:
+                fw_outs = normalize_as_list(compiled_fw(*flat_args))
             ctx.save_for_backward(*fw_outs[num_outs:])
             return tuple(fw_outs[0:num_outs])
 
         @staticmethod
         def backward(ctx, *flat_args):
             # hmm... this doesn't feel right. todo
-            contiguous_args = [t.contiguous() for t in flat_args]
+            # contiguous_args = [t.contiguous() for t in flat_args]
+            contiguous_args = [t for t in flat_args]
             out = normalize_as_list(compiled_bw(*ctx.saved_tensors, *contiguous_args))
             out_iter = iter(out)
             grad_out = [next(out_iter) if p else None for p in ctx.needs_input_grad]
@@ -334,47 +420,133 @@ class PytreeThunk:
         return pytree.tree_unflatten(x, self.spec)
 
 
+def filter_tensor_and_static_args(args, static_argnums):
+    """
+    Separate out the tensor and static args. Also, for the static args, store
+    the hash.
+    """
+    tensor_args = []
+    static_args = []
+    static_args_hashed = []
+    for idx, arg in enumerate(args):
+        if idx not in static_argnums:
+            tensor_args.append(arg)
+        else:
+            static_args.append(arg)
+            static_args_hashed.append(arg.__hash__())
+    return tensor_args, static_args, static_args_hashed
+
+
+def rearrange(tensor_args, static_args, static_argnums):
+    """
+    Generate the args as per the original spec. static_argnums is sorted.
+    """
+    tensor_index = 0
+    static_index = 0
+    index = 0
+    args = []
+    assert len(static_args) == len(static_argnums)
+    while tensor_index < len(tensor_args) and static_index < len(static_args):
+        if index == static_argnums[static_index]:
+            args.append(static_args[static_index])
+            static_index += 1
+        else:
+            args.append(tensor_args[tensor_index])
+            tensor_index += 1
+
+    while tensor_index < len(tensor_args):
+        args.append(tensor_args[tensor_index])
+        tensor_index += 1
+
+    while static_index < len(static_args):
+        args.append(static_args[static_index])
+        static_index += 1
+
+    return args
+
+
 def compiled_function(
-    fn, fw_compiler, bw_compiler, partition_fn=default_partition, decompose=False, hasher_type="StaticShapeHasher"
+    fn,
+    fw_compiler,
+    bw_compiler=None,
+    partition_fn=default_partition,
+    decompositions={},
+    hasher_type="StaticShapeHasher",
+    static_argnums=None,
 ):
     global compile_cache
     if compile_cache is None:
         compile_cache = CompileCache()
+    if bw_compiler is None:
+        bw_compiler = fw_compiler
     cached_res = None
 
     fn_id = id(fn)
 
+    if isinstance(static_argnums, int):
+        static_argnums = [static_argnums]
+    elif static_argnums is not None and len(static_argnums) == 0:
+        static_argnums = None
+    elif static_argnums is not None:
+        static_argnums = list(static_argnums)
+        static_argnums.sort()
+
     def returned_function(*args, **kwargs):
         global compile_cache
         nonlocal cached_res
+
+        # Separate out static args if static_argnums is present
+        tensor_args = args
+        static_args = []
+        # TODO - move the hashing part of static_args to C++.
+        static_args_hashed = []
+        if static_argnums is not None:
+            tensor_args, static_args, static_args_hashed = filter_tensor_and_static_args(args, static_argnums)
+
+        # Now flatten the tensor args
         if HAS_TREE:
-            flattened_args = tree.flatten((args, kwargs))
+            flattened_tensor_args = tree.flatten((tensor_args, kwargs))
         else:
-            flattened_args, _ = pytree.tree_flatten((args, kwargs))
-        num_args = len(flattened_args)
+            flattened_tensor_args, _ = pytree.tree_flatten((tensor_args, kwargs))
+
         # Check if the fn is already compiled
-        cached_res = compile_cache.at(fn_id, num_args, hasher_type, *flattened_args)
+        num_tensor_args = len(flattened_tensor_args)
+        flattened_args = flattened_tensor_args + static_args
+        flattened_args_for_cache = flattened_tensor_args + static_args_hashed
+        cached_res = compile_cache.at(fn_id, num_tensor_args, hasher_type, *flattened_args_for_cache)
 
         # Compile the function and save it in the cache
         if cached_res is None:
-            # Compile a new function
-            flattened_args, args_spec = pytree.tree_flatten((args, kwargs))
+            # Save the args_spec for flattened_tensor_args to unflatten while tracing
+            _, tensor_args_spec = pytree.tree_flatten((tensor_args, kwargs))
             out_spec = PytreeThunk()
 
             def flat_fn(*args):
                 nonlocal out_spec
-                args, kwargs = pytree.tree_unflatten(args, args_spec)
+                # These args are already flattened_tensor_args + static_args
+                flattened_tensor_args = args[:num_tensor_args]
+                static_args = args[num_tensor_args:]
+
+                tensor_args, kwargs = pytree.tree_unflatten(flattened_tensor_args, tensor_args_spec)
+
+                # Rearrange the args as per the original arg ordering
+                if static_argnums is None:
+                    args = tensor_args
+                else:
+                    args = rearrange(tensor_args, static_args, static_argnums)
                 tree_out = fn(*args, **kwargs)
                 flat_out = pytree.tree_flatten(tree_out)
                 out_spec.set(flat_out[1])
                 return flat_out[0]
+
             compiled_fn = create_compiled_function(
-                flat_fn, fw_compiler, bw_compiler, partition_fn, decompose
+                flat_fn, fw_compiler, bw_compiler, partition_fn, decompositions
             ).apply
             cached_res = (compiled_fn, out_spec)
+
             # Save the compiled_fn in the cache
             compile_cache.insert(
-                fn_id, num_args, hasher_type, cached_res, *flattened_args
+                fn_id, num_tensor_args, hasher_type, cached_res, *flattened_args_for_cache
             )
 
         cached_fn, out_spec = cached_res

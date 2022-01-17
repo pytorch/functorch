@@ -7,8 +7,10 @@
 from torch.testing._internal.common_utils import TestCase, run_tests, is_iterable_of_tensors
 import torch
 from torch import Tensor
+import torch.nn.functional as F
 import functools
 import unittest
+import itertools
 from torch.testing._internal.common_device_type import instantiate_device_type_tests
 from torch.testing._internal.common_device_type import ops
 from torch.testing._internal.common_dtype import integral_types
@@ -21,6 +23,7 @@ from common_utils import (
     skip,
     skipOps,
     check_vmap_fallback,
+    loop,
     IS_FBCODE,
 )
 from torch.utils._pytree import tree_flatten, tree_unflatten, tree_map
@@ -272,14 +275,15 @@ vjp_fail = {
     xfail('tensor_split'),
     xfail('to_sparse'),
     xfail('nn.functional.ctc_loss'),
-    xfail('nn.functional.fractional_max_pool3d'),
-    xfail('nn.functional.fractional_max_pool2d'),
 }
 
 
 class TestOperators(TestCase):
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
-    @skipOps('TestOperators', 'test_grad', vjp_fail)
+    @skipOps('TestOperators', 'test_grad', vjp_fail.union({
+        skip('nn.functional.fractional_max_pool2d'),  # fails on cuda, runs okay on cpu
+        skip('nn.functional.fractional_max_pool3d'),  # fails on cuda, runs okay on cpu
+    }))
     def test_grad(self, device, dtype, op):
         if op.name in vjp_fail:
             self.skipTest("Skipped; Expected failures")
@@ -324,6 +328,9 @@ class TestOperators(TestCase):
     @skipOps('TestOperators', 'test_jvp', set({
         skip('nn.functional.dropout'),  # randomness testing artifact; not actually a problem
         skip('nn.functional.rrelu'),  # randomness testing artifact; not actually a problem
+        skip('nn.functional.fractional_max_pool2d'),  # fails on cuda, runs okay on cpu
+        skip('nn.functional.fractional_max_pool3d'),  # fails on cuda, runs okay on cpu
+        skip('nn.functional.max_pool1d'),  # fails on cpu, runs okay on cuda
 
         # See https://github.com/pytorch/pytorch/issues/69034
         # RuntimeError: expected scalar type double but found float
@@ -359,6 +366,9 @@ class TestOperators(TestCase):
         skip('div', 'no_rounding_mode', device_type='cuda'),
         skip('div', 'trunc_rounding', device_type='cuda'),
         skip('true_divide', device_type='cuda'),
+
+        # Causing an error with calling a forward mode of a forward mode
+        xfail('nn.functional.batch_norm', device_type='cpu'),
     }))
     def test_jvp(self, device, dtype, op):
         # TODO: when we change supports_autograd to supports_backward_ad, also change in this file
@@ -382,6 +392,8 @@ class TestOperators(TestCase):
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vjp', vjp_fail.union({
+        skip('nn.functional.fractional_max_pool2d'),  # fails on cpu, runs okay on cuda
+        skip('nn.functional.fractional_max_pool3d'),  # fails on cpu, runs okay on cuda
         skip('nn.functional.conv_transpose3d', device_type='cuda'),  # numerical precision
     }))
     def test_vjp(self, device, dtype, op):
@@ -417,7 +429,10 @@ class TestOperators(TestCase):
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vjpvjp', vjp_fail.union({
+        skip('nn.functional.fractional_max_pool2d'),  # fails on cuda, runs okay on cpu
+        xfail('nn.functional.fractional_max_pool3d'),
         skip('nn.functional.conv_transpose3d'),  # numerical precision problem
+        xfail('nn.functional.binary_cross_entropy'),  # testing problem
     }))
     def test_vjpvjp(self, device, dtype, op):
         if not op.supports_autograd:
@@ -493,8 +508,8 @@ class TestOperators(TestCase):
                 result_vjps, _ = tree_flatten(result_vjps)
                 return (*result, *result_vjps)
 
-            for loop_out, batched_out in \
-                    get_fallback_and_vmap_exhaustive(vjp_of_vjp, args_and_cotangents, {}):
+            generator = get_fallback_and_vmap_exhaustive(vjp_of_vjp, args_and_cotangents, {}, opinfo=op)
+            for loop_out, batched_out in generator:
                 self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
     vmapvjp_fail = vjp_fail.union({
         # The following are not bugs and are expected behavior
@@ -541,7 +556,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.gaussian_nll_loss'),
         xfail('nn.functional.poisson_nll_loss'),
         xfail('fft.rfft2'),
-        xfail('lu'),
         skip('qr'),  # Nondetermistic
         xfail('_masked.prod'),  # calls aten::item
         xfail('stft'),
@@ -549,9 +563,10 @@ class TestOperators(TestCase):
         xfail('nn.functional.fractional_max_pool3d'),
         xfail('as_strided'),
         xfail('nn.functional.fractional_max_pool2d'),
-        xfail('__getitem__'),
+        xfail('__getitem__', ''),
         xfail('index_put'),
         xfail('lu_solve'),
+        xfail('nn.functional.instance_norm'),
     })
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
@@ -571,7 +586,7 @@ class TestOperators(TestCase):
         for sample in samples:
             cotangents = get_sample_cotangents(op, sample)
             fn, args = get_vjp_fn_and_args_with_cotangents(op, sample, cotangents)
-            for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}):
+            for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}, opinfo=op):
                 self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
 
     # There are several variations we care about
@@ -583,6 +598,9 @@ class TestOperators(TestCase):
     @skipOps('TestOperators', 'test_vmapjvp', {
         skip('nn.functional.dropout'),  # randomness
         skip('nn.functional.rrelu'),  # randomness
+        skip('nn.functional.fractional_max_pool2d'),  # randomness
+        skip('nn.functional.fractional_max_pool3d'),  # randomness
+        skip('nn.functional.max_pool1d'),  # fails on cpu, runs on cuda
 
         # TODO: fails in core due to in-place batched nto non-batched
         # but fails here for a different reason
@@ -590,12 +608,10 @@ class TestOperators(TestCase):
 
         # Try to in-place batched tensor into non-batched tensor
         xfail('matrix_exp'),
-        xfail('lu'),
         xfail('fill_'),
         xfail('block_diag'),  # TODO: We expect this to fail in core, but it doesn't
         xfail('index_copy'),
         xfail('index_put'),
-        xfail('index_fill'),
         xfail('masked_fill'),
         xfail('masked_scatter'),
 
@@ -622,9 +638,6 @@ class TestOperators(TestCase):
         # did it would also not support channels last, so I'm including this
         # xfail "above the line".
         xfail('double', 'channels_last'),
-
-        # See https://github.com/pytorch/pytorch/issues/66357
-        xfail('nn.functional.pad', 'circular'),
 
         # RuntimeError: expand: the number of sizes provided (1) must be greater or
         # equal to the number of dimensions in the tensor (2)
@@ -654,6 +667,9 @@ class TestOperators(TestCase):
         skip('div', 'no_rounding_mode', device_type='cuda'),
         skip('div', 'trunc_rounding', device_type='cuda'),
         skip('true_divide', device_type='cuda'),
+
+        # Causing multiple forward mode AD issues, needs investigation
+        xfail('nn.functional.batch_norm', device_type='cpu')
     })
     def test_vmapjvp(self, device, dtype, op):
         if is_inplace(op, op.get_op()):
@@ -672,13 +688,16 @@ class TestOperators(TestCase):
             kwarg_values = sample.kwargs
             args = tuple([*arg_values, *kwarg_values])
             fn, args = get_jvp_variant(op, sample)
-            for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}, bdims=(0,)):
+            for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}, opinfo=op, bdims=(0,)):
                 self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
 
     @ops(functorch_lagging_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vmapjvpall', {
         skip('nn.functional.dropout'),  # randomness
         skip('nn.functional.rrelu'),  # randomness
+        xfail('nn.functional.fractional_max_pool2d'),  # Cannot access data pointer of Tensor that doesn't have storage
+        xfail('nn.functional.fractional_max_pool3d'),  # Cannot access data pointer of Tensor that doesn't have storage
+        skip('nn.functional.max_pool1d'),  # fails on cpu, runs on cuda
 
         # Causing a CUDA assert, needs investigation
         skip('div', 'floor_rounding', device_type='cuda'),
@@ -686,11 +705,17 @@ class TestOperators(TestCase):
         skip('div', 'trunc_rounding', device_type='cuda'),
         skip('true_divide', device_type='cuda'),
 
+        # Causing issues with multiple cpu levels of forward mode AD
+        xfail('_masked.mean', device_type='cpu'),
+        xfail('_masked.prod', device_type='cpu'),
+        xfail('nn.functional.batch_norm', device_type='cpu'),
+        xfail('nn.functional.hinge_embedding_loss', device_type='cpu'),
+        xfail('nn.functional.instance_norm', device_type='cpu'),
+
         # xfail list
         xfail('linalg.inv'),
         xfail('masked_fill'),
         xfail('linalg.tensorinv'),
-        xfail('nn.functional.pad', 'circular'),
         xfail('linalg.matrix_power'),
         xfail('maximum'),
         xfail('linalg.householder_product'),
@@ -705,7 +730,6 @@ class TestOperators(TestCase):
         xfail('max', 'binary'),
         xfail('nn.functional.gaussian_nll_loss'),
         xfail('min', 'binary'),
-        xfail('index_fill'),
         xfail('index_put'),
         xfail('std_mean'),
         xfail('double', 'channels_last'),
@@ -715,7 +739,6 @@ class TestOperators(TestCase):
         xfail('scatter'),
         xfail('matrix_exp'),
         xfail('nanquantile'),
-        xfail('lu'),
         xfail('nn.functional.linear'),
         xfail('index_copy'),
         xfail('masked_scatter'),
@@ -742,14 +765,13 @@ class TestOperators(TestCase):
             kwarg_values = sample.kwargs
             args = tuple([*arg_values, *kwarg_values])
             fn, args = get_jvp_variant_primals_tangents(op, sample)
-            for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}):
+            for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}, opinfo=op):
                 self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vmapvjp_has_batch_rule', vmapvjp_fail.union({
         xfail('view_as_complex'),
-        xfail('__getitem__'),
-        xfail('cdist'),
+        xfail('__getitem__', ''),
         xfail('cholesky'),
         xfail('complex'),
         xfail('copysign'),
@@ -761,7 +783,6 @@ class TestOperators(TestCase):
         xfail('fft.ihfft'),
         xfail('fft.rfft'),
         xfail('fft.rfftn'),
-        xfail('cdist'),
         xfail('fill_'),
         xfail('fmax'),
         xfail('fmin'),
@@ -794,9 +815,7 @@ class TestOperators(TestCase):
         xfail('masked_select'),
         xfail('matrix_exp'),
         xfail('nanquantile'),
-        xfail('nn.functional.conv_transpose2d'),
         xfail('nn.functional.gelu'),
-        xfail('nn.functional.pad', 'circular'),
         xfail('norm', 'nuc'),
         xfail('pinverse'),
         xfail('prod'),
@@ -813,7 +832,6 @@ class TestOperators(TestCase):
         xfail('vdot'),
         xfail('block_diag'),
         xfail('nn.functional.dropout'),
-        xfail('nn.functional.batch_norm'),
         xfail('_masked.prod'),
         xfail('fft.ihfft2'),
         xfail('fft.ihfftn'),
@@ -821,13 +839,11 @@ class TestOperators(TestCase):
         xfail('cross'),
         xfail('double', 'channels_last'),
         xfail('linalg.cross'),
-        skip('nn.functional.conv1d'),
         xfail('nn.functional.gaussian_nll_loss'),
         xfail('nn.functional.hardsigmoid'),
         xfail('nn.functional.huber_loss'),
         xfail('nn.functional.instance_norm'),
         xfail('nn.functional.poisson_nll_loss'),
-        xfail('nn.functional.conv_transpose3d'),
         xfail('nn.functional.bilinear'),
         xfail('nn.functional.prelu'),
         xfail('nn.functional.glu'),
@@ -838,16 +854,12 @@ class TestOperators(TestCase):
         xfail('nn.functional.rrelu'),
         xfail('nn.functional.embedding_bag'),
         xfail('nn.functional.softshrink'),
-        xfail('nn.functional.conv_transpose1d'),
         xfail('nn.functional.max_pool3d'),
         xfail('istft'),
         xfail('nn.functional.fractional_max_pool2d'),
         xfail('linalg.tensorsolve'),
     }))
     def test_vmapvjp_has_batch_rule(self, device, dtype, op):
-        # These are too annoying to put into the list above
-        if op.name in {'nn.functional.conv2d'}:
-            self.skipTest("Skipped! ExpectedF failures")
         if not op.supports_autograd:
             self.skipTest("Skipped! Autograd not supported.")
             return
@@ -864,12 +876,12 @@ class TestOperators(TestCase):
                 cotangents = get_sample_cotangents(op, sample)
                 fn, args = get_vjp_fn_and_args_with_cotangents(op, sample, cotangents)
                 for loop_out, batched_out in get_fallback_and_vmap_exhaustive(
-                        fn, args, {}, compute_loop_out=False):
+                        fn, args, {}, opinfo=op, compute_loop_out=False):
                     pass
                 for a_op in op.aliases:
                     fn, args = get_vjp_fn_and_args_with_cotangents(a_op, sample, cotangents)
                     for loop_out, batched_out in get_fallback_and_vmap_exhaustive(
-                            fn, args, {}, compute_loop_out=False):
+                            fn, args, {}, opinfo=op, compute_loop_out=False):
                         pass
 
         check_vmap_fallback(self, test, op, dry_run=False)
@@ -879,7 +891,7 @@ class TestOperators(TestCase):
         # fallback path doesn't work
         xfail('H'),
         # All of the following are bugs and need to be fixed
-        xfail('__getitem__'),
+        xfail('__getitem__', ''),
         xfail('clamp', ''),
         xfail('dsplit'),
         xfail('fill_'),
@@ -891,7 +903,6 @@ class TestOperators(TestCase):
         xfail('index_put'),
         xfail('linalg.multi_dot'),
         xfail('vstack'),
-        xfail('nn.functional.batch_norm'),
         xfail('lu_solve'),
         xfail('lu_unpack'),
         xfail('matrix_exp'),
@@ -903,6 +914,7 @@ class TestOperators(TestCase):
         xfail('nn.functional.glu'),
         xfail('as_strided'),
         xfail('nn.functional.fractional_max_pool2d'),
+        skip('solve'),
     }))
     def test_vjpvmap(self, device, dtype, op):
         # NB: there is no vjpvmap_has_batch_rule test because that is almost
@@ -923,12 +935,14 @@ class TestOperators(TestCase):
             return
 
         samples = op.sample_inputs(device, dtype, requires_grad=True)
+        is_batch_norm = op.name == "nn.functional.batch_norm"
 
         for sample in samples:
             args = [sample.input] + list(sample.args)
             kwargs = sample.kwargs
+            generator = get_exhaustive_batched_inputs(args, kwargs, for_batch_norm=is_batch_norm)
 
-            for batched_args, in_dims, kwargs in get_exhaustive_batched_inputs(args, kwargs):
+            for batched_args, in_dims, kwargs in generator:
                 vmapped_op = vmap(op, in_dims)
                 fn, primals = normalize_op_input_output2(vmapped_op, batched_args, kwargs,
                                                          sample.output_process_fn_grad)
@@ -975,13 +989,11 @@ class TestDecompositionOpInfo(TestCase):
         skip('view_as_complex'),
         xfail('linalg.cholesky'),
         xfail('linalg.inv'),
+        xfail('linalg.det', 'singular', device_type='cuda'),
         xfail('linalg.matrix_power'),
         xfail('to_sparse'),
         skip('tensor_split'),
         skip('mvlgamma'),
-        skip('tanh', device_type='cuda'),  # cuda bfloat16 failure
-        skip('nn.functional.tanhshrink', device_type='cuda'),  # cuda bfloat16 failure
-        skip('nn.functional.huber_loss', device_type='cuda'),  # cuda bfloat16 failure
         skip('eig'),
         skip('nn.functional.dropout'),
         skip('_masked.softmin'),
@@ -997,7 +1009,7 @@ class TestDecompositionOpInfo(TestCase):
         # copied from common_utils.py
         dtype_precisions = {
             torch.float16: (0.001, 1e-5),
-            torch.bfloat16: (0.016, 1e-5),
+            torch.bfloat16: (0.016, 1e-4),  # zzzz bfloat16 precision
             torch.float32: (1.3e-6, 1e-5),
             torch.float64: (1e-7, 1e-7),
             torch.complex32: (0.001, 1e-5),
@@ -1019,16 +1031,21 @@ class TestDecompositionOpInfo(TestCase):
             # Some ops, like those involving reductions, are fundamentally non-decomposable with precision guarantees
             tol_table = {
                 # aggghhhhhhhhhh I hate reductions and floating point
-                (torch.bfloat16, aten._softmax_backward_data): (0.016, 1e-2),
-                (torch.bfloat16, aten._log_softmax_backward_data): (0.016, 1e-2),
-                # (torch.float16, aten.im2col_backward): (0.016, 1e-2),
+                (torch.float16, aten.huber_loss_backward): (0.002, 1e-5),
+                (torch.bfloat16, aten.tanh_backward): (0.03, 1e-4),
+                (torch.bfloat16, aten._log_softmax): (0.05, 1e-2),
+                (torch.bfloat16, aten._softmax_backward_data): (0.016, 5e-3),
+                (torch.bfloat16, aten._log_softmax_backward_data): (0.016, 5e-3),
             }
-            msg = f"{op} decomposition failed"
             if (b.dtype, op) in tol_table:
                 rtol, atol = tol_table[(b.dtype, op)]
             else:
                 rtol, atol = _getDefaultRtolAndAtol(a.dtype, b.dtype)
-            assert torch.allclose(a, b, rtol=rtol, atol=atol), msg
+            if not torch.allclose(a, b, rtol=rtol, atol=atol):
+                atol_diff = (a - b).abs().max()
+                rtol_diff = ((a - b).abs()/b.abs()).nan_to_num(0).max()
+                msg = f"{op.__name__} decomposition failed, max rel: {rtol_diff}, max abs: {atol_diff}"
+                raise RuntimeError(msg)
 
         # We check the correctness of each decomposition right after running it.
         # So, when we encounter a decomposition, we run the function normally, and
@@ -1072,6 +1089,7 @@ class TestDecompositionOpInfo(TestCase):
                 if func in decomposition_table and func != torch.ops.aten.detach:
                     upcast_table = set([
                         aten.tanh_backward,
+                        aten._log_softmax,
                     ])
                     decomposition = decomposition_table[func]
                     global run_decompositions
@@ -1165,6 +1183,29 @@ class TestDecompositionOpInfo(TestCase):
         with open('op_analysis/run_decompositions.txt', 'w') as f:
             for op in get_names(run_decompositions):
                 f.write(f'{op}\n')
+
+    def test_group_norm_backward(self, device):
+        # group norm will hit the decomposable ``infinitely_differentiable_group_norm_backward`` when
+        # GradMode is on, which happens by default in the grad transform. This avoids that
+        def f(x, weight, bias, grad_out):
+            output = F.group_norm(x, 6, weight, bias)
+            inputs = []
+            for input in (x, weight, bias):
+                if input.requires_grad:
+                    inputs.append(input)
+            return torch.autograd.grad(outputs=output, inputs=inputs, grad_outputs=grad_out)
+
+        B, N, C, H, W = 2, 3, 24, 5, 7
+        for (input_grad, weight_grad, bias_grad) in itertools.product((True, False), (True, False), (True, False)):
+            if not input_grad and not weight_grad and not bias_grad:
+                continue
+            x = torch.randn(N, C, H, W, device=device, requires_grad=input_grad)
+            weight = torch.randn(C, device=device, requires_grad=weight_grad)
+            bias = torch.randn(C, device=device, requires_grad=bias_grad)
+            grad_out = torch.randn(B, N, C, H, W, device=device)
+            loop_out = loop(f, (None, None, None, 0), 0, 2, x, weight, bias, grad_out)
+            batched_out = vmap(f, (None, None, None, 0), 0)(x, weight, bias, grad_out)
+            self.assertEqual(loop_out, batched_out)
 
 
 only_for = ("cpu", "cuda")

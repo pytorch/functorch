@@ -2177,8 +2177,6 @@ class TestVmapOperators(Namespace.TestVmapBase):
         result = vmap(vmap(lambda x: op(x, [2, 3])))(torch.randn(B0, B1))
         self.assertEqual(result.shape, [B0, B1, 2, 3])
 
-    # TODO: new_empty_strided BR
-    @unittest.expectedFailure
     def test_new_empty_strided(self):
         # Empty is non-deterministic so we just check that the size and shape
         # of the output are what we expect and that the vmap fallback isn't used
@@ -2884,7 +2882,6 @@ class TestVmapBatchedGradient(Namespace.TestVmapBase):
         self._test_arithmetic(torch.div, device)
         self._test_arithmetic(lambda x, y: x / y, device)
 
-    @allowVmapFallbackUsage
     def test_binary_cross_entropy(self, device):
         x = F.sigmoid(torch.randn(3, 2, device=device, requires_grad=True))
         target = torch.rand(3, 2, device=device)
@@ -3118,7 +3115,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('linalg.svd', device_type='cuda'),
         xfail('index_put'),
         xfail('matrix_exp'),
-        xfail('nn.functional.batch_norm'),
         xfail('lu_unpack'),
         xfail('histogramdd'),
         xfail('nn.functional.embedding', ''),
@@ -3154,14 +3150,16 @@ class TestVmapOperatorsOpInfo(TestCase):
             arg_values = [sample_input.input] + list(sample_input.args)
             kwarg_values = sample_input.kwargs
             try:
-                for loop_out, batched_out in get_fallback_and_vmap_exhaustive(op.op, arg_values, kwarg_values):
+                generator = get_fallback_and_vmap_exhaustive(op.op, arg_values, kwarg_values, opinfo=op)
+                for loop_out, batched_out in generator:
                     # empty_like and new_empty produce garbage values so we just check the shapes.
                     if op.name == 'empty_like' or op.name == 'new_empty':
                         self.assertEqual(loop_out.shape, batched_out.shape)
                         continue
                     self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
                 for a_op in op.aliases:
-                    for loop_out, batched_out in get_fallback_and_vmap_exhaustive(a_op, arg_values, kwarg_values):
+                    a_generator = get_fallback_and_vmap_exhaustive(a_op, arg_values, kwarg_values, opinfo=op)
+                    for loop_out, batched_out in a_generator:
                         self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
             # todo(chilli): Garbage hack I added to deal with indexing not working
             except Exception as e:
@@ -3172,7 +3170,6 @@ class TestVmapOperatorsOpInfo(TestCase):
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestVmapOperatorsOpInfo', 'test_op_has_batch_rule', vmap_fail.union({
-        xfail('cdist'),
         xfail('complex'),
         xfail('copysign'),
         xfail('dsplit'),
@@ -3222,7 +3219,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('to_sparse'),
         xfail('vdot'),
         xfail('vsplit'),
-        xfail('__getitem__'),
+        xfail('__getitem__', ''),
         xfail('all'),
         xfail('any'),
         xfail('count_nonzero'),
@@ -3232,7 +3229,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('nanmean'),
         xfail('vstack'),
         xfail('nn.functional.dropout'),
-        xfail('nn.functional.batch_norm'),
         xfail('resize_'),
         xfail('view_as_complex'),
         xfail('matrix_exp'),
@@ -3266,7 +3262,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('nn.functional.cosine_embedding_loss'),
         xfail('nn.functional.ctc_loss'),
         xfail('nn.functional.gaussian_nll_loss'),
-        xfail('nn.functional.group_norm'),
         xfail('nn.functional.hinge_embedding_loss'),
         xfail('nn.functional.huber_loss'),
         xfail('nn.functional.instance_norm'),
@@ -3301,14 +3296,16 @@ class TestVmapOperatorsOpInfo(TestCase):
             for sample_input in sample_inputs_itr:
                 arg_values = [sample_input.input] + list(sample_input.args)
                 kwarg_values = sample_input.kwargs
-                for loop_out, batched_out in get_fallback_and_vmap_exhaustive(op.op, arg_values, kwarg_values):
+                generator = get_fallback_and_vmap_exhaustive(op.op, arg_values, kwarg_values, opinfo=op)
+                for loop_out, batched_out in generator:
                     # empty_like and new_empty produce garbage values so we just check the shapes.
                     if op.name == 'empty_like' or op.name == 'new_empty':
                         self.assertEqual(loop_out.shape, batched_out.shape)
                         continue
                     self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
                 for a_op in op.aliases:
-                    for loop_out, batched_out in get_fallback_and_vmap_exhaustive(a_op, arg_values, kwarg_values):
+                    a_generator = get_fallback_and_vmap_exhaustive(a_op, arg_values, kwarg_values, opinfo=op)
+                    for loop_out, batched_out in a_generator:
                         self.assertEqual(loop_out, batched_out, atol=1e-4, rtol=1e-4)
         check_vmap_fallback(self, test, op)
 

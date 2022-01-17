@@ -53,7 +53,7 @@ void decompose_functional(const c10::OperatorHandle& op, torch::jit::Stack* stac
 
   // Step 2: set up TLS such that we hit the functionalization kernels before the batching rules.
   // Note: this relies on the fact that Functionalization > BatchMode in DispatchKey.h
-  c10::impl::IncludeDispatchKeyGuard include_guard(c10::DispatchKeySet(c10::DispatchKey::Functionalize));
+  c10::impl::IncludeDispatchKeyGuard include_guard(c10::DispatchKeySet{c10::DispatchKey::Functionalize});
 
   // Step 3: redispatch to native kernel
   // TODO: this is technically kind of sketchy, since we're relying on the fact
@@ -127,6 +127,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE2(bitwise_xor, Scalar);
   OP_DECOMPOSE(broadcast_tensors);
   OP_DECOMPOSE(broadcast_to);
+  OP_DECOMPOSE(cdist);
   OP_DECOMPOSE(clip);
   OP_DECOMPOSE2(clip, Tensor );
   OP_DECOMPOSE(concat);
@@ -223,6 +224,9 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(cross_entropy_loss);
   OP_DECOMPOSE(arctan2);
   OP_DECOMPOSE(layer_norm);
+  OP_DECOMPOSE(batch_norm);
+  OP_DECOMPOSE(group_norm);
+  OP_DECOMPOSE(_batch_norm_impl_index);
   OP_DECOMPOSE(diag_backward);
   OP_DECOMPOSE(conv_transpose1d);
   OP_DECOMPOSE2(conv_transpose2d, input);

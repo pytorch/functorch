@@ -3,7 +3,6 @@
 #
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
-from dataclasses import dataclass
 import functools
 from typing import Any, Dict, Optional, Tuple, Callable, Union
 import torch
@@ -11,25 +10,23 @@ from torch._C import _disabled_torch_function_impl
 import torch.utils._pytree as pytree
 from torch.fx import Tracer, GraphModule
 import torch.fx as fx
-from .nnc_compile import nnc_compile
-from .decompositions import decomposition_table
-from enum import Enum
-import warnings
+from torch.fx.passes.shape_prop import _extract_tensor_metadata
 from contextlib import contextmanager
 
+aten = torch.ops.aten
 
-USE_DECOMPOSE = False
+CURRENT_DECOMPOSITION_TABLE = {}
 USE_META = False
 
 
 @contextmanager
-def pythonkey_decompose():
-    global USE_DECOMPOSE
-    USE_DECOMPOSE = True
+def pythonkey_decompose(decomposition_table):
+    global CURRENT_DECOMPOSITION_TABLE
+    CURRENT_DECOMPOSITION_TABLE = decomposition_table
     try:
-        yield USE_DECOMPOSE
+        yield CURRENT_DECOMPOSITION_TABLE
     finally:
-        USE_DECOMPOSE = False
+        CURRENT_DECOMPOSITION_TABLE = {}
 
 
 @contextmanager
@@ -40,6 +37,22 @@ def pythonkey_meta():
         yield USE_META
     finally:
         USE_META = False
+
+
+def get_output_device(devices, op):
+    # The device propagation is a bit sketchy.
+    # aten::index(CPU, CUDA) => CPU tensor
+    # aten::index(CUDA, CPU) => CUDA tensor
+    if op == aten.index:
+        return devices[0]
+    devices = list(set(devices))
+    if len(devices) == 1:
+        return devices[0]
+    else:
+        for device in devices:
+            if device.type == 'cuda':
+                return device
+        raise RuntimeError("Couldn't infer output device from input device")
 
 
 class PythonTensor(torch.Tensor):
@@ -61,10 +74,12 @@ class PythonTensor(torch.Tensor):
         )
 
         # ...the real tensor is held as an element on the tensor.
-        r.elem = elem
         if USE_META:
-            r.elem = r.elem.to('meta')
+            r.elem = elem.to('meta')
+        else:
+            r.elem = elem
         r.proxy = proxy
+        proxy.node.meta['tensor_meta'] = _extract_tensor_metadata(r)
         return r
 
     def __repr__(self):
@@ -74,8 +89,13 @@ class PythonTensor(torch.Tensor):
 
     @classmethod
     def __torch_dispatch__(cls, func, types, args=(), kwargs=None):
-        if func in decomposition_table and USE_DECOMPOSE:
-            return decomposition_table[func](*args, **kwargs)
+        if func in CURRENT_DECOMPOSITION_TABLE:
+            return CURRENT_DECOMPOSITION_TABLE[func](*args, **kwargs)
+
+        # Commenting this out for now since it causes some spurious failures (such as error checking)
+        # if func == aten._local_scalar_dense:
+        #     raise RuntimeError("It appears that you're trying to get value out of a tracing tensor - erroring out! "
+        #                        "It's likely that this is caused by data-dependent control flow or similar.")
 
         def unwrap_proxy(e):
             return e.proxy if isinstance(e, PythonTensor) else e
@@ -83,16 +103,21 @@ class PythonTensor(torch.Tensor):
         def unwrap_tensor(e):
             return e.elem if isinstance(e, PythonTensor) else e
 
-        # Used to infer the output device
-        input_devices = list(set([i.device for i in pytree.tree_flatten(args)[0] +
-                             pytree.tree_flatten(kwargs)[0] if isinstance(i, PythonTensor)]))
-        assert len(input_devices) == 1
-        output_device = input_devices[0]
+        input_devices = [i.device for i in pytree.tree_flatten(args)[0] +
+                         pytree.tree_flatten(kwargs)[0] if isinstance(i, torch.Tensor)]
+
+        output_device = get_output_device(input_devices, func)
+
         proxy_args = pytree.tree_map(unwrap_proxy, args)
         proxy_kwargs = pytree.tree_map(unwrap_proxy, kwargs)
         proxy_out = func(*proxy_args, **proxy_kwargs)
+
+        # Kind of a hacky way to test if an op is in-place or not
+        if func.__name__[-1] == "_" and func.__name__[0] != "_":
+            args[0].proxy = proxy_out
         args = pytree.tree_map(unwrap_tensor, args)
         kwargs = pytree.tree_map(unwrap_tensor, kwargs)
+
         try:
             real_out = func(*args, **kwargs)
         except NotImplementedError:
@@ -109,8 +134,6 @@ class PythonTensor(torch.Tensor):
             # tensors back to C++, we'll error.
             if e is None:
                 e = torch.empty(())
-            # Currently assuming that all inputs to an op are the same device - not totally
-            # sure that's true
             if type(e) == torch.Tensor:
                 return PythonTensor(e, proxy, output_device)
             else:
@@ -120,7 +143,7 @@ class PythonTensor(torch.Tensor):
         elif isinstance(real_out, list):
             return list([wrap_with_proxy(e, proxy_out[idx]) for idx, e in enumerate(real_out)])
         elif isinstance(real_out, torch.Tensor):
-            return PythonTensor(real_out, proxy_out, output_device)
+            return wrap_with_proxy(real_out, proxy_out)
         else:
             return real_out
 
@@ -201,119 +224,12 @@ def wrap_key(f, inps):
     return wrapped
 
 
-def make_fx(f):
+def make_fx(f, decomposition_table={}):
     @functools.wraps(f)
     def wrapped(*args):
         phs = pytree.tree_map(lambda x: fx.PH, args)
-        t = pythonkey_trace(wrap_key(f, args), concrete_args=tuple(phs))
+        with pythonkey_decompose(decomposition_table):
+            t = pythonkey_trace(wrap_key(f, args), concrete_args=tuple(phs))
         return t
-
-    return wrapped
-
-
-@dataclass(eq=True, frozen=True)
-class TensorSpec:
-    shape: Tuple[int, ...]
-    stride: Tuple[int, ...]
-    dtype: torch.dtype
-    device: torch.device
-
-
-@dataclass(eq=True, frozen=True)
-class ConcreteValueSpec:
-    value: Any
-
-
-@dataclass(eq=True, frozen=True)
-class SpecializationKey:
-    func: Callable
-    specs: Tuple[Union[TensorSpec, ConcreteValueSpec], ...]
-
-
-def get_spec(arg):
-    if isinstance(arg, torch.Tensor):
-        return TensorSpec(
-            tuple(arg.shape),
-            tuple(arg.stride()),
-            arg.dtype,
-            arg.device)
-    return ConcreteValueSpec(arg)
-
-
-def construct_specialization_key(f, args):
-    flat_args, _ = pytree.tree_flatten(args)
-    return SpecializationKey(f, tuple(get_spec(arg) for arg in flat_args))
-
-
-nnc_jit_cache: Dict[Callable, Dict[SpecializationKey, Callable]] = {}
-
-
-class RetrievalStatus(Enum):
-    Success = 0
-    UnknownFunc = 1
-    UnknownSpecialization = 2
-
-
-def retrieve_from_cache(f, key):
-    if f not in nnc_jit_cache:
-        return RetrievalStatus.UnknownFunc, None
-    cache_for_f = nnc_jit_cache[f]
-    if key not in cache_for_f:
-        return RetrievalStatus.UnknownSpecialization, None
-    return RetrievalStatus.Success, cache_for_f[key]
-
-
-def add_to_cache(f, key, compiled_f):
-    if f not in nnc_jit_cache:
-        nnc_jit_cache[f] = {key: compiled_f}
-    else:
-        nnc_jit_cache[f][key] = compiled_f
-
-
-def nnc_jit(f, static_argnums=None, skip_specialization=False):
-    local_cache = None
-
-    @functools.wraps(f)
-    def compiled(*args):
-        nonlocal local_cache, static_argnums
-        if local_cache is not None and skip_specialization:
-            return local_cache(*args)
-        key = construct_specialization_key(f, args)
-        status, compiled_f = retrieve_from_cache(f, key)
-        if status is RetrievalStatus.Success:
-            return compiled_f(*args)
-        if status is RetrievalStatus.UnknownSpecialization:
-            warnings.warn(
-                f'Recompiling kernel for {f} due to new specialization. '
-                f'We recompile when we see inputs with new sizes/strides/'
-                f'dtype/device. Frequent recompilations can be bad for '
-                f'performance.',
-                stacklevel=2)
-
-        fx_model = make_fx(f)(*args)
-        fx_model.graph.lint()
-        if static_argnums is None:
-            static_argnums = []
-        if isinstance(static_argnums, int):
-            static_argnums = [static_argnums]
-        args = list(args)
-        for idx in range(len(args)):
-            if idx in static_argnums:
-                args[idx] = torch.empty(())
-        args = tuple(args)
-        compiled_f = nnc_compile(fx_model, args)
-        local_cache = compiled_f
-        add_to_cache(f, key, compiled_f)
-        return compiled_f(*args)
-    return compiled
-
-
-def make_nnc(f):
-    @functools.wraps(f)
-    def wrapped(*args):
-        fx_model = make_fx(f)(*args)
-        fx_model.graph.lint()
-        compiled_f = nnc_compile(fx_model, args, get_loopnest=True)
-        return compiled_f
 
     return wrapped

@@ -8,9 +8,12 @@ aten = torch.ops.aten
 decomposition_table = {}
 
 
-def register_decomposition(aten_op):
+def register_decomposition(aten_op, registry=None):
     def decomposition_decorator(f):
-        decomposition_table[aten_op] = f
+        nonlocal registry
+        if registry is None:
+            registry = decomposition_table
+        registry[aten_op] = f
         return f
     return decomposition_decorator
 
@@ -33,7 +36,7 @@ def sigmoid_backward_decomposition(out_grad: Tensor, y: Tensor):
 
 @register_decomposition(aten.softplus_backward)
 # The out argument seems to always be ignored?
-def softplus_backward_decomposition(out_grad: Tensor, x: Tensor, beta: float, threshold: float, out):
+def softplus_backward_decomposition(out_grad: Tensor, x: Tensor, beta: float, threshold: float):
     z = (x * beta).exp()
     return aten.where((x * beta) > threshold, out_grad, out_grad * z / (z + 1.0))
 
@@ -74,9 +77,14 @@ def hardshrink_backward(grad_out: Tensor, self: Tensor, lambd: float):
     return aten.where((self >= -lambd) & (self <= lambd), aten.new_zeros(grad_out, ()), grad_out)
 
 
+@register_decomposition(aten.hardswish_backward)
+def hardswish_backward(grad_output: Tensor, self: Tensor) -> Tensor:
+    return aten.where(self < -3, aten.new_zeros(grad_output, ()), aten.where(self <= 3, grad_output * ((self / 3) + 0.5), grad_output))
+
+
 @register_decomposition(aten.threshold_backward)
 def threshold_backward_decomposition(grad_output: Tensor, self: Tensor, threshold: float):
-    return aten.where(self <= threshold, aten.new_zeros(grad_output, ()), grad_output)
+    return aten.where(self <= threshold, aten.new_zeros(grad_output, (1,)), grad_output)
 
 
 @register_decomposition(aten.leaky_relu_backward)
@@ -101,6 +109,12 @@ def mish_backward_decomposition(grad_output: Tensor, input: Tensor):
     input_sigmoid = aten.sigmoid(input)
     out = (input * input_sigmoid * (1 - input_tanh_softplus * input_tanh_softplus))
     return grad_output * (input_tanh_softplus + out)
+
+
+@register_decomposition(aten.silu_backward)
+def silu_backward(grad_output: Tensor, self: Tensor) -> Tensor:
+    sigmoid = 1 / (1 + aten.exp(aten.neg(self)))
+    return grad_output * sigmoid * (1 + self * (1 - sigmoid))
 
 # whyyyy does log_sigmoid do 2 different things for CPU and CUDA >:(
 
@@ -152,6 +166,16 @@ def diagonal_backward(grad_output: Tensor, input_sizes: List[int], offset: int, 
     return aten.diagonal_scatter(grad_input, grad_output, offset, dim1, dim2)
 
 
+# @register_decomposition(aten.cudnn_batch_norm)
+# def cudnn_batch_norm(input: Tensor, weight: Tensor, bias: Optional[Tensor], running_mean: Optional[Tensor], running_var: Optional[Tensor], training: bool, exponential_average_factor: float, epsilon: float):
+#     a, b, c = aten.native_batch_norm(input, weight, bias, running_mean, running_var, training, exponential_average_factor, epsilon)
+#     return (a,b, c, aten.new_empty(input, (1,)))
+
+# @register_decomposition(aten.cudnn_batch_norm_backward)
+# def cudnn_batch_norm_backward(input: Tensor, grad_output: Tensor, weight: Tensor, running_mean: Optional[Tensor], running_var: Optional[Tensor], save_mean: Optional[Tensor], save_var: Optional[Tensor], epsilon: float, reserveSpace: Tensor):
+#     return aten.native_batch_norm_backward(grad_output, input, weight, running_mean, running_var, save_mean, save_var, True, epsilon, [True, True, True])
+
+
 @register_decomposition(aten._softmax_backward_data)
 def _softmax_backward_data(grad_output: Tensor, output: Tensor, dim: int, input_dtype: int):
     new_grad = grad_output * output
@@ -199,6 +223,42 @@ def native_dropout_decomposition(input, p, generator=None):
     res = bool_mask * input * float(1.0 / p)
     return [res, bool_mask]
 
+
+@register_decomposition(aten._softmax)
+def _softmax(x: Tensor, dim: int, half_to_float: bool):
+    x_max = aten.max(x, dim, keepdim=True)[0]
+    unnormalized = aten.exp(x - x_max)
+    return unnormalized / aten.sum(unnormalized, dim, keepdim=True)
+
+
+@register_decomposition(aten._log_softmax)
+def _log_softmax(x: Tensor, dim: int, half_to_float: bool):
+    x_max = aten.max(x, dim, keepdim=True)[0]
+    shifted = x - x_max
+    shifted_logsumexp = aten.log(aten.sum(aten.exp(shifted), dim, keepdim=True))
+    return shifted - shifted_logsumexp
+
+
+@register_decomposition(aten.addmm)
+def addmm(self: Tensor, mat1: Tensor, mat2: Tensor, beta=1, alpha=1):
+    if not self.is_floating_point():
+        beta = int(beta)
+        alpha = int(alpha)
+    out = alpha * aten.mm(mat1, mat2)
+    if beta == 0:
+        return out
+    return beta * self + out
+
+
+@register_decomposition(aten.clamp_min)
+def clamp_min(self: Tensor, min: float):
+    return aten.clamp(self, min=min)
+
+
+@register_decomposition(aten.clamp_max)
+def clamp_max(self: Tensor, min: float):
+    return aten.clamp(self, max=max)
+
 # @register_decomposition(aten._fused_dropout)
 # def _fused_dropout_decomposition(input, p, generator=None):
 #     mask = aten.to(aten.rand_like(input) < p, dtype=torch.uint8)
@@ -206,6 +266,14 @@ def native_dropout_decomposition(input, p, generator=None):
 #     return [res, mask]
 
 
+# Questionable decompositions
 @register_decomposition(aten._s_where)
 def _s_where_canonicalization(a, b, c):
     return aten.where(a, b, c)
+
+
+# This is only valid if we're running the graph without autograd, such as if the backward pass has been traced.
+# Note that this decomposition causes issues with in-place ops
+@register_decomposition(aten.detach)
+def detach_decomposition(x):
+    return x

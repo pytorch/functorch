@@ -17,7 +17,7 @@ from functorch import (
 )
 from functorch.compile import (
     nnc_jit, compiled_function, compiled_module,
-    partition_with_recompute_fwd_in_bwd, pythonkey_decompose, aot_function, aot_module
+    partition_with_recompute_fwd_in_bwd, aot_function, aot_module, decomposition_table
 )
 
 from torch.testing._internal.common_device_type import ops
@@ -62,6 +62,13 @@ class TestPythonKey(TestCase):
         new_inp = torch.randn(3)
         self.assertEqual(fx_f(new_inp), f(new_inp))
 
+    def test_scalar_device(self, device):
+        def f(a, b):
+            return a + b
+        inps = [torch.randn(3, device=device), torch.tensor(5)]
+        fx_f = make_fx(f)(*inps)
+        self.assertEqual(fx_f(*inps), f(*inps))
+
     def test_make_fx_vmap(self, device):
         def f(x):
             return torch.sin(x)
@@ -80,7 +87,7 @@ class TestPythonKey(TestCase):
         new_inp = torch.randn(3)
         self.assertEqual(fx_f(new_inp), f(new_inp))
 
-    def test_make_fx_jvp(self, device):
+    def test_make_fx_vjp(self, device):
         def f(x):
             return torch.sin(x).sum()
 
@@ -100,12 +107,10 @@ class TestPythonKey(TestCase):
 
         self.assertEqual(torch.ops.aten.tanh_backward in ops, True)
 
-        with pythonkey_decompose():
-            fx_f = make_fx(grad(f))(torch.randn(5))
+        fx_f = make_fx(grad(f), decomposition_table)(torch.randn(5))
         ops = set([i.target for i in fx_f.graph.nodes])
         self.assertEqual(torch.ops.aten.tanh_backward in ops, False)
 
-    @unittest.expectedFailure
     def test_nnc_jit(self, device):
         def f(x):
             return torch.sin(x)
@@ -115,25 +120,6 @@ class TestPythonKey(TestCase):
         inp = torch.randn(3)
         self.assertEqual(jit_f(inp), f(inp))
 
-    @unittest.expectedFailure
-    def test_nnc_jit_warns_on_recompilation(self, device):
-        def f(x):
-            return torch.sin(x)
-
-        jit_f = nnc_jit(f)
-
-        inp = torch.randn(3)
-        jit_f(inp)
-        inp2 = torch.randn(5)
-
-        with warnings.catch_warnings(record=True) as warns:
-            warnings.simplefilter("always")
-            jit_f(inp2)
-
-        self.assertEqual(len(warns), 1)
-        self.assertTrue("Recompiling" in str(warns[-1].message))
-
-    @unittest.expectedFailure
     def test_nnc_scalar(self, device):
         def f(x):
             return torch.sin(x)
@@ -143,7 +129,6 @@ class TestPythonKey(TestCase):
         inp = torch.randn(())
         self.assertEqual(jit_f(inp), f(inp))
 
-    @unittest.expectedFailure
     def test_nnc_pytrees(self, device):
         def f(x):
             return [torch.sin(x[0])]
@@ -160,7 +145,6 @@ class TestPythonKey(TestCase):
         inp = [torch.randn(3, 3), torch.randn(3)]
         self.assertEqual(jit_f(*inp), f(*inp))
 
-    @unittest.expectedFailure
     def test_nnc_passthrough(self, device):
         def f(x, y):
             return x + y, y
@@ -330,25 +314,24 @@ class TestEagerFusionOpInfo(TestCase):
     @skipOps('TestEagerFusionOpInfo', 'test_aot_autograd_exhaustive', {
         xfail('__rmatmul__'),
         xfail('linalg.cholesky'),
-        xfail('linalg.det'),
         xfail('linalg.inv'),
         xfail('matmul'),
+        xfail('msort'),
         xfail('nn.functional.linear'),
         xfail('nn.functional.dropout'),
         xfail('polar'),
         xfail('special.zeta', 'grad'),
         xfail('to_sparse'),
         xfail('addcdiv'),
-        xfail('angle'),
         xfail('cholesky'),
         xfail('cumulative_trapezoid'),
         xfail('diag_embed'),
         xfail('linalg.householder_product'),
         xfail('logit'),
         xfail('matrix_exp'),
-        xfail('sgn'),
         xfail('trapezoid'),
         xfail('trapz'),
+        xfail('trace'),
     })
     def test_aot_autograd_exhaustive(self, device, dtype, op):
 
@@ -378,7 +361,10 @@ class TestEagerFusionOpInfo(TestCase):
             def get_grads(args):
                 return pytree.tree_map(lambda x: x.grad, args)
 
-            compiled_f = compiled_function(f, lambda x, _: x, lambda x, _: x)
+            def nop(f, _):
+                # print(f.code)
+                return f
+            compiled_f = compiled_function(f, nop, nop)
 
             reset_grads()
             compiled_f(args, kwargs).sum().backward()
