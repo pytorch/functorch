@@ -3,11 +3,12 @@ import math
 import torch
 import torch.nn as nn
 from torch import Tensor
-from functorch import make_functional_with_buffers, make_fx
+from functorch import make_fx
 import torch.fx as fx
 from torch.fx import immutable_collections
 import torch.utils._pytree as pytree
 import torch.utils.dlpack
+from torch.nn.utils import _stateless
 from torch.fx.passes import graph_drawer
 import copy
 import operator
@@ -175,6 +176,30 @@ def prod(x):
     return s
 
 
+def size_of(metadata):
+    sizes = {
+        torch.float: 4,
+        torch.float16: 2,
+        torch.float32: 4,
+        torch.float64: 8,
+        torch.int: 4,
+        torch.int8: 1,
+        torch.int16: 2,
+        torch.int32: 4,
+        torch.int64: 8,
+        torch.uint8: 1,
+        torch.bool: 1,
+    }
+
+    numel = prod(metadata.shape)
+    dtype = metadata.dtype
+
+    if dtype not in sizes:
+        raise NotImplementedError("Don't know the size of dtype ", dtype)
+
+    return numel * sizes[dtype]
+
+
 def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inputs):
     """
     Partitions the joint graph such that the backward recomputes the forward.
@@ -243,7 +268,7 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
         if 'tensor_meta' not in node.meta:
             weight = math.inf
         else:
-            mem_sz = prod(node.meta['tensor_meta'].shape)
+            mem_sz = size_of(node.meta['tensor_meta'])
             if is_input:
                 weight = mem_sz
             else:
@@ -272,13 +297,33 @@ def partition_with_recompute_fwd_in_bwd(joint_module: fx.GraphModule, _joint_inp
 
 
 def create_joint_forward_backward(fn):
-    def joint_forward_backward(primals, tangents):
-        out = fn(*primals)
-        primals = [p for p in pytree.tree_flatten(primals)[0] if isinstance(p, Tensor) and p.requires_grad]
+    def joint_forward_backward(primals: List[Any], tangents: List[Any]) -> Tuple[List[Any], List[Any]]:
+        # Call the forward pass
+        outs = fn(*primals)
+        # Get the inputs that need gradients
+        grad_primals = []
+        inputs_needs_grads = []
+        for p in primals:
+            is_grad_tensor = (isinstance(p, Tensor) and p.requires_grad)
+            inputs_needs_grads.append(is_grad_tensor)
+            if is_grad_tensor:
+                grad_primals.append(p)
+
+        # Get the outputs that need gradients
+        assert len(tangents) == len(outs)
+        needed_outs = []
+        needed_tangents = []
+        for out, tangent in zip(outs, tangents):
+            if isinstance(out, Tensor) and out.requires_grad:
+                needed_outs.append(out)
+                needed_tangents.append(tangent)
         backward_out = []
-        if primals:  # todo(chilli): Make it support it if not all outputs have gradients
-            backward_out = torch.autograd.grad(out, primals, grad_outputs=tangents, allow_unused=True)
-        return out, backward_out
+        # Call the backwards pass
+        if grad_primals:
+            backward_out = torch.autograd.grad(needed_outs, grad_primals,
+                                               grad_outputs=needed_tangents, allow_unused=True)
+        backward_out_iter = iter(backward_out)
+        return outs, [next(backward_out_iter) if i else None for i in inputs_needs_grads]
     return joint_forward_backward
 
 
@@ -352,9 +397,7 @@ def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, de
             # contiguous_args = [t.contiguous() for t in flat_args]
             contiguous_args = [t for t in flat_args]
             out = normalize_as_list(compiled_bw(*ctx.saved_tensors, *contiguous_args))
-            out_iter = iter(out)
-            grad_out = [next(out_iter) if p else None for p in ctx.needs_input_grad]
-            return tuple(grad_out)
+            return tuple(out)
 
     return CompiledFunction
 
@@ -547,8 +590,13 @@ def clear_compile_cache():
 
 
 def compiled_module(mod, *args, **kwargs):
-    func_mod, params, buffers = make_functional_with_buffers(mod)
-    compiled_f = compiled_function(func_mod, *args, **kwargs)
+
+    def functional_call(named_params, named_buffers, *args, **kwargs):
+        params_and_buffers = {**named_params, **named_buffers}
+        # import pdb; pdb.set_trace()
+        return _stateless.functional_call(mod, params_and_buffers, args, kwargs)
+
+    compiled_f = compiled_function(functional_call, *args, **kwargs)
 
     class CompiledModule(nn.Module):
         def __init__(self):
@@ -557,8 +605,8 @@ def compiled_module(mod, *args, **kwargs):
 
         def forward(self, *args, **kwargs):
             return compiled_f(
-                tuple(self.parameters()),
-                tuple(self.buffers()),
+                dict(self.orig_module.named_parameters()),
+                dict(self.orig_module.named_buffers()),
                 *args,
                 **kwargs
             )

@@ -127,6 +127,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE2(bitwise_xor, Scalar);
   OP_DECOMPOSE(broadcast_tensors);
   OP_DECOMPOSE(broadcast_to);
+  OP_DECOMPOSE(cartesian_prod);
   OP_DECOMPOSE(cdist);
   OP_DECOMPOSE(clip);
   OP_DECOMPOSE2(clip, Tensor );
@@ -225,6 +226,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(arctan2);
   OP_DECOMPOSE(layer_norm);
   OP_DECOMPOSE(batch_norm);
+  OP_DECOMPOSE(group_norm);
   OP_DECOMPOSE(_batch_norm_impl_index);
   OP_DECOMPOSE(diag_backward);
   OP_DECOMPOSE(conv_transpose1d);

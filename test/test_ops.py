@@ -7,8 +7,10 @@
 from torch.testing._internal.common_utils import TestCase, run_tests, is_iterable_of_tensors
 import torch
 from torch import Tensor
+import torch.nn.functional as F
 import functools
 import unittest
+import itertools
 from torch.testing._internal.common_device_type import instantiate_device_type_tests
 from torch.testing._internal.common_device_type import ops
 from torch.testing._internal.common_dtype import integral_types
@@ -21,6 +23,7 @@ from common_utils import (
     skip,
     skipOps,
     check_vmap_fallback,
+    loop,
     IS_FBCODE,
 )
 from torch.utils._pytree import tree_flatten, tree_unflatten, tree_map
@@ -354,6 +357,7 @@ class TestOperators(TestCase):
         # Composite ops that do bad things. Need to be fixed in PyTorch core.
         # RuntimeError: Cannot access data pointer of Tensor that doesn't have storage
         xfail('linalg.inv'),
+        xfail('linalg.eigvals'),
         xfail('linalg.matrix_power'),
         xfail('linalg.cholesky'),
         xfail('tensor_split'),
@@ -363,6 +367,15 @@ class TestOperators(TestCase):
         skip('div', 'no_rounding_mode', device_type='cuda'),
         skip('div', 'trunc_rounding', device_type='cuda'),
         skip('true_divide', device_type='cuda'),
+
+        # Causing an error with calling a forward mode of a forward mode
+        xfail('nn.functional.batch_norm', device_type='cpu'),
+
+        # Some kind of issue with unsymmetric tangent type
+        # Runtime Error: The tangent part of the matrix A should also be symmetric.
+        xfail('linalg.eigh'),
+
+
     }))
     def test_jvp(self, device, dtype, op):
         # TODO: when we change supports_autograd to supports_backward_ad, also change in this file
@@ -524,6 +537,7 @@ class TestOperators(TestCase):
         xfail('index_copy'),
         xfail('index_fill'),
         xfail('linalg.det', ''),
+        xfail('linalg.eig'),  # Uses aten::allclose
         xfail('linalg.eigh'),
         xfail('linalg.householder_product'),
         xfail('linalg.matrix_norm'),
@@ -653,6 +667,7 @@ class TestOperators(TestCase):
         # RuntimeError: Cannot access data pointer of Tensor that doesn't have storage
         xfail('tensor_split'),
         xfail('linalg.inv'),
+        xfail('linalg.eigvals'),
         xfail('linalg.matrix_power'),
         xfail('linalg.cholesky'),
 
@@ -661,6 +676,13 @@ class TestOperators(TestCase):
         skip('div', 'no_rounding_mode', device_type='cuda'),
         skip('div', 'trunc_rounding', device_type='cuda'),
         skip('true_divide', device_type='cuda'),
+
+        # Causing multiple forward mode AD issues, needs investigation
+        xfail('nn.functional.batch_norm', device_type='cpu'),
+
+        # Some kind of issue with unsymmetric tangent type
+        # Runtime Error: The tangent part of the matrix A should also be symmetric.
+        xfail('linalg.eigh'),
     })
     def test_vmapjvp(self, device, dtype, op):
         if is_inplace(op, op.get_op()):
@@ -696,6 +718,13 @@ class TestOperators(TestCase):
         skip('div', 'trunc_rounding', device_type='cuda'),
         skip('true_divide', device_type='cuda'),
 
+        # Causing issues with multiple cpu levels of forward mode AD
+        xfail('_masked.mean', device_type='cpu'),
+        xfail('_masked.prod', device_type='cpu'),
+        xfail('nn.functional.batch_norm', device_type='cpu'),
+        xfail('nn.functional.hinge_embedding_loss', device_type='cpu'),
+        xfail('nn.functional.instance_norm', device_type='cpu'),
+
         # xfail list
         xfail('linalg.inv'),
         xfail('masked_fill'),
@@ -708,6 +737,7 @@ class TestOperators(TestCase):
         xfail('quantile'),
         xfail('var_mean'),
         xfail('as_strided'),
+        xfail('linalg.eigvals'),
         xfail('linalg.eigvalsh'),
         xfail('fill_'),
         xfail('linalg.cholesky'),
@@ -728,6 +758,10 @@ class TestOperators(TestCase):
         xfail('masked_scatter'),
         xfail('view_as_complex'),
         xfail('prod'),
+
+        # Some kind of issue with unsymmetric tangent type
+        # Runtime Error: The tangent part of the matrix A should also be symmetric.
+        xfail('linalg.eigh'),
     })
     # This is technically a superset of test_vmapjvp. We should either delete test_vmapjvp
     # or figure out if we can split vmapjvpall. It's useful to keep test_vmapjvp intact
@@ -898,6 +932,7 @@ class TestOperators(TestCase):
         xfail('nn.functional.glu'),
         xfail('as_strided'),
         xfail('nn.functional.fractional_max_pool2d'),
+        skip('solve'),
     }))
     def test_vjpvmap(self, device, dtype, op):
         # NB: there is no vjpvmap_has_batch_rule test because that is almost
@@ -1166,6 +1201,29 @@ class TestDecompositionOpInfo(TestCase):
         with open('op_analysis/run_decompositions.txt', 'w') as f:
             for op in get_names(run_decompositions):
                 f.write(f'{op}\n')
+
+    def test_group_norm_backward(self, device):
+        # group norm will hit the decomposable ``infinitely_differentiable_group_norm_backward`` when
+        # GradMode is on, which happens by default in the grad transform. This avoids that
+        def f(x, weight, bias, grad_out):
+            output = F.group_norm(x, 6, weight, bias)
+            inputs = []
+            for input in (x, weight, bias):
+                if input.requires_grad:
+                    inputs.append(input)
+            return torch.autograd.grad(outputs=output, inputs=inputs, grad_outputs=grad_out)
+
+        B, N, C, H, W = 2, 3, 24, 5, 7
+        for (input_grad, weight_grad, bias_grad) in itertools.product((True, False), (True, False), (True, False)):
+            if not input_grad and not weight_grad and not bias_grad:
+                continue
+            x = torch.randn(N, C, H, W, device=device, requires_grad=input_grad)
+            weight = torch.randn(C, device=device, requires_grad=weight_grad)
+            bias = torch.randn(C, device=device, requires_grad=bias_grad)
+            grad_out = torch.randn(B, N, C, H, W, device=device)
+            loop_out = loop(f, (None, None, None, 0), 0, 2, x, weight, bias, grad_out)
+            batched_out = vmap(f, (None, None, None, 0), 0)(x, weight, bias, grad_out)
+            self.assertEqual(loop_out, batched_out)
 
 
 only_for = ("cpu", "cuda")
