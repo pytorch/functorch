@@ -720,22 +720,22 @@ class TestGradTransform(TestCase):
         x = torch.tensor(3.14, device=device)
         functorch.grad(foo)(x)
 
-    @onlyCPU
     def test_tensor_print(self, device):
-        x = torch.tensor(3.14, device=device)
+        x = torch.tensor([[3.14, ], [3.14, ]], device=device)
         buf = None
 
-        def foo(x):
+        def foo(t):
             nonlocal buf
-            buf = repr(x)
-            return x
+            buf = repr(t)
+            return t.mean()
 
-        grad(grad(foo))(x)
-        expected = textwrap.dedent("""\
-                GradTrackingTensor(lvl=3, value=
-                    GradTrackingTensor(lvl=2, value=
-                        tensor(3.1400)
-                    )
+        device_info = "" if device == "cpu" else ", device='cuda:0'"
+
+        grad(foo)(x)
+        expected = textwrap.dedent(f"""\
+                GradTrackingTensor(lvl=2, value=
+                    tensor([[3.1400],
+                            [3.1400]]{device_info})
                 )""")
         self.assertEqual(buf, expected)
 
