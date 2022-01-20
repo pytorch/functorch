@@ -111,6 +111,45 @@ Tensor index_plumbing(const Tensor & self, const List<optional<Tensor>> & indice
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
+namespace {
+  std::tuple<Tensor, std::vector<optional<Tensor>>, Tensor>
+  index_put_batch_rule_helper(const Tensor &self,
+                              optional<int64_t> self_bdim,
+                              ArrayRef<optional<Tensor>> indices,
+                              ArrayRef<optional<int64_t>> indices_bdims,
+                              const Tensor &values,
+                              optional<int64_t> values_bdim) {
+
+    auto self_logical_rank = rankWithoutBatchDim(self, self_bdim);
+    auto values_logical_rank = rankWithoutBatchDim(values, values_bdim);
+    Tensor self_ = moveBatchDimToFront(self, self_bdim);
+    Tensor values_ = moveBatchDimToFront(values, values_bdim);
+    TORCH_INTERNAL_ASSERT(indices.size() == indices_bdims.size());
+    std::vector<optional<Tensor>> indices_ = batchIndices(indices, indices_bdims, self_.size(0), self_bdim, values_bdim);
+
+    // handle case when prefix unit dimensions are stripped in setitem.
+    // values of shape `[1, 1, 2]` becomes `[2]`
+    // This leads to problem if values was actually batched.
+    // so we re-append the unit dimensions after batch_dim.
+    if (self_logical_rank > values_logical_rank)
+    {
+      auto values_sizes = values_.sizes();
+      auto batch_offset = values_bdim.has_value() ? 1 : 0;
+      VmapDimVector new_values_shape(values_sizes.begin(), values_sizes.end());
+      size_t diff = self_.dim() - values_sizes.size();
+      // insert the unit dims again after batch_dim (if it exists).
+      for (const auto idx : c10::irange(0, diff))
+      {
+        (void)idx;
+        new_values_shape.insert(new_values_shape.begin() + batch_offset, 1);
+      }
+      values_ = values_.view(new_values_shape);
+    }
+
+    return std::make_tuple(self_, indices_, values_);
+  }
+}  // namespace
+
 void index_put__batch_rule(
     Tensor& self,
     optional<int64_t> self_bdim,
@@ -122,30 +161,10 @@ void index_put__batch_rule(
   if (!self_bdim.has_value()) {
     vmapIncompatibleInplaceError("index_put");
   }
-  auto self_logical_rank = rankWithoutBatchDim(self, self_bdim);
-  auto values_logical_rank = rankWithoutBatchDim(values, values_bdim);
-  auto self_ = moveBatchDimToFront(self, self_bdim);
-  auto values_ = moveBatchDimToFront(values, values_bdim);
-  TORCH_INTERNAL_ASSERT(indices.size() == indices_bdims.size());
-  std::vector<optional<Tensor>> indices_ = batchIndices(indices, indices_bdims, self_.size(0), self_bdim, values_bdim);
-
-  // handle case when prefix unit dimensions are stripped in setitem.
-  // values of shape `[1, 1, 2]` becomes `[2]`
-  // This leads to problem if values was actually batched.
-  // so we re-append the unit dimensions after batch_dim.
-  if (self_logical_rank > values_logical_rank) {
-    auto values_sizes = values_.sizes();
-    auto batch_offset = values_bdim.has_value() ? 1 : 0;
-    VmapDimVector new_values_shape(values_sizes.begin(), values_sizes.end());
-    size_t diff = self_.dim() - values_sizes.size();
-    // insert the unit dims again after batch_dim (if it exists).
-    for (const auto idx : c10::irange(0, diff)) {
-      (void)idx;
-      new_values_shape.insert(new_values_shape.begin() + batch_offset, 1);
-    }
-    values_ = values_.view(new_values_shape);
-  }
-
+  Tensor self_, values_;
+  std::vector<optional<Tensor>> indices_;
+  std::tie(self_, indices_, values_) = index_put_batch_rule_helper(
+      self, self_bdim, indices, indices_bdims, values, values_bdim);
   at::index_put_(self_, List<optional<Tensor>>(indices_), values_, accumulate);
 }
 
@@ -190,10 +209,10 @@ void _index_put_impl__batch_rule(
   if (!self_bdim.has_value()) {
     vmapIncompatibleInplaceError("_index_put_impl_");
   }
-  auto self_ = moveBatchDimToFront(self, self_bdim);
-  auto values_ = moveBatchDimToFront(values, values_bdim);
-  TORCH_INTERNAL_ASSERT(indices.size() == indices_bdims.size());
-  std::vector<optional<Tensor>> indices_ = batchIndices(indices, indices_bdims, self_.size(0), self_bdim, values_bdim);
+  Tensor self_, values_;
+  std::vector<optional<Tensor>> indices_;
+  std::tie(self_, indices_, values_) = index_put_batch_rule_helper(
+      self, self_bdim, indices, indices_bdims, values, values_bdim);
   at::_index_put_impl_(self_, List<optional<Tensor>>(indices_), values_, accumulate, unsafe);
 }
 
