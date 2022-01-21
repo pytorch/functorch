@@ -1002,6 +1002,35 @@ class TestVmapAPI(TestCase):
                 )""")
         self.assertEqual(buf, expected)
 
+    def test_tensor_print_inside_vmap_grad(self):
+        # Checks issue: https://github.com/pytorch/functorch/issues/382
+        import torch.nn as nn
+        from functorch import grad, make_functional
+
+        class TestNetwork(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.net = nn.Linear(5, 5)
+
+            def forward(self, x):
+                x = self.net(x)
+                print(x)
+                x[:, 0] += 3
+                return x
+
+        model = TestNetwork()
+        data = torch.randn(10, 5)
+        targets = torch.randn(10, 5)
+
+        func_model, params = make_functional(model)
+
+        def compute_loss(params, data, targets):
+            preds = func_model(params, data.unsqueeze(0))
+            return torch.mean((preds - targets.unsqueeze(0)) ** 2)
+
+        grad(compute_loss)(params, data, targets)
+        vmap(grad(compute_loss), (None, 0, 0))(params, data, targets)
+
     def _test_vmap_autocast(self, device):
 
         if torch.device(device).type == "cpu":
