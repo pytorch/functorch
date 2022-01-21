@@ -178,6 +178,7 @@ def _tvm_compile(
         log_file = f"{tuning_logfile}.json"
 
     if use_ansor_tuning or tuning_logfile is not None:
+        assert os.path.exists(log_file)
         with auto_scheduler.ApplyHistoryBest(log_file):
             with tvm.transform.PassContext(
                 opt_level=3, config={"relay.backend.use_auto_scheduler": True}
@@ -209,6 +210,7 @@ def _tvm_compile(
 
 def tvm_compile(target, tuning_logfile=None, use_ansor_tuning=False):
     return partial(_tvm_compile, target=target, tuning_logfile=tuning_logfile, use_ansor_tuning=use_ansor_tuning)
+
 
 def nop(f, _):
     return f
