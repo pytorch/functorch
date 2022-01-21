@@ -15,6 +15,7 @@ import warnings
 import math
 from typing import Callable, Type
 from torch.testing._internal.common_device_type import instantiate_device_type_tests, onlyCPU
+from torch.testing._internal.common_dtype import get_all_fp_dtypes
 from functools import partial
 
 import functorch
@@ -720,8 +721,8 @@ class TestGradTransform(TestCase):
         functorch.grad(foo)(x)
 
     @parametrize("op_list_data", [
-        subtest(([vmap, ], [(64, 3, 32, 32), (4, 2)]), name='vmap'),
-        subtest(([vmap, vmap], [(64, 3, 32, 32), (4, 3, 2)]), name='vmap_vmap'),
+        subtest(([vmap, ], [(4, 2), (64, 3, 32, 32)]), name='vmap'),
+        subtest(([vmap, vmap], [(4, 3, 2), (64, 3, 32, 32)]), name='vmap_vmap'),
         subtest(([grad, ], [(0, ), [], (4, 2), (64, 3, 32, 32)]), name='grad'),
         subtest(([grad, grad], [[], ]), name='grad_grad'),
         subtest(([vmap, grad], [(4, 2)]), name='vmap_grad'),
@@ -729,33 +730,41 @@ class TestGradTransform(TestCase):
     def test_tensor_print(self, device, op_list_data):
 
         op_list, shapes = op_list_data
-        data = [torch.randn(s, device=device) for s in shapes]
 
-        for x in data:
-            buf = None
+        for dt in get_all_fp_dtypes():
+            data = [torch.randn(s, dtype=dt, device=device) for s in shapes]
 
-            def foo(t):
-                nonlocal buf
-                buf = repr(t)
-                return t.mean()
+            for x in data:
+                buf = None
 
-            fn = foo
-            for op in reversed(op_list):
-                fn = op(fn)
+                def foo(t):
+                    nonlocal buf
+                    buf = repr(t)
+                    return t.mean()
 
-            expected = f"{repr(x)}"
-            level = 1
-            for op in op_list:
-                level += 1
-                if op == grad:
-                    expected = f"GradTrackingTensor(lvl={level}, value={expected})"
-                elif op == vmap:
-                    expected = f"BatchedTensor(lvl={level}, bdim=0, value={expected})"
+                fn = foo
+                bdim = 0
+                for op in reversed(op_list):
+                    if op == vmap:
+                        fn = op(fn, in_dims=bdim)
+                        bdim += 1
+                    else:
+                        fn = op(fn)
 
-            fn(x)
-            buf = buf.replace("\n", "").replace("  ", "")
-            expected = expected.replace("\n", "").replace("  ", "")
-            self.assertEqual(buf, expected)
+                expected = f"{repr(x)}"
+                level = 1
+                for op in op_list:
+                    level += 1
+                    if op == grad:
+                        expected = f"GradTrackingTensor(lvl={level}, value={expected})"
+                    elif op == vmap:
+                        bdim -= 1
+                        expected = f"BatchedTensor(lvl={level}, bdim={bdim}, value={expected})"
+
+                fn(x)
+                buf = buf.replace("\n", "").replace("  ", "")
+                expected = expected.replace("\n", "").replace("  ", "")
+                self.assertEqual(expected, buf)
 
     def test_no_grad_outside(self, device):
         x = torch.randn([], device=device, requires_grad=True)
