@@ -10,7 +10,6 @@ from torch.testing._internal.common_utils import (
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import textwrap
 import unittest
 import warnings
 import math
@@ -720,24 +719,43 @@ class TestGradTransform(TestCase):
         x = torch.tensor(3.14, device=device)
         functorch.grad(foo)(x)
 
-    def test_tensor_print(self, device):
-        x = torch.tensor([[3.14, ], [3.14, ]], device=device)
-        buf = None
+    @parametrize("op_list_data", [
+        subtest(([vmap, ], [(64, 3, 32, 32), (4, 2)]), name='vmap'),
+        subtest(([vmap, vmap], [(64, 3, 32, 32), (4, 3, 2)]), name='vmap_vmap'),
+        subtest(([grad, ], [(0, ), [], (4, 2), (64, 3, 32, 32)]), name='grad'),
+        subtest(([grad, grad], [[], ]), name='grad_grad'),
+        subtest(([vmap, grad], [(4, 2)]), name='vmap_grad'),
+    ])
+    def test_tensor_print(self, device, op_list_data):
 
-        def foo(t):
-            nonlocal buf
-            buf = repr(t)
-            return t.mean()
+        op_list, shapes = op_list_data
+        data = [torch.randn(s, device=device) for s in shapes]
 
-        device_info = "" if device == "cpu" else ", device='cuda:0'"
+        for x in data:
+            buf = None
 
-        grad(foo)(x)
-        expected = textwrap.dedent(f"""\
-                GradTrackingTensor(lvl=2, value=
-                    tensor([[3.1400],
-                            [3.1400]]{device_info})
-                )""")
-        self.assertEqual(buf, expected)
+            def foo(t):
+                nonlocal buf
+                buf = repr(t)
+                return t.mean()
+
+            fn = foo
+            for op in reversed(op_list):
+                fn = op(fn)
+
+            expected = f"{repr(x)}"
+            level = 1
+            for op in op_list:
+                level += 1
+                if op == grad:
+                    expected = f"GradTrackingTensor(lvl={level}, value={expected})"
+                elif op == vmap:
+                    expected = f"BatchedTensor(lvl={level}, bdim=0, value={expected})"
+
+            fn(x)
+            buf = buf.replace("\n", "").replace("  ", "")
+            expected = expected.replace("\n", "").replace("  ", "")
+            self.assertEqual(buf, expected)
 
     def test_no_grad_outside(self, device):
         x = torch.randn([], device=device, requires_grad=True)

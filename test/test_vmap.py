@@ -11,7 +11,6 @@ import torch.nn.functional as F
 from torch import Tensor
 import functools
 import itertools
-import textwrap
 import warnings
 import unittest
 from torch.testing._internal.common_device_type import instantiate_device_type_tests, \
@@ -983,53 +982,6 @@ class TestVmapAPI(TestCase):
         out = vmap(vmap(f, in_dims=(0, None)), in_dims=(None, 0))(x, y)
         expected = torch.mv(y, torch.ones(2)).view(3, 1, 1) + x
         self.assertEqual(out, expected)
-
-    def test_tensor_print(self):
-        x = torch.tensor([[3.14]])
-        buf = None
-
-        def foo(x):
-            nonlocal buf
-            buf = repr(x)
-            return x
-
-        vmap(vmap(foo))(x)
-        expected = textwrap.dedent("""\
-                BatchedTensor(lvl=3, bdim=0, value=
-                    BatchedTensor(lvl=2, bdim=0, value=
-                        tensor([[3.1400]])
-                    )
-                )""")
-        self.assertEqual(buf, expected)
-
-    def test_tensor_print_inside_vmap_grad(self):
-        # Checks issue: https://github.com/pytorch/functorch/issues/382
-        import torch.nn as nn
-        from functorch import grad, make_functional
-
-        class TestNetwork(nn.Module):
-            def __init__(self):
-                super().__init__()
-                self.net = nn.Linear(5, 5)
-
-            def forward(self, x):
-                x = self.net(x)
-                print(x)
-                x[:, 0] += 3
-                return x
-
-        model = TestNetwork()
-        data = torch.randn(10, 5)
-        targets = torch.randn(10, 5)
-
-        func_model, params = make_functional(model)
-
-        def compute_loss(params, data, targets):
-            preds = func_model(params, data.unsqueeze(0))
-            return torch.mean((preds - targets.unsqueeze(0)) ** 2)
-
-        grad(compute_loss)(params, data, targets)
-        vmap(grad(compute_loss), (None, 0, 0))(params, data, targets)
 
     def _test_vmap_autocast(self, device):
 
