@@ -46,9 +46,10 @@ requirements = [
     # This represents a nightly version of PyTorch.
     # It can be installed as a binary or from source.
     "torch>=1.10.0.dev",
-    "networkx",
 ]
 
+extras = {}
+extras["aot"] = ["networkx", ]
 
 class clean(distutils.command.clean.clean):
     def run(self):
@@ -129,6 +130,7 @@ if __name__ == '__main__':
         # Package info
         packages=find_packages(),
         install_requires=requirements,
+        extras_require=extras,
         ext_modules=get_extensions(),
         cmdclass={
             "build_ext": BuildExtension.with_options(no_python_abi_suffix=True),
