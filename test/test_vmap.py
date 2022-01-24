@@ -3387,6 +3387,8 @@ class TestVmapOperatorsOpInfo(TestCase):
         supported_random_ops = [
             lambda _: torch.randn(B0, device=device, generator=generator),
             lambda _: torch.rand(B0, device=device, generator=generator),
+            lambda _: torch.randint(100, [B0], device=device, generator=generator),
+            lambda _: torch.randint(5, 100, [B0], device=device, generator=generator),
         ]
 
         B0 = 2
@@ -3415,6 +3417,10 @@ class TestVmapOperatorsOpInfo(TestCase):
             lambda _: torch.randn(B0, device=device, generator=generator),
             lambda _: torch.rand(B0, device=device),
             lambda _: torch.rand(B0, device=device, generator=generator),
+            lambda _: torch.randint(100, [1, 2, 3], device=device),
+            lambda _: torch.randint(100, [1, 2, 3], device=device, generator=generator),
+            lambda _: torch.randint(5, 100, [1, 2, 3], device=device),
+            lambda _: torch.randint(5, 100, [1, 2, 3], device=device, generator=generator),
         ]
 
         B0 = 4
@@ -3485,7 +3491,6 @@ class TestVmapOperatorsOpInfo(TestCase):
             (lambda t: captured.uniform_(), (torch.randn(B0),)),
 
             # factory functions
-            (lambda t: torch.randint(5, [1]), (torch.randn(B0),)),
             (lambda t: torch.randperm(5), (torch.randn(B0),)),
         ]
         for op, args in random_ops:
