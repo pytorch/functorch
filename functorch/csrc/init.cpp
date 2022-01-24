@@ -138,7 +138,7 @@ bool dump_tensor(const Tensor& self) {
 int64_t _grad_increment_nesting() {
   // See NOTE [grad and vjp interaction with no_grad]
   bool prev_grad_mode = c10::GradMode::is_enabled();
-  return initAndPushDynamicLayer(at::DispatchKey::Autograd, nullopt, prev_grad_mode);
+  return initAndPushDynamicLayer(at::DispatchKey::Autograd, nullopt, nullopt, prev_grad_mode);
 }
 
 int64_t _grad_decrement_nesting() {
@@ -147,8 +147,8 @@ int64_t _grad_decrement_nesting() {
   return layer.layerId();
 }
 
-int64_t _vmap_increment_nesting(int64_t batch_size) {
-  return initAndPushDynamicLayer(kBatchedKey, batch_size);
+int64_t _vmap_increment_nesting(int64_t batch_size, bool use_batched_random) {
+  return initAndPushDynamicLayer(kBatchedKey, batch_size, use_batched_random);
 }
 
 int64_t _vmap_decrement_nesting() {
@@ -248,17 +248,17 @@ namespace at { namespace functorch {
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("_add_batch_dim", &at::functorch::_add_batch_dim, "add batch dim");
   m.def("_remove_batch_dim", &at::functorch::_remove_batch_dim, "remove batch dim");
-  m.def("_vmap_increment_nesting", &at::functorch::_vmap_increment_nesting, "remove batch dim");
-  m.def("_vmap_decrement_nesting", &at::functorch::_vmap_decrement_nesting, "remove batch dim");
-  m.def("_grad_increment_nesting", &at::functorch::_grad_increment_nesting, "remove batch dim");
-  m.def("_grad_decrement_nesting", &at::functorch::_grad_decrement_nesting, "remove batch dim");
-  m.def("_wrap_for_grad", &at::functorch::_wrap_for_grad, "add batch dim");
-  m.def("_unwrap_for_grad", &at::functorch::_unwrap_for_grad, "add batch dim");
+  m.def("_vmap_increment_nesting", &at::functorch::_vmap_increment_nesting, "add vmap layer");
+  m.def("_vmap_decrement_nesting", &at::functorch::_vmap_decrement_nesting, "remove vmap layer");
+  m.def("_grad_increment_nesting", &at::functorch::_grad_increment_nesting, "add grad layer");
+  m.def("_grad_decrement_nesting", &at::functorch::_grad_decrement_nesting, "remove grad layer");
+  m.def("_wrap_for_grad", &at::functorch::_wrap_for_grad, "wrap tensor, used by grad transform");
+  m.def("_unwrap_for_grad", &at::functorch::_unwrap_for_grad, "unwrap tensor, used by grad transform");
   m.def("_set_vmap_fallback_warning_enabled", &at::functorch::setVmapFallbackWarningEnabled, "Set vmap fallback warnings");
   m.def("_set_vmap_fallback_enabled", &at::functorch::setVmapFallbackEnabled);
   m.def("_is_vmap_fallback_enabled", &at::functorch::isVmapFallbackEnabled);
-  m.def("dlevel", &at::functorch::dlevel, "add batch dim");
-  m.def("dump_tensor", &at::functorch::dump_tensor, "add batch dim");
+  m.def("dlevel", &at::functorch::dlevel, "");
+  m.def("dump_tensor", &at::functorch::dump_tensor, "dump tensor");
   m.def("reshape_dim_into", &at::functorch::reshape_dim_into);
   m.def("reshape_dim_outof", &at::functorch::reshape_dim_outof);
   m.def("are_transforms_active", &at::functorch::areTransformsActive);
