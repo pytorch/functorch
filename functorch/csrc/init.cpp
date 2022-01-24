@@ -229,6 +229,10 @@ static bool tls_set_is_included() {
   return c10::impl::tls_is_dispatch_key_included(kDynamicLayerFrontModeKey);
 }
 
+static void _set_dynamic_layer_keys_included(bool value) {
+  return setDynamicLayerFrontBackKeysIncluded(value);
+}
+
 static void dump_dls() {
   std::cout << getDynamicLayerStack() << std::endl;
 }
@@ -273,6 +277,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("unwrap_batchedtensor", &at::functorch::unwrapTensorAtCurrentLevel);
   m.def("tls_set_vmap_excluded", &at::functorch::tls_set_vmap_excluded);
   m.def("tls_set_is_included", &at::functorch::tls_set_is_included);
+  m.def("_set_dynamic_layer_keys_included", &at::functorch::_set_dynamic_layer_keys_included);
   m.def("dump_dls", &at::functorch::dump_dls);
   m.def("dump_local_tls", &at::functorch::dump_local_tls);
   at::functorch::initPointwiseOperatorCompileCacheBindings(m.ptr());
