@@ -3390,6 +3390,7 @@ class TestVmapOperatorsOpInfo(TestCase):
             lambda _: torch.randint(100, [B0], device=device, generator=generator),
             lambda _: torch.randint(5, 100, [B0], device=device, generator=generator),
             lambda _: torch.randperm(10, device=device, generator=generator),
+            lambda t: t.random_(generator=generator),
         ]
 
         B0 = 2
@@ -3397,7 +3398,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         orig_state = generator.get_state()
 
         for op in supported_random_ops:
-            vmap_result = vmap(op, use_batched_random=batched_randomness)(torch.randn(B0, device=device))
+            vmap_result = vmap(op, use_batched_random=batched_randomness)(torch.randn(B0, B0, device=device))
             generator = generator.set_state(orig_state)
             if batched_randomness:
                 stacked = []
@@ -3424,6 +3425,10 @@ class TestVmapOperatorsOpInfo(TestCase):
             lambda _: torch.randint(5, 100, [1, 2, 3], device=device, generator=generator),
             lambda _: torch.randperm(10, device=device, generator=generator),
             lambda _: torch.randperm(10, device=device),
+            lambda t: t.random_(),
+            lambda t: t.random_(generator=generator),
+            lambda t: t.random_(0, 100),
+            lambda t: t.random_(100),
         ]
 
         B0 = 4
@@ -3476,9 +3481,6 @@ class TestVmapOperatorsOpInfo(TestCase):
             (lambda t: t.geometric_(0.5), (torch.randn(B0, 1),)),
             (lambda t: t.log_normal_(), (torch.randn(B0, 1),)),
             (lambda t: t.normal_(), (torch.randn(B0, 1),)),
-            (lambda t: t.random_(), (torch.randn(B0, 1),)),
-            (lambda t: t.random_(0, 2), (torch.randn(B0, 1),)),
-            (lambda t: t.random_(2), (torch.randn(B0, 1),)),
             (lambda t: t.uniform_(), (torch.randn(B0, 1),)),
 
             # in-place on captured tensor
@@ -3488,9 +3490,6 @@ class TestVmapOperatorsOpInfo(TestCase):
             (lambda t: captured.geometric_(0.5), (torch.randn(B0),)),
             (lambda t: captured.log_normal_(), (torch.randn(B0),)),
             (lambda t: captured.normal_(), (torch.randn(B0),)),
-            (lambda t: captured.random_(), (torch.randn(B0),)),
-            (lambda t: captured.random_(0, 2), (torch.randn(B0),)),
-            (lambda t: captured.random_(2), (torch.randn(B0),)),
             (lambda t: captured.uniform_(), (torch.randn(B0),)),
         ]
         for op, args in random_ops:
