@@ -115,7 +115,7 @@ Tensor index_plumbing(const Tensor & self, const List<optional<Tensor>> & indice
 }
 
 namespace {
-  static VmapDimVector indexed_shape(const Tensor &src, TensorList indices_list)
+  static VmapDimVector compute_indexed_shape(const Tensor &src, TensorList indices_list)
   {
     int64_t dims_before = 0, dims_after = 0, dims_indexed = 0;
     IntArrayRef replacement_shape;
@@ -163,7 +163,7 @@ namespace {
     if (!at::native::hasContiguousSubspace(indices)) {
       std::tie(self, indices) = at::native::transposeToFront(self, indices);
     }
-    return indexed_shape(self, indices);
+    return compute_indexed_shape(self, indices);
   }
 
   std::tuple<Tensor, std::vector<optional<Tensor>>, Tensor>
