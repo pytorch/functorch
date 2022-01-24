@@ -269,9 +269,6 @@ def is_inplace(op, variant):
 vjp_fail = {
     skip('nn.functional.dropout'),  # randomness testing artifact
     skip('nn.functional.rrelu'),  # randomness testing artifact
-    xfail('linalg.cholesky'),
-    xfail('linalg.inv'),
-    xfail('linalg.matrix_power'),
     xfail('tensor_split'),
     xfail('to_sparse'),
     xfail('nn.functional.ctc_loss'),
@@ -356,10 +353,7 @@ class TestOperators(TestCase):
 
         # Composite ops that do bad things. Need to be fixed in PyTorch core.
         # RuntimeError: Cannot access data pointer of Tensor that doesn't have storage
-        xfail('linalg.inv'),
         xfail('linalg.eigvals'),
-        xfail('linalg.matrix_power'),
-        xfail('linalg.cholesky'),
         xfail('tensor_split'),
 
         # Causing a CUDA assert, needs investigation
@@ -537,10 +531,13 @@ class TestOperators(TestCase):
         xfail('index_copy'),
         xfail('index_fill'),
         xfail('linalg.det', ''),
+        xfail('linalg.cholesky'),
         xfail('linalg.eig'),  # Uses aten::allclose
         xfail('linalg.eigh'),
         xfail('linalg.householder_product'),
+        xfail('linalg.inv'),
         xfail('linalg.matrix_norm'),
+        xfail('linalg.matrix_power'),
         xfail('linalg.norm'),
         xfail('linalg.slogdet'),
         xfail('logdet'),
@@ -666,10 +663,7 @@ class TestOperators(TestCase):
         # Composite ops that do bad things. Need to be fixed in PyTorch core.
         # RuntimeError: Cannot access data pointer of Tensor that doesn't have storage
         xfail('tensor_split'),
-        xfail('linalg.inv'),
         xfail('linalg.eigvals'),
-        xfail('linalg.matrix_power'),
-        xfail('linalg.cholesky'),
 
         # Causing a CUDA assert, needs investigation
         skip('div', 'floor_rounding', device_type='cuda'),
@@ -1009,6 +1003,7 @@ class TestDecompositionOpInfo(TestCase):
         xfail('linalg.inv'),
         xfail('linalg.det', 'singular', device_type='cuda'),
         xfail('linalg.matrix_power'),
+        xfail('linalg.tensorinv'),
         xfail('to_sparse'),
         skip('tensor_split'),
         skip('mvlgamma'),
