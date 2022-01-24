@@ -3414,6 +3414,19 @@ class TestVmapOperatorsOpInfo(TestCase):
         self.assertEqual(vmap(f, in_dims=(0, 0))(t, values)[0], base)
         self.assertEqual(vmap(f, in_dims=(0, None))(t, values[0])[0], base)
 
+        # index_put_
+        tensor = torch.zeros(3, 3, 4)
+        value = torch.ones(3, 2)
+        idxs = (torch.tensor([[0], [1], [2]]), torch.tensor([[0]]), torch.tensor([1, 2]))
+        expected = torch.index_put_(tensor.clone(), idxs, value)
+
+        def f(t, idx, v):
+            torch.index_put_(t, idx, v)
+            return t
+
+        self.assertEqual(vmap(f, in_dims=(0, (None, None), 0))(tensor, idxs[1:], value), expected)
+        self.assertEqual(vmap(f, in_dims=(0, (None, None), None))(tensor, idxs[1:], value[0]), expected)
+
     @parametrize('training', [True, False])
     @parametrize('track_running_stats', [True, False])
     @parametrize('affine', [True, False])
