@@ -124,24 +124,28 @@ namespace {
     auto values_logical_rank = rankWithoutBatchDim(values, values_bdim);
     Tensor self_ = moveBatchDimToFront(self, self_bdim);
     Tensor values_ = moveBatchDimToFront(values, values_bdim);
+    const auto batch_size = self_.size(0);
+    values_ = ensure_has_bdim(values_, values_bdim.has_value(), batch_size);
     TORCH_INTERNAL_ASSERT(indices.size() == indices_bdims.size());
     std::vector<optional<Tensor>> indices_ = batchIndices(indices, indices_bdims, self_.size(0), self_bdim, values_bdim);
 
-    // handle case when prefix unit dimensions are stripped in setitem.
-    // values of shape `[1, 1, 2]` becomes `[2]`
-    // This leads to problem if values was actually batched.
-    // so we re-append the unit dimensions after batch_dim.
+    // handle broadcasting support for values
     if (self_logical_rank > values_logical_rank)
     {
       auto values_sizes = values_.sizes();
-      auto batch_offset = values_bdim.has_value() ? 1 : 0;
-      VmapDimVector new_values_shape(values_sizes.begin(), values_sizes.end());
-      size_t diff = self_.dim() - values_sizes.size();
-      // insert the unit dims again after batch_dim (if it exists).
-      for (const auto idx : c10::irange(0, diff))
-      {
-        (void)idx;
-        new_values_shape.insert(new_values_shape.begin() + batch_offset, 1);
+      auto diff = self_.dim() - values_sizes.size();
+      VmapDimVector new_values_shape(values_sizes.size() + diff);
+      // add the batch-dim
+      new_values_shape[0] = batch_size;
+
+      // insert the unit dims for broadcasting.
+      for (const auto idx : c10::irange(diff)) {
+        // since batch-dim is already be filled.
+        new_values_shape[idx + 1] = 1;
+      }
+      for (const auto idx: c10::irange(1, values_sizes.size())) {
+        // since batch and unit dims are already be filled.
+        new_values_shape[idx + diff] = values_sizes[idx];
       }
       values_ = values_.view(new_values_shape);
     }
