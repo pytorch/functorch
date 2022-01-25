@@ -502,6 +502,8 @@ def compiled_function(
     cached_res = None
 
     fn_id = id(fn)
+    fw_compiler_id = id(fw_compiler)
+    bw_compiler_id = id(bw_compiler)
 
     if isinstance(static_argnums, int):
         static_argnums = [static_argnums]
@@ -533,7 +535,9 @@ def compiled_function(
         num_tensor_args = len(flattened_tensor_args)
         flattened_args = flattened_tensor_args + static_args
         flattened_args_for_cache = flattened_tensor_args + static_args_hashed
-        cached_res = compile_cache.at(fn_id, num_tensor_args, hasher_type, *flattened_args_for_cache)
+        cached_res = compile_cache.at(
+            fn_id, fw_compiler_id, bw_compiler_id, num_tensor_args, hasher_type, *flattened_args_for_cache
+        )
 
         # Compile the function and save it in the cache
         if cached_res is None:
@@ -566,7 +570,7 @@ def compiled_function(
 
             # Save the compiled_fn in the cache
             compile_cache.insert(
-                fn_id, num_tensor_args, hasher_type, cached_res, *flattened_args_for_cache
+                fn_id, fw_compiler_id, bw_compiler_id, num_tensor_args, hasher_type, cached_res, *flattened_args_for_cache
             )
 
         cached_fn, out_spec = cached_res
