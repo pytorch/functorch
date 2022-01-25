@@ -41,7 +41,7 @@ def _undo_create_differentiable(inps, level=None):
         if isinstance(x, tuple):
             return tree_map(unwrap_tensors, tuple(x))
 
-        return x
+        raise RuntimeError(f"Expected tensors, got unsupported type {type(x)}")
 
     return tree_map(unwrap_tensors, inps)
 
@@ -641,10 +641,7 @@ jvp_str = 'jvp(f, primals, tangents)'
 
 def safe_unpack_dual(dual, strict):
     if not isinstance(dual, torch.Tensor):
-        # return dual itself and an empty tensor
-        # JAX returns array((b'',), dtype=[('float0', 'V')])
-        # for tangents in a similar case
-        return dual, torch.tensor([])
+        raise RuntimeError(f"Expected tensors, got unsupported type {type(dual)}")
 
     primal, tangent = fwAD.unpack_dual(dual)
     if tangent is None:

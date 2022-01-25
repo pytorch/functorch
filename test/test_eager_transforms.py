@@ -1657,17 +1657,13 @@ class TestJvp(TestCase):
         x = torch.randn(2, 3, device=device)
         t = torch.randn(2, 3, device=device)
 
-        def f(x):
-            return
+        for output in [None, ()]:
+            with self.assertRaisesRegex(RuntimeError, "Expected non-empty output"):
+                jvp(lambda _: output, (x,), (t,))
 
-        def g(x):
-            return ()
-
-        with self.assertRaisesRegex(RuntimeError, "Expected non-empty output"):
-            jvp(f, (x,), (t,))
-
-        with self.assertRaisesRegex(RuntimeError, "Expected non-empty output"):
-            jvp(g, (x,), (t,))
+        for output in [1, True, 12.2, "abc"]:
+            with self.assertRaisesRegex(RuntimeError, "Expected tensors, got unsupported type"):
+                jvp(lambda _: output, (x,), (t,))
 
         # Check list output
         out = jvp(lambda x: [x, x.sum()], (x,), (t,))
@@ -1683,8 +1679,6 @@ class TestJvp(TestCase):
             out = x.sum()
             return [
                 (out, {"a": x, "out": [x, out]}),
-                int(out),
-                out > 0,
             ]
 
         out = jvp(composite_output, (x,), (t,))
@@ -1693,55 +1687,34 @@ class TestJvp(TestCase):
             assert isinstance(out[i][0], tuple) and \
                 isinstance(out[i][0][1], dict)
 
-        # Checks primals and tangents for int(out)
-        assert isinstance(out[0][1], int) and isinstance(out[1][1], torch.Tensor)
-        # Checks primals and tangents for out > 0
-        assert isinstance(out[0][2], torch.Tensor) and out[0][2].dtype == torch.bool \
-            and isinstance(out[1][2], torch.Tensor)
-
     def test_jacfwd_outputs_can_any_pytree(self, device):
         x = torch.randn(2, 3, device=device)
-        t = torch.randn(2, 3, device=device)
 
-        def f(x):
-            return
+        for output in [None, ()]:
+            with self.assertRaisesRegex(RuntimeError, "Expected non-empty output"):
+                jacfwd(lambda _: output)(x)
 
-        def g(x):
-            return ()
-
-        with self.assertRaisesRegex(RuntimeError, "Expected non-empty output"):
-            jacfwd(f, (x,), (t,))
-
-        with self.assertRaisesRegex(RuntimeError, "Expected non-empty output"):
-            jacfwd(g, (x,), (t,))
+        for output in [1, True, 12.2, "abc"]:
+            with self.assertRaisesRegex(RuntimeError, "Expected tensors, got unsupported type"):
+                jacfwd(lambda _: output)(x)
 
         # Check list output
-        out = jacfwd(lambda x: [x, x.sum()], (x,), (t,))
+        out = jacfwd(lambda x: [x, x.sum()])(x)
         assert isinstance(out, list) and len(out) == 2
 
         # Check dict output
-        out = jacfwd(lambda x: {"x": x, "xsum": x.sum()}, (x,), (t,))
+        out = jacfwd(lambda x: {"x": x, "xsum": x.sum()})(x)
         assert isinstance(out, dict) and len(out) == 2 and "xsum" in out
 
         def composite_output(x):
             out = x.sum()
             return [
                 (out, {"a": x, "out": [x, out]}),
-                int(out),
-                out > 0,
             ]
 
-        out = jvp(composite_output, (x,), (t,))
-        for i in range(2):
-            assert isinstance(out[i], list)
-            assert isinstance(out[i][0], tuple) and \
-                isinstance(out[i][0][1], dict)
-
-        # Checks primals and tangents for int(out)
-        assert isinstance(out[0][1], int) and isinstance(out[1][1], torch.Tensor)
-        # Checks primals and tangents for out > 0
-        assert isinstance(out[0][2], torch.Tensor) and out[0][2].dtype == torch.bool \
-            and isinstance(out[1][2], torch.Tensor)
+        out = jacfwd(composite_output)(x)
+        assert isinstance(out, list)
+        assert isinstance(out[0], tuple) and isinstance(out[0][1], dict)
 
 
 class TestCustomFunction(TestCase):
