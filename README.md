@@ -116,7 +116,7 @@ To do devel install:
 pip install -e .
 ```
     
-To install with optional dependencies, e.g. for AOT:
+To install with optional dependencies, e.g. for AOTAutograd:
     
 ```
 pip install -e .[aot]
