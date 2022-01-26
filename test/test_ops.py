@@ -455,7 +455,8 @@ class TestOperators(TestCase):
         xfail('nn.functional.adaptive_avg_pool2d'),
         xfail('nn.functional.conv_transpose2d'),
         xfail('nn.functional.cross_entropy', 'mean'),
-        xfail('nn.functional.cross_entropy', 'none'),
+        # fails on 1.10 but passes on 1.10.1
+        skip('nn.functional.cross_entropy', 'none'),
         xfail('nn.functional.cross_entropy', 'sum'),
         xfail('nn.functional.gelu'),
         xfail('nn.functional.grid_sample'),
