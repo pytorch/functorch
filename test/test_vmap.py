@@ -3458,7 +3458,7 @@ class TestVmapOperatorsOpInfo(TestCase):
     @parametrize('batched_randomness', [True, False])
     @parametrize('use_generator', [True, False])
     def test_randperm(self, device, batched_randomness, use_generator):
-    # needs a special case because doesn't take a batch size
+        # needs a special case because randperm doesn't take a batch size
         B0 = 4
         seed = 1234567
         passed = torch.randn(B0, device=device)
