@@ -3504,7 +3504,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         supported_ops = [
             lambda t: torch.normal(t, 1.),
             lambda t: torch.normal(0., torch.abs(t), generator=generator),
-            # lambda t: torch.normal(t, 1., generator=generator),
+            lambda t: torch.normal(t, 1., generator=generator),
             lambda t: torch.normal(t, torch.abs(t), generator=generator),
             lambda t: torch.normal(0., torch.abs(t)),
             lambda t: torch.normal(t, torch.abs(t)),

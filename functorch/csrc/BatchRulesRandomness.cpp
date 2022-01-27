@@ -157,11 +157,6 @@ struct UnaryBatchRuleLeadingFloatHelper<F, Func, typelist<A0, A1, T...>> {
 };
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
-  #define RANDOM_INPLACE_BATCH_RULE2(op, overload) \
-    m.impl(#op"."#overload, SINGLE_ARG(\
-      RandomInplaceBatchRuleHelper<decltype(&ATEN_FN2(op, overload)), &ATEN_FN2(op, overload), \
-                            c10::guts::function_traits<decltype(ATEN_FN2(op, overload))>::parameter_types>::apply))
-
   #define UNARY_POINTWISE_LEADING_FLOAT(op, overload) \
     VMAP_SUPPORT(#op"."#overload, SINGLE_ARG(\
       UnaryBatchRuleLeadingFloatHelper<\
@@ -251,7 +246,7 @@ TORCH_LIBRARY_IMPL(aten, FuncTorchVmapMode, m) {
   #undef RANDOM_INPLACE_BATCH_RULE2
   #undef RANDINT_BATCH_RULE
   #undef RANDINT_BATCH_RULE2
-  #undef RANDINT_LOW_BATCH_RULE
+  #undef RAND_TWO_LEADING_SCALARS_BATCH_RULE
   #undef RANDPERM_BATCH_RULE2
 }
 }} // namespace at::functorch
