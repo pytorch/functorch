@@ -207,7 +207,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(linalg_svd);
   OP_DECOMPOSE(linalg_svdvals);
   OP_DECOMPOSE(matmul);
-  OP_DECOMPOSE(matrix_H);
   OP_DECOMPOSE2(max, other );
   OP_DECOMPOSE(max_pool1d);
   OP_DECOMPOSE(max_pool1d_with_indices);

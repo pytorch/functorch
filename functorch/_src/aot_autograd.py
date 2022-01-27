@@ -626,11 +626,11 @@ def compiled_module(mod, *args, **kwargs):
 
         def forward(self, *args, **kwargs):
             return compiled_f(
-                dict(self.orig_module.named_parameters()),
-                dict(self.orig_module.named_buffers()),
+                # dict(self.orig_module.named_parameters()),
+                # dict(self.orig_module.named_buffers()),
                 # to replace once appropriate PR lands in PyTorch core
-                # dict(self.orig_module.named_parameters(remove_duplicate=False)),
-                # dict(self.orig_module.named_buffers(remove_duplicate=False)),
+                dict(self.orig_module.named_parameters(remove_duplicate=False)),
+                dict(self.orig_module.named_buffers(remove_duplicate=False)),
                 *args,
                 **kwargs
             )
