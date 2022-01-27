@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Callable, Union, Tuple
+from typing import Any, Callable, Union, Tuple
 import torch
 from functools import partial, wraps
 import contextlib
@@ -139,7 +139,7 @@ def _autograd_grad(outputs, inputs, grad_outputs=None, retain_graph=False, creat
 
 
 # How do we increment and decrement the nesting? I don't think we can.
-def vjp(func: Callable, *primals, has_aux=False):
+def vjp(func: Callable, *primals, has_aux: bool = False) -> Callable:
     """
     Standing for the vector-Jacobian product, returns a tuple containing the
     results of :attr:`func` applied to :attr:`primals` and a function that, when
@@ -654,7 +654,9 @@ def safe_unpack_dual(dual, strict):
     return primal, tangent
 
 
-def jvp(func, primals, tangents, *, strict=False):
+def jvp(
+    func: Callable, primals: Any, tangents: Any, *, strict: bool = False, has_aux: bool = False
+) -> Union[Tuple[Any, Any], Tuple[Any, Any, Any]]:
     """
     Standing for the Jacobian-vector product, returns a tuple containing
     the output of `func(*primals)` and the "Jacobian of ``func`` evaluated at
@@ -669,10 +671,16 @@ def jvp(func, primals, tangents, *, strict=False):
         tangents (Tensors): The "vector" for which Jacobian-vector-product is
             computed. Must be the same structure and sizes as the inputs to
             ``func``.
+        has_aux (bool): Flag indicating that :attr:`func` returns a
+            ``(output, aux)`` tuple where the first element is the output of
+            the function to be differentiated and the second element is
+            other auxiliary objects that will not be differentiated.
+            Default: False.
 
     Returns:
         Returns a ``(output, jvp_out)`` tuple containing the output of ``func``
         evaluated at ``primals`` and the Jacobian-vector product.
+        If ``has_aux is True``, then instead returns a ``(output, jvp_out, aux)`` tuple.
 
     .. warning::
         PyTorch's forward-mode AD coverage on operators is not very good at the
@@ -729,16 +737,34 @@ def jvp(func, primals, tangents, *, strict=False):
                                for p, t in zip(flat_primals, flat_tangents))
             duals = tree_unflatten(flat_duals, primals_spec)
             result_duals = func(*duals)
+            if has_aux:
+                if not isinstance(result_duals, tuple):
+                    raise TypeError(
+                        "Function output should be a tuple if has_aux is True"
+                    )
+                result_duals, aux = result_duals
+                aux = _undo_create_differentiable(aux, level)
+
+            print("result_duals: ", result_duals)
             result_duals, spec = tree_flatten(result_duals)
             assert_non_empty_output(result_duals, jvp_str)
 
+            result_duals, spec = tree_flatten(result_duals)
             primals_out, tangents_out = \
                 zip(*[safe_unpack_dual(dual, strict) for dual in result_duals])
             primals_out = tree_map(
                 partial(_undo_create_differentiable, level=level), primals_out)
             tangents_out = tree_map(
                 partial(_undo_create_differentiable, level=level), tangents_out)
-            return tree_unflatten(primals_out, spec), tree_unflatten(tangents_out, spec)
+
+            primals_out_unf = tree_unflatten(primals_out, spec)
+            print("primals_out: ", type(primals_out), len(primals_out), primals_out[0].shape)
+            print("primals_out_unf: ", type(primals_out_unf), len(primals_out_unf), primals_out_unf[0].shape)
+            tangents_out_unf = tree_unflatten(tangents_out, spec)
+            if has_aux:
+                return primals_out_unf, tangents_out_unf, aux
+
+            return primals_out_unf, tangents_out_unf
     finally:
         _grad_decrement_nesting()
         JVP_NESTING -= 1
@@ -751,7 +777,7 @@ def safe_unflatten(tensor, dim, shape):
     return tensor.unflatten(dim, shape)
 
 
-def jacfwd(func, argnums=0):
+def jacfwd(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Callable:
     """
     Computes the Jacobian of :attr:`func` with respect to the arg(s) at index
     :attr:`argnum` using forward-mode autodiff
@@ -762,6 +788,8 @@ def jacfwd(func, argnums=0):
         argnums (int or Tuple[int]): Optional, integer or tuple of integers,
             saying which arguments to get the Jacobian with respect to.
             Default: 0.
+        has_aux (bool): Flag indicating that :attr:`func` returns a tensor and other
+            auxiliary objects: ``(output, aux)``. Default: False.
 
     Returns:
         Returns a function that takes in the same inputs as :attr:`func` and

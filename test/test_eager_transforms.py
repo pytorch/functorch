@@ -1716,6 +1716,37 @@ class TestJvp(TestCase):
         assert isinstance(out, list)
         assert isinstance(out[0], tuple) and isinstance(out[0][1], dict)
 
+    def test_aux_tensor(self, device):
+        def f(x):
+            y = x.sin()
+            return y, x.cos()
+
+        x = torch.randn(3, device=device)
+        t = torch.randn(3, device=device)
+
+        out, jvp_out, aux = jvp(f, (x, ), (t, ), has_aux=True)
+        self.assertEqual(aux, x.cos())
+        self.assertEqual(out, x.sin())
+        self.assertEqual(jvp_out, t * x.cos())
+
+    def test_aux_pytree(self, device):
+        def f(x):
+            y = x.sin()
+            return y# , {'a': x.cos(), 'b': [x.tan()]}
+
+        x = torch.randn(3, device=device)
+        t = torch.randn(3, device=device)
+
+        # out, jvp_out, aux = jvp(f, (x, ), (t, ), has_aux=False)
+        out, jvp_out = jvp(f, (x, ), (t, ), has_aux=False)
+        # expected_out, expected_aux = f(x)
+        expected_out = f(x)
+        print("out: ", out)
+        print("expected_out: ", expected_out)
+        self.assertEqual(out, expected_out)
+        self.assertEqual(aux, expected_aux)
+        self.assertEqual(jvp_out, t * x.cos())
+
 
 class TestCustomFunction(TestCase):
     @onlyCPU
