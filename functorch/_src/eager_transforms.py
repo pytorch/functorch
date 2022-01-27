@@ -396,16 +396,8 @@ def jacrev(func: Callable, argnums: Union[int, Tuple[int]] = 0, *, has_aux=False
 
         # See NOTE: [Computing jacobian with vmap and vjp for multiple outputs]
         flat_output, output_spec = tree_flatten(output)
-        if len(flat_output) == 0:
-            raise RuntimeError(
-                'jacrev(f, ...)(*args): expected f to return at least one Tensor, '
-                'got no Tensors.')
-        for out in flat_output:
-            if isinstance(out, torch.Tensor):
-                continue
-            raise RuntimeError(
-                'jacrev(f, ...)(*args): expected f to only return Tensors as '
-                f'outputs, got {type(out)}')
+        assert_non_empty_output(flat_output, 'jacrev(f, ...)(*args)')
+
         # NB: vjp already checks that all outputs are tensors
         # Step 1: Construct grad_outputs by splitting the standard basis
         flat_output_numels = tuple(out.numel() for out in flat_output)
@@ -609,6 +601,11 @@ def assert_flat_tuple_of_tensors(elts, api, argname):
             f'{api}: Expected {argname} to be a non-empty tuple of Tensors.')
 
 
+def assert_non_empty_output(output, api):
+    if output == [None] or len(output) < 1:
+        raise RuntimeError(f'{api}: Expected non-empty output of f')
+
+
 def assert_output_is_tensor_or_tensors(output, api):
     if isinstance(output, torch.Tensor):
         return
@@ -643,6 +640,9 @@ jvp_str = 'jvp(f, primals, tangents)'
 
 
 def safe_unpack_dual(dual, strict):
+    if not isinstance(dual, torch.Tensor):
+        raise RuntimeError(f"Expected tensors, got unsupported type {type(dual)}")
+
     primal, tangent = fwAD.unpack_dual(dual)
     if tangent is None:
         if strict:
@@ -729,8 +729,8 @@ def jvp(func, primals, tangents, *, strict=False):
                                for p, t in zip(flat_primals, flat_tangents))
             duals = tree_unflatten(flat_duals, primals_spec)
             result_duals = func(*duals)
-            assert_output_is_tensor_or_tensors(result_duals, jvp_str)
             result_duals, spec = tree_flatten(result_duals)
+            assert_non_empty_output(result_duals, jvp_str)
 
             primals_out, tangents_out = \
                 zip(*[safe_unpack_dual(dual, strict) for dual in result_duals])
@@ -842,9 +842,9 @@ def jacfwd(func, argnums=0):
             return jvp_out
 
         results = vmap(push_jvp)(basis)
-        assert_output_is_tensor_or_tensors(results, 'jacfwd(f, ...)(*args)')
-
         jac_outs, spec = tree_flatten(results)
+        assert_non_empty_output(jac_outs, 'jacfwd(f, ...)(*args)')
+
         jac_outs_ins = tuple(
             tuple(
                 safe_unflatten(jac_out_in, -1, primal.shape)

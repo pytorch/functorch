@@ -1653,25 +1653,68 @@ class TestJvp(TestCase):
         with self.assertRaisesRegex(RuntimeError, 'only contain Tensors'):
             jvp(torch.sin, (x,), (1.,))
 
-    def test_outputs_should_be_tensor_or_tensors(self, device):
+    def test_jvp_outputs_can_any_pytree(self, device):
         x = torch.randn(2, 3, device=device)
         t = torch.randn(2, 3, device=device)
 
-        def f(x):
-            return
+        for output in [None, ()]:
+            with self.assertRaisesRegex(RuntimeError, "Expected non-empty output"):
+                jvp(lambda _: output, (x,), (t,))
 
-        def g(x):
-            return ()
+        for output in [1, True, 12.2, "abc"]:
+            with self.assertRaisesRegex(RuntimeError, "Expected tensors, got unsupported type"):
+                jvp(lambda _: output, (x,), (t,))
 
-        def h(x):
-            return x, [x]
+        # Check list output
+        out = jvp(lambda x: [x, x.sum()], (x,), (t,))
+        for i in range(2):
+            assert isinstance(out[i], list) and len(out[i]) == 2
 
-        with self.assertRaisesRegex(RuntimeError, "a Tensor or Tensors"):
-            jvp(f, (x,), (t,))
-        with self.assertRaisesRegex(RuntimeError, "non-empty"):
-            jvp(g, (x,), (t,))
-        with self.assertRaisesRegex(RuntimeError, "a Tensor or Tensors"):
-            jvp(h, (x,), (t,))
+        # Check dict output
+        out = jvp(lambda x: {"x": x, "xsum": x.sum()}, (x,), (t,))
+        for i in range(2):
+            assert isinstance(out[i], dict) and len(out[i]) == 2 and "xsum" in out[i]
+
+        def composite_output(x):
+            out = x.sum()
+            return [
+                (out, {"a": x, "out": [x, out]}),
+            ]
+
+        out = jvp(composite_output, (x,), (t,))
+        for i in range(2):
+            assert isinstance(out[i], list)
+            assert isinstance(out[i][0], tuple) and \
+                isinstance(out[i][0][1], dict)
+
+    def test_jacfwd_outputs_can_any_pytree(self, device):
+        x = torch.randn(2, 3, device=device)
+
+        for output in [None, ()]:
+            with self.assertRaisesRegex(RuntimeError, "Expected non-empty output"):
+                jacfwd(lambda _: output)(x)
+
+        for output in [1, True, 12.2, "abc"]:
+            with self.assertRaisesRegex(RuntimeError, "Expected tensors, got unsupported type"):
+                jacfwd(lambda _: output)(x)
+
+        # Check list output
+        out = jacfwd(lambda x: [x, x.sum()])(x)
+        assert isinstance(out, list) and len(out) == 2
+
+        # Check dict output
+        out = jacfwd(lambda x: {"x": x, "xsum": x.sum()})(x)
+        assert isinstance(out, dict) and len(out) == 2 and "xsum" in out
+
+        def composite_output(x):
+            out = x.sum()
+            return [
+                (out, {"a": x, "out": [x, out]}),
+            ]
+
+        out = jacfwd(composite_output)(x)
+        assert isinstance(out, list)
+        assert isinstance(out[0], tuple) and isinstance(out[0][1], dict)
 
 
 class TestCustomFunction(TestCase):
