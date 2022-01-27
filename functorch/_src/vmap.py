@@ -203,7 +203,7 @@ def _get_name(func: Callable):
 # on BatchedTensors perform the batched operations that the user is asking for.
 
 
-def vmap(func: Callable, in_dims: in_dims_t = 0, out_dims: out_dims_t = 0, use_batched_random=True) -> Callable:
+def vmap(func: Callable, in_dims: in_dims_t = 0, out_dims: out_dims_t = 0, use_batched_random: bool = True) -> Callable:
     """
     vmap is the vectorizing map; ``vmap(func)`` returns a new function that
     maps :attr:`func` over some dimension of the inputs. Semantically, vmap
@@ -226,10 +226,10 @@ def vmap(func: Callable, in_dims: in_dims_t = 0, out_dims: out_dims_t = 0, use_b
         out_dims (int or Tuple[int]): Specifies where the mapped dimension
             should appear in the outputs. If :attr:`out_dims` is a Tuple, then
             it should have one element per output. Default: 0.
-        use_batched_random (bool): Specifies whether the randomness in this vmap
-        should be the same or different across batches. If True, the seed for
-        each batch will be different. If False, the seed will be the same across
-        batches. Default: True.
+        use_batched_random (bool): Specifies whether the randomness in this
+            vmap should be the same or different across batches. If True, the
+            seed for each batch will be different. If False, the seed will be
+            the same across batches. Default: True.
 
     Returns:
         Returns a new "batched" function. It takes the same inputs as
