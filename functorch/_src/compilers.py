@@ -247,9 +247,10 @@ def memory_efficient_fusion(fn, static_argnums=None):
     else:
         return aot_function(fn, **config)
 
+
 def debug_compile(fx_g, inps):
-  fx_g.to_folder('foo')
-  print(f"""
+    fx_g.to_folder('foo')
+    print(f"""
 ##############################################################
 # To minimize FX graph, copy and paste the below and run it  #
 ##############################################################
@@ -265,4 +266,4 @@ with torch.jit.fuser("fuser2"):
   minimizer(fx.symbolic_trace(mod), inps, check_nvfuser_subprocess)
 """)
 
-  return ts_compile(fx_g, inps)
+    return ts_compile(fx_g, inps)

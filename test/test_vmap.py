@@ -184,11 +184,6 @@ class TestVmapAPI(TestCase):
         with self.assertRaisesRegex(RuntimeError, msg):
             vmap(out_op)(tensor, tensor)
 
-        tensor = torch.randn(2)
-        # The fallback doesn't support TensorList
-        with self.assertRaisesRegex(RuntimeError, 'Batching rule not implemented'):
-            vmap(lambda t: torch.vstack([t]))(tensor)
-
         # Don't support non-tensor returns. This is a limitation of vmap;
         # functions that don't return tensors must be special cased
         with self.assertRaisesRegex(RuntimeError, 'Batching rule not implemented'):
@@ -3214,6 +3209,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('nn.functional.gaussian_nll_loss'),
         xfail('nn.functional.huber_loss'),
         xfail('nn.functional.instance_norm'),
+        xfail('nn.functional.max_pool1d'),
         xfail('nn.functional.max_pool3d'),
         xfail('histc'),
         xfail('as_strided'),
