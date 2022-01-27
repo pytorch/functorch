@@ -2607,9 +2607,6 @@ class TestVmapOperators(Namespace.TestVmapBase):
             (torch.bernoulli, (torch.rand(B0, 1),)),
             (lambda t: torch.bernoulli(t, p=0.5), (torch.rand(B0, 1),)),
             (lambda t: torch.multinomial(t, 2), (torch.rand(B0, 3),)),
-            (torch.normal, (torch.randn(B0, 1), torch.randn(B0, 1))),
-            (lambda t: torch.normal(t, 1.), (torch.randn(B0, 1),)),
-            (lambda t: torch.normal(0., t), (torch.randn(B0, 1),)),
             (torch.poisson, (torch.rand(B0, 1),)),
             # (torch.rand_like, (torch.rand(B0, 1),)),
             # (torch.randn_like, (torch.rand(B0, 1),)),
@@ -2620,9 +2617,6 @@ class TestVmapOperators(Namespace.TestVmapBase):
             (lambda t: torch.bernoulli(captured), (torch.rand(B0),)),
             (lambda t: torch.bernoulli(captured, p=0.5), (torch.rand(B0),)),
             (lambda t: torch.multinomial(captured, 2), (torch.rand(B0),)),
-            (lambda t: torch.normal(captured, captured), (torch.randn(B0),)),
-            (lambda t: torch.normal(captured, 1.), (torch.randn(B0),)),
-            (lambda t: torch.normal(0., captured), (torch.randn(B0),)),
             (lambda t: torch.poisson(captured), (torch.rand(B0),)),
             # (lambda t: torch.rand_like(captured), (torch.rand(B0),)),
             # (lambda t: torch.randn_like(captured) , (torch.rand(B0),)),
@@ -2635,7 +2629,6 @@ class TestVmapOperators(Namespace.TestVmapBase):
             (lambda t: t.exponential_(), (torch.randn(B0, 1),)),
             (lambda t: t.geometric_(0.5), (torch.randn(B0, 1),)),
             (lambda t: t.log_normal_(), (torch.randn(B0, 1),)),
-            (lambda t: t.normal_(), (torch.randn(B0, 1),)),
             (lambda t: t.uniform_(), (torch.randn(B0, 1),)),
 
             # in-place on captured tensor
@@ -2644,7 +2637,6 @@ class TestVmapOperators(Namespace.TestVmapBase):
             (lambda t: captured.exponential_(), (torch.randn(B0),)),
             (lambda t: captured.geometric_(0.5), (torch.randn(B0),)),
             (lambda t: captured.log_normal_(), (torch.randn(B0),)),
-            (lambda t: captured.normal_(), (torch.randn(B0),)),
             (lambda t: captured.uniform_(), (torch.randn(B0),)),
         ]
         for op, args in random_ops:
@@ -3432,6 +3424,8 @@ class TestVmapOperatorsOpInfo(TestCase):
             lambda _, shape: torch.randint(100, shape, **kwargs),
             lambda _, shape: torch.randint(5, 100, shape, **kwargs),
             lambda t, _: t.random_(**only_gen_kwarg),
+            lambda _, shape: torch.normal(0., 1., shape, **kwargs),
+            lambda t, _: t.normal_(**only_gen_kwarg),
         ]
 
         B0 = 4
@@ -3504,6 +3498,24 @@ class TestVmapOperatorsOpInfo(TestCase):
             torch.manual_seed(seed)
             passed.random_(*pos_arg, **kwargs)
             assert torch.allclose(unvmaped_value, passed)
+
+    @parametrize('batched_randomness', [True, False])
+    def test_distributions(self, device, batched_randomness):
+        supported_ops = [
+            lambda t: torch.normal(t, 1.),
+            lambda t: torch.normal(0., torch.abs(t), generator=generator),
+            # lambda t: torch.normal(t, 1., generator=generator),
+            lambda t: torch.normal(t, torch.abs(t), generator=generator),
+            lambda t: torch.normal(0., torch.abs(t)),
+            lambda t: torch.normal(t, torch.abs(t)),
+        ]
+        # distributions where at least one parameter is a batched tensor should always have batched random behavior
+        B0 = 4
+        generator = torch.Generator(device=device)
+        for op in supported_ops:
+            vmap_result = vmap(op, use_batched_random=batched_randomness)(torch.randn(B0, B0, device=device))
+            for i in range(1, B0):
+                assert not torch.allclose(vmap_result[0], vmap_result[i])
 
 
 only_for = ("cpu", "cuda")

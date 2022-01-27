@@ -309,6 +309,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   BINARY_POINTWISE(minimum);
 
   BINARY_SCALAR_2(mul, Tensor, Scalar);
+  BINARY_POINTWISE2(normal, Tensor_Tensor);
   BINARY_POINTWISE(nextafter);
   BINARY_SCALAR_3(pow, Tensor_Tensor, Tensor_Scalar, Scalar);
   BINARY_POINTWISE(polar);
