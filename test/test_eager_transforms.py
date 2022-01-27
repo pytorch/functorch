@@ -1206,18 +1206,10 @@ class TestJac(TestCase):
 
         x = torch.randn(3, device=device)
 
-        # TODO: Remove when https://github.com/pytorch/functorch/issues/392
-        # is fixed
-        if jacapi == jacrev:
-            result, aux = jacapi(f, has_aux=True)(x)
-            self.assertEqual(result, torch.eye(3, 3, device=device))
-            expected_aux = {'a': x.cos(), 'b': [x.tan()]}
-            self.assertEqual(aux, expected_aux)
-        else:
-            result, aux = jacapi(f)(x)
-            self.assertEqual(result, torch.eye(3, 3, device=device))
-            expected_aux = {'a': -torch.diag(x.sin()), 'b': [torch.diag(1.0 + x.tan() ** 2)]}
-            self.assertEqual(aux, expected_aux)
+        result, aux = jacapi(f, has_aux=True)(x)
+        self.assertEqual(result, torch.eye(3, 3, device=device))
+        expected_aux = {'a': x.cos(), 'b': [x.tan()]}
+        self.assertEqual(aux, expected_aux)
 
     @jacrev_and_jacfwd
     def test_outputs_can_any_pytree(self, device, jacapi):
@@ -1741,17 +1733,13 @@ class TestJvp(TestCase):
     def test_aux_pytree(self, device):
         def f(x):
             y = x.sin()
-            return y# , {'a': x.cos(), 'b': [x.tan()]}
+            return y, {'a': x.cos(), 'b': [x.tan()]}
 
         x = torch.randn(3, device=device)
         t = torch.randn(3, device=device)
 
-        # out, jvp_out, aux = jvp(f, (x, ), (t, ), has_aux=False)
-        out, jvp_out = jvp(f, (x, ), (t, ), has_aux=False)
-        # expected_out, expected_aux = f(x)
-        expected_out = f(x)
-        print("out: ", out)
-        print("expected_out: ", expected_out)
+        out, jvp_out, aux = jvp(f, (x, ), (t, ), has_aux=True)
+        expected_out, expected_aux = f(x)
         self.assertEqual(out, expected_out)
         self.assertEqual(aux, expected_aux)
         self.assertEqual(jvp_out, t * x.cos())

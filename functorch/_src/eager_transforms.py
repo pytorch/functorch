@@ -312,7 +312,7 @@ def jacrev(func: Callable, argnums: Union[int, Tuple[int]] = 0, *, has_aux=False
         returns the Jacobian of :attr:`func` with respect to the arg(s) at
         :attr:`argnums`. If ``has_aux is True``, then the returned function
         instead returns a ``(jacobian, aux)`` tuple where ``jacobian``
-        is the Jacobian and ``aux`` is auxiliary objects returned by ``func``.
+        is the Jacobian and ``aux`` is auxiliary objects returned by :attr:`func`.
 
     A basic usage with a pointwise, unary operation will give a diagonal array
     as the Jacobian
@@ -749,11 +749,9 @@ def jvp(
                 result_duals, aux = result_duals
                 aux = _undo_create_differentiable(aux, level)
 
-            print("result_duals: ", result_duals)
             result_duals, spec = tree_flatten(result_duals)
             assert_non_empty_output(result_duals, jvp_str)
 
-            result_duals, spec = tree_flatten(result_duals)
             primals_out, tangents_out = \
                 zip(*[safe_unpack_dual(dual, strict) for dual in result_duals])
             primals_out = tree_map(
@@ -762,8 +760,6 @@ def jvp(
                 partial(_undo_create_differentiable, level=level), tangents_out)
 
             primals_out_unf = tree_unflatten(primals_out, spec)
-            print("primals_out: ", type(primals_out), len(primals_out), primals_out[0].shape)
-            print("primals_out_unf: ", type(primals_out_unf), len(primals_out_unf), primals_out_unf[0].shape)
             tangents_out_unf = tree_unflatten(tangents_out, spec)
             if has_aux:
                 return primals_out_unf, tangents_out_unf, aux
@@ -792,13 +788,18 @@ def jacfwd(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Cal
         argnums (int or Tuple[int]): Optional, integer or tuple of integers,
             saying which arguments to get the Jacobian with respect to.
             Default: 0.
-        has_aux (bool): Flag indicating that :attr:`func` returns a tensor and other
-            auxiliary objects: ``(output, aux)``. Default: False.
+        has_aux (bool): Flag indicating that :attr:`func` returns a
+            ``(output, aux)`` tuple where the first element is the output of
+            the function to be differentiated and the second element is
+            auxiliary objects that will not be differentiated.
+            Default: False.
 
     Returns:
         Returns a function that takes in the same inputs as :attr:`func` and
         returns the Jacobian of :attr:`func` with respect to the arg(s) at
-        :attr:`argnums`.
+        :attr:`argnums`. If ``has_aux is True``, then the returned function
+        instead returns a ``(jacobian, aux)`` tuple where ``jacobian``
+        is the Jacobian and ``aux`` is auxiliary objects returned by :attr:`func`.
 
     .. warning::
         PyTorch's forward-mode AD coverage on operators is not very good at the
@@ -870,12 +871,26 @@ def jacfwd(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Cal
         basis = tree_unflatten(flat_basis, primals_spec)
 
         def push_jvp(basis):
-            _, jvp_out = jvp(f_wrapper, primals, basis)
+            output = jvp(f_wrapper, primals, basis, has_aux=has_aux)
+            if has_aux:
+                _, jvp_out, aux = output
+                return jvp_out, aux
+            _, jvp_out = output
             return jvp_out
 
         results = vmap(push_jvp)(basis)
+        if has_aux:
+            results, aux = results
+            # aux is in the standard basis format, e.g. NxN matrix
+            # We need to fetch the first element as original `func` output
+            flat_aux, aux_spec = tree_flatten(aux)
+            flat_aux = [value[0] for value in flat_aux]
+            aux = tree_unflatten(flat_aux, aux_spec)
+
         jac_outs, spec = tree_flatten(results)
-        assert_non_empty_output(jac_outs, 'jacfwd(f, ...)(*args)')
+        # Most probably below output check can never raise an error
+        # as jvp should test the output before
+        # assert_non_empty_output(jac_outs, 'jacfwd(f, ...)(*args)')
 
         jac_outs_ins = tuple(
             tuple(
@@ -889,6 +904,8 @@ def jacfwd(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Cal
 
         if isinstance(argnums, int):
             jac_outs_ins = tuple(jac_ins[0] for jac_ins in jac_outs_ins)
+        if has_aux:
+            return tree_unflatten(jac_outs_ins, spec), aux
         return tree_unflatten(jac_outs_ins, spec)
     return wrapper_fn
 
