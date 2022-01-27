@@ -604,6 +604,48 @@ class TestGradTransform(TestCase):
         result, = vjp_fn((v1, (v2, v3)))
         self.assertEqual(result, v1 + v2 + v3)
 
+    def test_vjp_outputs_can_any_pytree(self, device):
+        x = torch.randn(2, 3, device=device)
+        t = torch.randn(2, 3, device=device)
+
+        for output in [None, ()]:
+            with self.assertRaisesRegex(
+                RuntimeError, r"vjp\(f, \*primals\)\: Expected f to be a function that has non-empty output"
+            ):
+                _, vjp_fn = vjp(lambda _: output, x)
+                vjp_fn(t)
+
+        for output in [1, True, 12.2, "abc"]:
+            with self.assertRaisesRegex(
+                RuntimeError, r"vjp\(f, \*primals\)\: expected f\(\*primals\) to return only tensors"
+            ):
+                _, vjp_fn = vjp(lambda _: output, x)
+                vjp_fn(t)
+
+        # Check list output
+        output, vjp_fn = vjp(lambda x: [x, x.sum()], x)
+        vjp_out, = vjp_fn([t, t.sum()])
+        assert isinstance(output, list) and len(output) == 2
+        assert isinstance(vjp_out, torch.Tensor)
+
+        # Check dict output
+        output, vjp_fn = vjp(lambda x: {"x": x, "xsum": x.sum()}, x)
+        vjp_out, = vjp_fn({"x": t, "xsum": t.sum()})
+        assert isinstance(output, dict) and len(output) == 2 and "xsum" in output
+        assert isinstance(vjp_out, torch.Tensor)
+
+        def composite_output(x):
+            out = x.sum()
+            return [
+                (out, {"a": x, "out": [x, out]}),
+            ]
+
+        output, vjp_fn = vjp(composite_output, x)
+        vjp_out, = vjp_fn([(t.sum(), {"a": t, "out": [t, t.sum()]}), ])
+        assert isinstance(output, list)
+        assert isinstance(output[0], tuple) and isinstance(output[0][1], dict)
+        assert isinstance(vjp_out, torch.Tensor)
+
     def test_vjp_pytree_error(self, device):
         def f(x):
             return x, (x, x)
@@ -617,11 +659,18 @@ class TestGradTransform(TestCase):
             result, = vjp_fn(((v1, (v2, v3)),))
 
     def test_vjp_aux_tensor(self, device):
-        def f(x):
-            y = x.sin()
-            return y, x.cos()
 
         x = torch.randn(3, device=device)
+
+        with self.assertRaisesRegex(TypeError, 'Function output should be a tuple'):
+            vjp(lambda t: [t, t], x, has_aux=True)
+
+        with self.assertRaisesRegex(TypeError, 'Function output should be a tuple'):
+            vjp(lambda t: (t, t + 2, t + 3), x, has_aux=True)
+
+        def f(t):
+            y = t.sin()
+            return y, t.cos()
 
         out, vjp_fn, aux = vjp(f, x, has_aux=True)
         self.assertEqual(aux, x.cos())
@@ -1224,11 +1273,11 @@ class TestJac(TestCase):
         x = torch.randn(2, 3, device=device)
 
         for output in [None, ()]:
-            with self.assertRaisesRegex(RuntimeError, "Expected non-empty output"):
+            with self.assertRaisesRegex(RuntimeError, r"Expected f to be a function that has non-empty output"):
                 jacapi(lambda _: output)(x)
 
         for output in [1, True, 12.2, "abc"]:
-            with self.assertRaisesRegex(RuntimeError, "Expected tensors, got unsupported type"):
+            with self.assertRaisesRegex(RuntimeError, r"expected f\(\*primals\) to return only tensors"):
                 jacapi(lambda _: output)(x)
 
         # Check list output
@@ -1696,11 +1745,15 @@ class TestJvp(TestCase):
         t = torch.randn(2, 3, device=device)
 
         for output in [None, ()]:
-            with self.assertRaisesRegex(RuntimeError, "Expected non-empty output"):
+            with self.assertRaisesRegex(
+                RuntimeError, r"jvp\(f, primals, tangents\)\: Expected f to be a function that has non-empty output"
+            ):
                 jvp(lambda _: output, (x,), (t,))
 
         for output in [1, True, 12.2, "abc"]:
-            with self.assertRaisesRegex(RuntimeError, "Expected tensors, got unsupported type"):
+            with self.assertRaisesRegex(
+                RuntimeError, r"jvp\(f, primals, tangents\)\: expected f\(\*primals\) to return only tensors"
+            ):
                 jvp(lambda _: output, (x,), (t,))
 
         # Check list output
