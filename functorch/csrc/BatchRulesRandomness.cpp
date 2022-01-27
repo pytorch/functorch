@@ -34,7 +34,7 @@ Tensor& random_inplace_batching_rule(Tensor& self, ExtraArgs... extra_args) {
     optional<int64_t> self_bdim;
     std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
     self_value = moveBatchDimToFront(self_value, self_bdim);
-    if (maybe_layer->useBatchedRandom()) {
+    if (maybe_layer->useBatchedRandom() || !self_bdim) {
       Func(self_value, std::forward<ExtraArgs>(extra_args)...);
       return self;
     } else {

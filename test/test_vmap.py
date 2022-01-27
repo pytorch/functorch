@@ -2597,6 +2597,61 @@ class TestVmapOperators(Namespace.TestVmapBase):
              (torch.rand(B1, B2, B0, 3, 2, 5), torch.rand(B0, 3 * 2 * 5)),
              in_dims=(2, 0))
 
+    def test_no_random_op_support(self):
+        B0 = 2
+
+        captured = torch.rand(3)
+
+        random_ops = [
+            # out-of-place on BatchedTensor
+            (torch.bernoulli, (torch.rand(B0, 1),)),
+            (lambda t: torch.bernoulli(t, p=0.5), (torch.rand(B0, 1),)),
+            (lambda t: torch.multinomial(t, 2), (torch.rand(B0, 3),)),
+            (torch.normal, (torch.randn(B0, 1), torch.randn(B0, 1))),
+            (lambda t: torch.normal(t, 1.), (torch.randn(B0, 1),)),
+            (lambda t: torch.normal(0., t), (torch.randn(B0, 1),)),
+            (torch.poisson, (torch.rand(B0, 1),)),
+            # (torch.rand_like, (torch.rand(B0, 1),)),
+            # (torch.randn_like, (torch.rand(B0, 1),)),
+            (lambda t: torch.randint_like(t, 2), (torch.rand(B0, 1),)),
+            (lambda t: torch.randint_like(t, 0, 2), (torch.rand(B0, 1),)),
+
+            # out-of-place on captured tensor
+            (lambda t: torch.bernoulli(captured), (torch.rand(B0),)),
+            (lambda t: torch.bernoulli(captured, p=0.5), (torch.rand(B0),)),
+            (lambda t: torch.multinomial(captured, 2), (torch.rand(B0),)),
+            (lambda t: torch.normal(captured, captured), (torch.randn(B0),)),
+            (lambda t: torch.normal(captured, 1.), (torch.randn(B0),)),
+            (lambda t: torch.normal(0., captured), (torch.randn(B0),)),
+            (lambda t: torch.poisson(captured), (torch.rand(B0),)),
+            # (lambda t: torch.rand_like(captured), (torch.rand(B0),)),
+            # (lambda t: torch.randn_like(captured) , (torch.rand(B0),)),
+            (lambda t: torch.randint_like(captured, 2), (torch.rand(B0),)),
+            (lambda t: torch.randint_like(captured, 0, 2), (torch.rand(B0),)),
+
+            # in-place on BatchedTensor
+            (lambda t: t.bernoulli_(), (torch.randn(B0, 1),)),
+            (lambda t: t.cauchy_(), (torch.randn(B0, 1),)),
+            (lambda t: t.exponential_(), (torch.randn(B0, 1),)),
+            (lambda t: t.geometric_(0.5), (torch.randn(B0, 1),)),
+            (lambda t: t.log_normal_(), (torch.randn(B0, 1),)),
+            (lambda t: t.normal_(), (torch.randn(B0, 1),)),
+            (lambda t: t.uniform_(), (torch.randn(B0, 1),)),
+
+            # in-place on captured tensor
+            (lambda t: captured.bernoulli_(), (torch.randn(B0),)),
+            (lambda t: captured.cauchy_(), (torch.randn(B0),)),
+            (lambda t: captured.exponential_(), (torch.randn(B0),)),
+            (lambda t: captured.geometric_(0.5), (torch.randn(B0),)),
+            (lambda t: captured.log_normal_(), (torch.randn(B0),)),
+            (lambda t: captured.normal_(), (torch.randn(B0),)),
+            (lambda t: captured.uniform_(), (torch.randn(B0),)),
+        ]
+        for op, args in random_ops:
+            with self.assertRaisesRegex(RuntimeError,
+                                        'vmap: We do not yet support calling random operations'):
+                vmap(op)(*args)
+
     def test_conv2d(self):
         conv_setups = [
             (torch.nn.Conv1d, torch.conv1d, [2, 4, 15]),
@@ -3179,11 +3234,13 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('nn.functional.huber_loss'),
         xfail('nn.functional.instance_norm'),
         xfail('nn.functional.poisson_nll_loss'),
+        xfail('nn.functional.max_pool3d'),
         xfail('histc'),
         xfail('as_strided'),
         xfail('istft'),
         xfail('nonzero'),
         xfail('ldexp'),
+        xfail('nn.functional.max_pool1d'),
         xfail('sum_to_size'),
         xfail('nn.functional.fractional_max_pool2d'),
         xfail('stft'),
@@ -3360,123 +3417,93 @@ class TestVmapOperatorsOpInfo(TestCase):
         self.assertTrue(isinstance(vmap(f)(x, y), Point))
 
     @parametrize('batched_randomness', [True, False])
-    def test_random_behavior(self, device, batched_randomness):
-        # TODO: cuda generator doesn't match how I would expect this to look. Fix
-        if 'cuda' in device and batched_randomness:
-            return
+    @parametrize('use_generator', [True, False])
+    def test_random_behavior(self, device, batched_randomness, use_generator):
+        def reset_random():
+            return generator.set_state(orig_state) if use_generator else torch.manual_seed(seed)
 
-        supported_random_ops = [
-            lambda _: torch.randn(B0, device=device, generator=generator),
-            lambda _: torch.rand(B0, device=device, generator=generator),
-            lambda _: torch.randint(100, [B0], device=device, generator=generator),
-            lambda _: torch.randint(5, 100, [B0], device=device, generator=generator),
-            lambda _: torch.randperm(10, device=device, generator=generator),
-            lambda t: t.random_(generator=generator),
-        ]
-
-        B0 = 2
         generator = torch.Generator(device=device)
         orig_state = generator.get_state()
+        kwargs = {'device': device, 'generator': generator} if use_generator else {'device': device}
+        only_gen_kwarg = {'generator': generator} if use_generator else {}
+        supported_random_ops = [
+            lambda _, shape: torch.randn(shape, **kwargs),
+            lambda _, shape: torch.rand(shape, **kwargs),
+            lambda _, shape: torch.randint(100, shape, **kwargs),
+            lambda _, shape: torch.randint(5, 100, shape, **kwargs),
+            lambda t, _: t.random_(**only_gen_kwarg),
+        ]
+
+        B0 = 4
+        seed = 1234567
+        passed = torch.randn(B0, device=device)
 
         for op in supported_random_ops:
-            vmap_result = vmap(op, use_batched_random=batched_randomness)(torch.randn(B0, B0, device=device))
-            generator = generator.set_state(orig_state)
+            passed = torch.randn(B0, B0, device=device)
+            generator = reset_random()
+            vmap_result = vmap(op, in_dims=(0, None), use_batched_random=batched_randomness)(passed, [B0])
             if batched_randomness:
-                stacked = []
-                for _ in range(B0):
-                    stacked.append(op(torch.randn(B0, device=device)))
-                generator = generator.set_state(orig_state)
-                assert torch.allclose(vmap_result, torch.stack(stacked)), f"{vmap_result}, {stacked}"
+                passed = torch.randn([B0, B0], device=device)  # reset for in place operation
+                generator = reset_random()
+                expected = op(passed, [B0, B0])
+                assert torch.allclose(vmap_result, expected)
             else:
-                expected = op(torch.randn(B0, device=device))
-                generator = generator.set_state(orig_state)
+                passed = torch.randn(B0, device=device)  # reset for in place operation
+                generator = reset_random()
+                expected = op(passed, [B0])
                 for i in range(B0):
                     assert torch.allclose(vmap_result[i], expected)
 
     @parametrize('batched_randomness', [True, False])
-    def test_random_sanity(self, device, batched_randomness):
-        supported_random_ops = [
-            lambda _: torch.randn(B0, device=device),
-            lambda _: torch.randn(B0, device=device, generator=generator),
-            lambda _: torch.rand(B0, device=device),
-            lambda _: torch.rand(B0, device=device, generator=generator),
-            lambda _: torch.randint(100, [1, 2, 3], device=device),
-            lambda _: torch.randint(100, [1, 2, 3], device=device, generator=generator),
-            lambda _: torch.randint(5, 100, [1, 2, 3], device=device),
-            lambda _: torch.randint(5, 100, [1, 2, 3], device=device, generator=generator),
-            lambda _: torch.randperm(10, device=device, generator=generator),
-            lambda _: torch.randperm(10, device=device),
-            lambda t: t.random_(),
-            lambda t: t.random_(generator=generator),
-            lambda t: t.random_(0, 100),
-            lambda t: t.random_(100),
-        ]
-
+    @parametrize('use_generator', [True, False])
+    def test_randperm(self, device, batched_randomness, use_generator):
+    # needs a special case because doesn't take a batch size
         B0 = 4
+        seed = 1234567
+        passed = torch.randn(B0, device=device)
+
+        torch.manual_seed(seed)
         generator = torch.Generator(device=device)
-        for op in supported_random_ops:
-            vmap_result = vmap(op, use_batched_random=batched_randomness)(torch.randn(B0, device=device))
-            if batched_randomness:
-                for i in range(1, B0):
-                    assert not torch.allclose(vmap_result[0], vmap_result[i])
-            else:
-                for i in range(1, B0):
-                    assert torch.allclose(vmap_result[0], vmap_result[i])
+        orig_state = generator.get_state()
 
-    def test_no_random_op_support(self, device):
-        B0 = 2
+        kwargs = {'device': device, 'generator': generator} if use_generator else {'device': device}
 
-        captured = torch.rand(3)
+        vmap_result = vmap(lambda _: torch.randperm(10, **kwargs), use_batched_random=batched_randomness)(passed)
+        generator = generator.set_state(orig_state)
+        torch.manual_seed(seed)
+        if batched_randomness:
+            for i in range(B0):
+                expected = torch.randperm(10, **kwargs)
+                assert torch.allclose(vmap_result[i], expected)
+        else:
+            expected = torch.randperm(10, **kwargs)
+            for i in range(B0):
+                assert torch.allclose(vmap_result[i], expected)
 
-        random_ops = [
-            # out-of-place on BatchedTensor
-            (torch.bernoulli, (torch.rand(B0, 1),)),
-            (lambda t: torch.bernoulli(t, p=0.5), (torch.rand(B0, 1),)),
-            (lambda t: torch.multinomial(t, 2), (torch.rand(B0, 3),)),
-            (torch.normal, (torch.randn(B0, 1), torch.randn(B0, 1))),
-            (lambda t: torch.normal(t, 1.), (torch.randn(B0, 1),)),
-            (lambda t: torch.normal(0., t), (torch.randn(B0, 1),)),
-            (torch.poisson, (torch.rand(B0, 1),)),
-            # (torch.rand_like, (torch.rand(B0, 1),)),
-            # (torch.randn_like, (torch.rand(B0, 1),)),
-            (lambda t: torch.randint_like(t, 2), (torch.rand(B0, 1),)),
-            (lambda t: torch.randint_like(t, 0, 2), (torch.rand(B0, 1),)),
+    @parametrize('use_generator', [True, False])
+    def test_random_inplace_not_batched(self, device, use_generator):
+        # tests that when in place random is being called during vmap but not with a batched tensor,
+        # it behaves like a normal random_, even if we aren't using batched random
+        B0 = 4
+        seed = 1234567
+        generator = torch.Generator(device=device)
+        orig_state = generator.get_state()
+        pos_args = [[], [100], [-5, 100]]
+        kwargs = {'generator': generator} if use_generator else {}
 
-            # out-of-place on captured tensor
-            (lambda t: torch.bernoulli(captured), (torch.rand(B0),)),
-            (lambda t: torch.bernoulli(captured, p=0.5), (torch.rand(B0),)),
-            (lambda t: torch.multinomial(captured, 2), (torch.rand(B0),)),
-            (lambda t: torch.normal(captured, captured), (torch.randn(B0),)),
-            (lambda t: torch.normal(captured, 1.), (torch.randn(B0),)),
-            (lambda t: torch.normal(0., captured), (torch.randn(B0),)),
-            (lambda t: torch.poisson(captured), (torch.rand(B0),)),
-            # (lambda t: torch.rand_like(captured), (torch.rand(B0),)),
-            # (lambda t: torch.randn_like(captured) , (torch.rand(B0),)),
-            (lambda t: torch.randint_like(captured, 2), (torch.rand(B0),)),
-            (lambda t: torch.randint_like(captured, 0, 2), (torch.rand(B0),)),
+        for pos_arg in pos_args:
+            vmaped_value = torch.randn(B0, B0, device=device)
+            unvmaped_value = torch.randn(B0, B0, device=device)
+            generator = generator.set_state(orig_state)
+            torch.manual_seed(seed)
+            fn = vmap(lambda t, _, __: t.random_(*pos_arg, **kwargs), in_dims=(None, 0, None), use_batched_random=False)
+            fn(unvmaped_value, vmaped_value, [B0])
 
-            # in-place on BatchedTensor
-            (lambda t: t.bernoulli_(), (torch.randn(B0, 1),)),
-            (lambda t: t.cauchy_(), (torch.randn(B0, 1),)),
-            (lambda t: t.exponential_(), (torch.randn(B0, 1),)),
-            (lambda t: t.geometric_(0.5), (torch.randn(B0, 1),)),
-            (lambda t: t.log_normal_(), (torch.randn(B0, 1),)),
-            (lambda t: t.normal_(), (torch.randn(B0, 1),)),
-            (lambda t: t.uniform_(), (torch.randn(B0, 1),)),
-
-            # in-place on captured tensor
-            (lambda t: captured.bernoulli_(), (torch.randn(B0),)),
-            (lambda t: captured.cauchy_(), (torch.randn(B0),)),
-            (lambda t: captured.exponential_(), (torch.randn(B0),)),
-            (lambda t: captured.geometric_(0.5), (torch.randn(B0),)),
-            (lambda t: captured.log_normal_(), (torch.randn(B0),)),
-            (lambda t: captured.normal_(), (torch.randn(B0),)),
-            (lambda t: captured.uniform_(), (torch.randn(B0),)),
-        ]
-        for op, args in random_ops:
-            with self.assertRaisesRegex(RuntimeError,
-                                        'vmap: We do not yet support calling random operations'):
-                vmap(op)(*args)
+            passed = torch.randn([B0, B0], device=device)  # reset for in place operation
+            generator = generator.set_state(orig_state)
+            torch.manual_seed(seed)
+            passed.random_(*pos_arg, **kwargs)
+            assert torch.allclose(unvmaped_value, passed)
 
 
 only_for = ("cpu", "cuda")
