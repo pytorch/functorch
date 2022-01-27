@@ -1273,11 +1273,15 @@ class TestJac(TestCase):
         x = torch.randn(2, 3, device=device)
 
         for output in [None, ()]:
-            with self.assertRaisesRegex(RuntimeError, r"Expected f to be a function that has non-empty output"):
+            with self.assertRaisesRegex(
+                RuntimeError, r"(vjp|jvp).+\: Expected f to be a function that has non-empty output"
+            ):
                 jacapi(lambda _: output)(x)
 
         for output in [1, True, 12.2, "abc"]:
-            with self.assertRaisesRegex(RuntimeError, r"expected f\(\*primals\) to return only tensors"):
+            with self.assertRaisesRegex(
+                RuntimeError, r"(vjp|jvp).+\: expected f\(\*primals\) to return only tensors"
+            ):
                 jacapi(lambda _: output)(x)
 
         # Check list output
