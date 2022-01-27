@@ -3207,6 +3207,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('unique'),
         xfail('nn.functional.ctc_loss'),
         xfail('nn.functional.gaussian_nll_loss'),
+        xfail('nn.functional.poisson_nll_loss'),
         xfail('nn.functional.huber_loss'),
         xfail('nn.functional.instance_norm'),
         xfail('nn.functional.max_pool1d'),
