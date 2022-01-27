@@ -1198,20 +1198,58 @@ class TestJac(TestCase):
         self.assertEqual(result, torch.eye(3, 3, device=device))
         self.assertEqual(aux, x.cos())
 
-    @FIXME_jacrev_only
+    @jacrev_and_jacfwd
     def test_aux_pytree(self, device, jacapi):
         def f(x):
             y = x.clone()
             return y, {'a': y.cos(), 'b': [y.tan()]}
 
         x = torch.randn(3, device=device)
-        result, aux = jacapi(f, has_aux=True)(x)
 
-        self.assertEqual(result, torch.eye(3, 3, device=device))
-        expected_aux = {'a': x.cos(), 'b': [x.tan()]}
-        self.assertEqual(aux, expected_aux)
+        # TODO: Remove when https://github.com/pytorch/functorch/issues/392
+        # is fixed
+        if jacapi == jacrev:
+            result, aux = jacapi(f, has_aux=True)(x)
+            self.assertEqual(result, torch.eye(3, 3, device=device))
+            expected_aux = {'a': x.cos(), 'b': [x.tan()]}
+            self.assertEqual(aux, expected_aux)
+        else:
+            result, aux = jacapi(f)(x)
+            self.assertEqual(result, torch.eye(3, 3, device=device))
+            expected_aux = {'a': -torch.diag(x.sin()), 'b': [torch.diag(1.0 + x.tan() ** 2)]}
+            self.assertEqual(aux, expected_aux)
 
-    @FIXME_jacrev_only
+    @jacrev_and_jacfwd
+    def test_outputs_can_any_pytree(self, device, jacapi):
+        x = torch.randn(2, 3, device=device)
+
+        for output in [None, ()]:
+            with self.assertRaisesRegex(RuntimeError, "Expected non-empty output"):
+                jacapi(lambda _: output)(x)
+
+        for output in [1, True, 12.2, "abc"]:
+            with self.assertRaisesRegex(RuntimeError, "Expected tensors, got unsupported type"):
+                jacapi(lambda _: output)(x)
+
+        # Check list output
+        out = jacapi(lambda x: [x, x.sum()])(x)
+        assert isinstance(out, list) and len(out) == 2
+
+        # Check dict output
+        out = jacapi(lambda x: {"x": x, "xsum": x.sum()})(x)
+        assert isinstance(out, dict) and len(out) == 2 and "xsum" in out
+
+        def composite_output(x):
+            out = x.sum()
+            return [
+                (out, {"a": x, "out": [x, out]}),
+            ]
+
+        out = jacapi(composite_output)(x)
+        assert isinstance(out, list)
+        assert isinstance(out[0], tuple) and isinstance(out[0][1], dict)
+
+    @jacrev_and_jacfwd
     def test_multiple_inputs_outputs_pytree(self, device, jacapi):
         def f(a, b, c):
             a0, a1 = a
@@ -1653,7 +1691,7 @@ class TestJvp(TestCase):
         with self.assertRaisesRegex(RuntimeError, 'only contain Tensors'):
             jvp(torch.sin, (x,), (1.,))
 
-    def test_jvp_outputs_can_any_pytree(self, device):
+    def test_outputs_can_any_pytree(self, device):
         x = torch.randn(2, 3, device=device)
         t = torch.randn(2, 3, device=device)
 
@@ -1686,35 +1724,6 @@ class TestJvp(TestCase):
             assert isinstance(out[i], list)
             assert isinstance(out[i][0], tuple) and \
                 isinstance(out[i][0][1], dict)
-
-    def test_jacfwd_outputs_can_any_pytree(self, device):
-        x = torch.randn(2, 3, device=device)
-
-        for output in [None, ()]:
-            with self.assertRaisesRegex(RuntimeError, "Expected non-empty output"):
-                jacfwd(lambda _: output)(x)
-
-        for output in [1, True, 12.2, "abc"]:
-            with self.assertRaisesRegex(RuntimeError, "Expected tensors, got unsupported type"):
-                jacfwd(lambda _: output)(x)
-
-        # Check list output
-        out = jacfwd(lambda x: [x, x.sum()])(x)
-        assert isinstance(out, list) and len(out) == 2
-
-        # Check dict output
-        out = jacfwd(lambda x: {"x": x, "xsum": x.sum()})(x)
-        assert isinstance(out, dict) and len(out) == 2 and "xsum" in out
-
-        def composite_output(x):
-            out = x.sum()
-            return [
-                (out, {"a": x, "out": [x, out]}),
-            ]
-
-        out = jacfwd(composite_output)(x)
-        assert isinstance(out, list)
-        assert isinstance(out[0], tuple) and isinstance(out[0][1], dict)
 
     def test_aux_tensor(self, device):
         def f(x):

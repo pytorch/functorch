@@ -243,12 +243,16 @@ def vjp(func: Callable, *primals, has_aux: bool = False) -> Callable:
             primals_out = func(*diff_primals)
 
             if has_aux:
+                # TODO: Add a test for that once vjp/jvp both have has_aux option
+                if not isinstance(primals_out, tuple):
+                    raise TypeError("Function output should be a tuple if has_aux is True")
                 primals_out, aux = primals_out
                 aux = _undo_create_differentiable(aux, level)
 
-            results = _undo_create_differentiable(primals_out, level)
-            flat_diff_primals, primals_spec = tree_flatten(diff_primals)
             flat_primals_out, primals_out_spec = tree_flatten(primals_out)
+            assert_non_empty_output(flat_primals_out, 'vjp(f)')
+            flat_diff_primals, primals_spec = tree_flatten(diff_primals)
+            results = _undo_create_differentiable(primals_out, level)
 
             for primal_out in flat_primals_out:
                 assert isinstance(primal_out, torch.Tensor)
