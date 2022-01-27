@@ -331,7 +331,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   BINARY_POINTWISE(hardtanh_backward);
   BINARY_POINTWISE(hardshrink_backward);
   BINARY_POINTWISE(hardswish_backward);
-  BINARY_POINTWISE(infinitely_differentiable_gelu_backward);
+  // BINARY_POINTWISE(infinitely_differentiable_gelu_backward);
   BINARY_POINTWISE(leaky_relu_backward);
   BINARY_POINTWISE(logit_backward);
   POINTWISE_BOXED(log_sigmoid_backward);
