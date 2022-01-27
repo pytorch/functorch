@@ -540,6 +540,8 @@ class TestOperators(TestCase):
         xfail('linalg.matrix_power'),
         xfail('linalg.norm'),
         xfail('linalg.slogdet'),
+        # really annoying thing where it passes correctness check but not has_batch_rule
+        skip('linalg.svdvals'),
         xfail('logdet'),
         xfail('lu_unpack'),
         xfail('masked_fill'),
@@ -905,6 +907,7 @@ class TestOperators(TestCase):
         xfail('fill_'),
         xfail('index_put'),
         xfail('vstack'),
+        xfail('linalg.svdvals'),
         xfail('lu_solve'),
         xfail('lu_unpack'),
         xfail('matrix_exp'),

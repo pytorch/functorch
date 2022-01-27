@@ -209,7 +209,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(matmul);
   OP_DECOMPOSE(matrix_H);
   OP_DECOMPOSE2(max, other );
-  OP_DECOMPOSE(max_pool1d);
   OP_DECOMPOSE(max_pool1d_with_indices);
   OP_DECOMPOSE(max_pool2d);
   OP_DECOMPOSE(meshgrid);
