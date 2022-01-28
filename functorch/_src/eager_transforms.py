@@ -244,7 +244,10 @@ def vjp(func: Callable, *primals, has_aux=False):
 
             if has_aux:
                 if not (isinstance(primals_out, tuple) and len(primals_out) == 2):
-                    raise TypeError("Function output should be a tuple: (output, aux) if has_aux is True")
+                    raise RuntimeError(
+                        "vjp(f, *primals): output of function f should be a tuple: (output, aux) "
+                        "if has_aux is True"
+                    )
                 primals_out, aux = primals_out
                 aux = _undo_create_differentiable(aux, level)
 
@@ -588,7 +591,7 @@ def noop():
     yield
 
 
-def assert_flat_tuple_of_tensors(elts: Tuple[torch.Tensor, ...], api: str, argname: str) -> None:
+def assert_flat_tuple_of_tensors(elts: Any, api: str, argname: str) -> None:
     if not isinstance(elts, tuple):
         raise RuntimeError(
             f'{api}: Expected {argname} to be a tuple of Tensors, got {type(elts)}')
@@ -616,9 +619,7 @@ def assert_non_empty_tensor_output(output: List[Any], api: str) -> None:
             )
 
 
-def assert_output_is_tensor_or_tensors(
-    output: Union[torch.Tensor, Tuple[torch.Tensor, ...]], api: str
-) -> None:
+def assert_output_is_tensor_or_tensors(output: Any, api: str) -> None:
     if isinstance(output, torch.Tensor):
         return
     if not isinstance(output, tuple):
@@ -636,7 +637,7 @@ def assert_output_is_tensor_or_tensors(
             f'{type(out)} as an output')
 
 
-def assert_non_empty_list_of_tensors(output, api, argname):
+def assert_non_empty_list_of_tensors(output: List[torch.Tensor], api: str, argname: str) -> None:
     if len(output) == 0:
         raise RuntimeError(
             f'{api}: Expected {argname} to contain at least one Tensor.')

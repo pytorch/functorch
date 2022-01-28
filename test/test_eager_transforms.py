@@ -610,14 +610,14 @@ class TestGradTransform(TestCase):
 
         for output in [None, ()]:
             with self.assertRaisesRegex(
-                RuntimeError, r"vjp\(f, \*primals\)\: Expected f to be a function that has non-empty output"
+                RuntimeError, r"vjp\(f, \*primals\): Expected f to be a function that has non-empty output"
             ):
                 _, vjp_fn = vjp(lambda _: output, x)
                 vjp_fn(t)
 
         for output in [1, True, 12.2, "abc"]:
             with self.assertRaisesRegex(
-                RuntimeError, r"vjp\(f, \*primals\)\: expected f\(\*primals\) to return only tensors"
+                RuntimeError, r"vjp\(f, \*primals\): expected f\(\*primals\) to return only tensors"
             ):
                 _, vjp_fn = vjp(lambda _: output, x)
                 vjp_fn(t)
@@ -662,10 +662,10 @@ class TestGradTransform(TestCase):
 
         x = torch.randn(3, device=device)
 
-        with self.assertRaisesRegex(TypeError, 'Function output should be a tuple'):
+        with self.assertRaisesRegex(RuntimeError, r'vjp\(f, \*primals\): output of function f should be a tuple'):
             vjp(lambda t: [t, t], x, has_aux=True)
 
-        with self.assertRaisesRegex(TypeError, 'Function output should be a tuple'):
+        with self.assertRaisesRegex(RuntimeError, r'vjp\(f, \*primals\): output of function f should be a tuple'):
             vjp(lambda t: (t, t + 2, t + 3), x, has_aux=True)
 
         def f(t):
@@ -1274,13 +1274,13 @@ class TestJac(TestCase):
 
         for output in [None, ()]:
             with self.assertRaisesRegex(
-                RuntimeError, r"(vjp|jvp).+\: Expected f to be a function that has non-empty output"
+                RuntimeError, r"(vjp|jvp).+: Expected f to be a function that has non-empty output"
             ):
                 jacapi(lambda _: output)(x)
 
         for output in [1, True, 12.2, "abc"]:
             with self.assertRaisesRegex(
-                RuntimeError, r"(vjp|jvp).+\: expected f\(\*primals\) to return only tensors"
+                RuntimeError, r"(vjp|jvp).+: expected f\(\*primals\) to return only tensors"
             ):
                 jacapi(lambda _: output)(x)
 
@@ -1750,13 +1750,13 @@ class TestJvp(TestCase):
 
         for output in [None, ()]:
             with self.assertRaisesRegex(
-                RuntimeError, r"jvp\(f, primals, tangents\)\: Expected f to be a function that has non-empty output"
+                RuntimeError, r"jvp\(f, primals, tangents\): Expected f to be a function that has non-empty output"
             ):
                 jvp(lambda _: output, (x,), (t,))
 
         for output in [1, True, 12.2, "abc"]:
             with self.assertRaisesRegex(
-                RuntimeError, r"jvp\(f, primals, tangents\)\: expected f\(\*primals\) to return only tensors"
+                RuntimeError, r"jvp\(f, primals, tangents\): expected f\(\*primals\) to return only tensors"
             ):
                 jvp(lambda _: output, (x,), (t,))
 
