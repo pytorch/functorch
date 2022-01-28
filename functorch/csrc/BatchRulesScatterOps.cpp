@@ -115,7 +115,10 @@ Tensor index_plumbing(const Tensor & self, const List<optional<Tensor>> & indice
 }
 
 namespace {
-  static VmapDimVector compute_indexed_shape(const Tensor &src, TensorList indices_list)
+  // Code is mostly duplicated from
+  // https://github.com/pytorch/pytorch/blob/fb0e27d38a8fdab4e1c14d6378c9e41cb30fd6a3
+  // /aten/src/ATen/native/TensorAdvancedIndexing.cpp#L294-L312
+  VmapDimVector compute_indexed_shape(const Tensor &src, TensorList indices_list)
   {
     int64_t dims_before = 0, dims_after = 0, dims_indexed = 0;
     IntArrayRef replacement_shape;
@@ -143,8 +146,12 @@ namespace {
     return shape;
   }
 
-  static VmapDimVector get_indexed_shape(Tensor self, const torch::List<c10::optional<at::Tensor>> &orig)
+  // Code is mostly duplicated from
+  // https://github.com/pytorch/pytorch/blob/fb0e27d38a8fdab4e1c14d6378c9e41cb30fd6a3
+  // /aten/src/ATen/native/TensorAdvancedIndexing.cpp#L379-L405
+  VmapDimVector get_indexed_shape(Tensor self, const torch::List<c10::optional<at::Tensor>> &orig)
   {
+    at::native::checkIndexTensorTypes(orig);
     // first expand BoolTensor (masks) or ByteTensor (masks) into 1 or more LongTensors
     auto indices = at::native::expandTensors(self, orig);
     // next broadcast all index tensors together
@@ -186,6 +193,9 @@ namespace {
     auto indexed_shape = get_indexed_shape(self_, List<optional<Tensor>>(indices_));
 
     // handle broadcasting support for values
+    // Eg. Given `indexed_shape.size()` is 5 and
+    // shape of `values` is (N, 2, 3), then following block
+    // will reshape `values` to (N, 1, 1, 2, 3).
     if (indexed_shape.size() > values_.dim()) {
       auto values_sizes = values_.sizes();
 

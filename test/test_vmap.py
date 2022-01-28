@@ -3366,9 +3366,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         test(self, op, (x, 4, weight, bias), in_dims=(0, None, 0, 0))
 
     def test_index_put(self, device):
-        # vfdev-5: Probably, we can remove this line. Flake8 reported as unused
-        # test = functools.partial(_vmap_test, check_propagates_grad=False)
-
         def test(f, t, idx, values):
             base = f(t[0], idx[0], values[0])
             self.assertEqual(vmap(f, in_dims=(0, 0, 0))(t, idx, values)[0], base)
