@@ -33,7 +33,7 @@ def _create_differentiable(inps, level=None):
     return tree_map(create_differentiable, inps)
 
 
-def _undo_create_differentiable(inps, level=None):
+def _undo_create_differentiable(inps, level=None, strict=True):
     def unwrap_tensors(x):
         if isinstance(x, torch.Tensor):
             return _unwrap_for_grad(x, level)
@@ -41,7 +41,10 @@ def _undo_create_differentiable(inps, level=None):
         if isinstance(x, tuple):
             return tree_map(unwrap_tensors, tuple(x))
 
-        raise RuntimeError(f"Expected tensors, got unsupported type {type(x)}")
+        if strict:
+            raise RuntimeError(f"Expected tensors, got unsupported type {type(x)}")
+        else:
+            return x
 
     return tree_map(unwrap_tensors, inps)
 
@@ -244,7 +247,7 @@ def vjp(func: Callable, *primals, has_aux=False):
 
             if has_aux:
                 primals_out, aux = primals_out
-                aux = _undo_create_differentiable(aux, level)
+                aux = _undo_create_differentiable(aux, level, strict=False)
 
             results = _undo_create_differentiable(primals_out, level)
             flat_diff_primals, primals_spec = tree_flatten(diff_primals)
@@ -969,7 +972,7 @@ def grad_and_value(func: Callable, argnums: argnums_t = 0, has_aux: bool = False
             if output is not None:
                 output = _undo_create_differentiable(output, level)
             if aux is not None:
-                aux = _undo_create_differentiable(aux, level)
+                aux = _undo_create_differentiable(aux, level, strict=False)
             _grad_decrement_nesting()
         if has_aux:
             return grad_input, (output, aux)
