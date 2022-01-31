@@ -275,7 +275,6 @@ def sample_inputs_getitem(op_info, device, dtype, requires_grad, **kwargs):
         ([[0, 3], ],),
         ([[0, 3], slice(None)],),
         ([[0, 3], Ellipsis],),
-        # index_backward is not CompositeCompliant TODO.
         ([[0, 2, 3], [1, 3, 3], torch.LongTensor([0, 0, 2])],),
     ]
 
