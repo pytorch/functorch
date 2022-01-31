@@ -276,7 +276,7 @@ def sample_inputs_getitem(op_info, device, dtype, requires_grad, **kwargs):
         ([[0, 3], slice(None)],),
         ([[0, 3], Ellipsis],),
         # index_backward is not CompositeCompliant TODO.
-        # ([[0, 2, 3], [1, 3, 3], torch.LongTensor([0, 0, 2])],),
+        ([[0, 2, 3], [1, 3, 3], torch.LongTensor([0, 0, 2])],),
     ]
 
     return tuple(SampleInput(
@@ -341,4 +341,37 @@ additional_op_db.append(
         dtypesIfCUDA=floating_types_and(torch.float16, torch.bfloat16),
         supports_out=False,
         supports_forward_ad=True,
+    ))
+
+
+def sample_inputs_index_put(op_info, device, dtype, requires_grad, **kwargs):
+    make_arg = partial(make_tensor, dtype=dtype, device=device, requires_grad=requires_grad)
+    make_idx = partial(make_tensor, dtype=torch.long, device=device, requires_grad=False)
+    S = 5
+    inputs = []
+    for accumulate in [False, True]:
+        inputs.append(SampleInput(
+            make_arg((S, S)),
+            args=((make_idx((2,), low=0, high=4),), make_arg((2, S))),
+            kwargs=dict(accumulate=accumulate)))
+
+        # cuda and accumulate don't work well
+        # Reference: https://github.com/pytorch/pytorch/issues/72053
+        if not accumulate and device == 'cuda':
+            # Broadcast `values`
+            inputs.append(SampleInput(
+                make_arg((S, S)),
+                args=((make_idx((2,), low=0, high=S),), make_arg((S,))),
+                kwargs=dict(accumulate=accumulate)))
+
+    return inputs
+
+
+additional_op_db.append(
+    OpInfo(
+        "index_put",
+        variant_test_name='functorch',
+        dtypes=all_types_and_complex_and(torch.bool, torch.float16, torch.bfloat16),
+        supports_out=False,
+        sample_inputs_func=sample_inputs_index_put,
     ))

@@ -905,7 +905,7 @@ class TestOperators(TestCase):
         xfail('__getitem__', ''),
         xfail('clamp', ''),
         xfail('fill_'),
-        xfail('index_put'),
+        xfail('index_put', ''),
         xfail('linalg.svdvals'),
         xfail('lu_solve'),
         xfail('lu_unpack'),
