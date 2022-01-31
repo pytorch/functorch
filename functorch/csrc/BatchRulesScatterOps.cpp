@@ -179,14 +179,20 @@ namespace {
                               ArrayRef<optional<Tensor>> indices,
                               ArrayRef<optional<int64_t>> indices_bdims,
                               const Tensor &values,
-                              optional<int64_t> values_bdim) {
+                              optional<int64_t> values_bdim,
+                              optional<int64_t> opt_batch_size = {}) {
 
     Tensor self_ = moveBatchDimToFront(self, self_bdim);
     Tensor values_ = moveBatchDimToFront(values, values_bdim);
-    const auto batch_size = self_.size(0);
+    // for inplace variants `index_put_` and `_index_put_impl_` we find the batch_size
+    // here while for `index_put` does it outside of this function.
+    const auto batch_size = opt_batch_size ? opt_batch_size.value() : self_.size(0);
+    self_ = ensure_has_bdim(self_, self_bdim.has_value(), batch_size);
     values_ = ensure_has_bdim(values_, values_bdim.has_value(), batch_size);
     TORCH_INTERNAL_ASSERT(indices.size() == indices_bdims.size());
-    std::vector<optional<Tensor>> indices_ = batchIndices(indices, indices_bdims, self_.size(0), self_bdim, values_bdim);
+
+    // we make sure that `self` has bdim at `0`.
+    std::vector<optional<Tensor>> indices_ = batchIndices(indices, indices_bdims, batch_size, /*self_bdim=*/0, values_bdim);
 
     auto indexed_shape = get_indexed_shape(self_, List<optional<Tensor>>(indices_));
 
@@ -219,10 +225,9 @@ namespace {
     return std::make_tuple(self_, indices_, values_);
   }
 
-  decltype(auto) index_put_plumbing_helper(const Tensor &self,
-                                           const List<optional<Tensor>> &indices,
-                                           const Tensor &values, int64_t cur_level)
-  {
+  auto index_put_plumbing_helper(const Tensor &self,
+                                 const List<optional<Tensor>> &indices,
+                                 const Tensor &values, int64_t cur_level) {
     Tensor self_value;
     optional<int64_t> self_bdim;
     std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -342,40 +347,10 @@ std::tuple<Tensor,optional<int64_t>> index_put_batch_rule(
     }
   }
 
-  Tensor self_ = moveBatchDimToFront(self, self_bdim);
-  Tensor values_ = moveBatchDimToFront(values, values_bdim);
-  self_ = ensure_has_bdim(self_, self_bdim.has_value(), batch_size);
-  values_ = ensure_has_bdim(values_, values_bdim.has_value(), batch_size);
-  TORCH_INTERNAL_ASSERT(indices.size() == indices_bdims.size());
-  std::vector<optional<Tensor>> indices_ = batchIndices(indices, indices_bdims, batch_size, true, true);
-
-  auto indexed_shape = get_indexed_shape(self_, List<optional<Tensor>>(indices_));
-  // handle broadcasting support for values
-  // Eg. Given `indexed_shape.size()` is 5 and
-  // shape of `values` is (N, 2, 3), then following block
-  // will reshape `values` to (N, 1, 1, 2, 3).
-  if (indexed_shape.size() > values_.dim()) {
-    auto values_sizes = values_.sizes();
-
-    // number of unit dims (for broadcasting value to indexed_shape)
-    auto n_unit_dims = indexed_shape.size() - values_sizes.size();
-    VmapDimVector new_values_shape(values_sizes.size() + n_unit_dims);
-
-    // add the batch-dim
-    new_values_shape[0] = batch_size;
-
-    // insert the unit dims for broadcasting.
-    for (const auto idx : c10::irange(n_unit_dims)) {
-      // since batch-dim is already be filled.
-      new_values_shape[idx + 1] = 1;
-    }
-    for (const auto idx: c10::irange(1, values_sizes.size())) {
-      // since batch and unit dims are already be filled.
-      new_values_shape[idx + n_unit_dims] = values_sizes[idx];
-    }
-    values_ = values_.view(new_values_shape);
-  }
-
+  Tensor self_, values_;
+  std::vector<optional<Tensor>> indices_;
+  std::tie(self_, indices_, values_) = index_put_batch_rule_helper(
+      self, self_bdim, indices, indices_bdims, values, values_bdim, batch_size);
   return std::make_tuple(at::index_put(self_, List<optional<Tensor>>(indices_), values_, accumulate), 0);
 }
 
