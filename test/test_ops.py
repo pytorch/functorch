@@ -369,7 +369,13 @@ class TestOperators(TestCase):
         # Runtime Error: The tangent part of the matrix A should also be symmetric.
         xfail('linalg.eigh'),
 
-
+        # Issue with newer svd implementation and forwardAD
+        # https://github.com/pytorch/pytorch/pull/69827
+        # https://github.com/pytorch/pytorch/pull/70253
+        # RuntimeError: tensor.mH is only supported on matrices or batches of matrices. Got 1-D tensor.
+        xfail('linalg.cond'),
+        xfail('linalg.svdvals'),
+        xfail('norm', 'nuc'),
     }))
     def test_jvp(self, device, dtype, op):
         # TODO: when we change supports_autograd to supports_backward_ad, also change in this file
@@ -575,6 +581,13 @@ class TestOperators(TestCase):
         xfail('index_put'),
         xfail('lu_solve'),
         xfail('nn.functional.instance_norm'),
+
+        # Issue with newer svd implementation and forwardAD
+        # https://github.com/pytorch/pytorch/pull/69827
+        # https://github.com/pytorch/pytorch/pull/70253
+        # RuntimeError: vmap: inplace arithmetic(self, *extra_args) is not possible because there exists
+        xfail('linalg.svd'),
+        xfail('svd'),
     })
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
@@ -680,6 +693,14 @@ class TestOperators(TestCase):
         # Some kind of issue with unsymmetric tangent type
         # Runtime Error: The tangent part of the matrix A should also be symmetric.
         xfail('linalg.eigh'),
+
+        # Issue with newer svd implementation and forwardAD
+        # https://github.com/pytorch/pytorch/pull/69827
+        # https://github.com/pytorch/pytorch/pull/70253
+        # RuntimeError: tensor.mH is only supported on matrices or batches of matrices. Got 1-D tensor.
+        xfail('linalg.cond'),
+        xfail('linalg.svdvals'),
+        xfail('norm', 'nuc'),
     })
     def test_vmapjvp(self, device, dtype, op):
         if is_inplace(op, op.get_op()):
@@ -759,6 +780,14 @@ class TestOperators(TestCase):
         # Some kind of issue with unsymmetric tangent type
         # Runtime Error: The tangent part of the matrix A should also be symmetric.
         xfail('linalg.eigh'),
+
+        # Issue with newer svd implementation and forwardAD
+        # https://github.com/pytorch/pytorch/pull/69827
+        # https://github.com/pytorch/pytorch/pull/70253
+        # RuntimeError: tensor.mH is only supported on matrices or batches of matrices. Got 1-D tensor.
+        xfail('linalg.cond'),
+        xfail('linalg.svdvals'),
+        xfail('norm', 'nuc'),
     })
     # This is technically a superset of test_vmapjvp. We should either delete test_vmapjvp
     # or figure out if we can split vmapjvpall. It's useful to keep test_vmapjvp intact
@@ -871,6 +900,15 @@ class TestOperators(TestCase):
         xfail('istft'),
         xfail('nn.functional.fractional_max_pool2d'),
         xfail('linalg.tensorsolve'),
+
+        # Issue with newer svd implementation and forwardAD
+        # https://github.com/pytorch/pytorch/pull/69827
+        # https://github.com/pytorch/pytorch/pull/70253
+        # RuntimeError: vmap: inplace arithmetic(self, *extra_args) is not possible because there
+        xfail('linalg.svd'),
+        xfail('svd'),
+        xfail('linalg.svdvals'),
+        xfail('norm', 'nuc'),
     }))
     def test_vmapvjp_has_batch_rule(self, device, dtype, op):
         if not op.supports_autograd:
@@ -907,7 +945,6 @@ class TestOperators(TestCase):
         xfail('clamp', ''),
         xfail('fill_'),
         xfail('index_put'),
-        xfail('linalg.svdvals'),
         xfail('lu_solve'),
         xfail('lu_unpack'),
         xfail('matrix_exp'),
@@ -920,6 +957,14 @@ class TestOperators(TestCase):
         xfail('as_strided'),
         xfail('nn.functional.fractional_max_pool2d'),
         skip('solve'),
+
+        # Issue with newer svd implementation and forwardAD
+        # https://github.com/pytorch/pytorch/pull/69827
+        # https://github.com/pytorch/pytorch/pull/70253
+        #
+        # RuntimeError: tensor.mH is only supported on matrices or batches of matrices. Got 1-D tensor.
+        xfail('linalg.cond'),
+        xfail('linalg.svdvals'),
     }))
     def test_vjpvmap(self, device, dtype, op):
         # NB: there is no vjpvmap_has_batch_rule test because that is almost
