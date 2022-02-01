@@ -181,7 +181,6 @@ class TestPythonKey(TestCase):
 make_fx_failures = {
     xfail('to_sparse'),
     xfail('allclose'),
-    xfail('rsub', 'rsub_scalar'),
     xfail('nn.functional.dropout'),
     xfail('linalg.eigvals'),
     xfail('nn.functional.ctc_loss'),
