@@ -191,7 +191,7 @@ namespace {
     values_ = ensure_has_bdim(values_, values_bdim.has_value(), batch_size);
     TORCH_INTERNAL_ASSERT(indices.size() == indices_bdims.size());
 
-    // we make sure that `self` has bdim at `0`.
+    // we've already made sure that self has bdim at 0.
     std::vector<optional<Tensor>> indices_ = batchIndices(indices, indices_bdims, batch_size, /*self_bdim=*/0, values_bdim);
 
     auto indexed_shape = get_indexed_shape(self_, List<optional<Tensor>>(indices_));
@@ -225,9 +225,10 @@ namespace {
     return std::make_tuple(self_, indices_, values_);
   }
 
-  auto index_put_plumbing_helper(const Tensor &self,
-                                 const List<optional<Tensor>> &indices,
-                                 const Tensor &values, int64_t cur_level) {
+  auto unpackSelfAndIndicesAndValuesAtCurrentLevel(const Tensor &self,
+                                                   const List<optional<Tensor>> &indices,
+                                                   const Tensor &values, int64_t cur_level)
+  {
     Tensor self_value;
     optional<int64_t> self_bdim;
     std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -283,7 +284,7 @@ Tensor& index_put__plumbing(Tensor & self, const List<optional<Tensor>> & indice
   std::vector<optional<Tensor>> indices_value;
   std::vector<optional<int64_t>> indices_bdims;
   std::tie(self_value, self_bdim, indices_value, indices_bdims, values_value, values_bdim) =
-      index_put_plumbing_helper(self, indices, values, cur_level);
+      unpackSelfAndIndicesAndValuesAtCurrentLevel(self, indices, values, cur_level);
   index_put__batch_rule(self_value, self_bdim, indices_value, indices_bdims, values_value, values_bdim, accumulate);
   return self;
 }
@@ -319,7 +320,7 @@ Tensor &_index_put_impl__plumbing(Tensor &self, const List<optional<Tensor>> &in
   std::vector<optional<Tensor>> indices_value;
   std::vector<optional<int64_t>> indices_bdims;
   std::tie(self_value, self_bdim, indices_value, indices_bdims, values_value, values_bdim) =
-      index_put_plumbing_helper(self, indices, values, cur_level);
+      unpackSelfAndIndicesAndValuesAtCurrentLevel(self, indices, values, cur_level);
   _index_put_impl__batch_rule(self_value, self_bdim, indices_value, indices_bdims, values_value, values_bdim, accumulate, unsafe);
   return self;
 }
@@ -366,7 +367,7 @@ Tensor index_put_plumbing(const Tensor & self, const List<optional<Tensor>> & in
   std::vector<optional<Tensor>> indices_value;
   std::vector<optional<int64_t>> indices_bdims;
   std::tie(self_value, self_bdim, indices_value, indices_bdims, values_value, values_bdim) =
-      index_put_plumbing_helper(self, indices, values, cur_level);
+      unpackSelfAndIndicesAndValuesAtCurrentLevel(self, indices, values, cur_level);
   auto results = index_put_batch_rule(self_value, self_bdim, indices_value, indices_bdims, values_value, values_bdim, accumulate);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
