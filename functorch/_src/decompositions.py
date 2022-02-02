@@ -284,9 +284,7 @@ def var_decomposition(x, dims, correction=0, keepdim=False):
     if dims is None:
         dims = []
 
-    if isinstance(dims, int):
-        n = x.shape[dims]
-    elif isinstance(dims, (tuple, list)) and len(dims) == 0:
+    if isinstance(dims, (tuple, list)) and len(dims) == 0:
         n = x.numel()
     else:
         n = 1
@@ -306,6 +304,4 @@ def var_decomposition(x, dims, correction=0, keepdim=False):
 
 @register_decomposition(aten.std)
 def std_decomposition(x, dims, correction=0, keepdim=False):
-    if dims is None:
-        dims = []
     return aten.sqrt(aten.var(x, dims, correction=correction, keepdim=keepdim))
