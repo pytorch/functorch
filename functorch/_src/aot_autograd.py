@@ -366,19 +366,16 @@ def _reshape_alias(x, shape, strides):
     return aten.view(x, shape)
 
 
-def remove_unused_inputs(fx_g):
-    for idx, node in enumerate(fx_g.graph.nodes):
+def remove_unused_inputs(fx_module):
+    for node in fx_module.graph.nodes:
         if node.op == "placeholder" and len(node.users) == 0:
-            fx_g.graph.erase_node(node)
-    fx_g.graph.lint()
-    fx_g.recompile()
-    return fx_g
+            fx_module.graph.erase_node(node)
+    fx_module.graph.lint()
+    fx_module.recompile()
+    return fx_module
 
 
 def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, decompositions, static_argnums):
-    # putting these decompositions here since they shouldn't always be used
-    # Kinda sketchy ... we use torch.sub here to have the correct scalar => tensor promotion logic
-
     joint_forward_backward = create_joint_forward_backward(flat_fn)
 
     compiled_fw = None
@@ -406,11 +403,12 @@ def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, de
                 fw_module, bw_module = partition_fn(fx_g, joint_inputs)
                 # print(fw_module.code, bw_module.code)
 
-                # Clean up fwd_graph to remove static args
-                fw_module = remove_unused_inputs(fw_module)
-                # Remove static args from the end. Static args are not flattened are are present
-                # at the end of flat_args
-                flat_args = flat_args[0:-len(static_argnums)]
+                if static_argnums is not None:
+                    # Clean up fwd_graph to remove static args
+                    fw_module = remove_unused_inputs(fw_module)
+                    # Remove static args from the end. Static args are not flattened are are present
+                    # at the end of flat_args
+                    flat_args = flat_args[0 : -len(static_argnums)]
 
                 compiled_fw = fw_compiler(fw_module, flat_args)
                 fw_outs = normalize_as_list(compiled_fw(*flat_args))
@@ -418,7 +416,8 @@ def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, de
                 bw_args = fw_outs[num_outs:] + fw_outs[0:num_outs]
                 compiled_bw = bw_compiler(bw_module, bw_args)
             else:
-                flat_args = flat_args[0:-len(static_argnums)]
+                if static_argnums is not None:
+                    flat_args = flat_args[0 : -len(static_argnums)]
                 fw_outs = normalize_as_list(compiled_fw(*flat_args))
             ctx.save_for_backward(*fw_outs[num_outs:])
             return tuple(fw_outs[0:num_outs])
