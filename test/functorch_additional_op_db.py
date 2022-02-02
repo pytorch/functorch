@@ -349,9 +349,28 @@ def sample_inputs_index_put(op_info, device, dtype, requires_grad, **kwargs):
     S = 5
     inputs = []
     for accumulate in [False, True]:
+        # putting vectors at indexed locations
         inputs.append(SampleInput(
             make_arg((S, S)),
             args=((make_idx((2,), low=0, high=4),), make_arg((2, S))),
+            kwargs=dict(accumulate=accumulate)))
+
+        # putting multi-dim tensors at indexed locations
+        inputs.append(SampleInput(
+            make_arg((S, S, 2)),
+            args=((make_idx((3,), low=0, high=4),), make_arg((3, S, 2))),
+            kwargs=dict(accumulate=accumulate)))
+
+        # value with size `0` dim
+        inputs.append(SampleInput(
+            make_arg((S, 0)),
+            args=((make_idx((3,), low=0, high=4),), make_arg((3, 0))),
+            kwargs=dict(accumulate=accumulate)))
+
+        # scalar value
+        inputs.append(SampleInput(
+            make_arg((S,)),
+            args=((make_idx((), low=0, high=S),), make_arg(())),
             kwargs=dict(accumulate=accumulate)))
 
         # cuda and accumulate don't work well
