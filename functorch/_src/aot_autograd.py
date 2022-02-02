@@ -408,7 +408,7 @@ def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, de
                     fw_module = remove_unused_inputs(fw_module)
                     # Remove static args from the end. Static args are not flattened are are present
                     # at the end of flat_args
-                    flat_args = flat_args[0 : -len(static_argnums)]
+                    flat_args = flat_args[0: -len(static_argnums)]
 
                 compiled_fw = fw_compiler(fw_module, flat_args)
                 fw_outs = normalize_as_list(compiled_fw(*flat_args))
@@ -417,7 +417,7 @@ def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, de
                 compiled_bw = bw_compiler(bw_module, bw_args)
             else:
                 if static_argnums is not None:
-                    flat_args = flat_args[0 : -len(static_argnums)]
+                    flat_args = flat_args[0: -len(static_argnums)]
                 fw_outs = normalize_as_list(compiled_fw(*flat_args))
             ctx.save_for_backward(*fw_outs[num_outs:])
             return tuple(fw_outs[0:num_outs])
