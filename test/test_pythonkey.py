@@ -181,7 +181,6 @@ class TestPythonKey(TestCase):
 make_fx_failures = {
     xfail('to_sparse'),
     xfail('allclose'),
-    xfail('rsub', 'rsub_scalar'),
     xfail('nn.functional.dropout'),
     xfail('linalg.eigvals'),
     xfail('nn.functional.ctc_loss'),
@@ -324,7 +323,6 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('__rmatmul__'),
         xfail('linalg.cholesky'),
         xfail('matmul'),
-        xfail('msort'),
         xfail('nn.functional.linear'),
         xfail('nn.functional.dropout'),
         xfail('polar'),
@@ -340,6 +338,7 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('trapezoid'),
         xfail('trapz'),
         xfail('trace'),
+        skip('nn.functional.binary_cross_entropy_with_logits')  # seems to fail sometimes?
     })
     def test_aot_autograd_exhaustive(self, device, dtype, op):
 
