@@ -139,7 +139,7 @@ def _autograd_grad(outputs, inputs, grad_outputs=None, retain_graph=False, creat
 
 
 # How do we increment and decrement the nesting? I don't think we can.
-def vjp(func: Callable, *primals, has_aux: bool = False) -> Callable:
+def vjp(func: Callable, *primals, has_aux: bool = False):
     """
     Standing for the vector-Jacobian product, returns a tuple containing the
     results of :attr:`func` applied to :attr:`primals` and a function that, when
@@ -670,9 +670,7 @@ def safe_unpack_dual(dual, strict):
     return primal, tangent
 
 
-def jvp(
-    func: Callable, primals: Any, tangents: Any, *, strict: bool = False, has_aux: bool = False
-) -> Union[Tuple[Any, Any], Tuple[Any, Any, Any]]:
+def jvp(func: Callable, primals: Any, tangents: Any, *, strict: bool = False, has_aux: bool = False):
     """
     Standing for the Jacobian-vector product, returns a tuple containing
     the output of `func(*primals)` and the "Jacobian of ``func`` evaluated at
@@ -772,12 +770,12 @@ def jvp(
             tangents_out = tree_map(
                 partial(_undo_create_differentiable, level=level), tangents_out)
 
-            primals_out_unf = tree_unflatten(primals_out, spec)
-            tangents_out_unf = tree_unflatten(tangents_out, spec)
+            primals_out_unflatten = tree_unflatten(primals_out, spec)
+            tangents_out_unflatten = tree_unflatten(tangents_out, spec)
             if has_aux:
-                return primals_out_unf, tangents_out_unf, aux
+                return primals_out_unflatten, tangents_out_unflatten, aux
 
-            return primals_out_unf, tangents_out_unf
+            return primals_out_unflatten, tangents_out_unflatten
     finally:
         _grad_decrement_nesting()
         JVP_NESTING -= 1
@@ -790,7 +788,7 @@ def safe_unflatten(tensor, dim, shape):
     return tensor.unflatten(dim, shape)
 
 
-def jacfwd(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Callable:
+def jacfwd(func: Callable, argnums: argnums_t = 0, has_aux: bool = False):
     """
     Computes the Jacobian of :attr:`func` with respect to the arg(s) at index
     :attr:`argnum` using forward-mode autodiff
@@ -1007,6 +1005,11 @@ def grad_and_value(func: Callable, argnums: argnums_t = 0, has_aux: bool = False
 
                 output = func(*args, **kwargs)
                 if has_aux:
+                    if not (isinstance(output, tuple) and len(output) == 2):
+                        raise RuntimeError(
+                            "grad_and_value(f)(*args): output of function f should be a tuple: (output, aux) "
+                            "if has_aux is True"
+                        )
                     output, aux = output
 
                 if not isinstance(output, torch.Tensor):
