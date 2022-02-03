@@ -18,7 +18,8 @@ from functorch import (
 )
 from functorch.compile import (
     nnc_jit, compiled_function, compiled_module,
-    partition_with_recompute_fwd_in_bwd, aot_function, aot_module, decomposition_table
+    partition_with_recompute_fwd_in_bwd, aot_function, aot_module, decomposition_table, nop,
+    num_of_recompilations
 )
 
 from torch.testing._internal.common_device_type import ops
@@ -225,10 +226,6 @@ class TestPythonKeyOperatorsOpInfo(TestCase):
             pass
 
 
-def _nop_compile(x, _):
-    return x
-
-
 def _outs_and_grads(fn, inps):
     outs = fn(*inps)
     for out in pytree.tree_flatten(outs)[0]:
@@ -243,11 +240,12 @@ def _outs_and_grads(fn, inps):
 class TestAOTAutograd(TestCase):
     def verify_aot_autograd(self, f, inp):
         if isinstance(f, nn.Module):
-            compiled_f = aot_module(f, _nop_compile, _nop_compile)
+            compiled_f = aot_module(f, nop)
         else:
-            compiled_f = aot_function(f, _nop_compile, _nop_compile)
+            compiled_f = aot_function(f, nop)
         ref_out, ref_grad = _outs_and_grads(f, inp)
         test_out, test_grad = _outs_and_grads(compiled_f, inp)
+        import pdb; pdb.set_trace()
         self.assertEqual(ref_out, test_out)
         self.assertEqual(ref_grad, test_grad)
 
@@ -278,6 +276,34 @@ class TestAOTAutograd(TestCase):
             inps = [i() for i in inps]
             self.verify_aot_autograd(f, inps)
 
+    def test_inner_grad(self):
+        def foo(x):
+            y = torch.exp(x)
+            z = torch.autograd.grad(y, x)
+            return z
+        inps = [torch.randn((), requires_grad=True)]
+        self.verify_aot_autograd(foo, inps)
+
+    def test_grad_context(self):
+        def foo(x):
+            return x * 2
+        inps = [torch.randn((), requires_grad=True)]
+        graph_size = None
+        def assert_graph_empty(fx_g, _):
+            nonlocal graph_size
+            graph_size = len(fx_g.graph.nodes)
+            return fx_g
+
+        start_recompilations = num_of_recompilations()
+        f = aot_function(foo, nop, assert_graph_empty)
+        with torch.set_grad_enabled(False):
+            f(*inps)
+        self.assertEqual(graph_size, 2)
+        with torch.set_grad_enabled(True):
+            f(*inps)
+        self.assertTrue(graph_size > 2)
+        self.assertEqual(num_of_recompilations - start_recompilations, 2)
+
     def test_output_dict(self):
         def f(x):
             return {'a': x, 'b': x}
@@ -299,7 +325,7 @@ class TestAOTAutograd(TestCase):
 
     def test_module(self):
         mod = nn.Sequential(nn.Linear(32, 32), nn.ReLU())
-        compiled_mod = compiled_module(mod, _nop_compile, _nop_compile)
+        compiled_mod = compiled_module(mod, nop, nop)
         inp = torch.randn(32, 32)
         ref_out = mod(inp)
         ref_out.sum().backward()
@@ -310,7 +336,7 @@ class TestAOTAutograd(TestCase):
         self.assertEqual((out, grads), (ref_out, ref_grads))
 
     def test_batchnorm(self):
-        mod = compiled_module(nn.BatchNorm2d(4), _nop_compile, _nop_compile)
+        mod = compiled_module(nn.BatchNorm2d(4), nop, nop)
         x = torch.ones(1, 4, 2, 2)
         mod(x).sum().backward()
 

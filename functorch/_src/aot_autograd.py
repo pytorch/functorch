@@ -88,7 +88,7 @@ def _reshape_alias(x, shape, strides):
     return aten.view(x, shape)
 
 
-def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, decompositions):
+def create_aot_autograd_function(flat_fn, fw_compiler, bw_compiler, partition_fn, decompositions, grad_state):
     joint_forward_backward = create_joint_forward_backward(flat_fn)
 
     compiled_fw = None
@@ -100,8 +100,8 @@ def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, de
         def forward(ctx, *flat_tensor_args):
             nonlocal compiled_fw, compiled_bw, num_outs
             if compiled_fw is None:
-                with torch.enable_grad():
-                    out = flat_fn(*flat_tensor_args)
+                with torch.set_grad_enabled(grad_state):
+                    out = flat_fn(*flat_args)
                 out = pytree.tree_map(lambda x: x.detach() if isinstance(x, Tensor) else x, out)
 
                 if isinstance(out, (list, tuple)):
@@ -111,7 +111,7 @@ def create_compiled_function(flat_fn, fw_compiler, bw_compiler, partition_fn, de
 
                 joint_inputs = (flat_tensor_args, out)
                 aot_decompositions = {**aot_autograd_decompositions, **decompositions}
-                with torch.enable_grad():
+                with torch.set_grad_enabled(grad_state):
                     fx_g = make_fx(joint_forward_backward, aot_decompositions)(*joint_inputs)
                 fw_module, bw_module = partition_fn(fx_g, joint_inputs)
                 # print(fw_module.code, bw_module.code)
@@ -301,12 +301,12 @@ def aot_function(
                     args = rearrange(tensor_args, static_args, static_argnums)
 
                 tree_out = fn(*args, **kwargs)
-                flat_out = pytree.tree_flatten(tree_out)
-                out_spec.set(flat_out[1])
-                return flat_out[0]
+                flat_out, spec = pytree.tree_flatten(tree_out)
+                out_spec.set(spec)
+                return flat_out
 
-            compiled_fn = create_compiled_function(
-                flat_fn, fw_compiler, bw_compiler, partition_fn, decompositions
+            compiled_fn = create_aot_autograd_function(
+                flat_fn, fw_compiler, bw_compiler, partition_fn, decompositions, grad_state=torch.is_grad_enabled()
             ).apply
             cached_res = (compiled_fn, out_spec)
 
