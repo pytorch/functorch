@@ -174,7 +174,7 @@ for cl in [DropoutResBias, BiasReluDropout, DropoutResBiasScalar, BiasDropoutRes
             static_argnums.append(idx)
 
     # Get the optimized function
-    opt_fn = fusion(fn, memory_efficient_fusion=True, static_argnums)
+    opt_fn = fusion(fn, memory_efficient_fusion=True, static_argnums=static_argnums)
 
     # Profile cuda kernels
     benchmark_helper.profile_cuda_kernels(fn, args, "Eager")
