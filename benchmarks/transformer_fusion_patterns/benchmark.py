@@ -1,6 +1,6 @@
 import torch
 import time
-from functorch.compile import memory_efficient_fusion, clear_compile_cache
+from functorch.compile import fusion, clear_compile_cache
 import benchmark_helper
 
 
@@ -174,7 +174,7 @@ for cl in [DropoutResBias, BiasReluDropout, DropoutResBiasScalar, BiasDropoutRes
             static_argnums.append(idx)
 
     # Get the optimized function
-    opt_fn = memory_efficient_fusion(fn, static_argnums)
+    opt_fn = fusion(fn, memory_efficient_fusion=True, static_argnums)
 
     # Profile cuda kernels
     benchmark_helper.profile_cuda_kernels(fn, args, "Eager")
