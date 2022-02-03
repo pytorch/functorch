@@ -288,6 +288,7 @@ class TestAOTAutograd(TestCase):
             return x * 2
         inps = [torch.randn((), requires_grad=True)]
         graph_size = None
+
         def assert_graph_empty(fx_g, _):
             nonlocal graph_size
             graph_size = len(fx_g.graph.nodes)
@@ -393,9 +394,6 @@ class TestEagerFusionOpInfo(TestCase):
             def get_grads(args):
                 return pytree.tree_map(lambda x: x.grad, args)
 
-            def nop(f, _):
-                # print(f.code)
-                return f
             compiled_f = compiled_function(f, nop, nop)
 
             reset_grads()
