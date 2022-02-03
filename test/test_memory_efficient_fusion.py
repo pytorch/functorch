@@ -1,6 +1,6 @@
 import torch
 from torch.nn import functional as F
-from functorch.compile import memory_efficient_fusion
+from functorch.compile import fusion
 from torch.testing._internal.common_utils import TestCase, run_tests
 import inspect
 from typing import Callable
@@ -57,7 +57,7 @@ def run_and_compare_activation(fn, shape):
     ref = fn(*ref_args)
     ref.sum().backward()
 
-    mem_optimized_fn = memory_efficient_fusion(fn)
+    mem_optimized_fn = fusion(fn, memory_efficient_fusion=True)
     res = mem_optimized_fn(*res_args)
     res.sum().backward()
 
