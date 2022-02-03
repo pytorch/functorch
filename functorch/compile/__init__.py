@@ -16,7 +16,7 @@ from .._src.compilers import (
     draw_graph_compile,
     nop,
     nnc_jit,
-    memory_efficient_fusion,
+    fusion,
     debug_compile,
 )
 from .._src.partitioners import (
