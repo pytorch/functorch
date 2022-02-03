@@ -101,7 +101,7 @@ def create_aot_autograd_function(flat_fn, fw_compiler, bw_compiler, partition_fn
             nonlocal compiled_fw, compiled_bw, num_outs
             if compiled_fw is None:
                 with torch.set_grad_enabled(grad_state):
-                    out = flat_fn(*flat_args)
+                    out = flat_fn(*flat_tensor_args)
                 out = pytree.tree_map(lambda x: x.detach() if isinstance(x, Tensor) else x, out)
 
                 if isinstance(out, (list, tuple)):

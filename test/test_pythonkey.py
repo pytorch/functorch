@@ -245,7 +245,6 @@ class TestAOTAutograd(TestCase):
             compiled_f = aot_function(f, nop)
         ref_out, ref_grad = _outs_and_grads(f, inp)
         test_out, test_grad = _outs_and_grads(compiled_f, inp)
-        import pdb; pdb.set_trace()
         self.assertEqual(ref_out, test_out)
         self.assertEqual(ref_grad, test_grad)
 
