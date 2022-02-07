@@ -14,6 +14,7 @@ Function Transforms
     hessian
     jacrev
     jacfwd
+    jvp
     vmap
     vjp
 

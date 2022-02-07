@@ -176,7 +176,7 @@ html_theme_options = {
 html_static_path = ['_static']
 
 html_css_files = [
-    'css/jit.css',
+    'css/custom.css',
 ]
 
 
