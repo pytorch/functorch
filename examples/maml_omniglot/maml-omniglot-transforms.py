@@ -89,15 +89,15 @@ def main():
     inplace_relu = True
     net = nn.Sequential(
         nn.Conv2d(1, 64, 3),
-        nn.GroupNorm(32, 64, affine=True),
+        nn.BatchNorm2d(64, momentum=1, affine=True, track_running_stats=False),
         nn.ReLU(inplace=inplace_relu),
         nn.MaxPool2d(2, 2),
         nn.Conv2d(64, 64, 3),
-        nn.GroupNorm(32, 64, affine=True),
+        nn.BatchNorm2d(64, momentum=1, affine=True, track_running_stats=False),
         nn.ReLU(inplace=inplace_relu),
         nn.MaxPool2d(2, 2),
         nn.Conv2d(64, 64, 3),
-        nn.GroupNorm(32, 64, affine=True),
+        nn.BatchNorm2d(64, momentum=1, affine=True, track_running_stats=False),
         nn.ReLU(inplace=inplace_relu),
         nn.MaxPool2d(2, 2),
         Flatten(),

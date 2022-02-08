@@ -15,19 +15,18 @@ import unittest
 import warnings
 import math
 from torch.testing._internal.common_device_type import instantiate_device_type_tests, onlyCPU
+from functorch.experimental.batch_norm_replacement import replace_all_batch_norm_modules
 from torch.testing._internal.common_dtype import get_all_fp_dtypes
 from functools import partial
+from functorch.experimental import copy_and_replace_all_batch_norm_modules, replace_all_batch_norm_modules
 
 import functorch
 from functorch import (
-    grad, vjp, vmap, jacrev, grad_and_value,
+    grad, vjp, vmap, jacrev, jacfwd, grad_and_value,
     make_functional, make_functional_with_buffers,
 )
 from functorch._src.make_functional import (
     functional_init, functional_init_with_buffers,
-)
-from functorch.experimental import (
-    jvp, jacfwd, hessian,
 )
 from functorch._src.eager_transforms import _argnums_partial
 from functorch._src.custom_function import custom_vjp
@@ -2109,24 +2108,20 @@ class TestExamplesCorrectness(TestCase):
         n_inner_iter = 2
         num_tasks = 2
 
-        class Flatten(nn.Module):
-            def forward(self, input):
-                return input.view(input.size(0), -1)
-
         net = nn.Sequential(
             nn.Conv2d(1, 64, 3),
-            nn.GroupNorm(64, 64, affine=True),
+            nn.BatchNorm2d(64, momentum=1, affine=True, track_running_stats=False),
             nn.ReLU(inplace=inplace_relu),
             nn.MaxPool2d(2, 2),
             nn.Conv2d(64, 64, 3),
-            nn.GroupNorm(64, 64, affine=True),
+            nn.BatchNorm2d(64, momentum=1, affine=True, track_running_stats=False),
             nn.ReLU(inplace=inplace_relu),
             nn.MaxPool2d(2, 2),
             nn.Conv2d(64, 64, 3),
-            nn.GroupNorm(64, 64, affine=True),
+            nn.BatchNorm2d(64, momentum=1, affine=True, track_running_stats=False),
             nn.ReLU(inplace=inplace_relu),
             nn.MaxPool2d(2, 2),
-            Flatten(),
+            nn.Flatten(),
             nn.Linear(64, n_way)).to(device).to(dtype)
 
         fnet, params, buffers = make_functional_with_buffers(net)
@@ -2173,6 +2168,112 @@ class TestExamplesCorrectness(TestCase):
         losses = [compute_loss(x_spt[i], y_spt[i], x_qry[i], y_qry[i])[0]
                   for i in range(num_tasks)]
         expected_grads = torch.autograd.grad(sum(losses), params)
+
+        self.assertEqual(result_grads, expected_grads)
+
+    def test_maml_omniglot_minimal_repro(self, device):
+        # TODO: there appears to be precision issues for float32
+        dtype = torch.double
+
+        n_way = 5
+        n_inner_iter = 2
+        num_tasks = 2
+
+        net = nn.Sequential(
+            nn.Conv2d(1, 64, 3),
+            nn.BatchNorm2d(64, momentum=1, affine=True, track_running_stats=False),
+            nn.Flatten(),
+            nn.Linear(43264, n_way)).to(device).to(dtype)
+
+        fnet, params, buffers = make_functional_with_buffers(net)
+        net = (params, buffers, fnet)
+
+        def loss_for_task(net, n_inner_iter, use_transform, x_spt, y_spt, x_qry, y_qry):
+            params, buffers, fnet = net
+            querysz = x_qry.size(0)
+
+            def compute_loss(new_params, buffers, x, y):
+                logits = fnet(new_params, buffers, x)
+                loss = F.cross_entropy(logits, y)
+                return loss
+
+            new_params = params
+            for _ in range(n_inner_iter):
+                if use_transform:
+                    grads = grad(compute_loss)(new_params, buffers, x_spt, y_spt)
+                else:
+                    res = compute_loss(new_params, buffers, x_spt, y_spt)
+                    grads = torch.autograd.grad(res, new_params, create_graph=True)
+                new_params = [p - g * 1e-1 for p, g, in zip(new_params, grads)]
+
+            qry_logits = fnet(new_params, buffers, x_qry)
+            qry_loss = F.cross_entropy(qry_logits, y_qry)
+            qry_acc = (qry_logits.argmax(
+                dim=1) == y_qry).sum() / querysz
+
+            return qry_loss, qry_acc
+
+        # Get some sample inputs...
+        x_spt = torch.randn(num_tasks, 25, 1, 28, 28, dtype=dtype, device=device)
+        y_spt = torch.randint(0, 5, (num_tasks, 25), device=device)
+        x_qry = torch.randn(num_tasks, 75, 1, 28, 28, dtype=dtype, device=device)
+        y_qry = torch.randint(0, 5, (num_tasks, 75), device=device)
+
+        # compute with vmap + grad
+        compute_loss = partial(loss_for_task, net, n_inner_iter, True)
+        qry_losses, _ = vmap(compute_loss)(x_spt, y_spt, x_qry, y_qry)
+        result_grads = torch.autograd.grad(qry_losses.sum(), params)
+
+        # compute without vmap + grad
+        compute_loss = partial(loss_for_task, net, n_inner_iter, False)
+        losses = [compute_loss(x_spt[i], y_spt[i], x_qry[i], y_qry[i])[0]
+                  for i in range(num_tasks)]
+        expected_grads = torch.autograd.grad(sum(losses), params)
+
+        self.assertEqual(result_grads[2:], expected_grads[2:])  # should pass
+        self.assertEqual(result_grads[:2], expected_grads[:2])  # should fail
+
+    @parametrize('copy', [True, False])
+    @parametrize('originally_track_running_stats', [True, False])
+    def test_update_batch_norm(self, device, copy, originally_track_running_stats):
+        dtype = torch.double
+        inplace_relu = False
+        classes = 5
+        num_batches = 2
+        net = nn.Sequential(
+            nn.Conv2d(64, 64, 3),
+            nn.BatchNorm2d(64, affine=True, track_running_stats=originally_track_running_stats),
+            nn.ReLU(inplace=inplace_relu),
+            nn.Flatten(),
+            nn.Linear(43264, classes)).to(device).to(dtype)
+
+        if copy:
+            transformed_net = copy_and_replace_all_batch_norm_modules(net)
+            assert transformed_net is not net
+        else:
+            replace_all_batch_norm_modules(net)
+            transformed_net = net
+        fnet, params, buffers = make_functional_with_buffers(transformed_net)
+        net = (params, buffers, fnet)
+        criterion = nn.CrossEntropyLoss()
+
+        def compute_loss(x, y, params, buffers):
+            return criterion(fnet(params, buffers, x), y)
+
+        # Get some sample inputs...
+        x = torch.randn(num_batches, 1, 64, 28, 28, device=device, dtype=dtype)
+        y = torch.randint(0, classes, (num_batches, 1), device=device)
+
+        # compute some per sample grads with vmap + grad
+        result_grads = vmap(grad(compute_loss, argnums=2), in_dims=(0, 0, None, None))(x, y, params, buffers)
+
+        # compute some per sample grads without vmap + grad
+        fnet, params, buffers = make_functional_with_buffers(transformed_net)
+        expected_grads = [
+            torch.autograd.grad(compute_loss(x[i], y[i], params, buffers), params)
+            for i in range(num_batches)
+        ]
+        expected_grads = [torch.stack(shards) for shards in zip(*expected_grads)]
 
         self.assertEqual(result_grads, expected_grads)
 
