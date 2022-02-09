@@ -327,7 +327,6 @@ class TestOperators(TestCase):
         skip('nn.functional.rrelu'),  # randomness testing artifact; not actually a problem
         skip('nn.functional.fractional_max_pool2d'),  # fails on cuda, runs okay on cpu
         skip('nn.functional.fractional_max_pool3d'),  # fails on cuda, runs okay on cpu
-        skip('nn.functional.max_pool1d'),  # fails on cpu, runs okay on cuda
         xfail('nn.functional.batch_norm', device_type='cuda'),
         xfail('nn.functional.batch_norm', 'without_cudnn', device_type='cuda'),
         skip('nn.functional.conv_transpose3d', device_type='cuda'),
@@ -343,8 +342,7 @@ class TestOperators(TestCase):
         # (check derivatives.yaml).
         xfail('var_mean'),
         xfail('std_mean'),
-        # https://gist.github.com/zou3519/f62a167fb46cda01d7f238f61dd9ccf9
-        xfail('linalg.eigvalsh'),
+
         # https://gist.github.com/zou3519/b86616d01ca375a4bd17403277f49225
         xfail('nn.functional.dropout', device_type='cuda'),
 
@@ -356,8 +354,8 @@ class TestOperators(TestCase):
 
         # Composite ops that do bad things. Need to be fixed in PyTorch core.
         # RuntimeError: Cannot access data pointer of Tensor that doesn't have storage
-        xfail('linalg.eigvals'),
         xfail('tensor_split'),
+        xfail('nn.functional.max_pool1d'),
 
         # Causing a CUDA assert, needs investigation
         skip('div', 'floor_rounding', device_type='cuda'),
@@ -371,6 +369,7 @@ class TestOperators(TestCase):
         # Some kind of issue with unsymmetric tangent type
         # Runtime Error: The tangent part of the matrix A should also be symmetric.
         xfail('linalg.eigh'),
+        xfail('linalg.eigvalsh'),
 
 
     }))
