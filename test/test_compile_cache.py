@@ -608,6 +608,62 @@ class TestCompileCacheStaticArgs(TestCase):
         total_recomps = end_num_recomps - start_num_recomps
         assert total_recomps == 2
 
+    def test_arg_none(self):
+        def check(a, b, c, aot_autograd_fn, fn):
+
+            ref = fn(a, b, c)
+            res = aot_autograd_fn(a, b, c)
+            assert torch.allclose(res, ref)
+
+            a_clone = a.clone().detach().requires_grad_(True)
+            ref.sum().backward()
+
+            res = aot_autograd_fn(a_clone, b, c)
+            res.sum().backward()
+            assert torch.allclose(res, ref)
+            assert torch.allclose(a.grad, a_clone.grad)
+
+        def fn(a, b, c):
+            if c is None:
+                return a + b
+            elif b is None:
+                return a + c
+            return a + b + c
+
+        functorch.compile.clear_compile_cache()
+
+        start_num_recomps = functorch.compile.num_of_recompilations()
+
+        aot_autograd_f = aot_function(fn, nop, nop)
+
+        a = torch.randn(2, 2, requires_grad=True)
+        b = torch.randn(2, 2, requires_grad=True)
+        c = None
+        check(a, b, c, aot_autograd_f, fn)
+
+        # Change b to None. Trigger recompilation
+        a = torch.randn(2, 2, requires_grad=True)
+        b = None
+        c = torch.randn(2, 2, requires_grad=True)
+        check(a, b, c, aot_autograd_f, fn)
+
+        # Same type of args, so no recompilation
+        a = torch.randn(2, 2, requires_grad=True)
+        b = torch.randn(2, 2, requires_grad=True)
+        c = None
+        check(a, b, c, aot_autograd_f, fn)
+
+        # Trigger recompilation
+        a = torch.randn(2, 2, requires_grad=True)
+        b = torch.randn(2, 2, requires_grad=True)
+        c = torch.randn(2, 2, requires_grad=True)
+        check(a, b, c, aot_autograd_f, fn)
+
+        end_num_recomps = functorch.compile.num_of_recompilations()
+
+        total_recomps = end_num_recomps - start_num_recomps
+        assert total_recomps == 3
+
 
 if __name__ == "__main__":
     run_tests()
