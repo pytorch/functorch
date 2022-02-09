@@ -18,7 +18,7 @@ from functorch import (
 )
 from functorch.compile import (
     nnc_jit, compiled_function, compiled_module,
-    partition_with_recompute_fwd_in_bwd, aot_function, aot_module, decomposition_table, nop,
+    min_cut_rematerialization_partition, aot_function, aot_module, decomposition_table, nop,
     num_of_recompilations
 )
 
@@ -283,6 +283,7 @@ class TestAOTAutograd(TestCase):
         inps = [torch.randn((), requires_grad=True)]
         self.verify_aot_autograd(foo, inps)
 
+    # @unittest.expectedFailure
     def test_grad_context(self):
         def foo(x):
             return x * 2
@@ -302,7 +303,7 @@ class TestAOTAutograd(TestCase):
         with torch.set_grad_enabled(True):
             f(*inps)
         self.assertTrue(graph_size > 2)
-        self.assertEqual(num_of_recompilations - start_recompilations, 2)
+        self.assertEqual(num_of_recompilations() - start_recompilations, 2)
 
     def test_output_dict(self):
         def f(x):
@@ -349,6 +350,7 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('__rmatmul__'),
         xfail('linalg.cholesky'),
         xfail('matmul'),
+        skip('msort'),
         xfail('nn.functional.linear'),
         xfail('nn.functional.dropout'),
         xfail('polar'),
@@ -438,7 +440,7 @@ class TestPartitioning(TestCase):
         def compile_fn(x, _):
             return x
 
-        compiled_fn = compiled_function(fn, compile_fn, compile_fn, partition_with_recompute_fwd_in_bwd)
+        compiled_fn = compiled_function(fn, compile_fn, compile_fn, min_cut_rematerialization_partition)
         res = compiled_fn(res_a, res_b)
         res.sum().backward()
         assert torch.allclose(ref, res, atol=1e-3, rtol=1e-3)
