@@ -558,9 +558,9 @@ class TestGradTransform(TestCase):
 
         for aux in [1, 1.0, "abc"]:
             with self.assertRaisesRegex(RuntimeError, r"Expected tensors, got unsupported type"):
-                _ = grad(lambda x: (x, aux), has_aux=True)(x)
+                _ = grad(lambda x: (x.sum(), aux), has_aux=True)(x)
             with self.assertRaisesRegex(RuntimeError, r"Expected tensors, got unsupported type"):
-                _ = grad(lambda x: (x, [x, aux]), has_aux=True)(x)
+                _ = grad(lambda x: (x.sum(), [x, aux]), has_aux=True)(x)
 
     def test_zero_grad(self, device):
         def f(x):
