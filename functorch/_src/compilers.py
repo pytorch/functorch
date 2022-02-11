@@ -1,8 +1,9 @@
 import torch
 from functools import partial
 from typing import Iterable
-from .aot_autograd import draw_graph, aot_function, partition_with_recompute_fwd_in_bwd, aot_module
+from .aot_autograd import aot_function, aot_module
 from .decompositions import decomposition_table
+from .partitioners import draw_graph, min_cut_rematerialization_partition
 import time
 
 
@@ -38,22 +39,6 @@ def ts_compile(fx_g, _):
 
     f = torch.jit.script(fx_g)
 
-    # Works around alias analysis issues in TS
-    # graph = f.graph
-    # outputs = list(graph.outputs())
-    # output = outputs[0]
-    # graph.eraseOutput(0)
-    # outputs = list(output.node().inputs())
-    # for inp in output.node().inputs():
-    #     graph.registerOutput(inp)
-    # output.node().destroy()
-    # torch._C._jit_pass_remove_mutation(graph)
-    # for i in range(len(list(graph.outputs()))):
-    #     graph.eraseOutput(0)
-    # node = graph.create("prim::ListConstruct", outputs)
-    # graph.appendNode(node)
-    # node.output().setType(torch._C.ListType.ofTensors())
-    # graph.registerOutput(node.output())
     torch._C._jit_pass_remove_mutation(f.graph)
 
     f = torch.jit.freeze(f.eval())
@@ -121,8 +106,9 @@ def tensorexpr_compile(fx_module, flat_args):
     return f
 
 
-def _draw_graph_compile(fx_g, _, name):
-    draw_graph(fx_g, name)
+def _draw_graph_compile(fx_g, _, name, clear_meta=True):
+    print(fx_g.code)
+    draw_graph(fx_g, name, clear_meta=clear_meta)
     return fx_g
 
 
@@ -223,8 +209,8 @@ def simple_ts_compile(fx_g, _):
     return f
 
 
-def nnc_jit(f):
-    return aot_function(f, simple_ts_compile)
+def nnc_jit(f, static_argnums=None):
+    return aot_function(f, simple_ts_compile, static_argnums=static_argnums)
 
 
 aten = torch.ops.aten
@@ -244,6 +230,11 @@ default_decompositions = set([
 default_decompositions = {k: v for k, v in decomposition_table.items() if k in default_decompositions}
 
 
+def print_compile(fx_g, _):
+    print(fx_g.code)
+    return fx_g
+
+
 def memory_efficient_fusion(fn, static_argnums=None):
     """
     Recomputes the fwd pass in the bwd pass to perform memory efficient fusion.
@@ -252,7 +243,7 @@ def memory_efficient_fusion(fn, static_argnums=None):
     config = {
         'fw_compiler': ts_compile,
         'bw_compiler': ts_compile,
-        'partition_fn': partition_with_recompute_fwd_in_bwd,
+        'partition_fn': min_cut_rematerialization_partition,
         'hasher_type': "StaticShapheHasher",
         'decompositions': default_decompositions,
         'static_argnums': static_argnums
@@ -261,3 +252,24 @@ def memory_efficient_fusion(fn, static_argnums=None):
         return aot_module(fn, **config)
     else:
         return aot_function(fn, **config)
+
+
+def debug_compile(fx_g, inps):
+    fx_g.to_folder('foo')
+    print(f"""
+##############################################################
+# To minimize FX graph, copy and paste the below and run it  #
+##############################################################
+
+import torch
+import torch.fx as fx
+from torch.compile import minimizer, check_nvfuser_subprocess
+
+inps = {[(i.shape, i.dtype) for i in inps]}
+from foo import FxModule
+mod = FxModule().cuda()
+with torch.jit.fuser("fuser2"):
+  minimizer(fx.symbolic_trace(mod), inps, check_nvfuser_subprocess)
+""")
+
+    return ts_compile(fx_g, inps)

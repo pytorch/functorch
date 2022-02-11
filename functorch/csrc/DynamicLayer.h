@@ -22,7 +22,7 @@ struct TORCH_API DynamicLayer {
       DispatchKey key,
       int64_t layerId,
       optional<int64_t> batchSize = nullopt,
-      optional<bool> use_batched_random = nullopt,
+      optional<std::string> randomness = nullopt,
       optional<bool> prev_grad_mode = nullopt);
 
   DispatchKey key() const;
@@ -30,7 +30,7 @@ struct TORCH_API DynamicLayer {
 
   // Only valid for vmap
   int64_t batchSize() const;
-  bool useBatchedRandom() const;
+  std::string randomness() const;
 
   // only valid for grad-based transforms
   optional<bool> prevGradMode() const;
@@ -41,14 +41,14 @@ struct TORCH_API DynamicLayer {
   // Honestly these should be a union or some extendable metadata class.
   // Not doing that for now because I don't think we'll use this mechanism for very long.
   optional<int64_t> batchSize_;
-  optional<bool> useBatchedRandom_;
+  optional<std::string> randomness_;
   optional<bool> prevGradMode_;
 };
 
 TORCH_API int64_t initAndPushDynamicLayer(
     DispatchKey key,
     optional<int64_t> batch_size = nullopt,
-    optional<bool> use_batched_random = nullopt,
+    optional<std::string> randomness = nullopt,
     optional<bool> prev_grad_mode = nullopt);
 TORCH_API DynamicLayer popDynamicLayerAndDeleteMetadata();
 TORCH_API c10::optional<DynamicLayer> maybeCurrentDynamicLayer();
