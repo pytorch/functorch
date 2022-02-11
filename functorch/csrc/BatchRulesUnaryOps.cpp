@@ -10,11 +10,86 @@
 
 namespace at { namespace functorch {
 
+std::tuple<Tensor,optional<int64_t>>
+clone_batch_rule(
+    const Tensor& self,
+    optional<int64_t> self_bdim,
+    optional<MemoryFormat> memory_format) {
+  // Memory format support is a little tricky because vmap is allowed to move
+  // around batch dimensions and some memory formats are rank-dependent.
+  // Another weird case is:
+  // - a tensor with MemoryFormat::ChannelsLast MUST have 4 dimensions. Do we
+  //   allow the user to clone a Tensor with 3 logical dimensions and 1 batch
+  //   dim into a ChannelsLast Tensor? What about a Tensor with 3 logical dims
+  //   and N>1 batch dims?
+  TORCH_CHECK(!memory_format.has_value() || memory_format == MemoryFormat::Preserve
+      || memory_format == MemoryFormat::Contiguous,
+      "NYI: Tensor.clone(memory_format) inside vmap is only supported with ",
+      "memory_format torch.preserve_format or torch.contiguous_format (got ",
+      *memory_format, ")");
+
+  if (memory_format == MemoryFormat::Contiguous) {
+    // There is an ambiguity here when the batch dims are not at the front of
+    // the tensor.
+    // >>> x = torch.randn(3, B0, 5)
+    // >>> y = vmap(lambda x: x.clone(torch.contiguous_format), in_dims=1, out_dims=0)(x)
+    // >>> y[0].is_contiguous()
+    // ???
+    // Should we make the whole tensor contiguous, or should we
+    // make the non-batch dims contiguous? We've chosen the latter because
+    // philosophically vmap hides the batch dims and operates on a per-sample level.
+    auto self_ = moveBatchDimToFront(self, self_bdim);
+    auto result = at::clone(self_, memory_format);
+    return std::make_tuple(result, 0);
+  }
+
+  TORCH_INTERNAL_ASSERT(!memory_format.has_value() || memory_format == MemoryFormat::Preserve);
+  auto result = at::clone(self, memory_format);
+  return std::make_tuple(result, self_bdim);
+}
+
+std::tuple<Tensor,optional<int64_t>>
+contiguous_batch_rule(
+    const Tensor& self,
+    optional<int64_t> self_bdim,
+    MemoryFormat memory_format) {
+  TORCH_CHECK(memory_format == MemoryFormat::Contiguous,
+      "NYI: Tensor.contiguous(...) inside of vmap for memory_format other ",
+      "than torch.contiguous_format");
+  auto self_ = moveBatchDimToFront(self, self_bdim);
+  auto result = self_.contiguous(memory_format);
+  return std::make_tuple(result, 0);
+}
+
+std::tuple<Tensor,optional<int64_t>>
+view_as_complex_batch_rule(const Tensor& self, optional<int64_t> self_bdim) {
+  // guard against the user passing in a batch of scalar tensors with batch
+  // size equal to 2.
+  TORCH_CHECK(self.sizes().size() > 1, "Input tensor must have one or more dimensions");
+
+  auto self_ = moveBatchDimToFront(self, self_bdim);
+  auto result = at::view_as_complex(self_);
+  return std::make_tuple(result, 0);
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
 
+#define UNARY_POINTWISE_ALL2(op, overload) \
+  POINTWISE_BOXED2(op ## _, overload); \
+  VMAP_SUPPORT2(op, overload, BASIC_UNARY_BATCH_RULE(ATEN_FN2(op, overload)));
 #define UNARY_POINTWISE_ALL(op) \
   POINTWISE_BOXED(op ## _); \
-  VMAP_SUPPORT(#op, BASIC_UNARY_BATCH_RULE(ATEN_FN(op)));
+  VMAP_SUPPORT(op, BASIC_UNARY_BATCH_RULE(ATEN_FN(op)));
+
+  UNARY_POINTWISE(imag);
+  UNARY_POINTWISE(real);
+  UNARY_POINTWISE(view_as_real);
+  VMAP_SUPPORT(view_as_complex, view_as_complex_batch_rule);
+  VMAP_SUPPORT(clone, clone_batch_rule);
+  VMAP_SUPPORT(contiguous, contiguous_batch_rule);
+  VMAP_SUPPORT2(to, device, BASIC_UNARY_BATCH_RULE(ATEN_FN2(to, device)));
+  VMAP_SUPPORT2(to, dtype, BASIC_UNARY_BATCH_RULE(ATEN_FN2(to, dtype)));
+  VMAP_SUPPORT2(to, dtype_layout, BASIC_UNARY_BATCH_RULE(ATEN_FN2(to, dtype_layout)));
 
   UNARY_POINTWISE(_to_copy);
   UNARY_POINTWISE(alias);
@@ -32,6 +107,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   UNARY_POINTWISE_ALL(cosh);
   UNARY_POINTWISE(_conj);
   UNARY_POINTWISE_ALL(deg2rad);
+  UNARY_POINTWISE(detach);
   UNARY_POINTWISE_ALL(digamma);
   UNARY_POINTWISE_ALL(erf);
   UNARY_POINTWISE_ALL(exp);
@@ -60,6 +136,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   UNARY_POINTWISE_ALL(rad2deg);
   UNARY_POINTWISE_ALL(reciprocal);
   UNARY_POINTWISE_ALL(round);
+  UNARY_POINTWISE_ALL2(round, decimals);
   UNARY_POINTWISE_ALL(rsqrt);
   UNARY_POINTWISE_ALL(sgn);
   UNARY_POINTWISE_ALL(sign);
