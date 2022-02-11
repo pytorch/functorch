@@ -184,11 +184,6 @@ class TestVmapAPI(TestCase):
         with self.assertRaisesRegex(RuntimeError, msg):
             vmap(out_op)(tensor, tensor)
 
-        tensor = torch.randn(2)
-        # The fallback doesn't support TensorList
-        with self.assertRaisesRegex(RuntimeError, 'Batching rule not implemented'):
-            vmap(lambda t: torch.vstack([t]))(tensor)
-
         # Don't support non-tensor returns. This is a limitation of vmap;
         # functions that don't return tensors must be special cased
         with self.assertRaisesRegex(RuntimeError, 'Batching rule not implemented'):
@@ -3072,30 +3067,19 @@ class TestVmapBatchedGradient(Namespace.TestVmapBase):
 class TestVmapOperatorsOpInfo(TestCase):
     vmap_fail = {
         # These are ops that we can't generate fallbacks for
-        xfail('dsplit'),
         xfail('fill_'),
-        xfail('gradient'),
-        xfail('hsplit'),
         xfail('resize_'),
         xfail('resize_as_'),
         xfail('tensor_split'),
         xfail('to_sparse'),
-        xfail('vsplit'),
-        xfail('hstack'),
-        xfail('vstack'),
-        xfail('dstack'),
-        xfail('linalg.multi_dot'),
         xfail('nn.functional.dropout'),
         xfail('view_as_complex'),
-        xfail('H'),
-        xfail('mH'),
         xfail('masked_select'),
 
         # entries in here don't work and need to be fixed.
         # Each one of these is a bug
         xfail('svd', device_type='cuda'),
         xfail('linalg.svd', device_type='cuda'),
-        xfail('index_put'),
         xfail('matrix_exp'),
         xfail('lu_unpack'),
         xfail('histogramdd'),
@@ -3153,17 +3137,13 @@ class TestVmapOperatorsOpInfo(TestCase):
     @skipOps('TestVmapOperatorsOpInfo', 'test_op_has_batch_rule', vmap_fail.union({
         xfail('complex'),
         xfail('copysign'),
-        xfail('dsplit'),
         xfail('eig'),
-        xfail('fft.fftn'),
-        xfail('fft.hfft'),
-        xfail('fft.ifftn'),
         xfail('fill_'),
-        xfail('gradient'),
         xfail('histogram'),
-        xfail('hsplit'),
         xfail('index_fill'),
-        xfail('index_put'),
+        # `index_put` OpInfo in pytorch/pytorch has
+        # masked index as input which is not supported
+        xfail('index_put', ''),
         xfail('isin'),
         xfail('linalg.cholesky'),
         xfail('linalg.eigvals'),
@@ -3179,7 +3159,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('linalg.pinv', 'hermitian'),
         xfail('linalg.norm'),
         xfail('linalg.solve'),
-        xfail('linalg.svdvals'),
         xfail('linalg.tensorinv'),
         xfail('lu_solve'),
         xfail('lu_unpack'),
@@ -3192,36 +3171,23 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('put'),
         xfail('quantile'),
         xfail('renorm'),
-        xfail('repeat_interleave'),
         xfail('resize_as_'),
         xfail('take'),
-        xfail('take_along_dim'),
         xfail('tensor_split'),
         xfail('to_sparse'),
         xfail('vdot'),
-        xfail('vsplit'),
         xfail('__getitem__', ''),
         xfail('all'),
         xfail('any'),
         xfail('count_nonzero'),
-        xfail('dstack'),
-        xfail('hstack'),
-        xfail('linalg.multi_dot'),
         xfail('nanmean'),
-        xfail('vstack'),
         xfail('nn.functional.dropout'),
         xfail('resize_'),
         xfail('view_as_complex'),
         xfail('matrix_exp'),
         xfail('bucketize'),
-        xfail('fft.fft2'),
-        xfail('fft.hfft2'),
-        xfail('fft.hfftn'),
-        xfail('fft.ifft2'),
         xfail('fft.ihfft2'),
         xfail('fft.ihfftn'),
-        xfail('fft.irfft2'),
-        xfail('fft.rfft2'),
         xfail('allclose'),
         xfail('argwhere'),
         xfail('bfloat16', 'channels_last'),
@@ -3240,34 +3206,28 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('short', 'channels_last'),
         xfail('unique_consecutive'),
         xfail('unique'),
-        xfail('nn.functional.cosine_embedding_loss'),
         xfail('nn.functional.ctc_loss'),
         xfail('nn.functional.gaussian_nll_loss'),
-        xfail('nn.functional.hinge_embedding_loss'),
+        xfail('nn.functional.poisson_nll_loss'),
         xfail('nn.functional.huber_loss'),
         xfail('nn.functional.instance_norm'),
-        xfail('nn.functional.poisson_nll_loss'),
+        # We can get this to work on CUDA through decomposition,
+        # but fails on CPU due to max_pool1d_cpu not having a derivative
+        xfail('nn.functional.max_pool1d'),
         xfail('nn.functional.max_pool3d'),
         xfail('histc'),
         xfail('as_strided'),
         xfail('istft'),
         xfail('nonzero'),
-        xfail('ldexp'),
-        xfail('nn.functional.max_pool1d'),
-        xfail('sum_to_size'),
         xfail('nn.functional.fractional_max_pool2d'),
         xfail('stft'),
         xfail('linalg.solve_triangular'),
-        xfail('fft.ifftshift'),
-        xfail('combinations'),
         xfail('nn.functional.glu'),
         xfail('nn.functional.prelu'),
         xfail('isclose'),
         xfail('nn.functional.fractional_max_pool3d'),
-        xfail('nn.functional.rrelu'),
         xfail('nn.functional.bilinear'),
         xfail('nn.functional.embedding_bag'),
-        xfail('fft.fftshift'),
         xfail('linalg.tensorsolve'),
     }))
     def test_op_has_batch_rule(self, device, dtype, op):
@@ -3345,23 +3305,63 @@ class TestVmapOperatorsOpInfo(TestCase):
         test(self, op, (x, 4, weight, bias), in_dims=(0, None, 0, 0))
 
     def test_index_put(self, device):
-        # vfdev-5: Probably, we can remove this line. Flake8 reported as unused
-        # test = functools.partial(_vmap_test, check_propagates_grad=False)
-
-        x = torch.arange(3 * 4 * 5).reshape(3, 4, 5)
+        def test(f, t, idx, values):
+            base = f(t[0], idx[0], values[0])
+            self.assertEqual(vmap(f, in_dims=(0, 0, 0))(t, idx, values)[0], base)
+            self.assertEqual(vmap(f, in_dims=(0, None, None))(t, idx[0], values[0])[0], base)
+            self.assertEqual(vmap(f, in_dims=(0, None, 0))(t, idx[0], values)[0], base)
+            self.assertEqual(vmap(f, in_dims=(0, 0, None))(t, idx, values[0])[0], base)
 
         def f(x, y, z):
             x[y] = z
             return x
 
-        x = torch.randn(3, 4, 5)
-        y = torch.zeros((3, 2)).long()
-        z = torch.randn(3, 2, 5)
-        base = f(x[0], y[0], z[0])
-        self.assertEqual(vmap(f, in_dims=(0, 0, 0))(x, y, z)[0], base)
-        self.assertEqual(vmap(f, in_dims=(0, None, None))(x, y[0], z[0])[0], base)
-        self.assertEqual(vmap(f, in_dims=(0, None, 0))(x, y[0], z)[0], base)
-        self.assertEqual(vmap(f, in_dims=(0, 0, None))(x, y, z[0])[0], base)
+        x = torch.randn(3, 4, 5, device=device)
+        y = torch.zeros((3, 2), device=device).long()
+        z = torch.randn(3, 2, 5, device=device)
+        test(f, x, y, z)
+
+        # indexing innermost dim
+        def f(t, idx, values):
+            t[:, idx] = values
+            return t
+
+        t = torch.zeros((3, 2, 3))
+        values = torch.ones((3, 1, 2))
+        idx = torch.tensor([[1, 2]]).expand((3, 2))
+        test(f, t, idx, values)
+
+        # indexing middle dim
+        def f(t, idx, values):
+            t[:, idx, :] = values
+            return t
+
+        t = torch.zeros((3, 2, 3, 3))
+        values = torch.ones((3, 1, 2, 3))
+        idx = torch.tensor([[0, 2]]).expand((3, 2))
+        test(f, t, idx, values)
+
+        # indexing with slices
+        def f(t, values):
+            t[:, :2, :] = values
+            return t
+
+        base = f(t[0], values[0])
+        self.assertEqual(vmap(f, in_dims=(0, 0))(t, values)[0], base)
+        self.assertEqual(vmap(f, in_dims=(0, None))(t, values[0])[0], base)
+
+        # index_put_
+        tensor = torch.zeros(3, 3, 4)
+        value = torch.ones(3, 2)
+        idxs = (torch.tensor([[0], [1], [2]]), torch.tensor([[0]]), torch.tensor([1, 2]))
+        expected = torch.index_put_(tensor.clone(), idxs, value)
+
+        def f(t, idx, v):
+            torch.index_put_(t, idx, v)
+            return t
+
+        self.assertEqual(vmap(f, in_dims=(0, (None, None), 0))(tensor, idxs[1:], value), expected)
+        self.assertEqual(vmap(f, in_dims=(0, (None, None), None))(tensor, idxs[1:], value[0]), expected)
 
     @parametrize('training', [True, False])
     @parametrize('track_running_stats', [True, False])
