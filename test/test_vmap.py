@@ -3537,7 +3537,8 @@ class TestVmapOperatorsOpInfo(TestCase):
                 return
 
             if randomness == 'same' and batched_input:
-                with self.assertRaisesRegex(RuntimeError, r"Vmap does not currently support same randomness with a batched tensor input"):
+                regex = r"Vmap does not currently support same randomness with a batched tensor input"
+                with self.assertRaisesRegex(RuntimeError, regex):
                     vmap(op, in_dims=in_dims, randomness=randomness)(*args)
                 return
 
