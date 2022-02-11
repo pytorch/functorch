@@ -6,18 +6,20 @@
 | [**Documentation**](#documentation)
 | [**Future Plans**](#future-plans)
 
-**This library is currently under heavy development - if you have suggestions on the API or use-cases you'd like to be covered, please open an github issue or reach out. We'd love to hear about how you're using the library.**
+**This library is currently under heavy development - if you have suggestions
+on the API or use-cases you'd like to be covered, please open an github issue
+or reach out. We'd love to hear about how you're using the library.**
 
-`functorch` is a prototype of [JAX-like](https://github.com/google/jax)
-composable FUNCtion transforms for pyTORCH.
+`functorch` is [JAX-like](https://github.com/google/jax) composable function
+transforms for PyTorch.
 
 It aims to provide composable `vmap` and `grad` transforms that work with
-PyTorch modules and PyTorch autograd with good eager-mode performance. Because
-this project requires some investment, we'd love to hear from and work with
-early adopters to shape the design. Please reach out on the issue tracker
-if you're interested in using this for your project.
+PyTorch modules and PyTorch autograd with good eager-mode performance.
 
-In addition, there is experimental functionality to trace through these transformations using FX in order to capture the results of these transforms ahead of time. This would allow us to compile the results of vmap or grad to improve performance.
+In addition, there is experimental functionality to trace through these
+transformations using FX in order to capture the results of these transforms
+ahead of time. This would allow us to compile the results of vmap or grad
+to improve performance.
 
 ## Why composable function transforms?
 
@@ -29,7 +31,7 @@ PyTorch today:
 - efficiently computing Jacobians and Hessians
 - efficiently computing batched Jacobians and Hessians
 
-Composing `vmap`, `grad`, and `vjp` transforms allows us to express the above
+Composing `vmap`, `grad`, `vjp`, and `jvp` transforms allows us to express the above
 without designing a separate subsystem for each. This idea of composable function
 transforms comes from the [JAX framework](https://github.com/google/jax).
 
@@ -110,6 +112,19 @@ pytest test/test_vmap.py -v
 pytest test/test_eager_transforms.py -v
 ```
 
+To do devel install:
+
+```
+pip install -e .
+```
+
+To install with optional dependencies, e.g. for AOTAutograd:
+
+```
+pip install -e .[aot]
+```
+
+
 </p>
 </details>
 
@@ -147,7 +162,8 @@ assert torch.allclose(y, x.sin())
 ## What are the transforms?
 
 Right now, we support the following transforms:
-- `grad`, `vjp`, `jacrev`
+- `grad`, `vjp`, `jvp`,
+- `jacrev`, `jacfwd`, `hessian`
 - `vmap`
 
 Furthermore, we have some utilities for working with PyTorch modules.
@@ -218,7 +234,7 @@ inputs = (weights,examples, targets)
 grad_weight_per_example = vmap(grad(compute_loss), in_dims=(None, 0, 0))(*inputs)
 ```
 
-### vjp and jacrev
+### vjp
 
 The `vjp` transform applies `func` to `inputs` and returns a new function that
 computes vjps given some `cotangents` Tensors.
@@ -227,8 +243,24 @@ from functorch import vjp
 outputs, vjp_fn = vjp(func, inputs); vjps = vjp_fn(*cotangents)
 ```
 
+### jvp
+
+The `jvp` transforms computes Jacobian-vector-products and is also known as
+"forward-mode AD". It is not a higher-order function unlike most other transforms,
+but it returns the outputs of `func(inputs)` as well as the `jvp`s.
+```py
+from functorch import jvp
+x = torch.randn(5)
+y = torch.randn(5)
+f = lambda x, y: (x * y)
+_, output = jvp(f, (x, y), (torch.ones(5), torch.ones(5)))
+assert torch.allclose(output, x + y)
+```
+
+### jacrev, jacfwd, and hessian
+
 The `jacrev` transform returns a new function that takes in `x` and returns the
-Jacobian of `torch.sin` with respect to `x`
+Jacobian of `torch.sin` with respect to `x` using reverse-mode AD.
 ```py
 from functorch import jacrev
 x = torch.randn(5)
@@ -245,13 +277,35 @@ jacobian = vmap(jacrev(torch.sin))(x)
 assert jacobian.shape == (64, 5, 5)
 ```
 
-`jacrev` can be composed with itself to produce hessians:
+`jacfwd` is a drop-in replacement for `jacrev` that computes Jacobians using
+forward-mode AD:
+```py
+from functorch import jacfwd
+x = torch.randn(5)
+jacobian = jacfwd(torch.sin)(x)
+expected = torch.diag(torch.cos(x))
+assert torch.allclose(jacobian, expected)
+```
+
+Composing `jacrev` with itself or `jacfwd` can produce hessians:
 ```py
 def f(x):
   return x.sin().sum()
 
 x = torch.randn(5)
-hessian = jacrev(jacrev(f))(x)
+hessian0 = jacrev(jacrev(f))(x)
+hessian1 = jacfwd(jacrev(f))(x)
+```
+
+The `hessian` is a convenience function that combines `jacfwd` and `jacrev`:
+```py
+from functorch import hessian
+
+def f(x):
+  return x.sin().sum()
+
+x = torch.randn(5)
+hess = hessian(f)(x)
 ```
 
 ### Tracing through the transformations
@@ -326,8 +380,8 @@ For more documentation, see [our docs website](https://pytorch.org/functorch).
 
 In the end state, we'd like to upstream this into PyTorch once we iron out the
 design details. To figure out the details, we need your help -- please send us
-your use cases by starting a conversation in the issue tracker or try out the
-prototype.
+your use cases by starting a conversation in the issue tracker or trying our
+project out.
 
 ## License
 Functorch has a BSD-style license, as found in the [LICENSE](LICENSE) file.
