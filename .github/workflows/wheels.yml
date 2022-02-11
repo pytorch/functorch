@@ -4,7 +4,7 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches:
-      - main
+      - release/*
 
 jobs:
 
@@ -22,9 +22,9 @@ jobs:
           architecture: x64
       - name: Checkout functorch
         uses: actions/checkout@v2
-      - name: Install PyTorch Nightly
+      - name: Install PyTorch 1.11 RC
         run: |
-          python3 -mpip install --pre torch -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
+          python3 -mpip install --pre torch==1.11.0 -f https://download.pytorch.org/whl/test/cpu/torch_test.html --upgrade
       - name: Build wheel
         run: |
           python3 -mpip install wheel
