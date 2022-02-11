@@ -204,10 +204,10 @@ def _get_name(func: Callable):
 
 
 def vmap(
-    func: Callable,
-    in_dims: in_dims_t = 0,
-    out_dims: out_dims_t = 0,
-    randomness: str = 'error') -> Callable:
+        func: Callable,
+        in_dims: in_dims_t = 0,
+        out_dims: out_dims_t = 0,
+        randomness: str = 'error') -> Callable:
     """
     vmap is the vectorizing map; ``vmap(func)`` returns a new function that
     maps :attr:`func` over some dimension of the inputs. Semantically, vmap
@@ -232,8 +232,8 @@ def vmap(
             it should have one element per output. Default: 0.
         use_batched_random (str): Specifies whether the randomness in this
             vmap should be the same or different across batches. If 'different',
-            the randomness for each batch will be different. If 'same', the 
-            randomness will be the same across batches. If 'error', any calls to 
+            the randomness for each batch will be different. If 'same', the
+            randomness will be the same across batches. If 'error', any calls to
             random functions will error. Default: True.
 
     Returns:
