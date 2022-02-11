@@ -1011,7 +1011,7 @@ class TestDecompositionOpInfo(TestCase):
             torch.bfloat16: (0.016, 1e-4),  # zzzz bfloat16 precision
             torch.float32: (1.3e-6, 1e-5),
             torch.float64: (1e-7, 1e-7),
-            torch.complex32: (0.001, 1e-5),
+            # torch.complex32: (0.001, 1e-5),  # Not in 1.11
             torch.complex64: (1.3e-6, 1e-5),
             torch.complex128: (1e-7, 1e-7),
         }
