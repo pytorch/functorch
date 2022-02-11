@@ -83,6 +83,24 @@ Tensor maybePadToLogicalRank(const Tensor& tensor, optional<int64_t> has_bdim, i
   return tensor.view(new_sizes);
 }
 
+void checkRandomness(std::string randomness, bool any_tensor_batched) {
+  TORCH_CHECK(
+    randomness != "error",
+    "vmap: called random operation while in randomness error mode. Please either use the "
+    "'same' or 'different' randomness flags on vmap or perform the randomness operation out of vmap"
+  );
+
+  TORCH_CHECK(
+    !(randomness == "same" && any_tensor_batched),
+    "Vmap does not currently support same randomness with a batched tensor input. ",
+    "Please file an issue with functorch"
+  )
+}
+
+void checkRandomness(std::string randomness) {
+  checkRandomness(randomness, false); // for ops that don't take in any tensors, don't hit same error
+}
+
 Tensor reshape_dim_into(int64_t src, int64_t dst, const Tensor& x) {
   auto x_dim = x.dim();
   src = maybe_wrap_dim(src, x_dim);

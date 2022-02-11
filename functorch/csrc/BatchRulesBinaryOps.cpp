@@ -89,6 +89,48 @@ struct BinaryPointwiseBatchRuleHelper<F, Func, typelist<T1, T2, T...>> {
       &fn,\
       c10::guts::function_traits<decltype(fn)>::parameter_types>::apply)
 
+template <typename A, A a, typename C>
+struct BinaryRandomPointwiseBatchRuleHelper;
+
+template <typename F, F Func, typename T1, typename T2, typename... T>
+struct BinaryRandomPointwiseBatchRuleHelper<F, Func, typelist<T1, T2, T...>> {
+  static Tensor apply(const Tensor& tensor, const Tensor& other, T... extra_args) {
+    c10::impl::ExcludeDispatchKeyGuard guard(kVmapModeKey);
+    auto maybe_layer = maybeCurrentDynamicLayer();
+    auto cur_level = maybe_layer->layerId();
+    std::string randomness = maybe_layer->randomness();
+
+    Tensor tensor_value;
+    optional<int64_t> tensor_bdim;
+    std::tie(tensor_value, tensor_bdim) = unwrapTensorAtLevel(tensor, cur_level);
+
+    Tensor other_value;
+    optional<int64_t> other_bdim;
+    std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
+
+    checkRandomness(randomness, (tensor_bdim || other_bdim));
+    if (randomness == "different" && !tensor_bdim && !other_bdim) {
+      auto shape = tensor_value.sizes();
+      VmapDimVector shapeVec(shape.begin(), shape.end());
+      shapeVec.insert(shapeVec.begin(), maybe_layer->batchSize());
+      tensor_value = tensor_value.unsqueeze(0).expand(shapeVec);
+      tensor_bdim = 0;
+    } else if (randomness =="same" && !tensor_bdim && !other_bdim) {
+      return Func(tensor_value, other_value, std::forward<T>(extra_args)...);
+    }
+    auto res = _binary_pointwise_batch_rule<F, Func, T...>(
+      tensor_value, tensor_bdim, other_value, other_bdim,
+      std::forward<T>(extra_args)...);
+    return makeBatched(std::get<0>(res), std::get<1>(res), cur_level);
+  }
+};
+
+#define BINARY_RANDOM_POINTWISE_BATCH_RULE(fn) SINGLE_ARG(\
+    BinaryRandomPointwiseBatchRuleHelper<\
+      decltype(&fn),\
+      &fn,\
+      c10::guts::function_traits<decltype(fn)>::parameter_types>::apply)
+
 template <typename M, M Meth, typename... ExtraArgs>
 void binary_pointwise_inplace_batch_rule(
     Tensor& tensor, optional<int64_t> tensor_batch_dim,
@@ -220,18 +262,24 @@ std::tuple<Tensor,optional<int64_t>> cdist_backward_batch_rule(
   return std::make_tuple(out, out_bdim);
 }
 
+TORCH_LIBRARY_IMPL(aten, FuncTorchVmapMode, m) {
+#define BINARY_RANDOM_POINTWISE2(op, overload) \
+  m.impl(#op"."#overload, BINARY_RANDOM_POINTWISE_BATCH_RULE(ATEN_FN2(op, overload)));
+
+  BINARY_RANDOM_POINTWISE2(normal, Tensor_Tensor);
+}
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
 #define BINARY_POINTWISE2(op, overload) \
-  VMAP_SUPPORT(#op"."#overload, BINARY_POINTWISE_BATCH_RULE(ATEN_FN2(op, overload)));
+  VMAP_SUPPORT2(op, overload, BINARY_POINTWISE_BATCH_RULE(ATEN_FN2(op, overload)));
 #define BINARY_POINTWISE(op) \
-  VMAP_SUPPORT(#op, BINARY_POINTWISE_BATCH_RULE(ATEN_FN(op)));
+  VMAP_SUPPORT(op, BINARY_POINTWISE_BATCH_RULE(ATEN_FN(op)));
 #define UNARY_POINTWISE2(op, overload) \
-  VMAP_SUPPORT(#op"."#overload, BASIC_UNARY_BATCH_RULE(ATEN_FN2(op, overload)));
+  VMAP_SUPPORT2(op, overload, BASIC_UNARY_BATCH_RULE(ATEN_FN2(op, overload)));
 #define UNARY_POINTWISE(op) \
-  VMAP_SUPPORT(#op, BASIC_UNARY_BATCH_RULE(ATEN_FN(op)));
+  VMAP_SUPPORT(op, BASIC_UNARY_BATCH_RULE(ATEN_FN(op)));
 #define UNARY_SCALAR_POINTWISE2(op, overload) \
-  VMAP_SUPPORT(#op"."#overload, SCALAR_UNARY_BATCH_RULE(ATEN_FN2(op, overload)));
+  VMAP_SUPPORT(op, overload, SCALAR_UNARY_BATCH_RULE(ATEN_FN2(op, overload)));
 
 #define BINARY_SCALAR_2(op, tensor_tensor, tensor_scalar) \
   BINARY_POINTWISE2(op, tensor_tensor);\
@@ -280,7 +328,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   // Implementation note: _binary_pointwise_helper performs a dtype promotion if args are scalars,
   // but cdist can't work with scalars, at least 2d tensors.
   BINARY_POINTWISE(_cdist_forward);
-  VMAP_SUPPORT("_cdist_backward", cdist_backward_batch_rule);
+  VMAP_SUPPORT(_cdist_backward, cdist_backward_batch_rule);
 
   // Commented out so we have a test op
   // BINARY_SCALAR_2(copysign, Tensor, Scalar);
@@ -309,7 +357,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   BINARY_POINTWISE(minimum);
 
   BINARY_SCALAR_2(mul, Tensor, Scalar);
-  BINARY_POINTWISE2(normal, Tensor_Tensor);
   BINARY_POINTWISE(nextafter);
   BINARY_SCALAR_3(pow, Tensor_Tensor, Tensor_Scalar, Scalar);
   BINARY_POINTWISE(polar);
@@ -323,20 +370,23 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   BINARY_SCALAR_3_Tensor(special_xlogy, other_scalar, self_scalar);
   BINARY_SCALAR_3_Tensor(special_zeta, other_scalar, self_scalar);
 
-  VMAP_SUPPORT("_s_where", _s_where_batch_rule);
+  VMAP_SUPPORT(_s_where, _s_where_batch_rule);
 
   BINARY_SCALAR_3(xlogy, Tensor, Scalar_Other, Scalar_Self);
 
   POINTWISE_BOXED(elu_backward);
+  BINARY_POINTWISE(hardsigmoid_backward);
   BINARY_POINTWISE(hardtanh_backward);
   BINARY_POINTWISE(hardshrink_backward);
   BINARY_POINTWISE(hardswish_backward);
+  // BINARY_POINTWISE(infinitely_differentiable_gelu_backward);
   BINARY_POINTWISE(leaky_relu_backward);
   BINARY_POINTWISE(logit_backward);
   POINTWISE_BOXED(log_sigmoid_backward);
   BINARY_POINTWISE(gelu_backward);
   BINARY_POINTWISE(sigmoid_backward);
   POINTWISE_BOXED(softplus_backward);
+  BINARY_POINTWISE(softshrink_backward);
   BINARY_POINTWISE(tanh_backward);
   BINARY_POINTWISE(threshold_backward);
 
@@ -378,7 +428,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
      DECLTYPE_AUTO(&binary_pointwise_inplace_batch_rule<CopyT, &Tensor::copy_, bool>), bool>);
 
 #define COMPARISON_POINTWISE(op) \
-  VMAP_SUPPORT(#op".Tensor", \
+  VMAP_SUPPORT2(op, Tensor, \
       SINGLE_ARG(comparison_pointwise_batch_rule<decltype(&ATEN_FN2(op, Tensor)), &at::op>)); \
   UNARY_POINTWISE2(op, Scalar)
 
@@ -398,7 +448,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
 #undef BINARY_SCALAR_3
 
 #define LOGICAL_COMPARISON_POINTWISE(op) \
-  VMAP_SUPPORT(#op, \
+  VMAP_SUPPORT(op, \
       SINGLE_ARG(comparison_pointwise_batch_rule<decltype(&ATEN_FN(op)), &ATEN_FN(op)>)); \
   m.impl(#op "_", inplacePlumbing2< \
      DECLTYPE_AUTO(&binary_pointwise_inplace_batch_rule<TensorInplaceT, &Tensor:: op ## _ >)>);
@@ -409,7 +459,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
 
 #undef SINGLE_ARG
 #undef LOGICAL_COMPARISON_POINTWISE
-  VMAP_SUPPORT("masked_select", masked_select_batch_rule);
+  VMAP_SUPPORT(masked_select, masked_select_batch_rule);
 }
 
 }}

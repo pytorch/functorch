@@ -147,8 +147,8 @@ int64_t _grad_decrement_nesting() {
   return layer.layerId();
 }
 
-int64_t _vmap_increment_nesting(int64_t batch_size, bool use_batched_random) {
-  return initAndPushDynamicLayer(kBatchedKey, batch_size, use_batched_random);
+int64_t _vmap_increment_nesting(int64_t batch_size, std::string randomness) {
+  return initAndPushDynamicLayer(kBatchedKey, batch_size, randomness);
 }
 
 int64_t _vmap_decrement_nesting() {
