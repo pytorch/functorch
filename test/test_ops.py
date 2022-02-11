@@ -328,6 +328,9 @@ class TestOperators(TestCase):
         skip('nn.functional.fractional_max_pool2d'),  # fails on cuda, runs okay on cpu
         skip('nn.functional.fractional_max_pool3d'),  # fails on cuda, runs okay on cpu
         skip('nn.functional.max_pool1d'),  # fails on cpu, runs okay on cuda
+        xfail('nn.functional.batch_norm', device_type='cuda'),
+        xfail('nn.functional.batch_norm', 'without_cudnn', device_type='cuda'),
+        skip('nn.functional.conv_transpose3d', device_type='cuda'),
 
         # See https://github.com/pytorch/pytorch/issues/69034
         # RuntimeError: expected scalar type double but found float
@@ -518,7 +521,6 @@ class TestOperators(TestCase):
         xfail('masked_select'),  # Not possible due to dynamic shapes
 
         # All of the following are bugs and need to be fixed
-        xfail('diag_embed'),
         xfail('eig'),
         xfail('view_as_complex'),
         xfail('fft.ihfft'),
@@ -526,10 +528,6 @@ class TestOperators(TestCase):
         xfail('fft.rfft'),
         xfail('fft.rfft'),
         xfail('fft.rfftn'),
-        xfail('fmax'),
-        xfail('fmin'),
-        xfail('index_copy'),
-        xfail('index_fill'),
         xfail('linalg.det', ''),
         xfail('linalg.cholesky'),
         xfail('linalg.eig'),  # Uses aten::allclose
@@ -540,9 +538,10 @@ class TestOperators(TestCase):
         xfail('linalg.matrix_power'),
         xfail('linalg.norm'),
         xfail('linalg.slogdet'),
+        # really annoying thing where it passes correctness check but not has_batch_rule
+        skip('linalg.svdvals'),
         xfail('logdet'),
         xfail('lu_unpack'),
-        xfail('masked_fill'),
         xfail('masked_scatter'),
         xfail('matrix_exp'),
         xfail('nanquantile'),
@@ -559,7 +558,6 @@ class TestOperators(TestCase):
         xfail('fft.ihfftn'),
         xfail('double', 'channels_last'),
         xfail('nn.functional.gaussian_nll_loss'),
-        xfail('nn.functional.poisson_nll_loss'),
         xfail('fft.rfft2'),
         skip('qr'),  # Nondetermistic
         xfail('_masked.prod'),  # calls aten::item
@@ -569,9 +567,10 @@ class TestOperators(TestCase):
         xfail('as_strided'),
         xfail('nn.functional.fractional_max_pool2d'),
         xfail('__getitem__', ''),
-        xfail('index_put'),
+        xfail('index_put', ''),
         xfail('lu_solve'),
         xfail('nn.functional.instance_norm'),
+        xfail('index_copy'),
     })
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
@@ -615,10 +614,6 @@ class TestOperators(TestCase):
         xfail('matrix_exp'),
         xfail('fill_'),
         xfail('block_diag'),  # TODO: We expect this to fail in core, but it doesn't
-        xfail('index_copy'),
-        xfail('index_put'),
-        xfail('masked_fill'),
-        xfail('masked_scatter'),
 
         # https://gist.github.com/zou3519/c42d032c0111c6b65235583d391bf7a3
         xfail('nn.functional.linear'),
@@ -672,7 +667,8 @@ class TestOperators(TestCase):
         skip('true_divide', device_type='cuda'),
 
         # Causing multiple forward mode AD issues, needs investigation
-        xfail('nn.functional.batch_norm', device_type='cpu'),
+        xfail('nn.functional.batch_norm'),
+        xfail('nn.functional.batch_norm', 'without_cudnn', device_type='cuda'),
 
         # Some kind of issue with unsymmetric tangent type
         # Runtime Error: The tangent part of the matrix A should also be symmetric.
@@ -705,6 +701,12 @@ class TestOperators(TestCase):
         xfail('nn.functional.fractional_max_pool2d'),  # Cannot access data pointer of Tensor that doesn't have storage
         xfail('nn.functional.fractional_max_pool3d'),  # Cannot access data pointer of Tensor that doesn't have storage
         skip('nn.functional.max_pool1d'),  # fails on cpu, runs on cuda
+        xfail('_masked.mean', device_type='cuda'),
+        xfail('_masked.prod', device_type='cuda'),
+        xfail('nn.functional.batch_norm', device_type='cuda'),
+        xfail('nn.functional.batch_norm', 'without_cudnn', device_type='cuda'),
+        xfail('nn.functional.hinge_embedding_loss', device_type='cuda'),
+        xfail('nn.functional.instance_norm', device_type='cuda'),
 
         # Causing a CUDA assert, needs investigation
         skip('div', 'floor_rounding', device_type='cuda'),
@@ -720,8 +722,8 @@ class TestOperators(TestCase):
         xfail('nn.functional.instance_norm', device_type='cpu'),
 
         # xfail list
+        xfail('norm', 'nuc'),
         xfail('linalg.inv'),
-        xfail('masked_fill'),
         xfail('linalg.tensorinv'),
         xfail('linalg.matrix_power'),
         xfail('maximum'),
@@ -738,18 +740,14 @@ class TestOperators(TestCase):
         xfail('max', 'binary'),
         xfail('nn.functional.gaussian_nll_loss'),
         xfail('min', 'binary'),
-        xfail('index_put'),
         xfail('std_mean'),
         xfail('double', 'channels_last'),
         xfail('block_diag'),
-        xfail('diag_embed'),
         xfail('minimum'),
         xfail('scatter'),
         xfail('matrix_exp'),
         xfail('nanquantile'),
         xfail('nn.functional.linear'),
-        xfail('index_copy'),
-        xfail('masked_scatter'),
         xfail('view_as_complex'),
         xfail('prod'),
 
@@ -790,14 +788,13 @@ class TestOperators(TestCase):
         xfail('cummax'),
         xfail('cummin'),
         xfail('cumprod'),
-        xfail('diag_embed'),
         xfail('eig'),
+        xfail('fmin'),
+        xfail('fmax'),
         xfail('fft.ihfft'),
         xfail('fft.rfft'),
         xfail('fft.rfftn'),
         xfail('fill_'),
-        xfail('fmax'),
-        xfail('fmin'),
         xfail('index_copy'),
         xfail('index_fill'),
         xfail('linalg.cholesky'),
@@ -852,7 +849,6 @@ class TestOperators(TestCase):
         xfail('double', 'channels_last'),
         xfail('linalg.cross'),
         xfail('nn.functional.gaussian_nll_loss'),
-        xfail('nn.functional.hardsigmoid'),
         xfail('nn.functional.huber_loss'),
         xfail('nn.functional.instance_norm'),
         xfail('nn.functional.poisson_nll_loss'),
@@ -865,7 +861,6 @@ class TestOperators(TestCase):
         xfail('stft'),
         xfail('nn.functional.rrelu'),
         xfail('nn.functional.embedding_bag'),
-        xfail('nn.functional.softshrink'),
         xfail('nn.functional.max_pool3d'),
         xfail('istft'),
         xfail('nn.functional.fractional_max_pool2d'),
@@ -901,20 +896,11 @@ class TestOperators(TestCase):
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vjpvmap', vjp_fail.union({
         # fallback path doesn't work
-        xfail('H'),
         # All of the following are bugs and need to be fixed
         xfail('__getitem__', ''),
         xfail('clamp', ''),
-        xfail('dsplit'),
         xfail('fill_'),
-        xfail('gradient'),
-        xfail('hsplit'),
-        xfail('vsplit'),
-        xfail('dstack'),
-        xfail('hstack'),
-        xfail('index_put'),
-        xfail('linalg.multi_dot'),
-        xfail('vstack'),
+        xfail('index_put', ''),
         xfail('lu_solve'),
         xfail('lu_unpack'),
         xfail('matrix_exp'),
@@ -999,9 +985,11 @@ class TestDecompositionOpInfo(TestCase):
     # Each one of these is a bug (or needs to be investigated)
     @skipOps('TestDecompositionOpInfo', 'test_decomposition', {
         skip('view_as_complex'),
+        # skip('log_softmax', device_type='cuda'),
+        # skip('nn.functional.softmin', device_type='cuda'),
         xfail('linalg.cholesky'),
         xfail('linalg.inv'),
-        xfail('linalg.det', 'singular', device_type='cuda'),
+        skip('linalg.det', 'singular', device_type='cuda'),  # this is nasty and seems to stop the test suite
         xfail('linalg.matrix_power'),
         xfail('linalg.tensorinv'),
         xfail('to_sparse'),
@@ -1103,6 +1091,8 @@ class TestDecompositionOpInfo(TestCase):
                     upcast_table = set([
                         aten.tanh_backward,
                         aten._log_softmax,
+                        aten._log_softmax_backward_data,
+                        aten._softmax_backward_data,
                     ])
                     decomposition = decomposition_table[func]
                     global run_decompositions
