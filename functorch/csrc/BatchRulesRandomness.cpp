@@ -11,18 +11,28 @@
 namespace at {
 namespace functorch {
 
+void check_randomness(std::string randomness) {
+  TORCH_CHECK(
+    randomness != "error",
+    "vmap: called random operation while in randomness error mode. Please either use the "
+    "'same' or 'different' randomness flags on vmap or perform the randomness operation out of vmap"
+  );
+}
+
 template <typename F, F Func, typename... ExtraArgs>
 Tensor random_batching_rule(IntArrayRef shape, ExtraArgs... extra_args) {
-    c10::impl::ExcludeDispatchKeyGuard guard(kVmapModeKey);
-    auto maybe_layer = maybeCurrentDynamicLayer();
-    VmapDimVector shapeVec(shape.begin(), shape.end());
-    shapeVec.insert(shapeVec.begin(), maybe_layer->batchSize());
-    if (maybe_layer->useBatchedRandom()) {
-      return makeBatched(Func(shapeVec, std::forward<ExtraArgs>(extra_args)...), 0, maybe_layer->layerId());
-    } else {
-      const auto res = Func(shape, std::forward<ExtraArgs>(extra_args)...);
-      return makeBatched(res.unsqueeze(0).expand(shapeVec), 0, maybe_layer->layerId());
-    }
+  c10::impl::ExcludeDispatchKeyGuard guard(kVmapModeKey);
+  auto maybe_layer = maybeCurrentDynamicLayer();
+  VmapDimVector shapeVec(shape.begin(), shape.end());
+  shapeVec.insert(shapeVec.begin(), maybe_layer->batchSize());
+  std::string randomness = maybe_layer->randomness();
+  check_randomness(randomness);
+  if (randomness == "different") {
+    return makeBatched(Func(shapeVec, std::forward<ExtraArgs>(extra_args)...), 0, maybe_layer->layerId());
+  } else {
+    const auto res = Func(shape, std::forward<ExtraArgs>(extra_args)...);
+    return makeBatched(res.unsqueeze(0).expand(shapeVec), 0, maybe_layer->layerId());
+  }
 }
 
 template <typename A, A a, typename C>

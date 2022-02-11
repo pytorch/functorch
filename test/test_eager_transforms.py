@@ -13,7 +13,6 @@ import torch.nn.functional as F
 import unittest
 import warnings
 import math
-from typing import Callable, Type
 from torch.testing._internal.common_device_type import instantiate_device_type_tests, onlyCPU
 from torch.testing._internal.common_dtype import get_all_fp_dtypes
 from functools import partial
@@ -604,6 +603,48 @@ class TestGradTransform(TestCase):
         result, = vjp_fn((v1, (v2, v3)))
         self.assertEqual(result, v1 + v2 + v3)
 
+    def test_vjp_outputs_can_any_pytree(self, device):
+        x = torch.randn(2, 3, device=device)
+        t = torch.randn(2, 3, device=device)
+
+        for output in [None, ()]:
+            with self.assertRaisesRegex(
+                RuntimeError, r"vjp\(f, \*primals\): Expected f to be a function that has non-empty output"
+            ):
+                _, vjp_fn = vjp(lambda _: output, x)
+                vjp_fn(t)
+
+        for output in [1, True, 12.2, "abc"]:
+            with self.assertRaisesRegex(
+                RuntimeError, r"vjp\(f, \*primals\): expected f\(\*primals\) to return only tensors"
+            ):
+                _, vjp_fn = vjp(lambda _: output, x)
+                vjp_fn(t)
+
+        # Check list output
+        output, vjp_fn = vjp(lambda x: [x, x.sum()], x)
+        vjp_out, = vjp_fn([t, t.sum()])
+        assert isinstance(output, list) and len(output) == 2
+        assert isinstance(vjp_out, torch.Tensor)
+
+        # Check dict output
+        output, vjp_fn = vjp(lambda x: {"x": x, "xsum": x.sum()}, x)
+        vjp_out, = vjp_fn({"x": t, "xsum": t.sum()})
+        assert isinstance(output, dict) and len(output) == 2 and "xsum" in output
+        assert isinstance(vjp_out, torch.Tensor)
+
+        def composite_output(x):
+            out = x.sum()
+            return [
+                (out, {"a": x, "out": [x, out]}),
+            ]
+
+        output, vjp_fn = vjp(composite_output, x)
+        vjp_out, = vjp_fn([(t.sum(), {"a": t, "out": [t, t.sum()]}), ])
+        assert isinstance(output, list)
+        assert isinstance(output[0], tuple) and isinstance(output[0][1], dict)
+        assert isinstance(vjp_out, torch.Tensor)
+
     def test_vjp_pytree_error(self, device):
         def f(x):
             return x, (x, x)
@@ -617,11 +658,18 @@ class TestGradTransform(TestCase):
             result, = vjp_fn(((v1, (v2, v3)),))
 
     def test_vjp_aux_tensor(self, device):
-        def f(x):
-            y = x.sin()
-            return y, x.cos()
 
         x = torch.randn(3, device=device)
+
+        with self.assertRaisesRegex(RuntimeError, r'vjp\(f, \*primals\): output of function f should be a tuple'):
+            vjp(lambda t: [t, t], x, has_aux=True)
+
+        with self.assertRaisesRegex(RuntimeError, r'vjp\(f, \*primals\): output of function f should be a tuple'):
+            vjp(lambda t: (t, t + 2, t + 3), x, has_aux=True)
+
+        def f(t):
+            y = t.sin()
+            return y, t.cos()
 
         out, vjp_fn, aux = vjp(f, x, has_aux=True)
         self.assertEqual(aux, x.cos())
@@ -1198,20 +1246,62 @@ class TestJac(TestCase):
         self.assertEqual(result, torch.eye(3, 3, device=device))
         self.assertEqual(aux, x.cos())
 
-    @FIXME_jacrev_only
+    @jacrev_and_jacfwd
     def test_aux_pytree(self, device, jacapi):
         def f(x):
             y = x.clone()
             return y, {'a': y.cos(), 'b': [y.tan()]}
 
         x = torch.randn(3, device=device)
-        result, aux = jacapi(f, has_aux=True)(x)
 
-        self.assertEqual(result, torch.eye(3, 3, device=device))
-        expected_aux = {'a': x.cos(), 'b': [x.tan()]}
-        self.assertEqual(aux, expected_aux)
+        # TODO: Remove when https://github.com/pytorch/functorch/issues/392
+        # is fixed
+        if jacapi == jacrev:
+            result, aux = jacapi(f, has_aux=True)(x)
+            self.assertEqual(result, torch.eye(3, 3, device=device))
+            expected_aux = {'a': x.cos(), 'b': [x.tan()]}
+            self.assertEqual(aux, expected_aux)
+        else:
+            result, aux = jacapi(f)(x)
+            self.assertEqual(result, torch.eye(3, 3, device=device))
+            expected_aux = {'a': -torch.diag(x.sin()), 'b': [torch.diag(1.0 + x.tan() ** 2)]}
+            self.assertEqual(aux, expected_aux)
 
-    @FIXME_jacrev_only
+    @jacrev_and_jacfwd
+    def test_outputs_can_any_pytree(self, device, jacapi):
+        x = torch.randn(2, 3, device=device)
+
+        for output in [None, ()]:
+            with self.assertRaisesRegex(
+                RuntimeError, r"(vjp|jvp).+: Expected f to be a function that has non-empty output"
+            ):
+                jacapi(lambda _: output)(x)
+
+        for output in [1, True, 12.2, "abc"]:
+            with self.assertRaisesRegex(
+                RuntimeError, r"(vjp|jvp).+: expected f\(\*primals\) to return only tensors"
+            ):
+                jacapi(lambda _: output)(x)
+
+        # Check list output
+        out = jacapi(lambda x: [x, x.sum()])(x)
+        assert isinstance(out, list) and len(out) == 2
+
+        # Check dict output
+        out = jacapi(lambda x: {"x": x, "xsum": x.sum()})(x)
+        assert isinstance(out, dict) and len(out) == 2 and "xsum" in out
+
+        def composite_output(x):
+            out = x.sum()
+            return [
+                (out, {"a": x, "out": [x, out]}),
+            ]
+
+        out = jacapi(composite_output)(x)
+        assert isinstance(out, list)
+        assert isinstance(out[0], tuple) and isinstance(out[0][1], dict)
+
+    @jacrev_and_jacfwd
     def test_multiple_inputs_outputs_pytree(self, device, jacapi):
         def f(a, b, c):
             a0, a1 = a
@@ -1653,25 +1743,43 @@ class TestJvp(TestCase):
         with self.assertRaisesRegex(RuntimeError, 'only contain Tensors'):
             jvp(torch.sin, (x,), (1.,))
 
-    def test_outputs_should_be_tensor_or_tensors(self, device):
+    def test_jvp_outputs_can_any_pytree(self, device):
         x = torch.randn(2, 3, device=device)
         t = torch.randn(2, 3, device=device)
 
-        def f(x):
-            return
+        for output in [None, ()]:
+            with self.assertRaisesRegex(
+                RuntimeError, r"jvp\(f, primals, tangents\): Expected f to be a function that has non-empty output"
+            ):
+                jvp(lambda _: output, (x,), (t,))
 
-        def g(x):
-            return ()
+        for output in [1, True, 12.2, "abc"]:
+            with self.assertRaisesRegex(
+                RuntimeError, r"jvp\(f, primals, tangents\): expected f\(\*primals\) to return only tensors"
+            ):
+                jvp(lambda _: output, (x,), (t,))
 
-        def h(x):
-            return x, [x]
+        # Check list output
+        out = jvp(lambda x: [x, x.sum()], (x,), (t,))
+        for i in range(2):
+            assert isinstance(out[i], list) and len(out[i]) == 2
 
-        with self.assertRaisesRegex(RuntimeError, "a Tensor or Tensors"):
-            jvp(f, (x,), (t,))
-        with self.assertRaisesRegex(RuntimeError, "non-empty"):
-            jvp(g, (x,), (t,))
-        with self.assertRaisesRegex(RuntimeError, "a Tensor or Tensors"):
-            jvp(h, (x,), (t,))
+        # Check dict output
+        out = jvp(lambda x: {"x": x, "xsum": x.sum()}, (x,), (t,))
+        for i in range(2):
+            assert isinstance(out[i], dict) and len(out[i]) == 2 and "xsum" in out[i]
+
+        def composite_output(x):
+            out = x.sum()
+            return [
+                (out, {"a": x, "out": [x, out]}),
+            ]
+
+        out = jvp(composite_output, (x,), (t,))
+        for i in range(2):
+            assert isinstance(out[i], list)
+            assert isinstance(out[i][0], tuple) and \
+                isinstance(out[i][0][1], dict)
 
 
 class TestCustomFunction(TestCase):
@@ -1809,7 +1917,7 @@ class TestExamplesCorrectness(TestCase):
                 x = self.fc3(x)
                 return x
 
-        # The prototype doesn't like F.mse_loss.
+        # TODO: should replace with F.mse_loss
         def mse_loss(x, y):
             return torch.mean((x - y) ** 2)
 
@@ -1876,8 +1984,7 @@ class TestExamplesCorrectness(TestCase):
         # TODO: there appears to be precision issues for float32
         dtype = torch.double
 
-        # TODO: The prototype doesn't support in-place relu (and some other
-        # in-place operations. That can be fixed.)
+        # TODO: We don't support inplace relu?
         inplace_relu = False
         n_way = 5
         n_inner_iter = 2
@@ -1962,7 +2069,7 @@ class TestExamplesCorrectness(TestCase):
             return \
                 -epsilon * ((-12 * sigma**12 / r**13) + (6 * sigma**6 / r**7))
 
-        r = torch.linspace(0.5, 2 * sigma, requires_grad=True, device=device)
+        r = torch.linspace(0.5, 2 * sigma, steps=100, requires_grad=True, device=device)
         drs = torch.outer(r, torch.tensor([1.0, 0, 0], device=device))
         norms = torch.norm(drs, dim=1).reshape(-1, 1)
         training_energies = \
@@ -2096,52 +2203,15 @@ class TestExamplesCorrectness(TestCase):
 
     @unittest.skipIf(not USE_TORCHVISION, "test requires torchvision")
     def test_resnet18_per_sample_grads(self, device):
-        # Straight out of opacus
-        def _replace_child(
-            root: nn.Module, child_name: str, converter: Callable[[nn.Module], nn.Module]
-        ) -> None:
-            # find the immediate parent
-            parent = root
-            nameList = child_name.split(".")
-            for name in nameList[:-1]:
-                parent = parent._modules[name]
-            # set to identity
-            parent._modules[nameList[-1]] = converter(parent._modules[nameList[-1]])
-
-        def replace_all_modules(
-            root: nn.Module,
-            target_class: Type[nn.Module],
-            converter: Callable[[nn.Module], nn.Module],
-        ) -> nn.Module:
-            # base case
-            if isinstance(root, target_class):
-                return converter(root)
-
-            for name, obj in root.named_modules():
-                if isinstance(obj, target_class):
-                    _replace_child(root, name, converter)
-            return root
-
-        def _batchnorm_to_groupnorm(module: nn.modules.batchnorm._BatchNorm) -> nn.Module:
-            return nn.GroupNorm(min(32, module.num_features), module.num_features, affine=True)
-
-        def convert_batchnorm_modules(
-            model: nn.Module,
-            converter: Callable[
-                [nn.modules.batchnorm._BatchNorm], nn.Module
-            ] = _batchnorm_to_groupnorm,
-        ) -> nn.Module:
-            return replace_all_modules(model, nn.modules.batchnorm._BatchNorm, converter)
-
         import torchvision.models as models
-        model = convert_batchnorm_modules(models.resnet18(num_classes=10)).to(device)
-        criterion = nn.CrossEntropyLoss()
+        model = models.__dict__['resnet18'](
+            pretrained=False, norm_layer=(lambda c: nn.GroupNorm(min(32, c), c))
+        ).to(device)
+        criterion = nn.CrossEntropyLoss(reduction='sum')  # avoid cross batch reductions for for loop comparison
 
         func_model, weights = make_functional(model)
 
         def compute_loss(weights, image, target):
-            images = image.unsqueeze(0)
-            targets = target.unsqueeze(0)
             output = func_model(weights, images)
             loss = criterion(output, targets)
             return loss
@@ -2153,12 +2223,12 @@ class TestExamplesCorrectness(TestCase):
         result_grads = vmap(grad(compute_loss), in_dims=(None, 0, 0))(weights, images, targets)
 
         expected_grads = [
-            torch.autograd.grad(compute_loss(weights, images[i], targets[i]), weights)
+            torch.autograd.grad(compute_loss(weights, images[i].unsqueeze(0), targets[i].unsqueeze(0)), weights)
             for i in range(batch_size)
         ]
         expected_grads = [torch.stack(shards) for shards in zip(*expected_grads)]
 
-        self.assertEqual(result_grads, expected_grads)
+        self.assertEqual(result_grads, expected_grads, atol=1e-3, rtol=1.)
 
 
 only_for = ("cpu", "cuda")
