@@ -2695,14 +2695,14 @@ class TestVmapOperators(Namespace.TestVmapBase):
             return x + torch.randn(shape)
 
         torch.manual_seed(0)
-        out1 = vmap(vmap(vmap_f))(torch.ones(2, 3))
+        out1 = vmap(vmap(vmap_f, randomness='different'), randomness='different')(torch.ones(2, 3))
 
         torch.manual_seed(0)
         out2 = naive_f(torch.ones(2, 3), (2, 3))
         self.assertEqual(out1, out2)
 
         torch.manual_seed(0)
-        out1 = vmap(vmap(vmap_f))(torch.ones(2, 3, 4))
+        out1 = vmap(vmap(vmap_f, randomness='different'), randomness='different')(torch.ones(2, 3, 4))
 
         torch.manual_seed(0)
         out2 = naive_f(torch.ones(2, 3, 4), (2, 3, 1))
