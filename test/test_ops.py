@@ -356,7 +356,6 @@ class TestOperators(TestCase):
 
         # Composite ops that do bad things. Need to be fixed in PyTorch core.
         # RuntimeError: Cannot access data pointer of Tensor that doesn't have storage
-        xfail('linalg.eigvals'),
         xfail('tensor_split'),
 
         # Causing a CUDA assert, needs investigation
@@ -658,7 +657,6 @@ class TestOperators(TestCase):
         # Composite ops that do bad things. Need to be fixed in PyTorch core.
         # RuntimeError: Cannot access data pointer of Tensor that doesn't have storage
         xfail('tensor_split'),
-        xfail('linalg.eigvals'),
 
         # Causing a CUDA assert, needs investigation
         skip('div', 'floor_rounding', device_type='cuda'),
@@ -733,7 +731,6 @@ class TestOperators(TestCase):
         xfail('quantile'),
         xfail('var_mean'),
         xfail('as_strided'),
-        xfail('linalg.eigvals'),
         xfail('linalg.eigvalsh'),
         xfail('fill_'),
         xfail('linalg.cholesky'),
@@ -913,6 +910,8 @@ class TestOperators(TestCase):
         xfail('as_strided'),
         skip('nn.functional.fractional_max_pool2d'),  # generator works on cpu, fails on cuda
         skip('solve'),
+        xfail('linalg.cond'),
+        xfail('linalg.svdvals'),
     }))
     def test_vjpvmap(self, device, dtype, op):
         # NB: there is no vjpvmap_has_batch_rule test because that is almost
