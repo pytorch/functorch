@@ -10,23 +10,34 @@ jobs:
 
   build-wheel:
     runs-on: ${{ matrix.os }}
+    container: pytorch/manylinux-cuda102
     strategy:
       matrix:
-        py_ver: [ "3.7", "3.8", "3.9" ]
-        os: ["ubuntu-18.04", "macos-latest"]
+        # py_ver: [ "3.7", "3.8", "3.9" ]
+        py_ver: [ "3.8" ]
+        os: ["ubuntu-18.04"]
+        # os: ["ubuntu-18.04", "macos-latest"]
     steps:
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.py_ver }}
-          architecture: x64
+      #- name: Setup Python
+      #  uses: actions/setup-python@v2
+      #  with:
+      #    python-version: ${{ matrix.py_ver }}
+      #    architecture: x64
+      # - name: Pure Speculation
+      #   run: |
+      #     export PATH="/opt/python/cp38-cp38/bin:$PATH"
       - name: Checkout functorch
         uses: actions/checkout@v2
       - name: Install PyTorch 1.11 RC
         run: |
-          python3 -mpip install --pre torch==1.11.0 -f https://download.pytorch.org/whl/test/cpu/torch_test.html --upgrade
+          export PATH="/opt/python/cp38-cp38/bin:$PATH"
+          echo $(which python)
+          echo $(which python3)
+          echo $(which pip)
+          pip install --pre torch==1.11.0 -f https://download.pytorch.org/whl/test/cpu/torch_test.html --upgrade
       - name: Build wheel
         run: |
+          export PATH="/opt/python/cp38-cp38/bin:$PATH"
           python3 -mpip install wheel
           python3 setup.py bdist_wheel
       - name: Upload wheel as GHA artifact
