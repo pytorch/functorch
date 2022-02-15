@@ -1,0 +1,9 @@
+test_grad
+test_jvp
+test_vjp_
+test_vjpvjp_
+test_vmapvjpvjp
+test_vmapvjp_
+test_vmapjvp_
+test_vmapjvpall
+test_vjpvmap
