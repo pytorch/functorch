@@ -994,8 +994,8 @@ def grad_and_value(func: Callable, argnums: argnums_t = 0, has_aux: bool = False
     @wraps(func)
     def wrapper(*args, **kwargs):
         level = _grad_increment_nesting()
-        output, aux, grad_input = None, None, None
         try:
+            output, aux, grad_input = None, None, None
             # See NOTE [grad and vjp interaction with no_grad]
             with torch.enable_grad():
                 args = _wrap_all_tensors(args, level)
@@ -1028,17 +1028,16 @@ def grad_and_value(func: Callable, argnums: argnums_t = 0, has_aux: bool = False
                 flat_grad_input = _autograd_grad(flat_outputs, flat_diff_args, create_graph=True)
                 grad_input = tree_unflatten(flat_grad_input, spec)
 
-        finally:
-            if grad_input is not None:
                 grad_input = _undo_create_differentiable(grad_input, level)
-            if output is not None:
                 output = _undo_create_differentiable(output, level)
-            if aux is not None:
-                aux = _undo_create_differentiable(aux, level)
+                if aux is not None:
+                    aux = _undo_create_differentiable(aux, level)
+
+            if has_aux:
+                return grad_input, (output, aux)
+            return grad_input, output
+        finally:
             _grad_decrement_nesting()
-        if has_aux:
-            return grad_input, (output, aux)
-        return grad_input, output
     return wrapper
 
 
