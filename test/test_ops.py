@@ -356,7 +356,6 @@ class TestOperators(TestCase):
 
         # Composite ops that do bad things. Need to be fixed in PyTorch core.
         # RuntimeError: Cannot access data pointer of Tensor that doesn't have storage
-        xfail('linalg.eigvals'),
         xfail('tensor_split'),
 
         # Causing a CUDA assert, needs investigation
@@ -569,7 +568,7 @@ class TestOperators(TestCase):
         xfail('__getitem__', ''),
         xfail('index_put', ''),
         xfail('lu_solve'),
-        xfail('nn.functional.instance_norm'),
+        xfail('index_copy'),
     })
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
@@ -657,7 +656,6 @@ class TestOperators(TestCase):
         # Composite ops that do bad things. Need to be fixed in PyTorch core.
         # RuntimeError: Cannot access data pointer of Tensor that doesn't have storage
         xfail('tensor_split'),
-        xfail('linalg.eigvals'),
 
         # Causing a CUDA assert, needs investigation
         skip('div', 'floor_rounding', device_type='cuda'),
@@ -705,7 +703,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.batch_norm', device_type='cuda'),
         xfail('nn.functional.batch_norm', 'without_cudnn', device_type='cuda'),
         xfail('nn.functional.hinge_embedding_loss', device_type='cuda'),
-        xfail('nn.functional.instance_norm', device_type='cuda'),
 
         # Causing a CUDA assert, needs investigation
         skip('div', 'floor_rounding', device_type='cuda'),
@@ -718,7 +715,6 @@ class TestOperators(TestCase):
         xfail('_masked.prod', device_type='cpu'),
         xfail('nn.functional.batch_norm', device_type='cpu'),
         xfail('nn.functional.hinge_embedding_loss', device_type='cpu'),
-        xfail('nn.functional.instance_norm', device_type='cpu'),
 
         # xfail list
         xfail('norm', 'nuc'),
@@ -732,7 +728,6 @@ class TestOperators(TestCase):
         xfail('quantile'),
         xfail('var_mean'),
         xfail('as_strided'),
-        xfail('linalg.eigvals'),
         xfail('linalg.eigvalsh'),
         xfail('fill_'),
         xfail('linalg.cholesky'),
@@ -849,7 +844,6 @@ class TestOperators(TestCase):
         xfail('linalg.cross'),
         xfail('nn.functional.gaussian_nll_loss'),
         xfail('nn.functional.huber_loss'),
-        xfail('nn.functional.instance_norm'),
         xfail('nn.functional.poisson_nll_loss'),
         xfail('nn.functional.bilinear'),
         xfail('nn.functional.prelu'),
@@ -907,11 +901,13 @@ class TestOperators(TestCase):
         xfail('nn.functional.gaussian_nll_loss'),
         xfail('double', 'channels_last'),
         xfail('masked_select'),
-        xfail('nn.functional.fractional_max_pool3d'),
+        skip('nn.functional.fractional_max_pool3d'),  # generator works on cpu, fails on cuda
         xfail('nn.functional.glu'),
         xfail('as_strided'),
-        xfail('nn.functional.fractional_max_pool2d'),
+        skip('nn.functional.fractional_max_pool2d'),  # generator works on cpu, fails on cuda
         skip('solve'),
+        xfail('linalg.cond'),
+        xfail('linalg.svdvals'),
     }))
     def test_vjpvmap(self, device, dtype, op):
         # NB: there is no vjpvmap_has_batch_rule test because that is almost
@@ -932,7 +928,8 @@ class TestOperators(TestCase):
             return
 
         samples = op.sample_inputs(device, dtype, requires_grad=True)
-        is_batch_norm = op.name == "nn.functional.batch_norm"
+        batch_norm_fns = ("nn.functional.batch_norm", "nn.functional.instance_norm")  # instance norm calls batch norm
+        is_batch_norm = op.name in batch_norm_fns
 
         for sample in samples:
             args = [sample.input] + list(sample.args)
