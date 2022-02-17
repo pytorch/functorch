@@ -569,6 +569,7 @@ class TestOperators(TestCase):
         xfail('index_put', ''),
         xfail('lu_solve'),
         xfail('index_copy'),
+        xfail('nn.functional.gelu'),
     })
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
@@ -744,6 +745,7 @@ class TestOperators(TestCase):
         xfail('nn.functional.linear'),
         xfail('view_as_complex'),
         xfail('prod'),
+        xfail('nn.functional.gelu'),
 
         # Some kind of issue with unsymmetric tangent type
         # Runtime Error: The tangent part of the matrix A should also be symmetric.
@@ -906,8 +908,6 @@ class TestOperators(TestCase):
         xfail('as_strided'),
         skip('nn.functional.fractional_max_pool2d'),  # generator works on cpu, fails on cuda
         skip('solve'),
-        xfail('linalg.cond'),
-        xfail('linalg.svdvals'),
     }))
     def test_vjpvmap(self, device, dtype, op):
         # NB: there is no vjpvmap_has_batch_rule test because that is almost
@@ -969,10 +969,10 @@ def ref_vjp_no_create(f, *primals):
 run_decompositions = set()
 run_ops = set()
 
-
 class TestDecompositionOpInfo(TestCase):
 
-    @unittest.skipIf(IS_FBCODE, "__torch_dispatch__ is buggy")
+    @unittest.skip("dispatcher bug")
+    # @unittest.skipIf(IS_FBCODE, "__torch_dispatch__ is buggy")
     @ops(
         functorch_lagging_op_db + additional_op_db,
         allowed_dtypes=[torch.float32, torch.float64, torch.float16, torch.bfloat16] + [*integral_types()]
@@ -1073,6 +1073,7 @@ class TestDecompositionOpInfo(TestCase):
             def __torch_dispatch__(cls, func, types, args=(), kwargs=None):
                 global run_ops
                 run_ops.add(func)
+
                 def unwrap_tensor(e):
                     if isinstance(e, DecompositionTensor):
                         if not hasattr(e, 'elem'):
@@ -1089,7 +1090,7 @@ class TestDecompositionOpInfo(TestCase):
                 # pytorch_out_64}. In other words, we compare how far the
                 # decomposition and pytorch are from the "ground truth" (i.e.
                 # fp64). If the decomposition results in more error, we error
-                if func in decomposition_table and func != torch.ops.aten.detach:
+                if func in decomposition_table and func not in [torch.ops.aten.detach, torch.ops.aten._s_where]:
                     # Some functions take a dtype as argument, so we need to
                     # manually change that dtype in order to run it with a
                     # higher precision

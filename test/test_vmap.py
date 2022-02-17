@@ -2630,7 +2630,6 @@ class TestVmapOperators(Namespace.TestVmapBase):
             (lambda t: t.exponential_(), (torch.randn(B0, 1),)),
             (lambda t: t.geometric_(0.5), (torch.randn(B0, 1),)),
             (lambda t: t.log_normal_(), (torch.randn(B0, 1),)),
-            (lambda t: t.normal_(), (torch.randn(B0, 1),)),
             (lambda t: t.uniform_(), (torch.randn(B0, 1),)),
 
             # in-place on captured tensor
@@ -2639,7 +2638,6 @@ class TestVmapOperators(Namespace.TestVmapBase):
             (lambda t: captured.exponential_(), (torch.randn(B0),)),
             (lambda t: captured.geometric_(0.5), (torch.randn(B0),)),
             (lambda t: captured.log_normal_(), (torch.randn(B0),)),
-            (lambda t: captured.normal_(), (torch.randn(B0),)),
             (lambda t: captured.uniform_(), (torch.randn(B0),)),
         ]
         for op, args in random_ops:
