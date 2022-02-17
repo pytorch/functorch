@@ -260,6 +260,8 @@ TORCH_LIBRARY_IMPL(aten, FuncTorchVmapMode, m) {
   RANDOM_INPLACE_BATCH_RULE2(random_, from);
   RANDOM_INPLACE_BATCH_RULE2(random_, to);
 
+  RANDOM_INPLACE_BATCH_RULE(normal_);
+
   RANDINT_BATCH_RULE(randint);
   RANDINT_BATCH_RULE2(randint, generator);
   RAND_TWO_LEADING_SCALARS_BATCH_RULE(randint, low);
@@ -268,7 +270,6 @@ TORCH_LIBRARY_IMPL(aten, FuncTorchVmapMode, m) {
   RANDPERM_BATCH_RULE(randperm);
   RANDPERM_BATCH_RULE2(randperm, generator);
 
-  RANDOM_INPLACE_BATCH_RULE(normal_);
   RAND_TWO_LEADING_SCALARS_BATCH_RULE(normal, float_float);
   UNARY_POINTWISE_RANDOM(normal, Tensor_float);
   UNARY_POINTWISE_RANDOM_LEADING_FLOAT(normal, float_Tensor);
