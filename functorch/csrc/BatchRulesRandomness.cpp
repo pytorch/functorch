@@ -11,9 +11,9 @@
 namespace at {
 namespace functorch {
 
-void check_randomness(std::string randomness) {
+void check_randomness(RandomnessType randomness) {
   TORCH_CHECK(
-    randomness != "error",
+    randomness != RandomnessType::Error,
     "vmap: called random operation while in randomness error mode. Please either use the "
     "'same' or 'different' randomness flags on vmap or perform the randomness operation out of vmap"
   );
@@ -23,11 +23,12 @@ template <typename F, F Func, typename... ExtraArgs>
 Tensor random_batching_rule(IntArrayRef shape, ExtraArgs... extra_args) {
   c10::impl::ExcludeDispatchKeyGuard guard(kVmapModeKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
-  VmapDimVector shapeVec(shape.begin(), shape.end());
-  shapeVec.insert(shapeVec.begin(), maybe_layer->batchSize());
-  std::string randomness = maybe_layer->randomness();
+  VmapDimVector shapeVec(1, maybe_layer->batchSize());
+  shapeVec.reserve(shape.size() + 1);
+  shapeVec.insert(shapeVec.end(), shape.begin(), shape.end());
+  RandomnessType randomness = maybe_layer->randomness();
   check_randomness(randomness);
-  if (randomness == "different") {
+  if (randomness == RandomnessType::Different) {
     return makeBatched(Func(shapeVec, std::forward<ExtraArgs>(extra_args)...), 0, maybe_layer->layerId());
   } else {
     return Func(shape, std::forward<ExtraArgs>(extra_args)...);
@@ -39,9 +40,9 @@ Tensor randperm_batching_rule(int64_t n, ExtraArgs... extra_args) {
   c10::impl::ExcludeDispatchKeyGuard guard(kVmapModeKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   auto const batch_size = maybe_layer->batchSize();
-  std::string randomness = maybe_layer->randomness();
+  RandomnessType randomness = maybe_layer->randomness();
   check_randomness(randomness);
-  if (randomness == "different") {
+  if (randomness == RandomnessType::Different) {
     std::vector<at::Tensor> stackedList(batch_size);
     stackedList.reserve(batch_size);
     for (int64_t idx = 0; idx < batch_size; ++idx) {
@@ -51,7 +52,7 @@ Tensor randperm_batching_rule(int64_t n, ExtraArgs... extra_args) {
     return makeBatched(at::stack(stackedList), 0, maybe_layer->layerId());
   } else {
     const auto res = Func(n, std::forward<ExtraArgs>(extra_args)...);
-    return makeBatched(res.unsqueeze(0).expand({batch_size, n}), 0, maybe_layer->layerId());
+    return res;
   }
 }
 
