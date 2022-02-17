@@ -98,7 +98,7 @@ struct BinaryRandomPointwiseBatchRuleHelper<F, Func, typelist<T1, T2, T...>> {
     c10::impl::ExcludeDispatchKeyGuard guard(kVmapModeKey);
     auto maybe_layer = maybeCurrentDynamicLayer();
     auto cur_level = maybe_layer->layerId();
-    std::string randomness = maybe_layer->randomness();
+    RandomnessType randomness = maybe_layer->randomness();
 
     Tensor tensor_value;
     optional<int64_t> tensor_bdim;
@@ -108,14 +108,14 @@ struct BinaryRandomPointwiseBatchRuleHelper<F, Func, typelist<T1, T2, T...>> {
     optional<int64_t> other_bdim;
     std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
 
-    checkRandomness(randomness, (tensor_bdim || other_bdim));
-    if (randomness == "different" && !tensor_bdim && !other_bdim) {
+    check_randomness(randomness, (tensor_bdim || other_bdim));
+    if (randomness == RandomnessType::Different && !tensor_bdim && !other_bdim) {
       auto shape = tensor_value.sizes();
       VmapDimVector shapeVec(shape.begin(), shape.end());
       shapeVec.insert(shapeVec.begin(), maybe_layer->batchSize());
       tensor_value = tensor_value.unsqueeze(0).expand(shapeVec);
       tensor_bdim = 0;
-    } else if (randomness =="same" && !tensor_bdim && !other_bdim) {
+    } else if (randomness == RandomnessType::Same && !tensor_bdim && !other_bdim) {
       return Func(tensor_value, other_value, std::forward<T>(extra_args)...);
     }
     auto res = _binary_pointwise_batch_rule<F, Func, T...>(
