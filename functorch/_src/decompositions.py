@@ -1,6 +1,6 @@
 import torch
 from torch import Tensor
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from enum import Enum
 
 aten = torch.ops.aten
@@ -116,7 +116,36 @@ def silu_backward(grad_output: Tensor, self: Tensor) -> Tensor:
     sigmoid = 1 / (1 + aten.exp(aten.neg(self)))
     return grad_output * sigmoid * (1 + self * (1 - sigmoid))
 
-# whyyyy does log_sigmoid do 2 different things for CPU and CUDA >:(
+
+@register_decomposition(aten.softshrink_backward)
+def softshrink_backward(grad_output: Tensor, self: Tensor, lambd: float) -> Tensor:
+    return aten.where((self >= -lambd) & (self <= lambd), aten.new_zeros(grad_output, ()), grad_output)
+
+
+@register_decomposition(aten.prelu_backward)
+def prelu_backward(grad_output: Tensor, self: Tensor, weight: Tensor) -> Tuple[Tensor, Tensor]:
+    # Logic is more complicated than I would like.  Basically, weight can either
+    # be a scalar or a vector of size [C], and in the forward pass it's
+    # broadcast against [N, C, ...]. So now, we need to do the corresponding
+    # reduction, which is harder than we'd like...
+    cur_weight = weight
+    for _ in range(2, grad_output.dim()):
+        cur_weight = cur_weight.unsqueeze(-1)
+    input_grad = aten.where(self > 0, grad_output, cur_weight * grad_output)
+    weight_grad_collector = aten.where(self > 0, aten.new_zeros(grad_output, ()), self * grad_output)
+    out = aten.sum_to_size(weight_grad_collector, cur_weight.shape)
+    while out.dim() > weight.dim():
+        out = out.squeeze(-1)
+    return (input_grad, out)
+
+
+@register_decomposition(aten.rrelu_with_noise_backward)
+def rrelu_with_noise_backward(grad_output: Tensor, self: Tensor, noise: Tensor, lower: float, upper: float, training: bool, self_is_result: bool) -> Tensor:
+    if training and upper - lower > 1e-6:
+        return grad_output.mul(noise)
+    else:
+        negative_slope = (lower + upper) / 2
+        return aten.leaky_relu_backward(grad_output, self, negative_slope, self_is_result)
 
 
 @register_decomposition(aten.log_sigmoid_backward)
@@ -124,11 +153,10 @@ def log_sigmoid_backward(grad_output: Tensor, self: Tensor, buffer: Tensor) -> T
     in_negative = self < 0
     max_deriv = aten.where(in_negative, 1, 0)
     sign = aten.where(in_negative, 1, -1)
-    if grad_output.is_cuda:  # buffer is not used on CUDA
-        z = aten.exp(-aten.abs(self))
-        return grad_output * (max_deriv - sign * (z / (1 + z)))
-    else:
-        return (max_deriv - sign * (buffer / (1 + buffer))) * grad_output
+    z = aten.exp(-aten.abs(self))
+    return grad_output * (max_deriv - sign * (z / (1 + z)))
+    # CPU has a special formula that uses buffer, but disabled for convenience sake
+    # return (max_deriv - sign * (buffer / (1 + buffer))) * grad_output
 
 
 @register_decomposition(aten.mse_loss_backward)
@@ -196,6 +224,14 @@ def im2col_backward(
     return aten.col2im(grad_output, input_size, kernel_size, dilation, padding, stride)
 
 
+@register_decomposition(aten.col2im_backward)
+def col2im_backward(
+    grad_output: Tensor, kernel_size: List[int],
+    dilation: List[int], padding: List[int], stride: List[int]
+) -> Tensor:
+    return aten.im2col(grad_output, kernel_size, dilation, padding, stride)
+
+
 @register_decomposition(aten.native_dropout_backward)
 def native_dropout_backward(grad_output: Tensor, mask: Tensor, scale: float):
     return grad_output * (mask.type_as(grad_output) * scale)
@@ -239,15 +275,47 @@ def _log_softmax(x: Tensor, dim: int, half_to_float: bool):
     return shifted - shifted_logsumexp
 
 
-@register_decomposition(aten.addmm)
-def addmm(self: Tensor, mat1: Tensor, mat2: Tensor, beta=1, alpha=1):
-    if not self.is_floating_point():
-        beta = int(beta)
-        alpha = int(alpha)
-    out = alpha * aten.mm(mat1, mat2)
-    if beta == 0:
-        return out
-    return beta * self + out
+@register_decomposition(aten.addcdiv)
+def addcdiv(self: Tensor, tensor1: Tensor, tensor2: Tensor, value: float = 1):
+    return self + value * (tensor1 / tensor2)
+
+
+# Remove special case when https://github.com/pytorch/pytorch/pull/72949 is landed.
+@register_decomposition(aten.addcmul)
+def addcmul(self: Tensor, tensor1: Tensor, tensor2: Tensor, value: float = 1):
+    if self.is_floating_point():
+        return self + value * tensor1 * tensor2
+    else:
+        return self + int(value) * tensor1 * tensor2
+
+
+@register_decomposition(aten.embedding_dense_backward)
+def embedding_dense_backward(grad_output: Tensor, indices: Tensor, num_weights: int, padding_idx: int, scale_grad_by_freq: bool):
+    numel = indices.numel()
+    grad = grad_output.view(numel, grad_output.size(-1))
+    grad_weight = aten.new_zeros(grad_output, (num_weights, grad_output.shape[-1]))
+    indices_rank1 = indices.view(numel)
+    if scale_grad_by_freq:
+        counts = aten.new_zeros(indices, (num_weights,))
+        ones = aten.new_ones(indices, (numel,))
+        counts = aten.index_put(counts, [indices_rank1], ones, accumulate=True)
+        grad_weights_scale = aten.index(counts, [indices_rank1])
+        grad = grad / grad_weights_scale.unsqueeze(1)
+    skip_padding = (indices_rank1 != padding_idx).unsqueeze(1)
+    skip_padding = skip_padding.expand_as(grad)
+    zero_grad = aten.full_like(grad, 0)
+    return aten.index_put(grad_weight, [indices_rank1], aten.where(skip_padding, grad, zero_grad), accumulate=True)
+
+
+# @register_decomposition(aten.addmm)
+# def addmm(self: Tensor, mat1: Tensor, mat2: Tensor, beta=1, alpha=1):
+#     if not self.is_floating_point():
+#         beta = int(beta)
+#         alpha = int(alpha)
+#     out = alpha * aten.mm(mat1, mat2)
+#     if beta == 0:
+#         return out
+#     return beta * self + out
 
 
 @register_decomposition(aten.clamp_min)
@@ -259,11 +327,12 @@ def clamp_min(self: Tensor, min: float):
 def clamp_max(self: Tensor, min: float):
     return aten.clamp(self, max=max)
 
-# @register_decomposition(aten._fused_dropout)
-# def _fused_dropout_decomposition(input, p, generator=None):
-#     mask = aten.to(aten.rand_like(input) < p, dtype=torch.uint8)
-#     res = mask.type_as(input) * input * (1./p)
-#     return [res, mask]
+
+@register_decomposition(aten._fused_dropout)
+def _fused_dropout_decomposition(input, p, generator=None):
+    mask = aten.to(aten.rand_like(input) < p, dtype=torch.uint8)
+    res = mask.type_as(input) * input * (1./p)
+    return [res, mask]
 
 
 # Questionable decompositions
