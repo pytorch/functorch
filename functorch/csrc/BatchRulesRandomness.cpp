@@ -51,8 +51,7 @@ Tensor randperm_batching_rule(int64_t n, ExtraArgs... extra_args) {
     }
     return makeBatched(at::stack(stackedList), 0, maybe_layer->layerId());
   } else {
-    const auto res = Func(n, std::forward<ExtraArgs>(extra_args)...);
-    return res;
+    return Func(n, std::forward<ExtraArgs>(extra_args)...);
   }
 }
 
