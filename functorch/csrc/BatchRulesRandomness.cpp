@@ -317,6 +317,7 @@ TORCH_LIBRARY_IMPL(aten, FuncTorchVmapMode, m) {
   RAND_TWO_LEADING_SCALARS_BATCH_RULE(randint, low_generator);
 
   m.impl("bernoulli_.Tensor", at::functorch::bernoulli_inplace_Tensor_batching_rule);
+  RANDOM_INPLACE_BATCH_RULE2(bernoulli_, float);
 
   RANDPERM_BATCH_RULE(randperm);
   RANDPERM_BATCH_RULE2(randperm, generator);
