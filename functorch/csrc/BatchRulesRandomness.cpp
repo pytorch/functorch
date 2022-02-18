@@ -58,7 +58,8 @@ Tensor& random_inplace_batching_rule(Tensor& self, ExtraArgs... extra_args) {
   check_randomness(randomness);
   TORCH_CHECK(
     !(randomness == RandomnessType::Different && !self_bdim),
-    "cannot ask for different inplace randomness on an unbatched tensor. This will appear like same randomness");
+    "vmap: Cannot ask for different inplace randomness on an unbatched tensor. This will appear like same randomness. ",
+    "If this is necessary for your usage, please file an issue with functorch.");
   if (randomness == RandomnessType::Same && self_bdim) {
     auto intermediate = empty(self.sizes(), self.options());
     Func(intermediate, std::forward<ExtraArgs>(extra_args)...);
