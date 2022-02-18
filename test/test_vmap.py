@@ -3488,28 +3488,42 @@ class TestVmapOperatorsOpInfo(TestCase):
                 assert torch.allclose(vmap_result[i], expected)
 
     @parametrize('use_generator', [True, False])
-    def test_random_inplace_not_batched(self, device, use_generator):
-        # tests that when in place random is being called during vmap but not with a batched tensor,
-        # it behaves like a normal random_, even if we aren't using different random
+    @parametrize('randomness', ['error', 'same', 'different'])
+    def test_random_inplace_not_batched(self, device, use_generator, randomness):
+        # tests that when in place random ops are being called during vmap but not with a batched tensor,
+        # it behaves like a normal random_ when using same random and errors during different random
+        supported_ops = [
+            lambda t, _: t.random_(**kwargs),
+            lambda t, _: t.random_(100, **kwargs),
+            lambda t, _: t.random_(-5, 100, **kwargs),
+            lambda t, _: t.normal_(**kwargs),
+        ]
+
         B0 = 4
         seed = 1234567
         generator = torch.Generator(device=device)
         orig_state = generator.get_state()
-        pos_args = [[], [100], [-5, 100]]
         kwargs = {'generator': generator} if use_generator else {}
 
-        for pos_arg in pos_args:
-            vmaped_value = torch.randn(B0, B0, device=device)
-            unvmaped_value = torch.randn(B0, B0, device=device)
+        for op in supported_ops:
+            vmaped_value, unvmaped_value = torch.randn(B0, B0, device=device), torch.randn(B0, B0, device=device)
             generator = generator.set_state(orig_state)
             torch.manual_seed(seed)
-            fn = vmap(lambda t, _, __: t.random_(*pos_arg, **kwargs), in_dims=(None, 0, None), randomness='same')
-            fn(unvmaped_value, vmaped_value, [B0])
+            if randomness == 'error' or randomness == 'different':
+                error_regex = r"called random operation while in randomness error mode"
+                different_random_regex = r"different inplace randomness on an unbatched tensor"
+                regex = error_regex if randomness == 'error' else different_random_regex
+
+                with self.assertRaisesRegex(RuntimeError, regex):
+                    vmap(op, in_dims=(None, 0), randomness=randomness)(unvmaped_value, vmaped_value)
+                return
+
+            vmap(op, in_dims=(None, 0), randomness=randomness)(unvmaped_value, vmaped_value)
 
             passed = torch.randn([B0, B0], device=device)  # reset for in place operation
             generator = generator.set_state(orig_state)
             torch.manual_seed(seed)
-            passed.random_(*pos_arg, **kwargs)
+            op(passed, vmaped_value)
             assert torch.allclose(unvmaped_value, passed)
 
 
