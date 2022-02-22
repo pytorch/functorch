@@ -2619,7 +2619,6 @@ class TestVmapOperators(Namespace.TestVmapBase):
             (lambda t: torch.randint_like(captured, 0, 2), (torch.rand(B0),)),
 
             # in-place on BatchedTensor
-            (lambda t: t.bernoulli_(), (torch.randn(B0, 1),)),
             (lambda t: t.cauchy_(), (torch.randn(B0, 1),)),
             (lambda t: t.exponential_(), (torch.randn(B0, 1),)),
             (lambda t: t.geometric_(0.5), (torch.randn(B0, 1),)),
@@ -2627,7 +2626,6 @@ class TestVmapOperators(Namespace.TestVmapBase):
             (lambda t: t.uniform_(), (torch.randn(B0, 1),)),
 
             # in-place on captured tensor
-            (lambda t: captured.bernoulli_(), (torch.randn(B0),)),
             (lambda t: captured.cauchy_(), (torch.randn(B0),)),
             (lambda t: captured.exponential_(), (torch.randn(B0),)),
             (lambda t: captured.geometric_(0.5), (torch.randn(B0),)),
@@ -3426,6 +3424,7 @@ class TestVmapOperatorsOpInfo(TestCase):
             lambda _, shape: torch.normal(0., 1., shape, **kwargs),
             lambda t, _: t.normal_(**only_gen_kwarg),
             lambda t, _: t.bernoulli_(torch.tensor([0.3, 0.4, 0.5, 0.6]), **only_gen_kwarg),
+            lambda t, _: t.bernoulli_(**only_gen_kwarg),
         ]
 
         B0 = 4
@@ -3494,7 +3493,8 @@ class TestVmapOperatorsOpInfo(TestCase):
             lambda t, _: t.random_(100, **kwargs),
             lambda t, _: t.random_(-5, 100, **kwargs),
             lambda t, _: t.normal_(**kwargs),
-            lambda t, _: t.bernoulli_(torch.tensor([0.3, 0.4, 0.5, 0.6]), **kwargs)
+            lambda t, _: t.bernoulli_(torch.tensor([0.3, 0.4, 0.5, 0.6]), **kwargs),
+            lambda t, _: t.bernoulli_(**kwargs),
         ]
 
         B0 = 4

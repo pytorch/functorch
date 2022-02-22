@@ -2354,7 +2354,8 @@ class TestExamplesCorrectness(TestCase):
         result_loss, result_weights = unpack(parallel_train_step_fn(batched_weights, points, labels, lrs))
 
         self.assertEqual(result_loss[0], result_loss[1])
-        self.assertNotEqual(tuple(weight[0] for weight in result_weights), tuple(weight[1] for weight in result_weights))
+        self.assertNotEqual(tuple(weight[0] for weight in result_weights),
+                            tuple(weight[1] for weight in result_weights))
 
     @unittest.skipIf(not USE_TORCHVISION, "test requires torchvision")
     def test_resnet18_per_sample_grads(self, device):
