@@ -2975,6 +2975,17 @@ class TestVmapBatchedGradient(Namespace.TestVmapBase):
         x = torch.randn(2, 3, device=device, requires_grad=True)
         self._batched_grad_test(Tensor.trace, (x,))
 
+        # TODO: put this test to where it will be appropriate
+        from functorch import grad
+
+        x = torch.randn(3, 2, 2, device=device)
+
+        def sum_grad_trace(x):
+            return grad(torch.trace)(x).sum()
+
+        output = vmap(grad(sum_grad_trace))(x)
+        self.assertEqual(output, torch.zeros_like(output))
+
     @skipCUDAIfNoMagma
     @allowVmapFallbackUsage
     def test_symeig(self, device):
