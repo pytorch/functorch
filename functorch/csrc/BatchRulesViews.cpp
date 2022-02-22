@@ -155,6 +155,17 @@ Tensor trace_decomp(const Tensor& self) {
   return at::sum(at::diagonal(self));
 }
 
+Tensor trace_backward_decomp(const Tensor& grad, IntArrayRef sizes) {
+  if (sizes.size() != 2) {
+    throw std::runtime_error("expected matrix input");
+  }
+  auto grad_input = at::zeros(sizes[0] * sizes[1], grad.options());
+  auto indices = at::arange(0, grad_input.numel(), sizes[1] + 1, grad.options().dtype(at::kLong));
+  // Workaround using index_put instead of yet unsupported index_fill_
+  grad_input = grad_input.index_put({indices}, grad);
+  return grad_input.view(sizes);
+}
+
 std::tuple<Tensor,optional<int64_t>> flip_batch_rule(const Tensor& self, optional<int64_t> self_bdim, IntArrayRef dims) {
   auto self_ = moveBatchDimToFront(self, self_bdim);
   VmapDimVector new_dims;
@@ -499,6 +510,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   m.impl("flatten.using_ints", static_cast<decltype(&ATEN_FN2(flatten, using_ints))>(native::flatten));
   VMAP_SUPPORT(flip, flip_batch_rule);
   m.impl("trace", trace_decomp);
+  m.impl("trace_backward", trace_backward_decomp);
   VMAP_SUPPORT(tril, VARIADIC_BDIMS_BATCH_RULE(ATEN_FN(tril)));
   VMAP_SUPPORT(triu, VARIADIC_BDIMS_BATCH_RULE(ATEN_FN(triu)));
   VMAP_SUPPORT(repeat, repeat_batch_rule);
