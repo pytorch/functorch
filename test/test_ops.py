@@ -471,7 +471,6 @@ class TestOperators(TestCase):
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     def test_vmapvjpvjp(self, device, dtype, op):
-        self.skipTest("Skipped; these tests take too long")
         op_skip = set({
         })
         op_skip = op_skip.union(vjp_fail)
