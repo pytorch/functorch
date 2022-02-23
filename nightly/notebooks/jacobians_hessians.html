@@ -1,0 +1,655 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Jacobians, hessians, and more: composing functorch transforms &mdash; functorch preview documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/copybutton.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/togglebutton.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/mystnb.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Model ensembling" href="ensembling.html" />
+    <link rel="prev" title="functorch.combine_state_for_ensemble" href="../generated/functorch.combine_state_for_ensemble.html" />
+  <!-- Google Analytics -->
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-117752657-2"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'UA-117752657-2');
+    </script>
+  
+  <!-- End Google Analytics -->
+
+  
+
+  
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://pytorch.org/functorch" aria-label="functorch"></a>
+
+      <div class="main-menu">
+        <ul>
+
+          <li>
+            <a href="tutorials.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pytorch/functorch/tree/main/examples">Examples</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pytorch/functorch">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  <a href='https://pytorch.org/functorch/versions.html'>main (0.2.0a0+582c88d) &#x25BC</a>
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Content</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Install functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../functorch.html">functorch API Reference</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Tutorials</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Jacobians, hessians, and more: composing functorch transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ensembling.html">Model ensembling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="per_sample_grads.html">Per-sample-gradients</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aot_autograd_optimizations.html">AOT Autograd - How to use and optimize?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aot_autograd_optimizations.html#use-aot-autograd">Use AOT Autograd</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>Jacobians, hessians, and more: composing functorch transforms</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/notebooks/jacobians_hessians.ipynb.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <div class="tex2jax_ignore mathjax_ignore section" id="jacobians-hessians-and-more-composing-functorch-transforms">
+<h1>Jacobians, hessians, and more: composing functorch transforms<a class="headerlink" href="#jacobians-hessians-and-more-composing-functorch-transforms" title="Permalink to this headline">¶</a></h1>
+<a href="https://colab.research.google.com/github/pytorch/functorch/blob/main/notebooks/colab/jacobians_hessians_colab.ipynb">
+  <img style="width: auto" src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
+<p>Computing jacobians or hessians are useful in a number of non-traditional
+deep learning models. It is difficult (or annoying) to compute these quantities
+efficiently using a standard autodiff system like PyTorch Autograd; functorch
+provides ways of computing various higher-order autodiff quantities efficiently.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="setup-comparing-functorch-vs-the-naive-approach">
+<h2>Setup: Comparing functorch vs the naive approach<a class="headerlink" href="#setup-comparing-functorch-vs-the-naive-approach" title="Permalink to this headline">¶</a></h2>
+<p>Let’s start with a function that we’d like to compute the jacobian of.
+This is a simple linear function with non-linear activation.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="n">weight</span><span class="p">,</span> <span class="n">bias</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">F</span><span class="o">.</span><span class="n">linear</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">bias</span><span class="p">)</span><span class="o">.</span><span class="n">tanh</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Here’s some dummy data: a weight, a bias, and a feature vector.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">D</span> <span class="o">=</span> <span class="mi">16</span>
+<span class="n">weight</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">D</span><span class="p">,</span> <span class="n">D</span><span class="p">)</span>
+<span class="n">bias</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">D</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">D</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Let’s think of <code class="docutils literal notranslate"><span class="pre">predict</span></code> as a function that maps the input <code class="docutils literal notranslate"><span class="pre">x</span></code> from <span class="math notranslate nohighlight">\(R^D -&gt; R^D\)</span>.
+PyTorch Autograd computes vector-Jacobian products. In order to compute the full
+Jacobian of this <span class="math notranslate nohighlight">\(R^D -&gt; R^D\)</span> function, we would have to compute it row-by-row
+by using a different unit vector each time.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">xp</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span><span class="o">.</span><span class="n">requires_grad_</span><span class="p">()</span>
+<span class="n">unit_vectors</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">D</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">compute_jac</span><span class="p">(</span><span class="n">xp</span><span class="p">):</span>
+    <span class="n">jacobian_rows</span> <span class="o">=</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">predict</span><span class="p">(</span><span class="n">weight</span><span class="p">,</span> <span class="n">bias</span><span class="p">,</span> <span class="n">xp</span><span class="p">),</span> <span class="n">xp</span><span class="p">,</span> <span class="n">vec</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                     <span class="k">for</span> <span class="n">vec</span> <span class="ow">in</span> <span class="n">unit_vectors</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">jacobian_rows</span><span class="p">)</span>
+
+<span class="n">jacobian</span> <span class="o">=</span> <span class="n">compute_jac</span><span class="p">(</span><span class="n">xp</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Instead of computing the jacobian row-by-row, we can use <code class="docutils literal notranslate"><span class="pre">vmap</span></code> to get rid
+of the for-loop and vectorize the computation. We can’t directly apply vmap
+to PyTorch Autograd; instead, functorch provides a <code class="docutils literal notranslate"><span class="pre">vjp</span></code> transform:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">vmap</span><span class="p">,</span> <span class="n">vjp</span>
+<span class="n">_</span><span class="p">,</span> <span class="n">vjp_fn</span> <span class="o">=</span> <span class="n">vjp</span><span class="p">(</span><span class="n">partial</span><span class="p">(</span><span class="n">predict</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">bias</span><span class="p">),</span> <span class="n">x</span><span class="p">)</span>
+<span class="n">ft_jacobian</span><span class="p">,</span> <span class="o">=</span> <span class="n">vmap</span><span class="p">(</span><span class="n">vjp_fn</span><span class="p">)(</span><span class="n">unit_vectors</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">ft_jacobian</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>In another tutorial a composition of reverse-mode AD and vmap gave us
+per-sample-gradients. In this tutorial, composing reverse-mode AD and vmap
+gives us Jacobian computation! Various compositions of vmap and autodiff
+transforms can give us different interesting quantities.</p>
+<p>functorch provides <code class="docutils literal notranslate"><span class="pre">jacrev</span></code> as a convenience function that performs
+the vmap-vjp composition to compute jacobians. <code class="docutils literal notranslate"><span class="pre">jacrev</span></code> accepts an argnums
+argument that says which argument we would like to compute Jacobians with
+respect to.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">jacrev</span>
+<span class="n">ft_jacobian</span> <span class="o">=</span> <span class="n">jacrev</span><span class="p">(</span><span class="n">predict</span><span class="p">,</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">2</span><span class="p">)(</span><span class="n">weight</span><span class="p">,</span> <span class="n">bias</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">ft_jacobian</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Let’s compare the performance of the two ways to compute jacobian.
+The functorch version is much faster (and becomes even faster the more outputs
+there are). In general, we expect that vectorization via <code class="docutils literal notranslate"><span class="pre">vmap</span></code> can help
+eliminate overhead and give better utilization of your hardware.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">torch.utils.benchmark</span> <span class="kn">import</span> <span class="n">Timer</span>
+<span class="n">without_vmap</span> <span class="o">=</span> <span class="n">Timer</span><span class="p">(</span><span class="n">stmt</span><span class="o">=</span><span class="s2">&quot;compute_jac(xp)&quot;</span><span class="p">,</span> <span class="nb">globals</span><span class="o">=</span><span class="nb">globals</span><span class="p">())</span>
+<span class="n">with_vmap</span> <span class="o">=</span> <span class="n">Timer</span><span class="p">(</span><span class="n">stmt</span><span class="o">=</span><span class="s2">&quot;jacrev(predict, argnums=2)(weight, bias, x)&quot;</span><span class="p">,</span> <span class="nb">globals</span><span class="o">=</span><span class="nb">globals</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">without_vmap</span><span class="o">.</span><span class="n">timeit</span><span class="p">(</span><span class="mi">500</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">with_vmap</span><span class="o">.</span><span class="n">timeit</span><span class="p">(</span><span class="mi">500</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;torch.utils.benchmark.utils.common.Measurement object at 0x7f4462a8b3a0&gt;
+compute_jac(xp)
+  1.08 ms
+  1 measurement, 500 runs , 1 thread
+&lt;torch.utils.benchmark.utils.common.Measurement object at 0x7f4461e3ee20&gt;
+jacrev(predict, argnums=2)(weight, bias, x)
+  361.07 us
+  1 measurement, 500 runs , 1 thread
+</pre></div>
+</div>
+</div>
+</div>
+<p>Furthemore, it’s pretty easy to flip the problem around and say we want to compute
+Jacobians of the parameters to our model (weight, bias) instead of the input.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">ft_jac_weight</span><span class="p">,</span> <span class="n">ft_jac_bias</span> <span class="o">=</span> <span class="n">jacrev</span><span class="p">(</span><span class="n">predict</span><span class="p">,</span> <span class="n">argnums</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))(</span><span class="n">weight</span><span class="p">,</span> <span class="n">bias</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="reverse-mode-jacobian-jacrev-vs-forward-mode-jacobian-jacfwd">
+<h2>reverse-mode Jacobian (jacrev) vs forward-mode Jacobian (jacfwd)<a class="headerlink" href="#reverse-mode-jacobian-jacrev-vs-forward-mode-jacobian-jacfwd" title="Permalink to this headline">¶</a></h2>
+<p>We offer two APIs to compute jacobians: jacrev and jacfwd:</p>
+<ul class="simple">
+<li><p>jacrev uses reverse-mode AD. As you saw above it is a composition of our
+vjp and vmap transforms.</p></li>
+<li><p>jacfwd uses forward-mode AD. It is implemented as a composition of our
+jvp and vmap transforms.
+jacfwd and jacrev can be subsituted for each other and have different
+performance characteristics.</p></li>
+</ul>
+<p>As a general rule of thumb, if you’re computing the jacobian of an <span class="math notranslate nohighlight">\(R^N -&gt; R^M\)</span>
+function, if there are many more outputs than inputs (i.e. M &gt; N) then jacfwd is
+preferred, otherwise use jacrev. There are exceptions to this rule, but a
+non-rigorous argument for this follows:</p>
+<p>In reverse-mode AD, we are computing the jacobian row-by-row, while in
+forward-mode AD (which computes Jacobian-vector products), we are computing
+it column-by-column. The Jacobian matrix has M rows and N columns, so if it is
+taller or wider one way we may prefer the method that deals with fewer rows or
+columns.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">jacrev</span><span class="p">,</span> <span class="n">jacfwd</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Benchmark with more inputs than outputs</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">Din</span> <span class="o">=</span> <span class="mi">32</span>
+<span class="n">Dout</span> <span class="o">=</span> <span class="mi">2048</span>
+<span class="n">weight</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">Dout</span><span class="p">,</span> <span class="n">Din</span><span class="p">)</span>
+<span class="n">bias</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">Dout</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">Din</span><span class="p">)</span>
+
+<span class="n">using_fwd</span> <span class="o">=</span> <span class="n">Timer</span><span class="p">(</span><span class="n">stmt</span><span class="o">=</span><span class="s2">&quot;jacfwd(predict, argnums=2)(weight, bias, x)&quot;</span><span class="p">,</span> <span class="nb">globals</span><span class="o">=</span><span class="nb">globals</span><span class="p">())</span>
+<span class="n">using_bwd</span> <span class="o">=</span> <span class="n">Timer</span><span class="p">(</span><span class="n">stmt</span><span class="o">=</span><span class="s2">&quot;jacrev(predict, argnums=2)(weight, bias, x)&quot;</span><span class="p">,</span> <span class="nb">globals</span><span class="o">=</span><span class="nb">globals</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;jacfwd time: </span><span class="si">{</span><span class="n">using_fwd</span><span class="o">.</span><span class="n">timeit</span><span class="p">(</span><span class="mi">500</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;jacrev time: </span><span class="si">{</span><span class="n">using_bwd</span><span class="o">.</span><span class="n">timeit</span><span class="p">(</span><span class="mi">500</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>jacfwd time: &lt;torch.utils.benchmark.utils.common.Measurement object at 0x7f44629bc760&gt;
+jacfwd(predict, argnums=2)(weight, bias, x)
+  603.91 us
+  1 measurement, 500 runs , 1 thread
+jacrev time: &lt;torch.utils.benchmark.utils.common.Measurement object at 0x7f4461e1b8b0&gt;
+jacrev(predict, argnums=2)(weight, bias, x)
+  5.25 ms
+  1 measurement, 500 runs , 1 thread
+</pre></div>
+</div>
+</div>
+</div>
+<p>Benchmark with more outputs than inputs</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">Din</span> <span class="o">=</span> <span class="mi">2048</span>
+<span class="n">Dout</span> <span class="o">=</span> <span class="mi">32</span>
+<span class="n">weight</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">Dout</span><span class="p">,</span> <span class="n">Din</span><span class="p">)</span>
+<span class="n">bias</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">Dout</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">Din</span><span class="p">)</span>
+
+<span class="n">using_fwd</span> <span class="o">=</span> <span class="n">Timer</span><span class="p">(</span><span class="n">stmt</span><span class="o">=</span><span class="s2">&quot;jacfwd(predict, argnums=2)(weight, bias, x)&quot;</span><span class="p">,</span> <span class="nb">globals</span><span class="o">=</span><span class="nb">globals</span><span class="p">())</span>
+<span class="n">using_bwd</span> <span class="o">=</span> <span class="n">Timer</span><span class="p">(</span><span class="n">stmt</span><span class="o">=</span><span class="s2">&quot;jacrev(predict, argnums=2)(weight, bias, x)&quot;</span><span class="p">,</span> <span class="nb">globals</span><span class="o">=</span><span class="nb">globals</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;jacfwd time: </span><span class="si">{</span><span class="n">using_fwd</span><span class="o">.</span><span class="n">timeit</span><span class="p">(</span><span class="mi">500</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;jacrev time: </span><span class="si">{</span><span class="n">using_bwd</span><span class="o">.</span><span class="n">timeit</span><span class="p">(</span><span class="mi">500</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>jacfwd time: &lt;torch.utils.benchmark.utils.common.Measurement object at 0x7f4461e19a60&gt;
+jacfwd(predict, argnums=2)(weight, bias, x)
+  5.33 ms
+  1 measurement, 500 runs , 1 thread
+jacrev time: &lt;torch.utils.benchmark.utils.common.Measurement object at 0x7f4461e30ee0&gt;
+jacrev(predict, argnums=2)(weight, bias, x)
+  424.29 us
+  1 measurement, 500 runs , 1 thread
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="hessian-computation-with-functorch-hessian">
+<h2>Hessian computation with functorch.hessian<a class="headerlink" href="#hessian-computation-with-functorch-hessian" title="Permalink to this headline">¶</a></h2>
+<p>We offer a convenience API to compute hessians: functorch.hessian.
+Hessians are the jacobian of the jacobian, which suggests that one can just
+compose functorch’s jacobian transforms to compute one.
+Indeed, under the hood, <code class="docutils literal notranslate"><span class="pre">hessian(f)</span></code> is simply <code class="docutils literal notranslate"><span class="pre">jacfwd(jacrev(f))</span></code></p>
+<p>Depending on your model, you may also want to use <code class="docutils literal notranslate"><span class="pre">jacfwd(jacfwd(f))</span></code> or
+<code class="docutils literal notranslate"><span class="pre">jacrev(jacrev(f))</span></code> instead to compute hessians.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">hessian</span>
+<span class="c1"># # TODO(rzou): make sure PyTorch has tanh_backward implemented for jvp!!</span>
+<span class="c1"># hess0 = hessian(predict, argnums=2)(weight, bias, x)</span>
+<span class="c1"># hess1 = jacfwd(jacfwd(predict, argnums=2), argnums=2)(weight, bias, x)</span>
+<span class="n">hess2</span> <span class="o">=</span> <span class="n">jacrev</span><span class="p">(</span><span class="n">jacrev</span><span class="p">(</span><span class="n">predict</span><span class="p">,</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">2</span><span class="p">)(</span><span class="n">weight</span><span class="p">,</span> <span class="n">bias</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="batch-jacobian-and-batch-hessian">
+<h2>Batch Jacobian (and Batch Hessian)<a class="headerlink" href="#batch-jacobian-and-batch-hessian" title="Permalink to this headline">¶</a></h2>
+<p>In the above examples we’ve been operating with a single feature vector.
+In some cases you might want to take the Jacobian of a batch of outputs
+with respect to a batch of inputs. That is, given a batch of inputs of shape <code class="docutils literal notranslate"><span class="pre">(B,</span> <span class="pre">N)</span></code> and a function
+that goes from <code class="docutils literal notranslate"><span class="pre">R^N</span> <span class="pre">-&gt;</span> <span class="pre">R^M</span></code>, we would like a Jacobian of shape <code class="docutils literal notranslate"><span class="pre">(B,</span> <span class="pre">M,</span> <span class="pre">N)</span></code>.
+The easiest way to do this is to use vmap:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">batch_size</span> <span class="o">=</span> <span class="mi">64</span>
+<span class="n">Din</span> <span class="o">=</span> <span class="mi">31</span>
+<span class="n">Dout</span> <span class="o">=</span> <span class="mi">33</span>
+<span class="n">weight</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">Dout</span><span class="p">,</span> <span class="n">Din</span><span class="p">)</span>
+<span class="n">bias</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">Dout</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">Din</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">compute_batch_jacobian</span> <span class="o">=</span> <span class="n">vmap</span><span class="p">(</span><span class="n">jacrev</span><span class="p">(</span><span class="n">predict</span><span class="p">,</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span> <span class="n">in_dims</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+<span class="n">batch_jacobian0</span> <span class="o">=</span> <span class="n">compute_batch_jacobian</span><span class="p">(</span><span class="n">weight</span><span class="p">,</span> <span class="n">bias</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>If you have a function that goes from <code class="docutils literal notranslate"><span class="pre">(B,</span> <span class="pre">N)</span> <span class="pre">-&gt;</span> <span class="pre">(B,</span> <span class="pre">M)</span></code> instead and are certain that each input produces an independent
+output, then it’s also sometimes possible to do this without using <code class="docutils literal notranslate"><span class="pre">vmap</span></code> by summing the outputs and then computing the Jacobian of that function:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">predict_with_output_summed</span><span class="p">(</span><span class="n">weight</span><span class="p">,</span> <span class="n">bias</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">predict</span><span class="p">(</span><span class="n">weight</span><span class="p">,</span> <span class="n">bias</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="n">batch_jacobian1</span> <span class="o">=</span> <span class="n">jacrev</span><span class="p">(</span><span class="n">predict_with_output_summed</span><span class="p">,</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">2</span><span class="p">)(</span><span class="n">weight</span><span class="p">,</span> <span class="n">bias</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">movedim</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">batch_jacobian0</span><span class="p">,</span> <span class="n">batch_jacobian1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>If you instead have a function that goes from <span class="math notranslate nohighlight">\(R^N -&gt; R^M\)</span> but inputs that are
+batched, you compose vmap with jacrev to compute batched jacobians:</p>
+<p>Finally, batch hessians can be computed similarly. It’s easiest to think about
+them by using vmap to batch over hessian computation, but in some cases the sum
+trick also works.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">compute_batch_hessian</span> <span class="o">=</span> <span class="n">vmap</span><span class="p">(</span><span class="n">hessian</span><span class="p">(</span><span class="n">predict</span><span class="p">,</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span> <span class="n">in_dims</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+<span class="c1"># TODO(rzou): PyTorch forward-mode AD does not support tanh_backward</span>
+<span class="c1"># batch_hess = compute_batch_hessian(weight, bias, x)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+             </article>
+             
+            </div>
+            <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="ensembling.html" class="btn btn-neutral float-right" title="Model ensembling" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+      
+      
+        <a href="../generated/functorch.combine_state_for_ensemble.html" class="btn btn-neutral" title="functorch.combine_state_for_ensemble" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
+    </div>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright functorch Contributors.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Jacobians, hessians, and more: composing functorch transforms</a><ul>
+<li><a class="reference internal" href="#setup-comparing-functorch-vs-the-naive-approach">Setup: Comparing functorch vs the naive approach</a></li>
+<li><a class="reference internal" href="#reverse-mode-jacobian-jacrev-vs-forward-mode-jacobian-jacfwd">reverse-mode Jacobian (jacrev) vs forward-mode Jacobian (jacfwd)</a></li>
+<li><a class="reference internal" href="#hessian-computation-with-functorch-hessian">Hessian computation with functorch.hessian</a></li>
+<li><a class="reference internal" href="#batch-jacobian-and-batch-hessian">Batch Jacobian (and Batch Hessian)</a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+         <script src="../_static/jquery.js"></script>
+         <script src="../_static/underscore.js"></script>
+         <script src="../_static/doctools.js"></script>
+         <script src="../_static/clipboard.min.js"></script>
+         <script src="../_static/copybutton.js"></script>
+         <script >let toggleHintShow = 'Click to show';</script>
+         <script >let toggleHintHide = 'Click to hide';</script>
+         <script >let toggleOpenOnPrint = 'true';</script>
+         <script src="../_static/togglebutton.js"></script>
+         <script >var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
+         <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+         <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"processClass": "tex2jax_process|mathjax_process|math|output_area"}})</script>
+     
+
+  
+
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <script script type="text/javascript">
+    var collapsedSections = ['Notes', 'Language Bindings', 'Libraries', 'Community'];
+  </script>
+
+  <img height="1" width="1" style="border-style:none;" alt="" src="https://www.googleadservices.com/pagead/conversion/795629140/?label=txkmCPmdtosBENSssfsC&amp;guid=ON&amp;script=0"/>
+
+  
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>
+
+<link rel="canonical" href="notebooks/jacobians_hessians.html" />
