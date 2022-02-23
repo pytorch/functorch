@@ -84,15 +84,6 @@ void decompose_functional(const c10::OperatorHandle& op, torch::jit::Stack* stac
   }
 }
 
-std::tuple<Tensor, Tensor> native_dropout_decomp(const Tensor& input, double p, optional<bool> train) {
-  if (input.device() == DeviceType::CPU){
-    return at::native::native_dropout_cpu(input, p, train);
-  } else if (input.device() == DeviceType::CUDA){
-    return at::native::native_dropout_cuda(input, p, train);
-  } else {
-    TORCH_CHECK(false, "got tensor of unsupported type for dropout. Can only do cpu and cuda tensors")
-  }
-}
 
 #define DECOMPOSE_FUNCTIONAL(op) \
   m.impl(#op, torch::CppFunction::makeFromBoxedFunction<&decompose_functional>());
@@ -232,7 +223,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(mT);
   OP_DECOMPOSE2(multiply, Tensor );
   OP_DECOMPOSE(narrow);
-  m.impl("native_dropout", native_dropout_decomp);
+  OP_DECOMPOSE(dropout);
   OP_DECOMPOSE(negative);
   OP_DECOMPOSE(nll_loss_nd);
   OP_DECOMPOSE(nll_loss);
