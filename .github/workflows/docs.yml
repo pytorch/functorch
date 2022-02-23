@@ -1,4 +1,4 @@
-name: Build Docs
+name: Build and Deploy Docs
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -35,5 +35,40 @@ jobs:
       - name: Upload docs as GHA artifact
         uses: actions/upload-artifact@v2
         with:
-          name: docs.whl
+          name: built-docs
           path: docs/build/html
+
+  deploy-docs:
+    needs: [build-docs]
+    runs-on: ubuntu-latest
+    if: (github.ref == 'refs/heads/main' && github.event_name == 'push')
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: gh-pages
+          fetch-depth: 3
+
+      - name: Download docs artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: built-docs
+          path: /tmp/docs
+
+      - name: Copy built docs to nightly
+        run: |
+          cp -R /tmp/docs/* nightly/
+          # Manipulations to squash the history:
+          # 1) reset to a fixed commit
+          # 2) use github-actions-x/commit to commit everything as a single commit
+          git reset --soft 218f32faf8b8cc5236bc49ea77ef7d222e21e5d6
+
+      # Can not use commit --amend to squash history
+      - name: Commit and push to gh-pages
+        uses: github-actions-x/commit@v2.8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          push-branch: 'gh-pages'
+          commit-message: 'New docs'
+          force-push: 'true'
+          name: gha
+          email: gha@email.org
