@@ -13,3 +13,4 @@ dependencies:
       - scipy
       - av
       - networkx
+      - timeout-decorator

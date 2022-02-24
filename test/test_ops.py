@@ -31,6 +31,7 @@ from functorch import grad, vjp, vmap
 import torch.autograd.forward_ad as fwAD
 from functorch._src.eager_transforms import _as_tuple, jvp
 from functorch.compile import decomposition_table
+import timeout_decorator
 aten = torch.ops.aten
 
 # Version of autograd.grad that handles outputs that don't depend on inputs
@@ -470,6 +471,7 @@ class TestOperators(TestCase):
             self.assertEqual(result_vjps, expected_vjps)
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
+    @timeout_decorator.timeout(800)
     def test_vmapvjpvjp(self, device, dtype, op):
         op_skip = set({
         })
