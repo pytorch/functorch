@@ -138,7 +138,7 @@ def create_aot_autograd_function(
                 with torch.set_grad_enabled(grad_state):
                     out = flat_fn(*flat_tensor_args)
                 out = pytree.tree_map(
-                    lambda x: x.detach() if isinstance(x, Tensor) else x, out
+                    lambda x: x.detach().contiguous() if isinstance(x, Tensor) else x, out
                 )
 
                 if isinstance(out, (list, tuple)):
@@ -168,9 +168,8 @@ def create_aot_autograd_function(
         @staticmethod
         @torchdynamo.disable
         def backward(ctx, *flat_args):
-            # hmm... this doesn't feel right. todo
-            # contiguous_args = [t.contiguous() for t in flat_args]
-            contiguous_args = [t for t in flat_args]
+            contiguous_args = [t.contiguous() for t in flat_args]
+            # contiguous_args = [t for t in flat_args]
             out = normalize_as_list(compiled_bw(*ctx.saved_tensors, *contiguous_args))
             return tuple(out)
 
