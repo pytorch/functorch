@@ -12,6 +12,9 @@ at::Tensor _cast_Byte_generated_plumbing(const at::Tensor & self, bool non_block
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_cast_Byte)(self, non_blocking);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -24,6 +27,9 @@ at::Tensor _cast_Char_generated_plumbing(const at::Tensor & self, bool non_block
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_cast_Char)(self, non_blocking);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -36,6 +42,9 @@ at::Tensor _cast_Double_generated_plumbing(const at::Tensor & self, bool non_blo
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_cast_Double)(self, non_blocking);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -48,6 +57,9 @@ at::Tensor _cast_Float_generated_plumbing(const at::Tensor & self, bool non_bloc
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_cast_Float)(self, non_blocking);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -60,6 +72,9 @@ at::Tensor _cast_Int_generated_plumbing(const at::Tensor & self, bool non_blocki
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_cast_Int)(self, non_blocking);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -72,6 +87,9 @@ at::Tensor _cast_Long_generated_plumbing(const at::Tensor & self, bool non_block
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_cast_Long)(self, non_blocking);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -84,6 +102,9 @@ at::Tensor _cast_Short_generated_plumbing(const at::Tensor & self, bool non_bloc
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_cast_Short)(self, non_blocking);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -96,6 +117,9 @@ at::Tensor _cast_Half_generated_plumbing(const at::Tensor & self, bool non_block
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_cast_Half)(self, non_blocking);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -108,6 +132,9 @@ at::Tensor data_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(data)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -120,6 +147,9 @@ at::Tensor & requires_grad__generated_plumbing(at::Tensor & self, bool requires_
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(requires_grad_)(self, requires_grad);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -132,6 +162,9 @@ at::Tensor _fw_primal_generated_plumbing(const at::Tensor & self, int64_t level)
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_fw_primal)(self, level);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -144,6 +177,9 @@ at::Tensor _make_dual_generated_plumbing(const at::Tensor & primal, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(primal, cur_level) && !isBatchedAtLevel(tangent, cur_level)) {
+    return ATEN_FN(_make_dual)(primal, tangent, level);
+  }
   Tensor primal_value;
   optional<int64_t> primal_bdim;
   std::tie(primal_value, primal_bdim) = unwrapTensorAtLevel(primal, cur_level);
@@ -159,6 +195,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(dual, cur_level)) {
+    return ATEN_FN(_unpack_dual)(dual, level);
+  }
   Tensor dual_value;
   optional<int64_t> dual_bdim;
   std::tie(dual_value, dual_bdim) = unwrapTensorAtLevel(dual, cur_level);
@@ -171,6 +210,9 @@ at::Tensor _new_zeros_with_same_feature_meta_generated_plumbing(const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(_new_zeros_with_same_feature_meta)(self, other, self_num_batch_dims);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -186,6 +228,9 @@ at::Tensor & rename__generated_plumbing(at::Tensor & self, c10::optional<at::Dim
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(rename_)(self, names);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -198,6 +243,9 @@ at::Tensor rename_generated_plumbing(const at::Tensor & self, c10::optional<at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(rename)(self, names);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -210,6 +258,9 @@ at::Tensor align_to_generated_plumbing(const at::Tensor & self, at::DimnameList 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(align_to)(self, names);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -222,6 +273,9 @@ at::Tensor align_to_ellipsis_idx_generated_plumbing(const at::Tensor & self, at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(align_to, ellipsis_idx)(self, order, ellipsis_idx);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -234,6 +288,9 @@ at::Tensor align_as_generated_plumbing(const at::Tensor & self, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(align_as)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -249,6 +306,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(align_tensors)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -259,6 +319,9 @@ at::Tensor refine_names_generated_plumbing(const at::Tensor & self, at::DimnameL
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(refine_names)(self, names);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -271,6 +334,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(log_probs, cur_level) && !isBatchedAtLevel(targets, cur_level)) {
+    return ATEN_FN(_cudnn_ctc_loss)(log_probs, targets, input_lengths, target_lengths, blank, deterministic, zero_infinity);
+  }
   Tensor log_probs_value;
   optional<int64_t> log_probs_bdim;
   std::tie(log_probs_value, log_probs_bdim) = unwrapTensorAtLevel(log_probs, cur_level);
@@ -286,6 +352,9 @@ at::Tensor _cudnn_rnn_flatten_weight_generated_plumbing(at::TensorList weight_ar
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(weight_arr, cur_level)) {
+    return ATEN_FN(_cudnn_rnn_flatten_weight)(weight_arr, weight_stride0, input_size, mode, hidden_size, proj_size, num_layers, batch_first, bidirectional);
+  }
 
   auto results = batch_rule(weight_arr, weight_stride0, input_size, mode, hidden_size, proj_size, num_layers, batch_first, bidirectional);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -296,6 +365,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(weight_buf, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(cx, cur_level) && !isBatchedAtLevel(dropout_state, cur_level)) {
+    return ATEN_FN(_cudnn_rnn)(input, weight, weight_stride0, weight_buf, hx, cx, mode, hidden_size, proj_size, num_layers, batch_first, dropout, train, bidirectional, batch_sizes, dropout_state);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -326,6 +398,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(weight_buf, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(cx, cur_level) && !isBatchedAtLevel(output, cur_level) && !isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(grad_hy, cur_level) && !isBatchedAtLevel(grad_cy, cur_level) && !isBatchedAtLevel(dropout_state, cur_level) && !isBatchedAtLevel(reserve, cur_level)) {
+    return ATEN_FN(_cudnn_rnn_backward)(input, weight, weight_stride0, weight_buf, hx, cx, output, grad_output, grad_hy, grad_cy, mode, hidden_size, proj_size, num_layers, batch_first, dropout, train, bidirectional, batch_sizes, dropout_state, reserve, output_mask);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -375,6 +450,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_fused_dropout)(self, p, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -387,6 +465,9 @@ at::Tensor _masked_scale_generated_plumbing(const at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mask, cur_level)) {
+    return ATEN_FN(_masked_scale)(self, mask, scale);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -402,6 +483,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN(native_dropout)(input, p, train);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -414,6 +498,9 @@ at::Tensor native_dropout_backward_generated_plumbing(const at::Tensor & grad_ou
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(mask, cur_level)) {
+    return ATEN_FN(native_dropout_backward)(grad_output, mask, scale);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -429,6 +516,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(quasi, cur_level) && !isBatchedAtLevel(sobolstate, cur_level)) {
+    return ATEN_FN(_sobol_engine_draw)(quasi, n, sobolstate, dimension, num_generated, dtype);
+  }
   Tensor quasi_value;
   optional<int64_t> quasi_bdim;
   std::tie(quasi_value, quasi_bdim) = unwrapTensorAtLevel(quasi, cur_level);
@@ -444,6 +534,9 @@ at::Tensor & _sobol_engine_ff__generated_plumbing(at::Tensor & self, int64_t n, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(sobolstate, cur_level)) {
+    return ATEN_FN(_sobol_engine_ff_)(self, n, sobolstate, dimension, num_generated);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -459,6 +552,9 @@ at::Tensor & _sobol_engine_scramble__generated_plumbing(at::Tensor & self, const
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(ltm, cur_level)) {
+    return ATEN_FN(_sobol_engine_scramble_)(self, ltm, dimension);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -474,6 +570,9 @@ at::Tensor & _sobol_engine_initialize_state__generated_plumbing(at::Tensor & sel
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_sobol_engine_initialize_state_)(self, dimension);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -486,6 +585,9 @@ at::Tensor _reshape_from_tensor_generated_plumbing(const at::Tensor & self, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(shape, cur_level)) {
+    return ATEN_FN(_reshape_from_tensor)(self, shape);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -501,6 +603,9 @@ at::Tensor _shape_as_tensor_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_shape_as_tensor)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -513,6 +618,9 @@ at::Tensor dropout_generated_plumbing(const at::Tensor & input, double p, bool t
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN(dropout)(input, p, train);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -525,6 +633,9 @@ at::Tensor & dropout__generated_plumbing(at::Tensor & self, double p, bool train
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(dropout_)(self, p, train);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -537,6 +648,9 @@ at::Tensor feature_dropout_generated_plumbing(const at::Tensor & input, double p
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN(feature_dropout)(input, p, train);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -549,6 +663,9 @@ at::Tensor & feature_dropout__generated_plumbing(at::Tensor & self, double p, bo
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(feature_dropout_)(self, p, train);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -561,6 +678,9 @@ at::Tensor alpha_dropout_generated_plumbing(const at::Tensor & input, double p, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN(alpha_dropout)(input, p, train);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -573,6 +693,9 @@ at::Tensor & alpha_dropout__generated_plumbing(at::Tensor & self, double p, bool
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(alpha_dropout_)(self, p, train);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -585,6 +708,9 @@ at::Tensor feature_alpha_dropout_generated_plumbing(const at::Tensor & input, do
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN(feature_alpha_dropout)(input, p, train);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -597,6 +723,9 @@ at::Tensor & feature_alpha_dropout__generated_plumbing(at::Tensor & self, double
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(feature_alpha_dropout_)(self, p, train);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -609,6 +738,9 @@ at::Tensor abs_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(abs)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -621,6 +753,9 @@ at::Tensor & abs__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(abs_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -633,6 +768,9 @@ at::Tensor absolute_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(absolute)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -645,6 +783,9 @@ at::Tensor & absolute__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(absolute_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -657,6 +798,9 @@ at::Tensor angle_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(angle)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -669,6 +813,9 @@ at::Tensor view_as_real_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(view_as_real)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -681,6 +828,9 @@ at::Tensor view_as_complex_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(view_as_complex)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -693,6 +843,9 @@ at::Tensor sgn_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sgn)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -705,6 +858,9 @@ at::Tensor & sgn__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sgn_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -717,6 +873,9 @@ at::Tensor real_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(real)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -729,6 +888,9 @@ at::Tensor imag_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(imag)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -741,6 +903,9 @@ at::Tensor _conj_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_conj)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -753,6 +918,9 @@ at::Tensor conj_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(conj)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -765,6 +933,9 @@ at::Tensor _conj_physical_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_conj_physical)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -777,6 +948,9 @@ at::Tensor conj_physical_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(conj_physical)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -789,6 +963,9 @@ at::Tensor & conj_physical__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(conj_physical_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -801,6 +978,9 @@ at::Tensor resolve_conj_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(resolve_conj)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -813,6 +993,9 @@ at::Tensor resolve_neg_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(resolve_neg)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -825,6 +1008,9 @@ at::Tensor _neg_view_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_neg_view)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -837,6 +1023,9 @@ at::Tensor acos_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(acos)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -849,6 +1038,9 @@ at::Tensor & acos__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(acos_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -861,6 +1053,9 @@ at::Tensor arccos_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(arccos)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -873,6 +1068,9 @@ at::Tensor & arccos__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(arccos_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -885,6 +1083,9 @@ at::Tensor avg_pool1d_generated_plumbing(const at::Tensor & self, at::IntArrayRe
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(avg_pool1d)(self, kernel_size, stride, padding, ceil_mode, count_include_pad);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -897,6 +1098,9 @@ at::Tensor adaptive_avg_pool1d_generated_plumbing(const at::Tensor & self, at::I
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(adaptive_avg_pool1d)(self, output_size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -909,6 +1113,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(adaptive_max_pool1d)(self, output_size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -921,6 +1128,9 @@ at::Tensor add_Tensor_generated_plumbing(const at::Tensor & self, const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(add, Tensor)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -936,6 +1146,9 @@ at::Tensor & add__Tensor_generated_plumbing(at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(add_, Tensor)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -951,6 +1164,9 @@ at::Tensor _add_relu_Tensor_generated_plumbing(const at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(_add_relu, Tensor)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -966,6 +1182,9 @@ at::Tensor & _add_relu__Tensor_generated_plumbing(at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(_add_relu_, Tensor)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -981,6 +1200,9 @@ at::Tensor _add_relu_Scalar_generated_plumbing(const at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(_add_relu, Scalar)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -993,6 +1215,9 @@ at::Tensor & _add_relu__Scalar_generated_plumbing(at::Tensor & self, const at::S
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(_add_relu_, Scalar)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1005,6 +1230,9 @@ at::Tensor add_Scalar_generated_plumbing(const at::Tensor & self, const at::Scal
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(add, Scalar)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1017,6 +1245,9 @@ at::Tensor & add__Scalar_generated_plumbing(at::Tensor & self, const at::Scalar 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(add_, Scalar)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1029,6 +1260,9 @@ at::Tensor addmv_generated_plumbing(const at::Tensor & self, const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mat, cur_level) && !isBatchedAtLevel(vec, cur_level)) {
+    return ATEN_FN(addmv)(self, mat, vec, beta, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1047,6 +1281,9 @@ at::Tensor & addmv__generated_plumbing(at::Tensor & self, const at::Tensor & mat
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mat, cur_level) && !isBatchedAtLevel(vec, cur_level)) {
+    return ATEN_FN(addmv_)(self, mat, vec, beta, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1065,6 +1302,9 @@ at::Tensor addr_generated_plumbing(const at::Tensor & self, const at::Tensor & v
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(vec1, cur_level) && !isBatchedAtLevel(vec2, cur_level)) {
+    return ATEN_FN(addr)(self, vec1, vec2, beta, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1083,6 +1323,9 @@ at::Tensor & addr__generated_plumbing(at::Tensor & self, const at::Tensor & vec1
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(vec1, cur_level) && !isBatchedAtLevel(vec2, cur_level)) {
+    return ATEN_FN(addr_)(self, vec1, vec2, beta, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1101,6 +1344,9 @@ at::Tensor affine_grid_generator_generated_plumbing(const at::Tensor & theta, at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(theta, cur_level)) {
+    return ATEN_FN(affine_grid_generator)(theta, size, align_corners);
+  }
   Tensor theta_value;
   optional<int64_t> theta_bdim;
   std::tie(theta_value, theta_bdim) = unwrapTensorAtLevel(theta, cur_level);
@@ -1113,6 +1359,9 @@ at::Tensor affine_grid_generator_backward_generated_plumbing(const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level)) {
+    return ATEN_FN(affine_grid_generator_backward)(grad, size, align_corners);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -1125,6 +1374,9 @@ at::Tensor all_dim_generated_plumbing(const at::Tensor & self, int64_t dim, bool
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(all, dim)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1137,6 +1389,9 @@ at::Tensor all_dimname_generated_plumbing(const at::Tensor & self, at::Dimname d
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(all, dimname)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1149,6 +1404,9 @@ at::Tensor any_dim_generated_plumbing(const at::Tensor & self, int64_t dim, bool
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(any, dim)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1161,6 +1419,9 @@ at::Tensor any_dimname_generated_plumbing(const at::Tensor & self, at::Dimname d
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(any, dimname)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1173,6 +1434,9 @@ at::Tensor _dim_arange_generated_plumbing(const at::Tensor & like, int64_t dim) 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(like, cur_level)) {
+    return ATEN_FN(_dim_arange)(like, dim);
+  }
   Tensor like_value;
   optional<int64_t> like_bdim;
   std::tie(like_value, like_bdim) = unwrapTensorAtLevel(like, cur_level);
@@ -1185,6 +1449,9 @@ at::Tensor argmax_generated_plumbing(const at::Tensor & self, c10::optional<int6
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(argmax)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1197,6 +1464,9 @@ at::Tensor argmin_generated_plumbing(const at::Tensor & self, c10::optional<int6
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(argmin)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1209,6 +1479,9 @@ at::Tensor acosh_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(acosh)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1221,6 +1494,9 @@ at::Tensor & acosh__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(acosh_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1233,6 +1509,9 @@ at::Tensor arccosh_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(arccosh)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1245,6 +1524,9 @@ at::Tensor & arccosh__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(arccosh_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1257,6 +1539,9 @@ at::Tensor asinh_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(asinh)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1269,6 +1554,9 @@ at::Tensor & asinh__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(asinh_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1281,6 +1569,9 @@ at::Tensor arcsinh_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(arcsinh)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1293,6 +1584,9 @@ at::Tensor & arcsinh__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(arcsinh_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1305,6 +1599,9 @@ at::Tensor atanh_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(atanh)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1317,6 +1614,9 @@ at::Tensor & atanh__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(atanh_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1329,6 +1629,9 @@ at::Tensor arctanh_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(arctanh)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1341,6 +1644,9 @@ at::Tensor & arctanh__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(arctanh_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1353,6 +1659,9 @@ at::Tensor as_strided_generated_plumbing(const at::Tensor & self, at::IntArrayRe
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(as_strided)(self, size, stride, storage_offset);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1365,6 +1674,9 @@ at::Tensor asin_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(asin)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1377,6 +1689,9 @@ at::Tensor & asin__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(asin_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1389,6 +1704,9 @@ at::Tensor arcsin_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(arcsin)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1401,6 +1719,9 @@ at::Tensor & arcsin__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(arcsin_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1413,6 +1734,9 @@ at::Tensor atan_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(atan)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1425,6 +1749,9 @@ at::Tensor & atan__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(atan_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1437,6 +1764,9 @@ at::Tensor arctan_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(arctan)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1449,6 +1779,9 @@ at::Tensor & arctan__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(arctan_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1461,6 +1794,9 @@ at::Tensor atleast_1d_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(atleast_1d)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1473,6 +1809,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(atleast_1d, Sequence)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -1483,6 +1822,9 @@ at::Tensor atleast_2d_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(atleast_2d)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1495,6 +1837,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(atleast_2d, Sequence)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -1505,6 +1850,9 @@ at::Tensor atleast_3d_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(atleast_3d)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1517,6 +1865,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(atleast_3d, Sequence)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -1527,6 +1878,9 @@ at::Tensor baddbmm_generated_plumbing(const at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(batch1, cur_level) && !isBatchedAtLevel(batch2, cur_level)) {
+    return ATEN_FN(baddbmm)(self, batch1, batch2, beta, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1545,6 +1899,9 @@ at::Tensor & baddbmm__generated_plumbing(at::Tensor & self, const at::Tensor & b
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(batch1, cur_level) && !isBatchedAtLevel(batch2, cur_level)) {
+    return ATEN_FN(baddbmm_)(self, batch1, batch2, beta, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1563,6 +1920,9 @@ at::Tensor batch_norm_generated_plumbing(const at::Tensor & input, const c10::op
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level) && !isBatchedAtLevel(running_mean, cur_level) && !isBatchedAtLevel(running_var, cur_level)) {
+    return ATEN_FN(batch_norm)(input, weight, bias, running_mean, running_var, training, momentum, eps, cudnn_enabled);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -1595,6 +1955,9 @@ at::Tensor quantized_batch_norm_generated_plumbing(const at::Tensor & input, con
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level) && !isBatchedAtLevel(mean, cur_level) && !isBatchedAtLevel(var, cur_level)) {
+    return ATEN_FN(quantized_batch_norm)(input, weight, bias, mean, var, eps, output_scale, output_zero_point);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -1623,6 +1986,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(running_mean, cur_level) && !isBatchedAtLevel(running_var, cur_level) && !isBatchedAtLevel(save_mean, cur_level) && !isBatchedAtLevel(save_var_transform, cur_level) && !isBatchedAtLevel(reservedSpace, cur_level)) {
+    return ATEN_FN(_batch_norm_impl_index_backward)(impl_index, input, grad_output, weight, running_mean, running_var, save_mean, save_var_transform, train, eps, output_mask, reservedSpace);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -1666,6 +2032,9 @@ at::Tensor bernoulli_generated_plumbing(const at::Tensor & self, c10::optional<a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(bernoulli)(self, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1678,6 +2047,9 @@ at::Tensor & bernoulli__Tensor_generated_plumbing(at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(p, cur_level)) {
+    return ATEN_FN2(bernoulli_, Tensor)(self, p, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1693,6 +2065,9 @@ at::Tensor & bernoulli__float_generated_plumbing(at::Tensor & self, double p, c1
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(bernoulli_, float)(self, p, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1705,6 +2080,9 @@ at::Tensor bernoulli_p_generated_plumbing(const at::Tensor & self, double p, c10
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(bernoulli, p)(self, p, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1717,6 +2095,9 @@ at::Tensor bilinear_generated_plumbing(const at::Tensor & input1, const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input1, cur_level) && !isBatchedAtLevel(input2, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(bilinear)(input1, input2, weight, bias);
+  }
   Tensor input1_value;
   optional<int64_t> input1_bdim;
   std::tie(input1_value, input1_bdim) = unwrapTensorAtLevel(input1, cur_level);
@@ -1740,6 +2121,9 @@ at::Tensor binary_cross_entropy_generated_plumbing(const at::Tensor & self, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(binary_cross_entropy)(self, target, weight, reduction);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1760,6 +2144,9 @@ at::Tensor binary_cross_entropy_backward_generated_plumbing(const at::Tensor & g
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(binary_cross_entropy_backward)(grad_output, self, target, weight, reduction);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -1783,6 +2170,9 @@ at::Tensor binary_cross_entropy_with_logits_generated_plumbing(const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(pos_weight, cur_level)) {
+    return ATEN_FN(binary_cross_entropy_with_logits)(self, target, weight, pos_weight, reduction);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1808,6 +2198,9 @@ at::Tensor binary_cross_entropy_with_logits_backward_generated_plumbing(const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(pos_weight, cur_level)) {
+    return ATEN_FN(binary_cross_entropy_with_logits_backward)(grad_output, self, target, weight, pos_weight, reduction);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -1836,6 +2229,9 @@ at::Tensor bincount_generated_plumbing(const at::Tensor & self, const c10::optio
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weights, cur_level)) {
+    return ATEN_FN(bincount)(self, weights, minlength);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1853,6 +2249,9 @@ at::Tensor bitwise_not_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(bitwise_not)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1865,6 +2264,9 @@ at::Tensor & bitwise_not__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(bitwise_not_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1877,6 +2279,9 @@ at::Tensor copysign_Tensor_generated_plumbing(const at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(copysign, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1892,6 +2297,9 @@ at::Tensor & copysign__Tensor_generated_plumbing(at::Tensor & self, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(copysign_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1907,6 +2315,9 @@ at::Tensor copysign_Scalar_generated_plumbing(const at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(copysign, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1919,6 +2330,9 @@ at::Tensor & copysign__Scalar_generated_plumbing(at::Tensor & self, const at::Sc
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(copysign_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1931,6 +2345,9 @@ at::Tensor logical_not_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(logical_not)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1943,6 +2360,9 @@ at::Tensor & logical_not__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(logical_not_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1955,6 +2375,9 @@ at::Tensor logical_xor_generated_plumbing(const at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(logical_xor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1970,6 +2393,9 @@ at::Tensor & logical_xor__generated_plumbing(at::Tensor & self, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(logical_xor_)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -1985,6 +2411,9 @@ at::Tensor logical_and_generated_plumbing(const at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(logical_and)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2000,6 +2429,9 @@ at::Tensor & logical_and__generated_plumbing(at::Tensor & self, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(logical_and_)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2015,6 +2447,9 @@ at::Tensor logical_or_generated_plumbing(const at::Tensor & self, const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(logical_or)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2030,6 +2465,9 @@ at::Tensor & logical_or__generated_plumbing(at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(logical_or_)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2045,6 +2483,9 @@ at::Tensor bmm_generated_plumbing(const at::Tensor & self, const at::Tensor & ma
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mat2, cur_level)) {
+    return ATEN_FN(bmm)(self, mat2);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2060,6 +2501,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(broadcast_tensors)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -2070,6 +2514,9 @@ at::Tensor broadcast_to_generated_plumbing(const at::Tensor & self, at::IntArray
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(broadcast_to)(self, size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2082,6 +2529,9 @@ at::Tensor _sparse_broadcast_to_generated_plumbing(const at::Tensor & self, at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_sparse_broadcast_to)(self, size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2094,6 +2544,9 @@ at::Tensor cat_generated_plumbing(at::TensorList tensors, int64_t dim) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(cat)(tensors, dim);
+  }
 
   auto results = batch_rule(tensors, dim);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -2104,6 +2557,9 @@ at::Tensor cat_names_generated_plumbing(at::TensorList tensors, at::Dimname dim)
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(cat, names)(tensors, dim);
+  }
 
   auto results = batch_rule(tensors, dim);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -2114,6 +2570,9 @@ at::Tensor concat_generated_plumbing(at::TensorList tensors, int64_t dim) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(concat)(tensors, dim);
+  }
 
   auto results = batch_rule(tensors, dim);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -2124,6 +2583,9 @@ at::Tensor concat_names_generated_plumbing(at::TensorList tensors, at::Dimname d
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(concat, names)(tensors, dim);
+  }
 
   auto results = batch_rule(tensors, dim);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -2134,6 +2596,9 @@ at::Tensor block_diag_generated_plumbing(at::TensorList tensors) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(block_diag)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -2144,6 +2609,9 @@ at::Tensor ceil_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(ceil)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2156,6 +2624,9 @@ at::Tensor & ceil__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(ceil_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2168,6 +2639,9 @@ at::Tensor chain_matmul_generated_plumbing(at::TensorList matrices) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(matrices, cur_level)) {
+    return ATEN_FN(chain_matmul)(matrices);
+  }
 
   auto results = batch_rule(matrices);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -2178,6 +2652,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(unsafe_chunk)(self, chunks, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2190,6 +2667,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(chunk)(self, chunks, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2202,6 +2682,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(tensor_split, sections)(self, sections, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2214,6 +2697,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(tensor_split, indices)(self, indices, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2226,6 +2712,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(tensor_indices_or_sections, cur_level)) {
+    return ATEN_FN2(tensor_split, tensor_indices_or_sections)(self, tensor_indices_or_sections, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2241,6 +2730,9 @@ at::Tensor clamp_generated_plumbing(const at::Tensor & self, const c10::optional
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(clamp)(self, min, max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2253,6 +2745,9 @@ at::Tensor clamp_Tensor_generated_plumbing(const at::Tensor & self, const c10::o
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(min, cur_level) && !isBatchedAtLevel(max, cur_level)) {
+    return ATEN_FN2(clamp, Tensor)(self, min, max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2275,6 +2770,9 @@ at::Tensor & clamp__generated_plumbing(at::Tensor & self, const c10::optional<at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(clamp_)(self, min, max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2287,6 +2785,9 @@ at::Tensor & clamp__Tensor_generated_plumbing(at::Tensor & self, const c10::opti
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(min, cur_level) && !isBatchedAtLevel(max, cur_level)) {
+    return ATEN_FN2(clamp_, Tensor)(self, min, max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2309,6 +2810,9 @@ at::Tensor clamp_max_generated_plumbing(const at::Tensor & self, const at::Scala
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(clamp_max)(self, max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2321,6 +2825,9 @@ at::Tensor clamp_max_Tensor_generated_plumbing(const at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(max, cur_level)) {
+    return ATEN_FN2(clamp_max, Tensor)(self, max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2336,6 +2843,9 @@ at::Tensor & clamp_max__generated_plumbing(at::Tensor & self, const at::Scalar &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(clamp_max_)(self, max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2348,6 +2858,9 @@ at::Tensor & clamp_max__Tensor_generated_plumbing(at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(max, cur_level)) {
+    return ATEN_FN2(clamp_max_, Tensor)(self, max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2363,6 +2876,9 @@ at::Tensor clamp_min_generated_plumbing(const at::Tensor & self, const at::Scala
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(clamp_min)(self, min);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2375,6 +2891,9 @@ at::Tensor clamp_min_Tensor_generated_plumbing(const at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(min, cur_level)) {
+    return ATEN_FN2(clamp_min, Tensor)(self, min);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2390,6 +2909,9 @@ at::Tensor & clamp_min__generated_plumbing(at::Tensor & self, const at::Scalar &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(clamp_min_)(self, min);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2402,6 +2924,9 @@ at::Tensor & clamp_min__Tensor_generated_plumbing(at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(min, cur_level)) {
+    return ATEN_FN2(clamp_min_, Tensor)(self, min);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2417,6 +2942,9 @@ at::Tensor clip_generated_plumbing(const at::Tensor & self, const c10::optional<
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(clip)(self, min, max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2429,6 +2957,9 @@ at::Tensor clip_Tensor_generated_plumbing(const at::Tensor & self, const c10::op
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(min, cur_level) && !isBatchedAtLevel(max, cur_level)) {
+    return ATEN_FN2(clip, Tensor)(self, min, max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2451,6 +2982,9 @@ at::Tensor & clip__generated_plumbing(at::Tensor & self, const c10::optional<at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(clip_)(self, min, max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2463,6 +2997,9 @@ at::Tensor & clip__Tensor_generated_plumbing(at::Tensor & self, const c10::optio
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(min, cur_level) && !isBatchedAtLevel(max, cur_level)) {
+    return ATEN_FN2(clip_, Tensor)(self, min, max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2485,6 +3022,9 @@ at::Tensor complex_generated_plumbing(const at::Tensor & real, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(real, cur_level) && !isBatchedAtLevel(imag, cur_level)) {
+    return ATEN_FN(complex)(real, imag);
+  }
   Tensor real_value;
   optional<int64_t> real_bdim;
   std::tie(real_value, real_bdim) = unwrapTensorAtLevel(real, cur_level);
@@ -2500,6 +3040,9 @@ at::Tensor polar_generated_plumbing(const at::Tensor & abs, const at::Tensor & a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(abs, cur_level) && !isBatchedAtLevel(angle, cur_level)) {
+    return ATEN_FN(polar)(abs, angle);
+  }
   Tensor abs_value;
   optional<int64_t> abs_bdim;
   std::tie(abs_value, abs_bdim) = unwrapTensorAtLevel(abs, cur_level);
@@ -2515,6 +3058,9 @@ at::Tensor constant_pad_nd_generated_plumbing(const at::Tensor & self, at::IntAr
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(constant_pad_nd)(self, pad, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2527,6 +3073,9 @@ at::Tensor contiguous_generated_plumbing(const at::Tensor & self, at::MemoryForm
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(contiguous)(self, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2539,6 +3088,9 @@ at::Tensor convolution_generated_plumbing(const at::Tensor & input, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(convolution)(input, weight, bias, stride, padding, dilation, transposed, output_padding, groups);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -2559,6 +3111,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(convolution_backward)(grad_output, input, weight, bias_sizes, stride, padding, dilation, transposed, output_padding, groups, output_mask);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -2577,6 +3132,9 @@ at::Tensor convolution_overrideable_generated_plumbing(const at::Tensor & input,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(convolution_overrideable)(input, weight, bias, stride, padding, dilation, transposed, output_padding, groups);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -2597,6 +3155,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(convolution_backward_overrideable)(grad_output, input, weight, stride, padding, dilation, transposed, output_padding, groups, output_mask);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -2615,6 +3176,9 @@ at::Tensor _convolution_generated_plumbing(const at::Tensor & input, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(_convolution)(input, weight, bias, stride, padding, dilation, transposed, output_padding, groups, benchmark, deterministic, cudnn_enabled, allow_tf32);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -2635,6 +3199,9 @@ at::Tensor _convolution_deprecated_generated_plumbing(const at::Tensor & input, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN2(_convolution, deprecated)(input, weight, bias, stride, padding, dilation, transposed, output_padding, groups, benchmark, deterministic, cudnn_enabled);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -2655,6 +3222,9 @@ at::Tensor _convolution_mode_generated_plumbing(const at::Tensor & input, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(_convolution_mode)(input, weight, bias, stride, padding, dilation, groups);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -2675,6 +3245,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(ggI, cur_level) && !isBatchedAtLevel(ggW, cur_level) && !isBatchedAtLevel(ggb, cur_level) && !isBatchedAtLevel(gO, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_convolution_double_backward)(ggI, ggW, ggb, gO, weight, self, stride, padding, dilation, transposed, output_padding, groups, output_mask);
+  }
   Tensor gO_value;
   optional<int64_t> gO_bdim;
   std::tie(gO_value, gO_bdim) = unwrapTensorAtLevel(gO, cur_level);
@@ -2708,6 +3281,9 @@ at::Tensor conv1d_generated_plumbing(const at::Tensor & input, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(conv1d)(input, weight, bias, stride, padding, dilation, groups);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -2728,6 +3304,9 @@ at::Tensor conv2d_generated_plumbing(const at::Tensor & input, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(conv2d)(input, weight, bias, stride, padding, dilation, groups);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -2748,6 +3327,9 @@ at::Tensor conv3d_generated_plumbing(const at::Tensor & input, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(conv3d)(input, weight, bias, stride, padding, dilation, groups);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -2768,6 +3350,9 @@ at::Tensor conv1d_padding_generated_plumbing(const at::Tensor & input, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN2(conv1d, padding)(input, weight, bias, stride, padding, dilation, groups);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -2788,6 +3373,9 @@ at::Tensor conv2d_padding_generated_plumbing(const at::Tensor & input, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN2(conv2d, padding)(input, weight, bias, stride, padding, dilation, groups);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -2808,6 +3396,9 @@ at::Tensor conv3d_padding_generated_plumbing(const at::Tensor & input, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN2(conv3d, padding)(input, weight, bias, stride, padding, dilation, groups);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -2828,6 +3419,9 @@ at::Tensor conv_tbc_generated_plumbing(const at::Tensor & self, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(conv_tbc)(self, weight, bias, pad);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2846,6 +3440,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(conv_tbc_backward)(self, input, weight, bias, pad);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2867,6 +3464,9 @@ at::Tensor conv_transpose1d_generated_plumbing(const at::Tensor & input, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(conv_transpose1d)(input, weight, bias, stride, padding, output_padding, groups, dilation);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -2887,6 +3487,9 @@ at::Tensor conv_transpose2d_input_generated_plumbing(const at::Tensor & input, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN2(conv_transpose2d, input)(input, weight, bias, stride, padding, output_padding, groups, dilation);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -2907,6 +3510,9 @@ at::Tensor conv_transpose3d_input_generated_plumbing(const at::Tensor & input, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN2(conv_transpose3d, input)(input, weight, bias, stride, padding, output_padding, groups, dilation);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -2927,6 +3533,9 @@ at::Tensor & copy__generated_plumbing(at::Tensor & self, const at::Tensor & src,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(src, cur_level)) {
+    return ATEN_FN(copy_)(self, src, non_blocking);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2942,6 +3551,9 @@ at::Tensor _copy_from_generated_plumbing(const at::Tensor & self, const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(dst, cur_level)) {
+    return ATEN_FN(_copy_from)(self, dst, non_blocking);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2957,6 +3569,9 @@ at::Tensor _copy_from_and_resize_generated_plumbing(const at::Tensor & self, con
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(dst, cur_level)) {
+    return ATEN_FN(_copy_from_and_resize)(self, dst);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2972,6 +3587,9 @@ at::Tensor cos_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(cos)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2984,6 +3602,9 @@ at::Tensor & cos__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(cos_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -2996,6 +3617,9 @@ at::Tensor cosh_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(cosh)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3008,6 +3632,9 @@ at::Tensor & cosh__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(cosh_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3020,6 +3647,9 @@ at::Tensor cosine_embedding_loss_generated_plumbing(const at::Tensor & input1, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input1, cur_level) && !isBatchedAtLevel(input2, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(cosine_embedding_loss)(input1, input2, target, margin, reduction);
+  }
   Tensor input1_value;
   optional<int64_t> input1_bdim;
   std::tie(input1_value, input1_bdim) = unwrapTensorAtLevel(input1, cur_level);
@@ -3038,6 +3668,9 @@ at::Tensor count_nonzero_dim_IntList_generated_plumbing(const at::Tensor & self,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(count_nonzero, dim_IntList)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3050,6 +3683,9 @@ at::Tensor count_nonzero_generated_plumbing(const at::Tensor & self, c10::option
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(count_nonzero)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3062,6 +3698,9 @@ at::Tensor cov_generated_plumbing(const at::Tensor & self, int64_t correction, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(fweights, cur_level) && !isBatchedAtLevel(aweights, cur_level)) {
+    return ATEN_FN(cov)(self, correction, fweights, aweights);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3084,6 +3723,9 @@ at::Tensor corrcoef_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(corrcoef)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3096,6 +3738,9 @@ at::Tensor cudnn_affine_grid_generator_generated_plumbing(const at::Tensor & the
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(theta, cur_level)) {
+    return ATEN_FN(cudnn_affine_grid_generator)(theta, N, C, H, W);
+  }
   Tensor theta_value;
   optional<int64_t> theta_bdim;
   std::tie(theta_value, theta_bdim) = unwrapTensorAtLevel(theta, cur_level);
@@ -3108,6 +3753,9 @@ at::Tensor cudnn_affine_grid_generator_backward_generated_plumbing(const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level)) {
+    return ATEN_FN(cudnn_affine_grid_generator_backward)(grad, N, C, H, W);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -3120,6 +3768,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level) && !isBatchedAtLevel(running_mean, cur_level) && !isBatchedAtLevel(running_var, cur_level)) {
+    return ATEN_FN(cudnn_batch_norm)(input, weight, bias, running_mean, running_var, training, exponential_average_factor, epsilon);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -3150,6 +3801,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(running_mean, cur_level) && !isBatchedAtLevel(running_var, cur_level) && !isBatchedAtLevel(save_mean, cur_level) && !isBatchedAtLevel(save_var, cur_level) && !isBatchedAtLevel(reserveSpace, cur_level)) {
+    return ATEN_FN(cudnn_batch_norm_backward)(input, grad_output, weight, running_mean, running_var, save_mean, save_var, epsilon, reserveSpace);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -3191,6 +3845,9 @@ at::Tensor cudnn_convolution_generated_plumbing(const at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(cudnn_convolution)(self, weight, padding, stride, dilation, groups, benchmark, deterministic, allow_tf32);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3206,6 +3863,9 @@ at::Tensor cudnn_convolution_transpose_generated_plumbing(const at::Tensor & sel
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(cudnn_convolution_transpose)(self, weight, padding, output_padding, stride, dilation, groups, benchmark, deterministic, allow_tf32);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3221,6 +3881,9 @@ at::Tensor cudnn_convolution_relu_generated_plumbing(const at::Tensor & self, co
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(cudnn_convolution_relu)(self, weight, bias, stride, padding, dilation, groups);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3241,6 +3904,9 @@ at::Tensor cudnn_convolution_add_relu_generated_plumbing(const at::Tensor & self
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(z, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(cudnn_convolution_add_relu)(self, weight, z, alpha, bias, stride, padding, dilation, groups);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3264,6 +3930,9 @@ at::Tensor cudnn_grid_sampler_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(grid, cur_level)) {
+    return ATEN_FN(cudnn_grid_sampler)(self, grid);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3279,6 +3948,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(grid, cur_level) && !isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(cudnn_grid_sampler_backward)(self, grid, grad_output);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3297,6 +3969,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(cummax)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3309,6 +3984,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(cummax, dimname)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3321,6 +3999,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(cummin)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3333,6 +4014,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(cummin, dimname)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3345,6 +4029,9 @@ at::Tensor cummaxmin_backward_generated_plumbing(const at::Tensor & grad, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(cummaxmin_backward)(grad, input, indices, dim);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -3363,6 +4050,9 @@ at::Tensor cumprod_generated_plumbing(const at::Tensor & self, int64_t dim, c10:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(cumprod)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3375,6 +4065,9 @@ at::Tensor & cumprod__generated_plumbing(at::Tensor & self, int64_t dim, c10::op
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(cumprod_)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3387,6 +4080,9 @@ at::Tensor cumprod_dimname_generated_plumbing(const at::Tensor & self, at::Dimna
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(cumprod, dimname)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3399,6 +4095,9 @@ at::Tensor & cumprod__dimname_generated_plumbing(at::Tensor & self, at::Dimname 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(cumprod_, dimname)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3411,6 +4110,9 @@ at::Tensor cumprod_backward_generated_plumbing(const at::Tensor & grad, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(output, cur_level)) {
+    return ATEN_FN(cumprod_backward)(grad, input, dim, output);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -3429,6 +4131,9 @@ at::Tensor cumsum_generated_plumbing(const at::Tensor & self, int64_t dim, c10::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(cumsum)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3441,6 +4146,9 @@ at::Tensor & cumsum__generated_plumbing(at::Tensor & self, int64_t dim, c10::opt
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(cumsum_)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3453,6 +4161,9 @@ at::Tensor cumsum_dimname_generated_plumbing(const at::Tensor & self, at::Dimnam
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(cumsum, dimname)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3465,6 +4176,9 @@ at::Tensor & cumsum__dimname_generated_plumbing(at::Tensor & self, at::Dimname d
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(cumsum_, dimname)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3477,6 +4191,9 @@ at::Tensor cumulative_trapezoid_x_generated_plumbing(const at::Tensor & y, const
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(y, cur_level) && !isBatchedAtLevel(x, cur_level)) {
+    return ATEN_FN2(cumulative_trapezoid, x)(y, x, dim);
+  }
   Tensor y_value;
   optional<int64_t> y_bdim;
   std::tie(y_value, y_bdim) = unwrapTensorAtLevel(y, cur_level);
@@ -3492,6 +4209,9 @@ at::Tensor cumulative_trapezoid_dx_generated_plumbing(const at::Tensor & y, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(y, cur_level)) {
+    return ATEN_FN2(cumulative_trapezoid, dx)(y, dx, dim);
+  }
   Tensor y_value;
   optional<int64_t> y_bdim;
   std::tie(y_value, y_bdim) = unwrapTensorAtLevel(y, cur_level);
@@ -3504,6 +4224,9 @@ at::Tensor ctc_loss_IntList_generated_plumbing(const at::Tensor & log_probs, con
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(log_probs, cur_level) && !isBatchedAtLevel(targets, cur_level)) {
+    return ATEN_FN2(ctc_loss, IntList)(log_probs, targets, input_lengths, target_lengths, blank, reduction, zero_infinity);
+  }
   Tensor log_probs_value;
   optional<int64_t> log_probs_bdim;
   std::tie(log_probs_value, log_probs_bdim) = unwrapTensorAtLevel(log_probs, cur_level);
@@ -3519,6 +4242,9 @@ at::Tensor ctc_loss_Tensor_generated_plumbing(const at::Tensor & log_probs, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(log_probs, cur_level) && !isBatchedAtLevel(targets, cur_level) && !isBatchedAtLevel(input_lengths, cur_level) && !isBatchedAtLevel(target_lengths, cur_level)) {
+    return ATEN_FN2(ctc_loss, Tensor)(log_probs, targets, input_lengths, target_lengths, blank, reduction, zero_infinity);
+  }
   Tensor log_probs_value;
   optional<int64_t> log_probs_bdim;
   std::tie(log_probs_value, log_probs_bdim) = unwrapTensorAtLevel(log_probs, cur_level);
@@ -3540,6 +4266,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(log_probs, cur_level) && !isBatchedAtLevel(targets, cur_level)) {
+    return ATEN_FN(_ctc_loss)(log_probs, targets, input_lengths, target_lengths, blank, zero_infinity);
+  }
   Tensor log_probs_value;
   optional<int64_t> log_probs_bdim;
   std::tie(log_probs_value, log_probs_bdim) = unwrapTensorAtLevel(log_probs, cur_level);
@@ -3555,6 +4284,9 @@ at::Tensor _ctc_loss_backward_generated_plumbing(const at::Tensor & grad, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(log_probs, cur_level) && !isBatchedAtLevel(targets, cur_level) && !isBatchedAtLevel(neg_log_likelihood, cur_level) && !isBatchedAtLevel(log_alpha, cur_level)) {
+    return ATEN_FN(_ctc_loss_backward)(grad, log_probs, targets, input_lengths, target_lengths, neg_log_likelihood, log_alpha, blank, zero_infinity);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -3579,6 +4311,9 @@ at::Tensor diag_embed_generated_plumbing(const at::Tensor & self, int64_t offset
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(diag_embed)(self, offset, dim1, dim2);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3591,6 +4326,9 @@ at::Tensor diagflat_generated_plumbing(const at::Tensor & self, int64_t offset) 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(diagflat)(self, offset);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3603,6 +4341,9 @@ at::Tensor diagonal_generated_plumbing(const at::Tensor & self, int64_t offset, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(diagonal)(self, offset, dim1, dim2);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3615,6 +4356,9 @@ at::Tensor linalg_diagonal_generated_plumbing(const at::Tensor & A, int64_t offs
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(A, cur_level)) {
+    return ATEN_FN(linalg_diagonal)(A, offset, dim1, dim2);
+  }
   Tensor A_value;
   optional<int64_t> A_bdim;
   std::tie(A_value, A_bdim) = unwrapTensorAtLevel(A, cur_level);
@@ -3627,6 +4371,9 @@ at::Tensor diagonal_Dimname_generated_plumbing(const at::Tensor & self, at::Dimn
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(diagonal, Dimname)(self, outdim, dim1, dim2, offset);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3639,6 +4386,9 @@ at::Tensor diagonal_backward_generated_plumbing(const at::Tensor & grad_output, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(diagonal_backward)(grad_output, input_sizes, offset, dim1, dim2);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -3651,6 +4401,9 @@ at::Tensor & fill_diagonal__generated_plumbing(at::Tensor & self, const at::Scal
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fill_diagonal_)(self, fill_value, wrap);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3663,6 +4416,9 @@ at::Tensor diff_generated_plumbing(const at::Tensor & self, int64_t n, int64_t d
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(prepend, cur_level) && !isBatchedAtLevel(append, cur_level)) {
+    return ATEN_FN(diff)(self, n, dim, prepend, append);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3685,6 +4441,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(gradient, scalarint)(self, spacing, dim, edge_order);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3697,6 +4456,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(gradient, scalararray)(self, spacing, dim, edge_order);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3709,6 +4471,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(gradient, array)(self, dim, edge_order);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3721,6 +4486,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(gradient, scalarrayint)(self, spacing, dim, edge_order);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3733,6 +4501,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(gradient, scalarrayarray)(self, spacing, dim, edge_order);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3745,6 +4516,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(spacing, cur_level)) {
+    return ATEN_FN2(gradient, tensorarrayint)(self, spacing, dim, edge_order);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3757,6 +4531,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(spacing, cur_level)) {
+    return ATEN_FN2(gradient, tensorarray)(self, spacing, dim, edge_order);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3769,6 +4546,9 @@ at::Tensor div_Tensor_generated_plumbing(const at::Tensor & self, const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(div, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3784,6 +4564,9 @@ at::Tensor & div__Tensor_generated_plumbing(at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(div_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3799,6 +4582,9 @@ at::Tensor div_Tensor_mode_generated_plumbing(const at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(div, Tensor_mode)(self, other, rounding_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3814,6 +4600,9 @@ at::Tensor & div__Tensor_mode_generated_plumbing(at::Tensor & self, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(div_, Tensor_mode)(self, other, rounding_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3829,6 +4618,9 @@ at::Tensor div_Scalar_generated_plumbing(const at::Tensor & self, const at::Scal
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(div, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3841,6 +4633,9 @@ at::Tensor & div__Scalar_generated_plumbing(at::Tensor & self, const at::Scalar 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(div_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3853,6 +4648,9 @@ at::Tensor div_Scalar_mode_generated_plumbing(const at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(div, Scalar_mode)(self, other, rounding_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3865,6 +4663,9 @@ at::Tensor & div__Scalar_mode_generated_plumbing(at::Tensor & self, const at::Sc
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(div_, Scalar_mode)(self, other, rounding_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3877,6 +4678,9 @@ at::Tensor divide_Tensor_generated_plumbing(const at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(divide, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3892,6 +4696,9 @@ at::Tensor & divide__Tensor_generated_plumbing(at::Tensor & self, const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(divide_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3907,6 +4714,9 @@ at::Tensor divide_Scalar_generated_plumbing(const at::Tensor & self, const at::S
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(divide, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3919,6 +4729,9 @@ at::Tensor & divide__Scalar_generated_plumbing(at::Tensor & self, const at::Scal
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(divide_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3931,6 +4744,9 @@ at::Tensor divide_Tensor_mode_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(divide, Tensor_mode)(self, other, rounding_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3946,6 +4762,9 @@ at::Tensor & divide__Tensor_mode_generated_plumbing(at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(divide_, Tensor_mode)(self, other, rounding_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3961,6 +4780,9 @@ at::Tensor divide_Scalar_mode_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(divide, Scalar_mode)(self, other, rounding_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3973,6 +4795,9 @@ at::Tensor & divide__Scalar_mode_generated_plumbing(at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(divide_, Scalar_mode)(self, other, rounding_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -3985,6 +4810,9 @@ at::Tensor true_divide_Tensor_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(true_divide, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4000,6 +4828,9 @@ at::Tensor & true_divide__Tensor_generated_plumbing(at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(true_divide_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4015,6 +4846,9 @@ at::Tensor true_divide_Scalar_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(true_divide, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4027,6 +4861,9 @@ at::Tensor & true_divide__Scalar_generated_plumbing(at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(true_divide_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4039,6 +4876,9 @@ at::Tensor dot_generated_plumbing(const at::Tensor & self, const at::Tensor & te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(tensor, cur_level)) {
+    return ATEN_FN(dot)(self, tensor);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4054,6 +4894,9 @@ at::Tensor vdot_generated_plumbing(const at::Tensor & self, const at::Tensor & o
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(vdot)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4069,6 +4912,9 @@ at::Tensor einsum_generated_plumbing(c10::string_view equation, at::TensorList t
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(einsum)(equation, tensors);
+  }
 
   auto results = batch_rule(equation, tensors);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -4079,6 +4925,9 @@ at::Tensor embedding_generated_plumbing(const at::Tensor & weight, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(embedding)(weight, indices, padding_idx, scale_grad_by_freq, sparse);
+  }
   Tensor weight_value;
   optional<int64_t> weight_bdim;
   std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
@@ -4094,6 +4943,9 @@ at::Tensor embedding_backward_generated_plumbing(const at::Tensor & grad, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(embedding_backward)(grad, indices, num_weights, padding_idx, scale_grad_by_freq, sparse);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -4109,6 +4961,9 @@ at::Tensor embedding_dense_backward_generated_plumbing(const at::Tensor & grad_o
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(embedding_dense_backward)(grad_output, indices, num_weights, padding_idx, scale_grad_by_freq);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -4124,6 +4979,9 @@ at::Tensor & embedding_renorm__generated_plumbing(at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(embedding_renorm_)(self, indices, max_norm, norm_type);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4139,6 +4997,9 @@ at::Tensor embedding_sparse_backward_generated_plumbing(const at::Tensor & grad,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(embedding_sparse_backward)(grad, indices, num_weights, padding_idx, scale_grad_by_freq);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -4154,6 +5015,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(indices, cur_level) && !isBatchedAtLevel(offsets, cur_level) && !isBatchedAtLevel(per_sample_weights, cur_level)) {
+    return ATEN_FN(_embedding_bag_forward_only)(weight, indices, offsets, scale_grad_by_freq, mode, sparse, per_sample_weights, include_last_offset, padding_idx);
+  }
   Tensor weight_value;
   optional<int64_t> weight_bdim;
   std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
@@ -4177,6 +5041,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(mask, cur_level)) {
+    return ATEN_FN(_rowwise_prune)(weight, mask, compressed_indices_dtype);
+  }
   Tensor weight_value;
   optional<int64_t> weight_bdim;
   std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
@@ -4192,6 +5059,9 @@ at::Tensor row_stack_generated_plumbing(at::TensorList tensors) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(row_stack)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -4202,6 +5072,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(indices, cur_level) && !isBatchedAtLevel(offsets, cur_level) && !isBatchedAtLevel(per_sample_weights, cur_level)) {
+    return ATEN_FN(embedding_bag)(weight, indices, offsets, scale_grad_by_freq, mode, sparse, per_sample_weights, include_last_offset);
+  }
   Tensor weight_value;
   optional<int64_t> weight_bdim;
   std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
@@ -4225,6 +5098,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(indices, cur_level) && !isBatchedAtLevel(offsets, cur_level) && !isBatchedAtLevel(per_sample_weights, cur_level)) {
+    return ATEN_FN2(embedding_bag, padding_idx)(weight, indices, offsets, scale_grad_by_freq, mode, sparse, per_sample_weights, include_last_offset, padding_idx);
+  }
   Tensor weight_value;
   optional<int64_t> weight_bdim;
   std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
@@ -4248,6 +5124,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(indices, cur_level) && !isBatchedAtLevel(offsets, cur_level) && !isBatchedAtLevel(per_sample_weights, cur_level)) {
+    return ATEN_FN(_embedding_bag)(weight, indices, offsets, scale_grad_by_freq, mode, sparse, per_sample_weights, include_last_offset, padding_idx);
+  }
   Tensor weight_value;
   optional<int64_t> weight_bdim;
   std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
@@ -4271,6 +5150,9 @@ at::Tensor _embedding_bag_backward_generated_plumbing(const at::Tensor & grad, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(indices, cur_level) && !isBatchedAtLevel(offsets, cur_level) && !isBatchedAtLevel(offset2bag, cur_level) && !isBatchedAtLevel(bag_size, cur_level) && !isBatchedAtLevel(maximum_indices, cur_level) && !isBatchedAtLevel(per_sample_weights, cur_level)) {
+    return ATEN_FN(_embedding_bag_backward)(grad, indices, offsets, offset2bag, bag_size, maximum_indices, num_weights, scale_grad_by_freq, mode, sparse, per_sample_weights, padding_idx);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -4303,6 +5185,9 @@ at::Tensor _embedding_bag_sparse_backward_generated_plumbing(const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(indices, cur_level) && !isBatchedAtLevel(offsets, cur_level) && !isBatchedAtLevel(offset2bag, cur_level) && !isBatchedAtLevel(bag_size, cur_level) && !isBatchedAtLevel(per_sample_weights, cur_level)) {
+    return ATEN_FN(_embedding_bag_sparse_backward)(grad, indices, offsets, offset2bag, bag_size, num_weights, scale_grad_by_freq, mode, per_sample_weights, padding_idx);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -4332,6 +5217,9 @@ at::Tensor _embedding_bag_dense_backward_generated_plumbing(const at::Tensor & g
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(indices, cur_level) && !isBatchedAtLevel(offset2bag, cur_level) && !isBatchedAtLevel(bag_size, cur_level) && !isBatchedAtLevel(maximum_indices, cur_level) && !isBatchedAtLevel(per_sample_weights, cur_level)) {
+    return ATEN_FN(_embedding_bag_dense_backward)(grad, indices, offset2bag, bag_size, maximum_indices, num_weights, scale_grad_by_freq, mode, per_sample_weights, padding_idx);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -4361,6 +5249,9 @@ at::Tensor _embedding_bag_per_sample_weights_backward_generated_plumbing(const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(indices, cur_level) && !isBatchedAtLevel(offsets, cur_level) && !isBatchedAtLevel(offset2bag, cur_level)) {
+    return ATEN_FN(_embedding_bag_per_sample_weights_backward)(grad, weight, indices, offsets, offset2bag, mode, padding_idx);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -4385,6 +5276,9 @@ at::Tensor new_empty_generated_plumbing(const at::Tensor & self, at::IntArrayRef
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(new_empty)(self, size, dtype, layout, device, pin_memory);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4397,6 +5291,9 @@ at::Tensor new_empty_strided_generated_plumbing(const at::Tensor & self, at::Int
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(new_empty_strided)(self, size, stride, dtype, layout, device, pin_memory);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4409,6 +5306,9 @@ at::Tensor new_full_generated_plumbing(const at::Tensor & self, at::IntArrayRef 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(new_full)(self, size, fill_value, dtype, layout, device, pin_memory);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4421,6 +5321,9 @@ at::Tensor new_zeros_generated_plumbing(const at::Tensor & self, at::IntArrayRef
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(new_zeros)(self, size, dtype, layout, device, pin_memory);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4433,6 +5336,9 @@ at::Tensor new_ones_generated_plumbing(const at::Tensor & self, at::IntArrayRef 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(new_ones)(self, size, dtype, layout, device, pin_memory);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4445,6 +5351,9 @@ at::Tensor _empty_per_channel_affine_quantized_generated_plumbing(at::IntArrayRe
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(scales, cur_level) && !isBatchedAtLevel(zero_points, cur_level)) {
+    return ATEN_FN(_empty_per_channel_affine_quantized)(size, scales, zero_points, axis, dtype, layout, device, pin_memory, memory_format);
+  }
   Tensor scales_value;
   optional<int64_t> scales_bdim;
   std::tie(scales_value, scales_bdim) = unwrapTensorAtLevel(scales, cur_level);
@@ -4460,6 +5369,9 @@ const at::Tensor & resize__generated_plumbing(const at::Tensor & self, at::IntAr
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(resize_)(self, size, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4472,6 +5384,9 @@ at::Tensor empty_quantized_generated_plumbing(at::IntArrayRef size, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(qtensor, cur_level)) {
+    return ATEN_FN(empty_quantized)(size, qtensor, dtype, layout, device, pin_memory, memory_format);
+  }
   Tensor qtensor_value;
   optional<int64_t> qtensor_bdim;
   std::tie(qtensor_value, qtensor_bdim) = unwrapTensorAtLevel(qtensor, cur_level);
@@ -4484,6 +5399,9 @@ at::Tensor empty_like_generated_plumbing(const at::Tensor & self, c10::optional<
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(empty_like)(self, dtype, layout, device, pin_memory, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4496,6 +5414,9 @@ at::Tensor erf_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(erf)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4508,6 +5429,9 @@ at::Tensor & erf__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(erf_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4520,6 +5444,9 @@ at::Tensor erfc_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(erfc)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4532,6 +5459,9 @@ at::Tensor & erfc__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(erfc_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4544,6 +5474,9 @@ at::Tensor exp_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(exp)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4556,6 +5489,9 @@ at::Tensor & exp__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(exp_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4568,6 +5504,9 @@ at::Tensor exp2_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(exp2)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4580,6 +5519,9 @@ at::Tensor & exp2__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(exp2_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4592,6 +5534,9 @@ at::Tensor expm1_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(expm1)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4604,6 +5549,9 @@ at::Tensor & expm1__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(expm1_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4616,6 +5564,9 @@ at::Tensor expand_generated_plumbing(const at::Tensor & self, at::IntArrayRef si
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(expand)(self, size, implicit);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4628,6 +5579,9 @@ at::Tensor expand_as_generated_plumbing(const at::Tensor & self, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(expand_as)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4643,6 +5597,9 @@ at::Tensor flatten_using_ints_generated_plumbing(const at::Tensor & self, int64_
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(flatten, using_ints)(self, start_dim, end_dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4655,6 +5612,9 @@ at::Tensor flatten_named_out_dim_generated_plumbing(const at::Tensor & self, int
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(flatten, named_out_dim)(self, start_dim, end_dim, out_dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4667,6 +5627,9 @@ at::Tensor flatten_using_names_generated_plumbing(const at::Tensor & self, at::D
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(flatten, using_names)(self, start_dim, end_dim, out_dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4679,6 +5642,9 @@ at::Tensor flatten_DimnameList_generated_plumbing(const at::Tensor & self, at::D
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(flatten, DimnameList)(self, dims, out_dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4691,6 +5657,9 @@ at::Tensor unflatten_int_generated_plumbing(const at::Tensor & self, int64_t dim
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(unflatten, int)(self, dim, sizes, names);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4703,6 +5672,9 @@ at::Tensor unflatten_Dimname_generated_plumbing(const at::Tensor & self, at::Dim
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(unflatten, Dimname)(self, dim, sizes, names);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4715,6 +5687,9 @@ at::Tensor & fill__Scalar_generated_plumbing(at::Tensor & self, const at::Scalar
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(fill_, Scalar)(self, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4727,6 +5702,9 @@ at::Tensor & fill__Tensor_generated_plumbing(at::Tensor & self, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(value, cur_level)) {
+    return ATEN_FN2(fill_, Tensor)(self, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4742,6 +5720,9 @@ at::Tensor floor_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(floor)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4754,6 +5735,9 @@ at::Tensor & floor__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(floor_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4766,6 +5750,9 @@ at::Tensor floor_divide_generated_plumbing(const at::Tensor & self, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(floor_divide)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4781,6 +5768,9 @@ at::Tensor & floor_divide__Tensor_generated_plumbing(at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(floor_divide_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4796,6 +5786,9 @@ at::Tensor floor_divide_Scalar_generated_plumbing(const at::Tensor & self, const
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(floor_divide, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4808,6 +5801,9 @@ at::Tensor & floor_divide__Scalar_generated_plumbing(at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(floor_divide_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4820,6 +5816,9 @@ at::Tensor frac_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(frac)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4832,6 +5831,9 @@ at::Tensor & frac__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(frac_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4844,6 +5846,9 @@ at::Tensor full_like_generated_plumbing(const at::Tensor & self, const at::Scala
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(full_like)(self, fill_value, dtype, layout, device, pin_memory, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4856,6 +5861,9 @@ at::Tensor gcd_generated_plumbing(const at::Tensor & self, const at::Tensor & ot
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(gcd)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4871,6 +5879,9 @@ at::Tensor & gcd__generated_plumbing(at::Tensor & self, const at::Tensor & other
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(gcd_)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4886,6 +5897,9 @@ at::Tensor lcm_generated_plumbing(const at::Tensor & self, const at::Tensor & ot
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(lcm)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4901,6 +5915,9 @@ at::Tensor & lcm__generated_plumbing(at::Tensor & self, const at::Tensor & other
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(lcm_)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -4916,6 +5933,9 @@ at::Tensor grid_sampler_generated_plumbing(const at::Tensor & input, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(grid, cur_level)) {
+    return ATEN_FN(grid_sampler)(input, grid, interpolation_mode, padding_mode, align_corners);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -4931,6 +5951,9 @@ at::Tensor grid_sampler_2d_generated_plumbing(const at::Tensor & input, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(grid, cur_level)) {
+    return ATEN_FN(grid_sampler_2d)(input, grid, interpolation_mode, padding_mode, align_corners);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -4946,6 +5969,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(grid, cur_level)) {
+    return ATEN_FN(grid_sampler_2d_backward)(grad_output, input, grid, interpolation_mode, padding_mode, align_corners, output_mask);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -4964,6 +5990,9 @@ at::Tensor _grid_sampler_2d_cpu_fallback_generated_plumbing(const at::Tensor & i
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(grid, cur_level)) {
+    return ATEN_FN(_grid_sampler_2d_cpu_fallback)(input, grid, interpolation_mode, padding_mode, align_corners);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -4979,6 +6008,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(grid, cur_level)) {
+    return ATEN_FN(_grid_sampler_2d_cpu_fallback_backward)(grad_output, input, grid, interpolation_mode, padding_mode, align_corners);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -4997,6 +6029,9 @@ at::Tensor grid_sampler_3d_generated_plumbing(const at::Tensor & input, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(grid, cur_level)) {
+    return ATEN_FN(grid_sampler_3d)(input, grid, interpolation_mode, padding_mode, align_corners);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -5012,6 +6047,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(grid, cur_level)) {
+    return ATEN_FN(grid_sampler_3d_backward)(grad_output, input, grid, interpolation_mode, padding_mode, align_corners);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -5030,6 +6068,9 @@ at::Tensor hinge_embedding_loss_generated_plumbing(const at::Tensor & self, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(hinge_embedding_loss)(self, target, margin, reduction);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5045,6 +6086,9 @@ at::Tensor group_norm_generated_plumbing(const at::Tensor & input, int64_t num_g
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(group_norm)(input, num_groups, weight, bias, eps, cudnn_enabled);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -5067,6 +6111,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(native_group_norm)(input, weight, bias, N, C, HxW, group, eps);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -5089,6 +6136,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_out, cur_level) && !isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(mean, cur_level) && !isBatchedAtLevel(rstd, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(native_group_norm_backward)(grad_out, input, mean, rstd, weight, N, C, HxW, group, output_mask);
+  }
   Tensor grad_out_value;
   optional<int64_t> grad_out_bdim;
   std::tie(grad_out_value, grad_out_bdim) = unwrapTensorAtLevel(grad_out, cur_level);
@@ -5115,6 +6165,9 @@ at::Tensor _fft_r2c_generated_plumbing(const at::Tensor & self, at::IntArrayRef 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_fft_r2c)(self, dim, normalization, onesided);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5127,6 +6180,9 @@ at::Tensor _fft_c2r_generated_plumbing(const at::Tensor & self, at::IntArrayRef 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_fft_c2r)(self, dim, normalization, last_dim_size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5139,6 +6195,9 @@ at::Tensor _fft_c2c_generated_plumbing(const at::Tensor & self, at::IntArrayRef 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_fft_c2c)(self, dim, normalization, forward);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5151,6 +6210,9 @@ at::Tensor index_Tensor_generated_plumbing(const at::Tensor & self, const c10::L
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN2(index, Tensor)(self, indices);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5163,6 +6225,9 @@ at::Tensor & index_copy__generated_plumbing(at::Tensor & self, int64_t dim, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(source, cur_level)) {
+    return ATEN_FN(index_copy_)(self, dim, index, source);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5181,6 +6246,9 @@ at::Tensor index_copy_generated_plumbing(const at::Tensor & self, int64_t dim, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(source, cur_level)) {
+    return ATEN_FN(index_copy)(self, dim, index, source);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5199,6 +6267,9 @@ at::Tensor & index_copy__dimname_generated_plumbing(at::Tensor & self, at::Dimna
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(source, cur_level)) {
+    return ATEN_FN2(index_copy_, dimname)(self, dim, index, source);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5217,6 +6288,9 @@ at::Tensor index_copy_dimname_generated_plumbing(const at::Tensor & self, at::Di
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(source, cur_level)) {
+    return ATEN_FN2(index_copy, dimname)(self, dim, index, source);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5235,6 +6309,9 @@ at::Tensor & index_put__generated_plumbing(at::Tensor & self, const c10::List<c1
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level) && !isBatchedAtLevel(values, cur_level)) {
+    return ATEN_FN(index_put_)(self, indices, values, accumulate);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5250,6 +6327,9 @@ at::Tensor index_put_generated_plumbing(const at::Tensor & self, const c10::List
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level) && !isBatchedAtLevel(values, cur_level)) {
+    return ATEN_FN(index_put)(self, indices, values, accumulate);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5265,6 +6345,9 @@ at::Tensor & _index_put_impl__generated_plumbing(at::Tensor & self, const c10::L
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level) && !isBatchedAtLevel(values, cur_level)) {
+    return ATEN_FN(_index_put_impl_)(self, indices, values, accumulate, unsafe);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5280,6 +6363,9 @@ at::Tensor instance_norm_generated_plumbing(const at::Tensor & input, const c10:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level) && !isBatchedAtLevel(running_mean, cur_level) && !isBatchedAtLevel(running_var, cur_level)) {
+    return ATEN_FN(instance_norm)(input, weight, bias, running_mean, running_var, use_input_stats, momentum, eps, cudnn_enabled);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -5312,6 +6398,9 @@ at::Tensor inverse_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(inverse)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5324,6 +6413,9 @@ at::Tensor isclose_generated_plumbing(const at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(isclose)(self, other, rtol, atol, equal_nan);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5339,6 +6431,9 @@ at::Tensor isin_Tensor_Tensor_generated_plumbing(const at::Tensor & elements, co
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(elements, cur_level) && !isBatchedAtLevel(test_elements, cur_level)) {
+    return ATEN_FN2(isin, Tensor_Tensor)(elements, test_elements, assume_unique, invert);
+  }
   Tensor elements_value;
   optional<int64_t> elements_bdim;
   std::tie(elements_value, elements_bdim) = unwrapTensorAtLevel(elements, cur_level);
@@ -5354,6 +6449,9 @@ at::Tensor isin_Tensor_Scalar_generated_plumbing(const at::Tensor & elements, co
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(elements, cur_level)) {
+    return ATEN_FN2(isin, Tensor_Scalar)(elements, test_element, assume_unique, invert);
+  }
   Tensor elements_value;
   optional<int64_t> elements_bdim;
   std::tie(elements_value, elements_bdim) = unwrapTensorAtLevel(elements, cur_level);
@@ -5366,6 +6464,9 @@ at::Tensor isin_Scalar_Tensor_generated_plumbing(const at::Scalar & element, con
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(test_elements, cur_level)) {
+    return ATEN_FN2(isin, Scalar_Tensor)(element, test_elements, assume_unique, invert);
+  }
   Tensor test_elements_value;
   optional<int64_t> test_elements_bdim;
   std::tie(test_elements_value, test_elements_bdim) = unwrapTensorAtLevel(test_elements, cur_level);
@@ -5378,6 +6479,9 @@ at::Tensor isnan_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(isnan)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5390,6 +6494,9 @@ at::Tensor isreal_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(isreal)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5402,6 +6509,9 @@ at::Tensor kl_div_generated_plumbing(const at::Tensor & self, const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(kl_div)(self, target, reduction, log_target);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5417,6 +6527,9 @@ at::Tensor kl_div_backward_generated_plumbing(const at::Tensor & grad_output, co
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(kl_div_backward)(grad_output, self, target, reduction, log_target);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -5435,6 +6548,9 @@ at::Tensor kron_generated_plumbing(const at::Tensor & self, const at::Tensor & o
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(kron)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5450,6 +6566,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(kthvalue)(self, k, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5462,6 +6581,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(kthvalue, dimname)(self, k, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5474,6 +6596,9 @@ at::Tensor layer_norm_generated_plumbing(const at::Tensor & input, at::IntArrayR
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(layer_norm)(input, normalized_shape, weight, bias, eps, cudnn_enable);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -5496,6 +6621,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(native_layer_norm)(input, normalized_shape, weight, bias, eps);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -5518,6 +6646,9 @@ at::Tensor native_multi_head_self_attention_generated_plumbing(const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(query, cur_level) && !isBatchedAtLevel(qkv_weight, cur_level) && !isBatchedAtLevel(qkv_bias, cur_level) && !isBatchedAtLevel(proj_weight, cur_level) && !isBatchedAtLevel(proj_bias, cur_level) && !isBatchedAtLevel(mask, cur_level)) {
+    return ATEN_FN(native_multi_head_self_attention)(query, qkv_weight, qkv_bias, proj_weight, proj_bias, mask);
+  }
   Tensor query_value;
   optional<int64_t> query_bdim;
   std::tie(query_value, query_bdim) = unwrapTensorAtLevel(query, cur_level);
@@ -5547,6 +6678,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_out, cur_level) && !isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(mean, cur_level) && !isBatchedAtLevel(rstd, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(native_layer_norm_backward)(grad_out, input, normalized_shape, mean, rstd, weight, bias, output_mask);
+  }
   Tensor grad_out_value;
   optional<int64_t> grad_out_bdim;
   std::tie(grad_out_value, grad_out_bdim) = unwrapTensorAtLevel(grad_out, cur_level);
@@ -5578,6 +6712,9 @@ at::Tensor nan_to_num_generated_plumbing(const at::Tensor & self, c10::optional<
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(nan_to_num)(self, nan, posinf, neginf);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5590,6 +6727,9 @@ at::Tensor & nan_to_num__generated_plumbing(at::Tensor & self, c10::optional<dou
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(nan_to_num_)(self, nan, posinf, neginf);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5602,6 +6742,9 @@ at::Tensor linear_generated_plumbing(const at::Tensor & input, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(linear)(input, weight, bias);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -5622,6 +6765,9 @@ at::Tensor mkldnn_linear_generated_plumbing(const at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(mkldnn_linear)(self, weight, bias);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5642,6 +6788,9 @@ at::Tensor mkldnn_linear_backward_input_generated_plumbing(at::IntArrayRef input
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(mkldnn_linear_backward_input)(input_size, grad_output, weight);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -5657,6 +6806,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(mkldnn_linear_backward_weights)(grad_output, input, weight, bias_defined);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -5675,6 +6827,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(mkldnn_linear_backward)(self, grad_output, weight, output_mask);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5693,6 +6848,9 @@ at::Tensor fbgemm_linear_int8_weight_fp32_activation_generated_plumbing(const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(packed, cur_level) && !isBatchedAtLevel(col_offsets, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(fbgemm_linear_int8_weight_fp32_activation)(input, weight, packed, col_offsets, weight_scale, weight_zero_point, bias);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -5717,6 +6875,9 @@ at::Tensor fbgemm_linear_int8_weight_generated_plumbing(const at::Tensor & input
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(packed, cur_level) && !isBatchedAtLevel(col_offsets, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(fbgemm_linear_int8_weight)(input, weight, packed, col_offsets, weight_scale, weight_zero_point, bias);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -5741,6 +6902,9 @@ at::Tensor fbgemm_pack_gemm_matrix_fp16_generated_plumbing(const at::Tensor & in
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN(fbgemm_pack_gemm_matrix_fp16)(input);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -5753,6 +6917,9 @@ at::Tensor fbgemm_linear_fp16_weight_fp32_activation_generated_plumbing(const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(packed_weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(fbgemm_linear_fp16_weight_fp32_activation)(input, packed_weight, bias);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -5771,6 +6938,9 @@ at::Tensor fbgemm_linear_fp16_weight_generated_plumbing(const at::Tensor & input
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(packed_weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(fbgemm_linear_fp16_weight)(input, packed_weight, bias);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -5789,6 +6959,9 @@ at::Tensor fbgemm_pack_quantized_matrix_generated_plumbing(const at::Tensor & in
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN(fbgemm_pack_quantized_matrix)(input);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -5801,6 +6974,9 @@ at::Tensor fbgemm_pack_quantized_matrix_KN_generated_plumbing(const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN2(fbgemm_pack_quantized_matrix, KN)(input, K, N);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -5813,6 +6989,9 @@ at::Tensor ldexp_Tensor_generated_plumbing(const at::Tensor & self, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(ldexp, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5828,6 +7007,9 @@ at::Tensor & ldexp__generated_plumbing(at::Tensor & self, const at::Tensor & oth
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(ldexp_)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5843,6 +7025,9 @@ at::Tensor log_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(log)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5855,6 +7040,9 @@ at::Tensor & log__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(log_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5867,6 +7055,9 @@ at::Tensor log10_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(log10)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5879,6 +7070,9 @@ at::Tensor & log10__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(log10_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5891,6 +7085,9 @@ at::Tensor log1p_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(log1p)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5903,6 +7100,9 @@ at::Tensor & log1p__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(log1p_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5915,6 +7115,9 @@ at::Tensor log2_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(log2)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5927,6 +7130,9 @@ at::Tensor & log2__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(log2_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5939,6 +7145,9 @@ at::Tensor logaddexp_generated_plumbing(const at::Tensor & self, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(logaddexp)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5954,6 +7163,9 @@ at::Tensor logaddexp2_generated_plumbing(const at::Tensor & self, const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(logaddexp2)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5969,6 +7181,9 @@ at::Tensor xlogy_Tensor_generated_plumbing(const at::Tensor & self, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(xlogy, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -5984,6 +7199,9 @@ at::Tensor xlogy_Scalar_Self_generated_plumbing(const at::Scalar & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(xlogy, Scalar_Self)(self, other);
+  }
   Tensor other_value;
   optional<int64_t> other_bdim;
   std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
@@ -5996,6 +7214,9 @@ at::Tensor xlogy_Scalar_Other_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(xlogy, Scalar_Other)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6008,6 +7229,9 @@ at::Tensor & xlogy__Tensor_generated_plumbing(at::Tensor & self, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(xlogy_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6023,6 +7247,9 @@ at::Tensor & xlogy__Scalar_Other_generated_plumbing(at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(xlogy_, Scalar_Other)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6035,6 +7262,9 @@ at::Tensor logdet_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(logdet)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6047,6 +7277,9 @@ at::Tensor log_softmax_int_generated_plumbing(const at::Tensor & self, int64_t d
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(log_softmax, int)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6059,6 +7292,9 @@ at::Tensor log_softmax_Dimname_generated_plumbing(const at::Tensor & self, at::D
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(log_softmax, Dimname)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6071,6 +7307,9 @@ at::Tensor _log_softmax_generated_plumbing(const at::Tensor & self, int64_t dim,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_log_softmax)(self, dim, half_to_float);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6083,6 +7322,9 @@ at::Tensor _log_softmax_backward_data_generated_plumbing(const at::Tensor & grad
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(output, cur_level)) {
+    return ATEN_FN(_log_softmax_backward_data)(grad_output, output, dim, input_dtype);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -6098,6 +7340,9 @@ at::Tensor _logcumsumexp_generated_plumbing(const at::Tensor & self, int64_t dim
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_logcumsumexp)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6110,6 +7355,9 @@ at::Tensor logcumsumexp_generated_plumbing(const at::Tensor & self, int64_t dim)
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(logcumsumexp)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6122,6 +7370,9 @@ at::Tensor logcumsumexp_dimname_generated_plumbing(const at::Tensor & self, at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(logcumsumexp, dimname)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6134,6 +7385,9 @@ at::Tensor logsumexp_generated_plumbing(const at::Tensor & self, at::IntArrayRef
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(logsumexp)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6146,6 +7400,9 @@ at::Tensor logsumexp_names_generated_plumbing(const at::Tensor & self, at::Dimna
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(logsumexp, names)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6158,6 +7415,9 @@ at::Tensor margin_ranking_loss_generated_plumbing(const at::Tensor & input1, con
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input1, cur_level) && !isBatchedAtLevel(input2, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(margin_ranking_loss)(input1, input2, target, margin, reduction);
+  }
   Tensor input1_value;
   optional<int64_t> input1_bdim;
   std::tie(input1_value, input1_bdim) = unwrapTensorAtLevel(input1, cur_level);
@@ -6176,6 +7436,9 @@ at::Tensor matmul_generated_plumbing(const at::Tensor & self, const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(matmul)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6191,6 +7454,9 @@ at::Tensor matrix_rank_tol_generated_plumbing(const at::Tensor & self, double to
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(matrix_rank, tol)(self, tol, symmetric);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6203,6 +7469,9 @@ at::Tensor matrix_rank_generated_plumbing(const at::Tensor & self, bool symmetri
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(matrix_rank)(self, symmetric);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6215,6 +7484,9 @@ at::Tensor matrix_power_generated_plumbing(const at::Tensor & self, int64_t n) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(matrix_power)(self, n);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6227,6 +7499,9 @@ at::Tensor matrix_exp_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(matrix_exp)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6239,6 +7514,9 @@ at::Tensor matrix_exp_backward_generated_plumbing(const at::Tensor & self, const
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(grad, cur_level)) {
+    return ATEN_FN(matrix_exp_backward)(self, grad);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6254,6 +7532,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_aminmax)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6266,6 +7547,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(_aminmax, dim)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6278,6 +7562,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(aminmax)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6290,6 +7577,9 @@ at::Tensor _compute_linear_combination_generated_plumbing(const at::Tensor & inp
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(coefficients, cur_level)) {
+    return ATEN_FN(_compute_linear_combination)(input, coefficients);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -6305,6 +7595,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(max, dim)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6317,6 +7610,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(max, names_dim)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6329,6 +7625,9 @@ at::Tensor value_selecting_reduction_backward_generated_plumbing(const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(value_selecting_reduction_backward)(grad, dim, indices, sizes, keepdim);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -6344,6 +7643,9 @@ at::Tensor amax_generated_plumbing(const at::Tensor & self, at::IntArrayRef dim,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(amax)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6356,6 +7658,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(max_pool1d_with_indices)(self, kernel_size, stride, padding, dilation, ceil_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6368,6 +7673,9 @@ at::Tensor max_pool1d_generated_plumbing(const at::Tensor & self, at::IntArrayRe
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(max_pool1d)(self, kernel_size, stride, padding, dilation, ceil_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6380,6 +7688,9 @@ at::Tensor max_pool2d_generated_plumbing(const at::Tensor & self, at::IntArrayRe
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(max_pool2d)(self, kernel_size, stride, padding, dilation, ceil_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6392,6 +7703,9 @@ at::Tensor mkldnn_max_pool2d_generated_plumbing(const at::Tensor & self, at::Int
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(mkldnn_max_pool2d)(self, kernel_size, stride, padding, dilation, ceil_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6404,6 +7718,9 @@ at::Tensor mkldnn_max_pool2d_backward_generated_plumbing(const at::Tensor & grad
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(output, cur_level) && !isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN(mkldnn_max_pool2d_backward)(grad_output, output, input, kernel_size, stride, padding, dilation, ceil_mode);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -6422,6 +7739,9 @@ at::Tensor mkldnn_max_pool3d_generated_plumbing(const at::Tensor & self, at::Int
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(mkldnn_max_pool3d)(self, kernel_size, stride, padding, dilation, ceil_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6434,6 +7754,9 @@ at::Tensor mkldnn_max_pool3d_backward_generated_plumbing(const at::Tensor & grad
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(output, cur_level) && !isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN(mkldnn_max_pool3d_backward)(grad_output, output, input, kernel_size, stride, padding, dilation, ceil_mode);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -6452,6 +7775,9 @@ at::Tensor quantized_max_pool1d_generated_plumbing(const at::Tensor & self, at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(quantized_max_pool1d)(self, kernel_size, stride, padding, dilation, ceil_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6464,6 +7790,9 @@ at::Tensor quantized_max_pool2d_generated_plumbing(const at::Tensor & self, at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(quantized_max_pool2d)(self, kernel_size, stride, padding, dilation, ceil_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6476,6 +7805,9 @@ at::Tensor max_pool3d_generated_plumbing(const at::Tensor & self, at::IntArrayRe
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(max_pool3d)(self, kernel_size, stride, padding, dilation, ceil_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6488,6 +7820,9 @@ at::Tensor mean_generated_plumbing(const at::Tensor & self, c10::optional<at::Sc
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(mean)(self, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6500,6 +7835,9 @@ at::Tensor mean_dim_generated_plumbing(const at::Tensor & self, at::IntArrayRef 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(mean, dim)(self, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6512,6 +7850,9 @@ at::Tensor mean_names_dim_generated_plumbing(const at::Tensor & self, at::Dimnam
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(mean, names_dim)(self, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6524,6 +7865,9 @@ at::Tensor nanmean_generated_plumbing(const at::Tensor & self, at::IntArrayRef d
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(nanmean)(self, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6536,6 +7880,9 @@ at::Tensor median_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(median)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6548,6 +7895,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(median, dim)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6560,6 +7910,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(median, names_dim)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6572,6 +7925,9 @@ at::Tensor nanmedian_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(nanmedian)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6584,6 +7940,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(nanmedian, dim)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6596,6 +7955,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(nanmedian, names_dim)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6608,6 +7970,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(min, dim)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6620,6 +7985,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(min, names_dim)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6632,6 +8000,9 @@ at::Tensor amin_generated_plumbing(const at::Tensor & self, at::IntArrayRef dim,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(amin)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6644,6 +8015,9 @@ at::Tensor mkldnn_convolution_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(mkldnn_convolution)(self, weight, bias, padding, stride, dilation, groups);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6664,6 +8038,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level) && !isBatchedAtLevel(running_mean, cur_level) && !isBatchedAtLevel(running_var, cur_level)) {
+    return ATEN_FN(miopen_batch_norm)(input, weight, bias, running_mean, running_var, training, exponential_average_factor, epsilon);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -6694,6 +8071,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(running_mean, cur_level) && !isBatchedAtLevel(running_var, cur_level) && !isBatchedAtLevel(save_mean, cur_level) && !isBatchedAtLevel(save_var, cur_level)) {
+    return ATEN_FN(miopen_batch_norm_backward)(input, grad_output, weight, running_mean, running_var, save_mean, save_var, epsilon);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -6732,6 +8112,9 @@ at::Tensor miopen_convolution_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(miopen_convolution)(self, weight, bias, padding, stride, dilation, groups, benchmark, deterministic);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6752,6 +8135,9 @@ at::Tensor miopen_convolution_transpose_generated_plumbing(const at::Tensor & se
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(miopen_convolution_transpose)(self, weight, bias, padding, output_padding, stride, dilation, groups, benchmark, deterministic);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6772,6 +8158,9 @@ at::Tensor miopen_depthwise_convolution_generated_plumbing(const at::Tensor & se
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(miopen_depthwise_convolution)(self, weight, bias, padding, stride, dilation, groups, benchmark, deterministic);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6792,6 +8181,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(cx, cur_level) && !isBatchedAtLevel(dropout_state, cur_level)) {
+    return ATEN_FN(miopen_rnn)(input, weight, weight_stride0, hx, cx, mode, hidden_size, num_layers, batch_first, dropout, train, bidirectional, batch_sizes, dropout_state);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -6817,6 +8209,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(weight_buf, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(cx, cur_level) && !isBatchedAtLevel(output, cur_level) && !isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(grad_hy, cur_level) && !isBatchedAtLevel(grad_cy, cur_level) && !isBatchedAtLevel(dropout_state, cur_level) && !isBatchedAtLevel(reserve, cur_level)) {
+    return ATEN_FN(miopen_rnn_backward)(input, weight, weight_stride0, weight_buf, hx, cx, output, grad_output, grad_hy, grad_cy, mode, hidden_size, num_layers, batch_first, dropout, train, bidirectional, batch_sizes, dropout_state, reserve, output_mask);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -6866,6 +8261,9 @@ at::Tensor mm_generated_plumbing(const at::Tensor & self, const at::Tensor & mat
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mat2, cur_level)) {
+    return ATEN_FN(mm)(self, mat2);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6881,6 +8279,9 @@ at::Tensor _sparse_mm_generated_plumbing(const at::Tensor & sparse, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(sparse, cur_level) && !isBatchedAtLevel(dense, cur_level)) {
+    return ATEN_FN(_sparse_mm)(sparse, dense);
+  }
   Tensor sparse_value;
   optional<int64_t> sparse_bdim;
   std::tie(sparse_value, sparse_bdim) = unwrapTensorAtLevel(sparse, cur_level);
@@ -6896,6 +8297,9 @@ at::Tensor _sparse_sparse_matmul_generated_plumbing(const at::Tensor & self, con
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(_sparse_sparse_matmul)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6911,6 +8315,9 @@ at::Tensor _sparse_mask_helper_generated_plumbing(const at::Tensor & t, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(t, cur_level) && !isBatchedAtLevel(mask_indices, cur_level)) {
+    return ATEN_FN(_sparse_mask_helper)(t, mask_indices);
+  }
   Tensor t_value;
   optional<int64_t> t_bdim;
   std::tie(t_value, t_bdim) = unwrapTensorAtLevel(t, cur_level);
@@ -6926,6 +8333,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(mode)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6938,6 +8348,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(mode, dimname)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6950,6 +8363,9 @@ at::Tensor mul_Tensor_generated_plumbing(const at::Tensor & self, const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(mul, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6965,6 +8381,9 @@ at::Tensor & mul__Tensor_generated_plumbing(at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(mul_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6980,6 +8399,9 @@ at::Tensor mul_Scalar_generated_plumbing(const at::Tensor & self, const at::Scal
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(mul, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -6992,6 +8414,9 @@ at::Tensor & mul__Scalar_generated_plumbing(at::Tensor & self, const at::Scalar 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(mul_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7004,6 +8429,9 @@ at::Tensor multiply_Tensor_generated_plumbing(const at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(multiply, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7019,6 +8447,9 @@ at::Tensor & multiply__Tensor_generated_plumbing(at::Tensor & self, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(multiply_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7034,6 +8465,9 @@ at::Tensor multiply_Scalar_generated_plumbing(const at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(multiply, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7046,6 +8480,9 @@ at::Tensor & multiply__Scalar_generated_plumbing(at::Tensor & self, const at::Sc
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(multiply_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7058,6 +8495,9 @@ at::Tensor mv_generated_plumbing(const at::Tensor & self, const at::Tensor & vec
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(vec, cur_level)) {
+    return ATEN_FN(mv)(self, vec);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7073,6 +8513,9 @@ at::Tensor mvlgamma_generated_plumbing(const at::Tensor & self, int64_t p) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(mvlgamma)(self, p);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7085,6 +8528,9 @@ at::Tensor & mvlgamma__generated_plumbing(at::Tensor & self, int64_t p) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(mvlgamma_)(self, p);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7097,6 +8543,9 @@ at::Tensor narrow_copy_generated_plumbing(const at::Tensor & self, int64_t dim, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(narrow_copy)(self, dim, start, length);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7109,6 +8558,9 @@ at::Tensor narrow_generated_plumbing(const at::Tensor & self, int64_t dim, int64
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(narrow)(self, dim, start, length);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7121,6 +8573,9 @@ at::Tensor narrow_Tensor_generated_plumbing(const at::Tensor & self, int64_t dim
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(start, cur_level)) {
+    return ATEN_FN2(narrow, Tensor)(self, dim, start, length);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7136,6 +8591,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level) && !isBatchedAtLevel(running_mean, cur_level) && !isBatchedAtLevel(running_var, cur_level)) {
+    return ATEN_FN(native_batch_norm)(input, weight, bias, running_mean, running_var, training, momentum, eps);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -7168,6 +8626,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN(batch_norm_stats)(input, eps);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -7180,6 +8641,9 @@ at::Tensor batch_norm_elemt_generated_plumbing(const at::Tensor & input, const c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level) && !isBatchedAtLevel(mean, cur_level) && !isBatchedAtLevel(invstd, cur_level)) {
+    return ATEN_FN(batch_norm_elemt)(input, weight, bias, mean, invstd, eps);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -7208,6 +8672,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(mean, cur_level) && !isBatchedAtLevel(invstd, cur_level) && !isBatchedAtLevel(running_mean, cur_level) && !isBatchedAtLevel(running_var, cur_level)) {
+    return ATEN_FN(batch_norm_gather_stats)(input, mean, invstd, running_mean, running_var, momentum, eps, count);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -7236,6 +8703,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(mean, cur_level) && !isBatchedAtLevel(invstd, cur_level) && !isBatchedAtLevel(running_mean, cur_level) && !isBatchedAtLevel(running_var, cur_level) && !isBatchedAtLevel(counts, cur_level)) {
+    return ATEN_FN(batch_norm_gather_stats_with_counts)(input, mean, invstd, running_mean, running_var, momentum, eps, counts);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -7267,6 +8737,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_out, cur_level) && !isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(running_mean, cur_level) && !isBatchedAtLevel(running_var, cur_level) && !isBatchedAtLevel(save_mean, cur_level) && !isBatchedAtLevel(save_invstd, cur_level)) {
+    return ATEN_FN(native_batch_norm_backward)(grad_out, input, weight, running_mean, running_var, save_mean, save_invstd, train, eps, output_mask);
+  }
   Tensor grad_out_value;
   optional<int64_t> grad_out_bdim;
   std::tie(grad_out_value, grad_out_bdim) = unwrapTensorAtLevel(grad_out, cur_level);
@@ -7307,6 +8780,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_out, cur_level) && !isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(mean, cur_level) && !isBatchedAtLevel(invstd, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(batch_norm_backward_reduce)(grad_out, input, mean, invstd, weight, input_g, weight_g, bias_g);
+  }
   Tensor grad_out_value;
   optional<int64_t> grad_out_bdim;
   std::tie(grad_out_value, grad_out_bdim) = unwrapTensorAtLevel(grad_out, cur_level);
@@ -7333,6 +8809,9 @@ at::Tensor batch_norm_backward_elemt_generated_plumbing(const at::Tensor & grad_
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_out, cur_level) && !isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(mean, cur_level) && !isBatchedAtLevel(invstd, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(mean_dy, cur_level) && !isBatchedAtLevel(mean_dy_xmu, cur_level) && !isBatchedAtLevel(count, cur_level)) {
+    return ATEN_FN(batch_norm_backward_elemt)(grad_out, input, mean, invstd, weight, mean_dy, mean_dy_xmu, count);
+  }
   Tensor grad_out_value;
   optional<int64_t> grad_out_bdim;
   std::tie(grad_out_value, grad_out_bdim) = unwrapTensorAtLevel(grad_out, cur_level);
@@ -7368,6 +8847,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(running_mean, cur_level) && !isBatchedAtLevel(running_var, cur_level)) {
+    return ATEN_FN(batch_norm_update_stats)(input, running_mean, running_var, momentum);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -7390,6 +8872,9 @@ at::Tensor _nnpack_spatial_convolution_generated_plumbing(const at::Tensor & inp
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(_nnpack_spatial_convolution)(input, weight, bias, padding, stride);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -7410,6 +8895,9 @@ at::Tensor ones_like_generated_plumbing(const at::Tensor & self, c10::optional<a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(ones_like)(self, dtype, layout, device, pin_memory, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7422,6 +8910,9 @@ at::Tensor pairwise_distance_generated_plumbing(const at::Tensor & x1, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(x1, cur_level) && !isBatchedAtLevel(x2, cur_level)) {
+    return ATEN_FN(pairwise_distance)(x1, x2, p, eps, keepdim);
+  }
   Tensor x1_value;
   optional<int64_t> x1_bdim;
   std::tie(x1_value, x1_bdim) = unwrapTensorAtLevel(x1, cur_level);
@@ -7437,6 +8928,9 @@ at::Tensor cdist_generated_plumbing(const at::Tensor & x1, const at::Tensor & x2
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(x1, cur_level) && !isBatchedAtLevel(x2, cur_level)) {
+    return ATEN_FN(cdist)(x1, x2, p, compute_mode);
+  }
   Tensor x1_value;
   optional<int64_t> x1_bdim;
   std::tie(x1_value, x1_bdim) = unwrapTensorAtLevel(x1, cur_level);
@@ -7452,6 +8946,9 @@ at::Tensor _euclidean_dist_generated_plumbing(const at::Tensor & x1, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(x1, cur_level) && !isBatchedAtLevel(x2, cur_level)) {
+    return ATEN_FN(_euclidean_dist)(x1, x2);
+  }
   Tensor x1_value;
   optional<int64_t> x1_bdim;
   std::tie(x1_value, x1_bdim) = unwrapTensorAtLevel(x1, cur_level);
@@ -7467,6 +8964,9 @@ at::Tensor _cdist_forward_generated_plumbing(const at::Tensor & x1, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(x1, cur_level) && !isBatchedAtLevel(x2, cur_level)) {
+    return ATEN_FN(_cdist_forward)(x1, x2, p, compute_mode);
+  }
   Tensor x1_value;
   optional<int64_t> x1_bdim;
   std::tie(x1_value, x1_bdim) = unwrapTensorAtLevel(x1, cur_level);
@@ -7482,6 +8982,9 @@ at::Tensor _cdist_backward_generated_plumbing(const at::Tensor & grad, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(x1, cur_level) && !isBatchedAtLevel(x2, cur_level) && !isBatchedAtLevel(cdist, cur_level)) {
+    return ATEN_FN(_cdist_backward)(grad, x1, x2, p, cdist);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -7503,6 +9006,9 @@ at::Tensor pdist_generated_plumbing(const at::Tensor & self, double p) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(pdist)(self, p);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7515,6 +9021,9 @@ at::Tensor _pdist_forward_generated_plumbing(const at::Tensor & self, double p) 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_pdist_forward)(self, p);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7527,6 +9036,9 @@ at::Tensor _pdist_backward_generated_plumbing(const at::Tensor & grad, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(pdist, cur_level)) {
+    return ATEN_FN(_pdist_backward)(grad, self, p, pdist);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -7545,6 +9057,9 @@ at::Tensor cosine_similarity_generated_plumbing(const at::Tensor & x1, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(x1, cur_level) && !isBatchedAtLevel(x2, cur_level)) {
+    return ATEN_FN(cosine_similarity)(x1, x2, dim, eps);
+  }
   Tensor x1_value;
   optional<int64_t> x1_bdim;
   std::tie(x1_value, x1_bdim) = unwrapTensorAtLevel(x1, cur_level);
@@ -7560,6 +9075,9 @@ at::Tensor permute_generated_plumbing(const at::Tensor & self, at::IntArrayRef d
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(permute)(self, dims);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7572,6 +9090,9 @@ at::Tensor movedim_intlist_generated_plumbing(const at::Tensor & self, at::IntAr
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(movedim, intlist)(self, source, destination);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7584,6 +9105,9 @@ at::Tensor movedim_int_generated_plumbing(const at::Tensor & self, int64_t sourc
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(movedim, int)(self, source, destination);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7596,6 +9120,9 @@ at::Tensor moveaxis_intlist_generated_plumbing(const at::Tensor & self, at::IntA
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(moveaxis, intlist)(self, source, destination);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7608,6 +9135,9 @@ at::Tensor moveaxis_int_generated_plumbing(const at::Tensor & self, int64_t sour
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(moveaxis, int)(self, source, destination);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7620,6 +9150,9 @@ at::Tensor numpy_T_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(numpy_T)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7632,6 +9165,9 @@ at::Tensor matrix_H_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(matrix_H)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7644,6 +9180,9 @@ at::Tensor mT_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(mT)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7656,6 +9195,9 @@ at::Tensor mH_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(mH)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7668,6 +9210,9 @@ at::Tensor adjoint_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(adjoint)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7680,6 +9225,9 @@ at::Tensor pixel_shuffle_generated_plumbing(const at::Tensor & self, int64_t ups
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(pixel_shuffle)(self, upscale_factor);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7692,6 +9240,9 @@ at::Tensor pixel_unshuffle_generated_plumbing(const at::Tensor & self, int64_t d
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(pixel_unshuffle)(self, downscale_factor);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7704,6 +9255,9 @@ at::Tensor channel_shuffle_generated_plumbing(const at::Tensor & self, int64_t g
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(channel_shuffle)(self, groups);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7716,6 +9270,9 @@ at::Tensor native_channel_shuffle_generated_plumbing(const at::Tensor & self, in
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(native_channel_shuffle)(self, groups);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7728,6 +9285,9 @@ at::Tensor pin_memory_generated_plumbing(const at::Tensor & self, c10::optional<
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(pin_memory)(self, device);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7740,6 +9300,9 @@ at::Tensor _pin_memory_generated_plumbing(const at::Tensor & self, c10::optional
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_pin_memory)(self, device);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7752,6 +9315,9 @@ at::Tensor pinverse_generated_plumbing(const at::Tensor & self, double rcond) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(pinverse)(self, rcond);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7764,6 +9330,9 @@ at::Tensor poisson_nll_loss_generated_plumbing(const at::Tensor & input, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(poisson_nll_loss)(input, target, log_input, full, eps, reduction);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -7779,6 +9348,9 @@ at::Tensor rad2deg_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(rad2deg)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7791,6 +9363,9 @@ at::Tensor & rad2deg__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(rad2deg_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7803,6 +9378,9 @@ at::Tensor deg2rad_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(deg2rad)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7815,6 +9393,9 @@ at::Tensor & deg2rad__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(deg2rad_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7827,6 +9408,9 @@ at::Tensor rand_like_generated_plumbing(const at::Tensor & self, c10::optional<a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(rand_like)(self, dtype, layout, device, pin_memory, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7839,6 +9423,9 @@ at::Tensor randint_like_generated_plumbing(const at::Tensor & self, int64_t high
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(randint_like)(self, high, dtype, layout, device, pin_memory, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7851,6 +9438,9 @@ at::Tensor randint_like_low_dtype_generated_plumbing(const at::Tensor & self, in
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(randint_like, low_dtype)(self, low, high, dtype, layout, device, pin_memory, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7863,6 +9453,9 @@ at::Tensor randn_like_generated_plumbing(const at::Tensor & self, c10::optional<
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(randn_like)(self, dtype, layout, device, pin_memory, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7875,6 +9468,9 @@ at::Tensor ravel_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(ravel)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7887,6 +9483,9 @@ at::Tensor reciprocal_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(reciprocal)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7899,6 +9498,9 @@ at::Tensor & reciprocal__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(reciprocal_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7911,6 +9513,9 @@ at::Tensor neg_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(neg)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7923,6 +9528,9 @@ at::Tensor & neg__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(neg_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7935,6 +9543,9 @@ at::Tensor negative_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(negative)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7947,6 +9558,9 @@ at::Tensor & negative__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(negative_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7959,6 +9573,9 @@ at::Tensor repeat_generated_plumbing(const at::Tensor & self, at::IntArrayRef re
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(repeat)(self, repeats);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7971,6 +9588,9 @@ at::Tensor repeat_interleave_Tensor_generated_plumbing(const at::Tensor & repeat
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(repeats, cur_level)) {
+    return ATEN_FN2(repeat_interleave, Tensor)(repeats, output_size);
+  }
   Tensor repeats_value;
   optional<int64_t> repeats_bdim;
   std::tie(repeats_value, repeats_bdim) = unwrapTensorAtLevel(repeats, cur_level);
@@ -7983,6 +9603,9 @@ at::Tensor repeat_interleave_self_Tensor_generated_plumbing(const at::Tensor & s
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(repeats, cur_level)) {
+    return ATEN_FN2(repeat_interleave, self_Tensor)(self, repeats, dim, output_size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -7998,6 +9621,9 @@ at::Tensor repeat_interleave_self_int_generated_plumbing(const at::Tensor & self
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(repeat_interleave, self_int)(self, repeats, dim, output_size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8010,6 +9636,9 @@ at::Tensor reshape_generated_plumbing(const at::Tensor & self, at::IntArrayRef s
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(reshape)(self, shape);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8022,6 +9651,9 @@ at::Tensor _reshape_alias_generated_plumbing(const at::Tensor & self, at::IntArr
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_reshape_alias)(self, size, stride);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8034,6 +9666,9 @@ at::Tensor _mkldnn_reshape_generated_plumbing(const at::Tensor & self, at::IntAr
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_mkldnn_reshape)(self, shape);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8046,6 +9681,9 @@ at::Tensor reshape_as_generated_plumbing(const at::Tensor & self, const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(reshape_as)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8061,6 +9699,9 @@ at::Tensor round_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(round)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8073,6 +9714,9 @@ at::Tensor & round__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(round_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8085,6 +9729,9 @@ at::Tensor round_decimals_generated_plumbing(const at::Tensor & self, int64_t de
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(round, decimals)(self, decimals);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8097,6 +9744,9 @@ at::Tensor & round__decimals_generated_plumbing(at::Tensor & self, int64_t decim
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(round_, decimals)(self, decimals);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8109,6 +9759,9 @@ at::Tensor rrelu_generated_plumbing(const at::Tensor & self, const at::Scalar & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(rrelu)(self, lower, upper, training, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8121,6 +9774,9 @@ at::Tensor & rrelu__generated_plumbing(at::Tensor & self, const at::Scalar & low
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(rrelu_)(self, lower, upper, training, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8133,6 +9789,9 @@ at::Tensor relu_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(relu)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8145,6 +9804,9 @@ at::Tensor & relu__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(relu_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8157,6 +9819,9 @@ at::Tensor relu6_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(relu6)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8169,6 +9834,9 @@ at::Tensor & relu6__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(relu6_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8181,6 +9849,9 @@ at::Tensor prelu_generated_plumbing(const at::Tensor & self, const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(prelu)(self, weight);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8196,6 +9867,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(prelu_backward)(grad_output, self, weight);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -8214,6 +9888,9 @@ at::Tensor gelu_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(gelu)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8226,6 +9903,9 @@ at::Tensor gelu_backward_generated_plumbing(const at::Tensor & grad, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(gelu_backward)(grad, self);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -8241,6 +9921,9 @@ at::Tensor infinitely_differentiable_gelu_backward_generated_plumbing(const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(infinitely_differentiable_gelu_backward)(grad, self);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -8256,6 +9939,9 @@ at::Tensor hardshrink_generated_plumbing(const at::Tensor & self, const at::Scal
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(hardshrink)(self, lambd);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8268,6 +9954,9 @@ at::Tensor hardshrink_backward_generated_plumbing(const at::Tensor & grad_out, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_out, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(hardshrink_backward)(grad_out, self, lambd);
+  }
   Tensor grad_out_value;
   optional<int64_t> grad_out_bdim;
   std::tie(grad_out_value, grad_out_bdim) = unwrapTensorAtLevel(grad_out, cur_level);
@@ -8283,6 +9972,9 @@ at::Tensor rsqrt_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(rsqrt)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8295,6 +9987,9 @@ at::Tensor & rsqrt__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(rsqrt_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8307,6 +10002,9 @@ at::Tensor select_Dimname_generated_plumbing(const at::Tensor & self, at::Dimnam
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(select, Dimname)(self, dim, index);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8319,6 +10017,9 @@ at::Tensor select_int_generated_plumbing(const at::Tensor & self, int64_t dim, i
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(select, int)(self, dim, index);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8331,6 +10032,9 @@ at::Tensor select_backward_generated_plumbing(const at::Tensor & grad_output, at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(select_backward)(grad_output, input_sizes, dim, index);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -8343,6 +10047,9 @@ at::Tensor selu_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(selu)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8355,6 +10062,9 @@ at::Tensor & selu__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(selu_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8367,6 +10077,9 @@ at::Tensor celu_generated_plumbing(const at::Tensor & self, const at::Scalar & a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(celu)(self, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8379,6 +10092,9 @@ at::Tensor & celu__generated_plumbing(at::Tensor & self, const at::Scalar & alph
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(celu_)(self, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8391,6 +10107,9 @@ at::Tensor silu_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(silu)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8403,6 +10122,9 @@ at::Tensor & silu__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(silu_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8415,6 +10137,9 @@ at::Tensor silu_backward_generated_plumbing(const at::Tensor & grad_output, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(silu_backward)(grad_output, self);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -8430,6 +10155,9 @@ at::Tensor mish_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(mish)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8442,6 +10170,9 @@ at::Tensor & mish__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(mish_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8454,6 +10185,9 @@ at::Tensor mish_backward_generated_plumbing(const at::Tensor & grad_output, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(mish_backward)(grad_output, self);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -8469,6 +10203,9 @@ at::Tensor sigmoid_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sigmoid)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8481,6 +10218,9 @@ at::Tensor & sigmoid__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sigmoid_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8493,6 +10233,9 @@ at::Tensor logit_generated_plumbing(const at::Tensor & self, c10::optional<doubl
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(logit)(self, eps);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8505,6 +10248,9 @@ at::Tensor & logit__generated_plumbing(at::Tensor & self, c10::optional<double> 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(logit_)(self, eps);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8517,6 +10263,9 @@ at::Tensor sin_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sin)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8529,6 +10278,9 @@ at::Tensor & sin__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sin_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8541,6 +10293,9 @@ at::Tensor sinc_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sinc)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8553,6 +10308,9 @@ at::Tensor & sinc__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sinc_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8565,6 +10323,9 @@ at::Tensor sinh_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sinh)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8577,6 +10338,9 @@ at::Tensor & sinh__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sinh_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8589,6 +10353,9 @@ at::Tensor detach_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(detach)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8601,6 +10368,9 @@ at::Tensor slice_Tensor_generated_plumbing(const at::Tensor & self, int64_t dim,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(slice, Tensor)(self, dim, start, end, step);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8613,6 +10383,9 @@ at::Tensor slice_backward_generated_plumbing(const at::Tensor & grad_output, at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(slice_backward)(grad_output, input_sizes, dim, start, end, step);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -8625,6 +10398,9 @@ at::Tensor slice_scatter_generated_plumbing(const at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(src, cur_level)) {
+    return ATEN_FN(slice_scatter)(self, src, dim, start, end, step);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8640,6 +10416,9 @@ at::Tensor select_scatter_generated_plumbing(const at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(src, cur_level)) {
+    return ATEN_FN(select_scatter)(self, src, dim, index);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8655,6 +10434,9 @@ at::Tensor diagonal_scatter_generated_plumbing(const at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(src, cur_level)) {
+    return ATEN_FN(diagonal_scatter)(self, src, offset, dim1, dim2);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8670,6 +10452,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(slogdet)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8682,6 +10467,9 @@ at::Tensor smm_generated_plumbing(const at::Tensor & self, const at::Tensor & ma
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mat2, cur_level)) {
+    return ATEN_FN(smm)(self, mat2);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8697,6 +10485,9 @@ at::Tensor softmax_int_generated_plumbing(const at::Tensor & self, int64_t dim, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(softmax, int)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8709,6 +10500,9 @@ at::Tensor softmax_Dimname_generated_plumbing(const at::Tensor & self, at::Dimna
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(softmax, Dimname)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8721,6 +10515,9 @@ at::Tensor _softmax_generated_plumbing(const at::Tensor & self, int64_t dim, boo
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_softmax)(self, dim, half_to_float);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8733,6 +10530,9 @@ at::Tensor _softmax_backward_data_generated_plumbing(const at::Tensor & grad_out
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(output, cur_level)) {
+    return ATEN_FN(_softmax_backward_data)(grad_output, output, dim, input_dtype);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -8748,6 +10548,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(unsafe_split, Tensor)(self, split_size, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8760,6 +10563,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(split, Tensor)(self, split_size, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8772,6 +10578,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(unsafe_split_with_sizes)(self, split_sizes, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8784,6 +10593,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(split_with_sizes)(self, split_sizes, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8796,6 +10608,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(hsplit, int)(self, sections);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8808,6 +10623,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(hsplit, array)(self, indices);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8820,6 +10638,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(vsplit, int)(self, sections);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8832,6 +10653,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(vsplit, array)(self, indices);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8844,6 +10668,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(dsplit, int)(self, sections);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8856,6 +10683,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(dsplit, array)(self, indices);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8868,6 +10698,9 @@ at::Tensor squeeze_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(squeeze)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8880,6 +10713,9 @@ at::Tensor squeeze_dim_generated_plumbing(const at::Tensor & self, int64_t dim) 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(squeeze, dim)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8892,6 +10728,9 @@ at::Tensor squeeze_dimname_generated_plumbing(const at::Tensor & self, at::Dimna
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(squeeze, dimname)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8904,6 +10743,9 @@ at::Tensor sspaddmm_generated_plumbing(const at::Tensor & self, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mat1, cur_level) && !isBatchedAtLevel(mat2, cur_level)) {
+    return ATEN_FN(sspaddmm)(self, mat1, mat2, beta, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8922,6 +10764,9 @@ at::Tensor stack_generated_plumbing(at::TensorList tensors, int64_t dim) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(stack)(tensors, dim);
+  }
 
   auto results = batch_rule(tensors, dim);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -8932,6 +10777,9 @@ at::Tensor _stack_generated_plumbing(at::TensorList tensors, int64_t dim) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_stack)(tensors, dim);
+  }
 
   auto results = batch_rule(tensors, dim);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -8942,6 +10790,9 @@ at::Tensor hstack_generated_plumbing(at::TensorList tensors) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(hstack)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -8952,6 +10803,9 @@ at::Tensor vstack_generated_plumbing(at::TensorList tensors) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(vstack)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -8962,6 +10816,9 @@ at::Tensor dstack_generated_plumbing(at::TensorList tensors) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(dstack)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -8972,6 +10829,9 @@ at::Tensor stft_generated_plumbing(const at::Tensor & self, int64_t n_fft, c10::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(window, cur_level)) {
+    return ATEN_FN(stft)(self, n_fft, hop_length, win_length, window, normalized, onesided, return_complex);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -8989,6 +10849,9 @@ at::Tensor istft_generated_plumbing(const at::Tensor & self, int64_t n_fft, c10:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(window, cur_level)) {
+    return ATEN_FN(istft)(self, n_fft, hop_length, win_length, window, center, normalized, onesided, length, return_complex);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9006,6 +10869,9 @@ at::Tensor sum_generated_plumbing(const at::Tensor & self, c10::optional<at::Sca
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sum)(self, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9018,6 +10884,9 @@ at::Tensor sum_dim_IntList_generated_plumbing(const at::Tensor & self, at::IntAr
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(sum, dim_IntList)(self, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9030,6 +10899,9 @@ at::Tensor sum_dim_DimnameList_generated_plumbing(const at::Tensor & self, at::D
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(sum, dim_DimnameList)(self, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9042,6 +10914,9 @@ at::Tensor nansum_generated_plumbing(const at::Tensor & self, c10::optional<at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(nansum)(self, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9054,6 +10929,9 @@ at::Tensor nansum_dim_IntList_generated_plumbing(const at::Tensor & self, at::In
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(nansum, dim_IntList)(self, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9066,6 +10944,9 @@ at::Tensor sum_to_size_generated_plumbing(const at::Tensor & self, at::IntArrayR
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sum_to_size)(self, size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9078,6 +10959,9 @@ at::Tensor sqrt_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sqrt)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9090,6 +10974,9 @@ at::Tensor & sqrt__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sqrt_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9102,6 +10989,9 @@ at::Tensor square_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(square)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9114,6 +11004,9 @@ at::Tensor & square__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(square_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9126,6 +11019,9 @@ at::Tensor std_generated_plumbing(const at::Tensor & self, bool unbiased) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(std)(self, unbiased);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9138,6 +11034,9 @@ at::Tensor std_dim_generated_plumbing(const at::Tensor & self, at::IntArrayRef d
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(std, dim)(self, dim, unbiased, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9150,6 +11049,9 @@ at::Tensor std_correction_generated_plumbing(const at::Tensor & self, c10::optio
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(std, correction)(self, dim, correction, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9162,6 +11064,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(std_mean)(self, unbiased);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9174,6 +11079,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(std_mean, dim)(self, dim, unbiased, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9186,6 +11094,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(std_mean, correction)(self, dim, correction, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9198,6 +11109,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(std_mean, names_dim)(self, dim, unbiased, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9210,6 +11124,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(std_mean, correction_names)(self, dim, correction, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9222,6 +11139,9 @@ at::Tensor std_names_dim_generated_plumbing(const at::Tensor & self, at::Dimname
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(std, names_dim)(self, dim, unbiased, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9234,6 +11154,9 @@ at::Tensor std_correction_names_generated_plumbing(const at::Tensor & self, at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(std, correction_names)(self, dim, correction, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9246,6 +11169,9 @@ at::Tensor prod_generated_plumbing(const at::Tensor & self, c10::optional<at::Sc
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(prod)(self, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9258,6 +11184,9 @@ at::Tensor prod_dim_int_generated_plumbing(const at::Tensor & self, int64_t dim,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(prod, dim_int)(self, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9270,6 +11199,9 @@ at::Tensor prod_dim_Dimname_generated_plumbing(const at::Tensor & self, at::Dimn
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(prod, dim_Dimname)(self, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9282,6 +11214,9 @@ at::Tensor t_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(t)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9294,6 +11229,9 @@ at::Tensor tan_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(tan)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9306,6 +11244,9 @@ at::Tensor & tan__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(tan_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9318,6 +11259,9 @@ at::Tensor tanh_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(tanh)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9330,6 +11274,9 @@ at::Tensor & tanh__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(tanh_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9342,6 +11289,9 @@ at::Tensor tensordot_generated_plumbing(const at::Tensor & self, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(tensordot)(self, other, dims_self, dims_other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9357,6 +11307,9 @@ at::Tensor threshold_generated_plumbing(const at::Tensor & self, const at::Scala
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(threshold)(self, threshold, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9369,6 +11322,9 @@ at::Tensor & threshold__generated_plumbing(at::Tensor & self, const at::Scalar &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(threshold_)(self, threshold, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9381,6 +11337,9 @@ at::Tensor threshold_backward_generated_plumbing(const at::Tensor & grad_output,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(threshold_backward)(grad_output, self, threshold);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -9396,6 +11355,9 @@ at::Tensor tile_generated_plumbing(const at::Tensor & self, at::IntArrayRef dims
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(tile)(self, dims);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9408,6 +11370,9 @@ at::Tensor transpose_int_generated_plumbing(const at::Tensor & self, int64_t dim
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(transpose, int)(self, dim0, dim1);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9420,6 +11385,9 @@ at::Tensor transpose_Dimname_generated_plumbing(const at::Tensor & self, at::Dim
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(transpose, Dimname)(self, dim0, dim1);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9432,6 +11400,9 @@ at::Tensor _mkldnn_transpose_generated_plumbing(const at::Tensor & self, int64_t
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_mkldnn_transpose)(self, dim0, dim1);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9444,6 +11415,9 @@ at::Tensor & _mkldnn_transpose__generated_plumbing(at::Tensor & self, int64_t di
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_mkldnn_transpose_)(self, dim0, dim1);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9456,6 +11430,9 @@ at::Tensor one_hot_generated_plumbing(const at::Tensor & self, int64_t num_class
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(one_hot)(self, num_classes);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9468,6 +11445,9 @@ at::Tensor flip_generated_plumbing(const at::Tensor & self, at::IntArrayRef dims
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(flip)(self, dims);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9480,6 +11460,9 @@ at::Tensor fliplr_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fliplr)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9492,6 +11475,9 @@ at::Tensor flipud_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(flipud)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9504,6 +11490,9 @@ at::Tensor roll_generated_plumbing(const at::Tensor & self, at::IntArrayRef shif
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(roll)(self, shifts, dims);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9516,6 +11505,9 @@ at::Tensor rot90_generated_plumbing(const at::Tensor & self, int64_t k, at::IntA
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(rot90)(self, k, dims);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9528,6 +11520,9 @@ at::Tensor trapezoid_x_generated_plumbing(const at::Tensor & y, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(y, cur_level) && !isBatchedAtLevel(x, cur_level)) {
+    return ATEN_FN2(trapezoid, x)(y, x, dim);
+  }
   Tensor y_value;
   optional<int64_t> y_bdim;
   std::tie(y_value, y_bdim) = unwrapTensorAtLevel(y, cur_level);
@@ -9543,6 +11538,9 @@ at::Tensor trapezoid_dx_generated_plumbing(const at::Tensor & y, const at::Scala
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(y, cur_level)) {
+    return ATEN_FN2(trapezoid, dx)(y, dx, dim);
+  }
   Tensor y_value;
   optional<int64_t> y_bdim;
   std::tie(y_value, y_bdim) = unwrapTensorAtLevel(y, cur_level);
@@ -9555,6 +11553,9 @@ at::Tensor trapz_x_generated_plumbing(const at::Tensor & y, const at::Tensor & x
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(y, cur_level) && !isBatchedAtLevel(x, cur_level)) {
+    return ATEN_FN2(trapz, x)(y, x, dim);
+  }
   Tensor y_value;
   optional<int64_t> y_bdim;
   std::tie(y_value, y_bdim) = unwrapTensorAtLevel(y, cur_level);
@@ -9570,6 +11571,9 @@ at::Tensor trapz_dx_generated_plumbing(const at::Tensor & y, double dx, int64_t 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(y, cur_level)) {
+    return ATEN_FN2(trapz, dx)(y, dx, dim);
+  }
   Tensor y_value;
   optional<int64_t> y_bdim;
   std::tie(y_value, y_bdim) = unwrapTensorAtLevel(y, cur_level);
@@ -9582,6 +11586,9 @@ at::Tensor _trilinear_generated_plumbing(const at::Tensor & i1, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(i1, cur_level) && !isBatchedAtLevel(i2, cur_level) && !isBatchedAtLevel(i3, cur_level)) {
+    return ATEN_FN(_trilinear)(i1, i2, i3, expand1, expand2, expand3, sumdim, unroll_dim);
+  }
   Tensor i1_value;
   optional<int64_t> i1_bdim;
   std::tie(i1_value, i1_bdim) = unwrapTensorAtLevel(i1, cur_level);
@@ -9600,6 +11607,9 @@ at::Tensor triplet_margin_loss_generated_plumbing(const at::Tensor & anchor, con
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(anchor, cur_level) && !isBatchedAtLevel(positive, cur_level) && !isBatchedAtLevel(negative, cur_level)) {
+    return ATEN_FN(triplet_margin_loss)(anchor, positive, negative, margin, p, eps, swap, reduction);
+  }
   Tensor anchor_value;
   optional<int64_t> anchor_bdim;
   std::tie(anchor_value, anchor_bdim) = unwrapTensorAtLevel(anchor, cur_level);
@@ -9618,6 +11628,9 @@ at::Tensor trunc_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(trunc)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9630,6 +11643,9 @@ at::Tensor & trunc__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(trunc_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9642,6 +11658,9 @@ at::Tensor fix_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fix)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9654,6 +11673,9 @@ at::Tensor & fix__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fix_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9666,6 +11688,9 @@ at::Tensor type_as_generated_plumbing(const at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(type_as)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9681,6 +11706,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_unique)(self, sorted, return_inverse);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9693,6 +11721,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(unique_dim)(self, dim, sorted, return_inverse, return_counts);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9705,6 +11736,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(unique_consecutive)(self, return_inverse, return_counts, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9717,6 +11751,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(unique_dim_consecutive)(self, dim, return_inverse, return_counts);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9729,6 +11766,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_unique2)(self, sorted, return_inverse, return_counts);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9741,6 +11781,9 @@ at::Tensor _unsafe_view_generated_plumbing(const at::Tensor & self, at::IntArray
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_unsafe_view)(self, size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9753,6 +11796,9 @@ at::Tensor unsqueeze_generated_plumbing(const at::Tensor & self, int64_t dim) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(unsqueeze)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9765,6 +11811,9 @@ at::Tensor vander_generated_plumbing(const at::Tensor & x, c10::optional<int64_t
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(x, cur_level)) {
+    return ATEN_FN(vander)(x, N, increasing);
+  }
   Tensor x_value;
   optional<int64_t> x_bdim;
   std::tie(x_value, x_bdim) = unwrapTensorAtLevel(x, cur_level);
@@ -9777,6 +11826,9 @@ at::Tensor var_generated_plumbing(const at::Tensor & self, bool unbiased) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(var)(self, unbiased);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9789,6 +11841,9 @@ at::Tensor var_dim_generated_plumbing(const at::Tensor & self, at::IntArrayRef d
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(var, dim)(self, dim, unbiased, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9801,6 +11856,9 @@ at::Tensor var_correction_generated_plumbing(const at::Tensor & self, c10::optio
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(var, correction)(self, dim, correction, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9813,6 +11871,9 @@ at::Tensor var_names_dim_generated_plumbing(const at::Tensor & self, at::Dimname
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(var, names_dim)(self, dim, unbiased, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9825,6 +11886,9 @@ at::Tensor var_correction_names_generated_plumbing(const at::Tensor & self, at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(var, correction_names)(self, dim, correction, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9837,6 +11901,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(var_mean)(self, unbiased);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9849,6 +11916,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(var_mean, dim)(self, dim, unbiased, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9861,6 +11931,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(var_mean, correction)(self, dim, correction, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9873,6 +11946,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(var_mean, names_dim)(self, dim, unbiased, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9885,6 +11961,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(var_mean, correction_names)(self, dim, correction, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9897,6 +11976,9 @@ at::Tensor view_as_generated_plumbing(const at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(view_as)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -9912,6 +11994,9 @@ at::Tensor where_self_generated_plumbing(const at::Tensor & condition, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(condition, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(where, self)(condition, self, other);
+  }
   Tensor condition_value;
   optional<int64_t> condition_bdim;
   std::tie(condition_value, condition_bdim) = unwrapTensorAtLevel(condition, cur_level);
@@ -9930,6 +12015,9 @@ at::Tensor where_ScalarSelf_generated_plumbing(const at::Tensor & condition, con
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(condition, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(where, ScalarSelf)(condition, self, other);
+  }
   Tensor condition_value;
   optional<int64_t> condition_bdim;
   std::tie(condition_value, condition_bdim) = unwrapTensorAtLevel(condition, cur_level);
@@ -9945,6 +12033,9 @@ at::Tensor where_ScalarOther_generated_plumbing(const at::Tensor & condition, co
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(condition, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(where, ScalarOther)(condition, self, other);
+  }
   Tensor condition_value;
   optional<int64_t> condition_bdim;
   std::tie(condition_value, condition_bdim) = unwrapTensorAtLevel(condition, cur_level);
@@ -9960,6 +12051,9 @@ at::Tensor where_Scalar_generated_plumbing(const at::Tensor & condition, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(condition, cur_level)) {
+    return ATEN_FN2(where, Scalar)(condition, self, other);
+  }
   Tensor condition_value;
   optional<int64_t> condition_bdim;
   std::tie(condition_value, condition_bdim) = unwrapTensorAtLevel(condition, cur_level);
@@ -9972,6 +12066,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(condition, cur_level)) {
+    return ATEN_FN(where)(condition);
+  }
   Tensor condition_value;
   optional<int64_t> condition_bdim;
   std::tie(condition_value, condition_bdim) = unwrapTensorAtLevel(condition, cur_level);
@@ -9984,6 +12081,9 @@ at::Tensor _s_where_generated_plumbing(const at::Tensor & condition, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(condition, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(_s_where)(condition, self, other);
+  }
   Tensor condition_value;
   optional<int64_t> condition_bdim;
   std::tie(condition_value, condition_bdim) = unwrapTensorAtLevel(condition, cur_level);
@@ -10002,6 +12102,9 @@ at::Tensor norm_except_dim_generated_plumbing(const at::Tensor & v, int64_t pow,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(v, cur_level)) {
+    return ATEN_FN(norm_except_dim)(v, pow, dim);
+  }
   Tensor v_value;
   optional<int64_t> v_bdim;
   std::tie(v_value, v_bdim) = unwrapTensorAtLevel(v, cur_level);
@@ -10014,6 +12117,9 @@ at::Tensor _weight_norm_generated_plumbing(const at::Tensor & v, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(v, cur_level) && !isBatchedAtLevel(g, cur_level)) {
+    return ATEN_FN(_weight_norm)(v, g, dim);
+  }
   Tensor v_value;
   optional<int64_t> v_bdim;
   std::tie(v_value, v_bdim) = unwrapTensorAtLevel(v, cur_level);
@@ -10029,6 +12135,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(v, cur_level) && !isBatchedAtLevel(g, cur_level)) {
+    return ATEN_FN(_weight_norm_cuda_interface)(v, g, dim);
+  }
   Tensor v_value;
   optional<int64_t> v_bdim;
   std::tie(v_value, v_bdim) = unwrapTensorAtLevel(v, cur_level);
@@ -10044,6 +12153,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_w, cur_level) && !isBatchedAtLevel(saved_v, cur_level) && !isBatchedAtLevel(saved_g, cur_level) && !isBatchedAtLevel(saved_norms, cur_level)) {
+    return ATEN_FN(_weight_norm_cuda_interface_backward)(grad_w, saved_v, saved_g, saved_norms, dim);
+  }
   Tensor grad_w_value;
   optional<int64_t> grad_w_bdim;
   std::tie(grad_w_value, grad_w_bdim) = unwrapTensorAtLevel(grad_w, cur_level);
@@ -10065,6 +12177,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_w, cur_level) && !isBatchedAtLevel(saved_v, cur_level) && !isBatchedAtLevel(saved_g, cur_level) && !isBatchedAtLevel(saved_norms, cur_level)) {
+    return ATEN_FN(_weight_norm_differentiable_backward)(grad_w, saved_v, saved_g, saved_norms, dim);
+  }
   Tensor grad_w_value;
   optional<int64_t> grad_w_bdim;
   std::tie(grad_w_value, grad_w_bdim) = unwrapTensorAtLevel(grad_w, cur_level);
@@ -10086,6 +12201,9 @@ at::Tensor zeros_like_generated_plumbing(const at::Tensor & self, c10::optional<
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(zeros_like)(self, dtype, layout, device, pin_memory, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10098,6 +12216,9 @@ at::Tensor _standard_gamma_grad_generated_plumbing(const at::Tensor & self, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(output, cur_level)) {
+    return ATEN_FN(_standard_gamma_grad)(self, output);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10113,6 +12234,9 @@ at::Tensor _standard_gamma_generated_plumbing(const at::Tensor & self, c10::opti
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_standard_gamma)(self, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10125,6 +12249,9 @@ at::Tensor _dirichlet_grad_generated_plumbing(const at::Tensor & x, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(x, cur_level) && !isBatchedAtLevel(alpha, cur_level) && !isBatchedAtLevel(total, cur_level)) {
+    return ATEN_FN(_dirichlet_grad)(x, alpha, total);
+  }
   Tensor x_value;
   optional<int64_t> x_bdim;
   std::tie(x_value, x_bdim) = unwrapTensorAtLevel(x, cur_level);
@@ -10143,6 +12270,9 @@ at::Tensor _sample_dirichlet_generated_plumbing(const at::Tensor & self, c10::op
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_sample_dirichlet)(self, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10155,6 +12285,9 @@ at::Tensor poisson_generated_plumbing(const at::Tensor & self, c10::optional<at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(poisson)(self, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10167,6 +12300,9 @@ at::Tensor binomial_generated_plumbing(const at::Tensor & count, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(count, cur_level) && !isBatchedAtLevel(prob, cur_level)) {
+    return ATEN_FN(binomial)(count, prob, generator);
+  }
   Tensor count_value;
   optional<int64_t> count_bdim;
   std::tie(count_value, count_bdim) = unwrapTensorAtLevel(count, cur_level);
@@ -10182,6 +12318,9 @@ at::Tensor native_norm_generated_plumbing(const at::Tensor & self, const at::Sca
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(native_norm)(self, p);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10194,6 +12333,9 @@ at::Tensor native_norm_ScalarOpt_dim_dtype_generated_plumbing(const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(native_norm, ScalarOpt_dim_dtype)(self, p, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10206,6 +12348,9 @@ at::Tensor _sparse_sum_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_sparse_sum)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10218,6 +12363,9 @@ at::Tensor _sparse_sum_dtype_generated_plumbing(const at::Tensor & self, at::Sca
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(_sparse_sum, dtype)(self, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10230,6 +12378,9 @@ at::Tensor _sparse_sum_dim_generated_plumbing(const at::Tensor & self, at::IntAr
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(_sparse_sum, dim)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10242,6 +12393,9 @@ at::Tensor _sparse_sum_dim_dtype_generated_plumbing(const at::Tensor & self, at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(_sparse_sum, dim_dtype)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10254,6 +12408,9 @@ at::Tensor _sparse_sum_backward_generated_plumbing(const at::Tensor & grad, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_sparse_sum_backward)(grad, self, dim);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -10269,6 +12426,9 @@ at::Tensor _sparse_softmax_int_generated_plumbing(const at::Tensor & self, int64
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(_sparse_softmax, int)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10281,6 +12441,9 @@ at::Tensor _sparse_softmax_Dimname_generated_plumbing(const at::Tensor & self, a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(_sparse_softmax, Dimname)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10293,6 +12456,9 @@ at::Tensor _sparse_softmax_generated_plumbing(const at::Tensor & self, int64_t d
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_sparse_softmax)(self, dim, half_to_float);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10305,6 +12471,9 @@ at::Tensor _sparse_softmax_backward_data_generated_plumbing(const at::Tensor & g
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_sparse_softmax_backward_data)(grad_output, output, dim, self);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -10323,6 +12492,9 @@ at::Tensor _sparse_log_softmax_int_generated_plumbing(const at::Tensor & self, i
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(_sparse_log_softmax, int)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10335,6 +12507,9 @@ at::Tensor _sparse_log_softmax_Dimname_generated_plumbing(const at::Tensor & sel
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(_sparse_log_softmax, Dimname)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10347,6 +12522,9 @@ at::Tensor _sparse_log_softmax_generated_plumbing(const at::Tensor & self, int64
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_sparse_log_softmax)(self, dim, half_to_float);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10359,6 +12537,9 @@ at::Tensor _sparse_log_softmax_backward_data_generated_plumbing(const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_sparse_log_softmax_backward_data)(grad_output, output, dim, self);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -10377,6 +12558,9 @@ at::Tensor norm_ScalarOpt_dtype_generated_plumbing(const at::Tensor & self, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(norm, ScalarOpt_dtype)(self, p, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10389,6 +12573,9 @@ at::Tensor norm_Scalar_generated_plumbing(const at::Tensor & self, const at::Sca
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(norm, Scalar)(self, p);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10401,6 +12588,9 @@ at::Tensor norm_ScalarOpt_dim_dtype_generated_plumbing(const at::Tensor & self, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(norm, ScalarOpt_dim_dtype)(self, p, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10413,6 +12603,9 @@ at::Tensor norm_ScalarOpt_dim_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(norm, ScalarOpt_dim)(self, p, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10425,6 +12618,9 @@ at::Tensor norm_names_ScalarOpt_dim_dtype_generated_plumbing(const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(norm, names_ScalarOpt_dim_dtype)(self, p, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10437,6 +12633,9 @@ at::Tensor norm_names_ScalarOpt_dim_generated_plumbing(const at::Tensor & self, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(norm, names_ScalarOpt_dim)(self, p, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10449,6 +12648,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(frexp, Tensor)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10461,6 +12663,9 @@ at::Tensor frobenius_norm_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(frobenius_norm)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10473,6 +12678,9 @@ at::Tensor frobenius_norm_dim_generated_plumbing(const at::Tensor & self, at::In
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(frobenius_norm, dim)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10485,6 +12693,9 @@ at::Tensor nuclear_norm_generated_plumbing(const at::Tensor & self, bool keepdim
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(nuclear_norm)(self, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10497,6 +12708,9 @@ at::Tensor nuclear_norm_dim_generated_plumbing(const at::Tensor & self, at::IntA
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(nuclear_norm, dim)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10509,6 +12723,9 @@ at::Tensor clone_generated_plumbing(const at::Tensor & self, c10::optional<at::M
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(clone)(self, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10521,6 +12738,9 @@ at::Tensor positive_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(positive)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10533,6 +12753,9 @@ const at::Tensor & resize_as__generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(the_template, cur_level)) {
+    return ATEN_FN(resize_as_)(self, the_template, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10548,6 +12771,9 @@ const at::Tensor & resize_as_sparse__generated_plumbing(const at::Tensor & self,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(the_template, cur_level)) {
+    return ATEN_FN(resize_as_sparse_)(self, the_template);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10563,6 +12789,9 @@ at::Tensor & zero__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(zero_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10575,6 +12804,9 @@ at::Tensor sub_Tensor_generated_plumbing(const at::Tensor & self, const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(sub, Tensor)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10590,6 +12822,9 @@ at::Tensor & sub__Tensor_generated_plumbing(at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(sub_, Tensor)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10605,6 +12840,9 @@ at::Tensor sub_Scalar_generated_plumbing(const at::Tensor & self, const at::Scal
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(sub, Scalar)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10617,6 +12855,9 @@ at::Tensor & sub__Scalar_generated_plumbing(at::Tensor & self, const at::Scalar 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(sub_, Scalar)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10629,6 +12870,9 @@ at::Tensor subtract_Tensor_generated_plumbing(const at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(subtract, Tensor)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10644,6 +12888,9 @@ at::Tensor & subtract__Tensor_generated_plumbing(at::Tensor & self, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(subtract_, Tensor)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10659,6 +12906,9 @@ at::Tensor subtract_Scalar_generated_plumbing(const at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(subtract, Scalar)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10671,6 +12921,9 @@ at::Tensor & subtract__Scalar_generated_plumbing(at::Tensor & self, const at::Sc
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(subtract_, Scalar)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10683,6 +12936,9 @@ at::Tensor rsub_Tensor_generated_plumbing(const at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(rsub, Tensor)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10698,6 +12954,9 @@ at::Tensor heaviside_generated_plumbing(const at::Tensor & self, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(values, cur_level)) {
+    return ATEN_FN(heaviside)(self, values);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10713,6 +12972,9 @@ at::Tensor & heaviside__generated_plumbing(at::Tensor & self, const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(values, cur_level)) {
+    return ATEN_FN(heaviside_)(self, values);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10728,6 +12990,9 @@ at::Tensor rsub_Scalar_generated_plumbing(const at::Tensor & self, const at::Sca
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(rsub, Scalar)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10740,6 +13005,9 @@ at::Tensor _sparse_addmm_generated_plumbing(const at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(sparse, cur_level) && !isBatchedAtLevel(dense, cur_level)) {
+    return ATEN_FN(_sparse_addmm)(self, sparse, dense, beta, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10758,6 +13026,9 @@ at::Tensor sparse_sampled_addmm_generated_plumbing(const at::Tensor & self, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mat1, cur_level) && !isBatchedAtLevel(mat2, cur_level)) {
+    return ATEN_FN(sparse_sampled_addmm)(self, mat1, mat2, beta, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10776,6 +13047,9 @@ at::Tensor addmm_generated_plumbing(const at::Tensor & self, const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mat1, cur_level) && !isBatchedAtLevel(mat2, cur_level)) {
+    return ATEN_FN(addmm)(self, mat1, mat2, beta, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10794,6 +13068,9 @@ at::Tensor & addmm__generated_plumbing(at::Tensor & self, const at::Tensor & mat
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mat1, cur_level) && !isBatchedAtLevel(mat2, cur_level)) {
+    return ATEN_FN(addmm_)(self, mat1, mat2, beta, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10812,6 +13089,9 @@ at::Tensor sparse_csr_tensor_crow_col_value_size_generated_plumbing(const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(crow_indices, cur_level) && !isBatchedAtLevel(col_indices, cur_level) && !isBatchedAtLevel(values, cur_level)) {
+    return ATEN_FN2(sparse_csr_tensor, crow_col_value_size)(crow_indices, col_indices, values, size, dtype, layout, device, pin_memory);
+  }
   Tensor crow_indices_value;
   optional<int64_t> crow_indices_bdim;
   std::tie(crow_indices_value, crow_indices_bdim) = unwrapTensorAtLevel(crow_indices, cur_level);
@@ -10830,6 +13110,9 @@ at::Tensor sparse_csr_tensor_crow_col_value_generated_plumbing(const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(crow_indices, cur_level) && !isBatchedAtLevel(col_indices, cur_level) && !isBatchedAtLevel(values, cur_level)) {
+    return ATEN_FN2(sparse_csr_tensor, crow_col_value)(crow_indices, col_indices, values, dtype, layout, device, pin_memory);
+  }
   Tensor crow_indices_value;
   optional<int64_t> crow_indices_bdim;
   std::tie(crow_indices_value, crow_indices_bdim) = unwrapTensorAtLevel(crow_indices, cur_level);
@@ -10848,6 +13131,9 @@ at::Tensor _sparse_csr_tensor_unsafe_generated_plumbing(const at::Tensor & crow_
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(crow_indices, cur_level) && !isBatchedAtLevel(col_indices, cur_level) && !isBatchedAtLevel(values, cur_level)) {
+    return ATEN_FN(_sparse_csr_tensor_unsafe)(crow_indices, col_indices, values, size, dtype, layout, device, pin_memory);
+  }
   Tensor crow_indices_value;
   optional<int64_t> crow_indices_bdim;
   std::tie(crow_indices_value, crow_indices_bdim) = unwrapTensorAtLevel(crow_indices, cur_level);
@@ -10866,6 +13152,9 @@ at::Tensor sparse_coo_tensor_indices_generated_plumbing(const at::Tensor & indic
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(indices, cur_level) && !isBatchedAtLevel(values, cur_level)) {
+    return ATEN_FN2(sparse_coo_tensor, indices)(indices, values, dtype, layout, device, pin_memory);
+  }
   Tensor indices_value;
   optional<int64_t> indices_bdim;
   std::tie(indices_value, indices_bdim) = unwrapTensorAtLevel(indices, cur_level);
@@ -10881,6 +13170,9 @@ at::Tensor sparse_coo_tensor_indices_size_generated_plumbing(const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(indices, cur_level) && !isBatchedAtLevel(values, cur_level)) {
+    return ATEN_FN2(sparse_coo_tensor, indices_size)(indices, values, size, dtype, layout, device, pin_memory);
+  }
   Tensor indices_value;
   optional<int64_t> indices_bdim;
   std::tie(indices_value, indices_bdim) = unwrapTensorAtLevel(indices, cur_level);
@@ -10896,6 +13188,9 @@ at::Tensor _sparse_coo_tensor_unsafe_generated_plumbing(const at::Tensor & indic
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(indices, cur_level) && !isBatchedAtLevel(values, cur_level)) {
+    return ATEN_FN(_sparse_coo_tensor_unsafe)(indices, values, size, dtype, layout, device, pin_memory);
+  }
   Tensor indices_value;
   optional<int64_t> indices_bdim;
   std::tie(indices_value, indices_bdim) = unwrapTensorAtLevel(indices, cur_level);
@@ -10911,6 +13206,9 @@ at::Tensor _sparse_coo_tensor_with_dims_and_tensors_generated_plumbing(int64_t s
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(indices, cur_level) && !isBatchedAtLevel(values, cur_level)) {
+    return ATEN_FN(_sparse_coo_tensor_with_dims_and_tensors)(sparse_dim, dense_dim, size, indices, values, dtype, layout, device, pin_memory);
+  }
   Tensor indices_value;
   optional<int64_t> indices_bdim;
   std::tie(indices_value, indices_bdim) = unwrapTensorAtLevel(indices, cur_level);
@@ -10926,6 +13224,9 @@ const at::Tensor & sparse_resize__generated_plumbing(const at::Tensor & self, at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sparse_resize_)(self, size, sparse_dim, dense_dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10938,6 +13239,9 @@ const at::Tensor & sparse_resize_and_clear__generated_plumbing(const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sparse_resize_and_clear_)(self, size, sparse_dim, dense_dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10950,6 +13254,9 @@ at::Tensor sparse_mask_generated_plumbing(const at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mask, cur_level)) {
+    return ATEN_FN(sparse_mask)(self, mask);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10965,6 +13272,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_to_cpu)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -10975,6 +13285,9 @@ at::Tensor to_dense_generated_plumbing(const at::Tensor & self, c10::optional<at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(to_dense)(self, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -10987,6 +13300,9 @@ at::Tensor to_dense_backward_generated_plumbing(const at::Tensor & grad, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN(to_dense_backward)(grad, input);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -11002,6 +13318,9 @@ at::Tensor coalesce_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(coalesce)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11014,6 +13333,9 @@ at::Tensor _coalesce_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_coalesce)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11026,6 +13348,9 @@ at::Tensor _indices_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_indices)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11038,6 +13363,9 @@ at::Tensor _values_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_values)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11050,6 +13378,9 @@ at::Tensor & _coalesced__generated_plumbing(at::Tensor & self, bool coalesced) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_coalesced_)(self, coalesced);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11062,6 +13393,9 @@ at::Tensor indices_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(indices)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11074,6 +13408,9 @@ at::Tensor values_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(values)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11086,6 +13423,9 @@ at::Tensor crow_indices_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(crow_indices)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11098,6 +13438,9 @@ at::Tensor col_indices_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(col_indices)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11110,6 +13453,9 @@ at::Tensor hspmm_generated_plumbing(const at::Tensor & mat1, const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(mat1, cur_level) && !isBatchedAtLevel(mat2, cur_level)) {
+    return ATEN_FN(hspmm)(mat1, mat2);
+  }
   Tensor mat1_value;
   optional<int64_t> mat1_bdim;
   std::tie(mat1_value, mat1_bdim) = unwrapTensorAtLevel(mat1, cur_level);
@@ -11125,6 +13471,9 @@ at::Tensor & copy_sparse_to_sparse__generated_plumbing(at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(src, cur_level)) {
+    return ATEN_FN(copy_sparse_to_sparse_)(self, src, non_blocking);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11140,6 +13489,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(unbind, int)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11152,6 +13504,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(unbind, Dimname)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11164,6 +13519,9 @@ at::Tensor to_sparse_sparse_dim_generated_plumbing(const at::Tensor & self, int6
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(to_sparse, sparse_dim)(self, sparse_dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11176,6 +13534,9 @@ at::Tensor to_sparse_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(to_sparse)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11188,6 +13549,9 @@ at::Tensor to_mkldnn_generated_plumbing(const at::Tensor & self, c10::optional<a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(to_mkldnn)(self, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11200,6 +13564,9 @@ at::Tensor mkldnn_reorder_conv2d_weight_generated_plumbing(const at::Tensor & se
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(mkldnn_reorder_conv2d_weight)(self, padding, stride, dilation, groups);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11212,6 +13579,9 @@ at::Tensor mkldnn_reorder_conv3d_weight_generated_plumbing(const at::Tensor & se
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(mkldnn_reorder_conv3d_weight)(self, padding, stride, dilation, groups);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11224,6 +13594,9 @@ at::Tensor to_mkldnn_backward_generated_plumbing(const at::Tensor & grad, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN(to_mkldnn_backward)(grad, input);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -11239,6 +13612,9 @@ at::Tensor quantize_per_tensor_dynamic_generated_plumbing(const at::Tensor & sel
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(quantize_per_tensor_dynamic)(self, dtype, reduce_range);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11251,6 +13627,9 @@ at::Tensor quantize_per_tensor_generated_plumbing(const at::Tensor & self, doubl
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(quantize_per_tensor)(self, scale, zero_point, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11263,6 +13642,9 @@ at::Tensor quantize_per_tensor_tensor_qparams_generated_plumbing(const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(scale, cur_level) && !isBatchedAtLevel(zero_point, cur_level)) {
+    return ATEN_FN2(quantize_per_tensor, tensor_qparams)(self, scale, zero_point, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11281,6 +13663,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level) && !isBatchedAtLevel(scales, cur_level) && !isBatchedAtLevel(zero_points, cur_level)) {
+    return ATEN_FN2(quantize_per_tensor, tensors)(tensors, scales, zero_points, dtype);
+  }
   Tensor scales_value;
   optional<int64_t> scales_bdim;
   std::tie(scales_value, scales_bdim) = unwrapTensorAtLevel(scales, cur_level);
@@ -11296,6 +13681,9 @@ at::Tensor quantize_per_channel_generated_plumbing(const at::Tensor & self, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(scales, cur_level) && !isBatchedAtLevel(zero_points, cur_level)) {
+    return ATEN_FN(quantize_per_channel)(self, scales, zero_points, axis, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11314,6 +13702,9 @@ at::Tensor dequantize_self_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(dequantize, self)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11326,6 +13717,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(dequantize, tensors)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -11336,6 +13730,9 @@ at::Tensor q_per_channel_scales_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(q_per_channel_scales)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11348,6 +13745,9 @@ at::Tensor q_per_channel_zero_points_generated_plumbing(const at::Tensor & self)
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(q_per_channel_zero_points)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11360,6 +13760,9 @@ at::Tensor int_repr_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(int_repr)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11372,6 +13775,9 @@ at::Tensor _make_per_tensor_quantized_tensor_generated_plumbing(const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_make_per_tensor_quantized_tensor)(self, scale, zero_point);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11384,6 +13790,9 @@ at::Tensor _make_per_channel_quantized_tensor_generated_plumbing(const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(scale, cur_level) && !isBatchedAtLevel(zero_point, cur_level)) {
+    return ATEN_FN(_make_per_channel_quantized_tensor)(self, scale, zero_point, axis);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11402,6 +13811,9 @@ at::Tensor fake_quantize_per_tensor_affine_generated_plumbing(const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fake_quantize_per_tensor_affine)(self, scale, zero_point, quant_min, quant_max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11414,6 +13826,9 @@ at::Tensor fake_quantize_per_tensor_affine_tensor_qparams_generated_plumbing(con
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(scale, cur_level) && !isBatchedAtLevel(zero_point, cur_level)) {
+    return ATEN_FN2(fake_quantize_per_tensor_affine, tensor_qparams)(self, scale, zero_point, quant_min, quant_max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11432,6 +13847,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fake_quantize_per_tensor_affine_cachemask)(self, scale, zero_point, quant_min, quant_max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11444,6 +13862,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(scale, cur_level) && !isBatchedAtLevel(zero_point, cur_level) && !isBatchedAtLevel(fake_quant_enabled, cur_level)) {
+    return ATEN_FN(_fake_quantize_per_tensor_affine_cachemask_tensor_qparams)(self, scale, zero_point, fake_quant_enabled, quant_min, quant_max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11465,6 +13886,9 @@ at::Tensor fake_quantize_per_tensor_affine_cachemask_backward_generated_plumbing
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(mask, cur_level)) {
+    return ATEN_FN(fake_quantize_per_tensor_affine_cachemask_backward)(grad, mask);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -11480,6 +13904,9 @@ at::Tensor _fake_quantize_learnable_per_tensor_affine_generated_plumbing(const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(scale, cur_level) && !isBatchedAtLevel(zero_point, cur_level)) {
+    return ATEN_FN(_fake_quantize_learnable_per_tensor_affine)(self, scale, zero_point, quant_min, quant_max, grad_factor);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11498,6 +13925,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(scale, cur_level) && !isBatchedAtLevel(zero_point, cur_level)) {
+    return ATEN_FN(_fake_quantize_learnable_per_tensor_affine_backward)(grad, self, scale, zero_point, quant_min, quant_max, grad_factor);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -11519,6 +13949,9 @@ at::Tensor fake_quantize_per_channel_affine_generated_plumbing(const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(scale, cur_level) && !isBatchedAtLevel(zero_point, cur_level)) {
+    return ATEN_FN(fake_quantize_per_channel_affine)(self, scale, zero_point, axis, quant_min, quant_max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11537,6 +13970,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(scale, cur_level) && !isBatchedAtLevel(zero_point, cur_level)) {
+    return ATEN_FN(fake_quantize_per_channel_affine_cachemask)(self, scale, zero_point, axis, quant_min, quant_max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11555,6 +13991,9 @@ at::Tensor fake_quantize_per_channel_affine_cachemask_backward_generated_plumbin
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(mask, cur_level)) {
+    return ATEN_FN(fake_quantize_per_channel_affine_cachemask_backward)(grad, mask);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -11570,6 +14009,9 @@ at::Tensor _fake_quantize_learnable_per_channel_affine_generated_plumbing(const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(scale, cur_level) && !isBatchedAtLevel(zero_point, cur_level)) {
+    return ATEN_FN(_fake_quantize_learnable_per_channel_affine)(self, scale, zero_point, axis, quant_min, quant_max, grad_factor);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11588,6 +14030,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(scale, cur_level) && !isBatchedAtLevel(zero_point, cur_level)) {
+    return ATEN_FN(_fake_quantize_learnable_per_channel_affine_backward)(grad, self, scale, zero_point, axis, quant_min, quant_max, grad_factor);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -11609,6 +14054,9 @@ at::Tensor fused_moving_avg_obs_fake_quant_generated_plumbing(const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(observer_on, cur_level) && !isBatchedAtLevel(fake_quant_on, cur_level) && !isBatchedAtLevel(running_min, cur_level) && !isBatchedAtLevel(running_max, cur_level) && !isBatchedAtLevel(scale, cur_level) && !isBatchedAtLevel(zero_point, cur_level)) {
+    return ATEN_FN(fused_moving_avg_obs_fake_quant)(self, observer_on, fake_quant_on, running_min, running_max, scale, zero_point, averaging_const, quant_min, quant_max, ch_axis, per_row_fake_quant, symmetric_quant);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11639,6 +14087,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(observer_on, cur_level) && !isBatchedAtLevel(fake_quant_on, cur_level) && !isBatchedAtLevel(running_min, cur_level) && !isBatchedAtLevel(running_max, cur_level) && !isBatchedAtLevel(scale, cur_level) && !isBatchedAtLevel(zero_point, cur_level)) {
+    return ATEN_FN(_fused_moving_avg_obs_fq_helper)(self, observer_on, fake_quant_on, running_min, running_max, scale, zero_point, averaging_const, quant_min, quant_max, ch_axis, per_row_fake_quant, symmetric_quant);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11669,6 +14120,9 @@ at::Tensor _saturate_weight_to_fp16_generated_plumbing(const at::Tensor & weight
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(_saturate_weight_to_fp16)(weight);
+  }
   Tensor weight_value;
   optional<int64_t> weight_bdim;
   std::tie(weight_value, weight_bdim) = unwrapTensorAtLevel(weight, cur_level);
@@ -11681,6 +14135,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN(choose_qparams_optimized)(input, numel, n_bins, ratio, bit_width);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -11693,6 +14150,9 @@ at::Tensor _autocast_to_reduced_precision_generated_plumbing(const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_autocast_to_reduced_precision)(self, cuda_enabled, cpu_enabled, cuda_dtype, cpu_dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11705,6 +14165,9 @@ at::Tensor _autocast_to_full_precision_generated_plumbing(const at::Tensor & sel
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_autocast_to_full_precision)(self, cuda_enabled, cpu_enabled);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11717,6 +14180,9 @@ at::Tensor _to_copy_generated_plumbing(const at::Tensor & self, c10::optional<at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_to_copy)(self, dtype, layout, device, pin_memory, non_blocking, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11729,6 +14195,9 @@ at::Tensor to_dtype_layout_generated_plumbing(const at::Tensor & self, c10::opti
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(to, dtype_layout)(self, dtype, layout, device, pin_memory, non_blocking, copy, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11741,6 +14210,9 @@ at::Tensor to_device_generated_plumbing(const at::Tensor & self, at::Device devi
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(to, device)(self, device, dtype, non_blocking, copy, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11753,6 +14225,9 @@ at::Tensor to_dtype_generated_plumbing(const at::Tensor & self, at::ScalarType d
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(to, dtype)(self, dtype, non_blocking, copy, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11765,6 +14240,9 @@ at::Tensor to_other_generated_plumbing(const at::Tensor & self, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(to, other)(self, other, non_blocking, copy, memory_format);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11780,6 +14258,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(meshgrid)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -11790,6 +14271,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(meshgrid, indexing)(tensors, indexing);
+  }
 
   auto results = batch_rule(tensors, indexing);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -11800,6 +14284,9 @@ at::Tensor cartesian_prod_generated_plumbing(at::TensorList tensors) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(cartesian_prod)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -11810,6 +14297,9 @@ at::Tensor combinations_generated_plumbing(const at::Tensor & self, int64_t r, b
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(combinations)(self, r, with_replacement);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -11822,6 +14312,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input_gates, cur_level) && !isBatchedAtLevel(hidden_gates, cur_level) && !isBatchedAtLevel(cx, cur_level) && !isBatchedAtLevel(input_bias, cur_level) && !isBatchedAtLevel(hidden_bias, cur_level)) {
+    return ATEN_FN(_thnn_fused_lstm_cell)(input_gates, hidden_gates, cx, input_bias, hidden_bias);
+  }
   Tensor input_gates_value;
   optional<int64_t> input_gates_bdim;
   std::tie(input_gates_value, input_gates_bdim) = unwrapTensorAtLevel(input_gates, cur_level);
@@ -11850,6 +14343,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_hy, cur_level) && !isBatchedAtLevel(grad_cy, cur_level) && !isBatchedAtLevel(cx, cur_level) && !isBatchedAtLevel(cy, cur_level) && !isBatchedAtLevel(workspace, cur_level)) {
+    return ATEN_FN(_thnn_fused_lstm_cell_backward)(grad_hy, grad_cy, cx, cy, workspace, has_bias);
+  }
   Tensor cx_value;
   optional<int64_t> cx_bdim;
   std::tie(cx_value, cx_bdim) = unwrapTensorAtLevel(cx, cur_level);
@@ -11878,6 +14374,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_hy, cur_level) && !isBatchedAtLevel(grad_cy, cur_level) && !isBatchedAtLevel(input_gates, cur_level) && !isBatchedAtLevel(hidden_gates, cur_level) && !isBatchedAtLevel(input_bias, cur_level) && !isBatchedAtLevel(hidden_bias, cur_level) && !isBatchedAtLevel(cx, cur_level) && !isBatchedAtLevel(cy, cur_level)) {
+    return ATEN_FN(_thnn_differentiable_lstm_cell_backward)(grad_hy, grad_cy, input_gates, hidden_gates, input_bias, hidden_bias, cx, cy);
+  }
   Tensor input_gates_value;
   optional<int64_t> input_gates_bdim;
   std::tie(input_gates_value, input_gates_bdim) = unwrapTensorAtLevel(input_gates, cur_level);
@@ -11919,6 +14418,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input_gates, cur_level) && !isBatchedAtLevel(hidden_gates, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(input_bias, cur_level) && !isBatchedAtLevel(hidden_bias, cur_level)) {
+    return ATEN_FN(_thnn_fused_gru_cell)(input_gates, hidden_gates, hx, input_bias, hidden_bias);
+  }
   Tensor input_gates_value;
   optional<int64_t> input_gates_bdim;
   std::tie(input_gates_value, input_gates_bdim) = unwrapTensorAtLevel(input_gates, cur_level);
@@ -11947,6 +14449,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_hy, cur_level) && !isBatchedAtLevel(workspace, cur_level)) {
+    return ATEN_FN(_thnn_fused_gru_cell_backward)(grad_hy, workspace, has_bias);
+  }
   Tensor grad_hy_value;
   optional<int64_t> grad_hy_bdim;
   std::tie(grad_hy_value, grad_hy_bdim) = unwrapTensorAtLevel(grad_hy, cur_level);
@@ -11962,6 +14467,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_hy, cur_level) && !isBatchedAtLevel(input_gates, cur_level) && !isBatchedAtLevel(hidden_gates, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(input_bias, cur_level) && !isBatchedAtLevel(hidden_bias, cur_level)) {
+    return ATEN_FN(_thnn_differentiable_gru_cell_backward)(grad_hy, input_gates, hidden_gates, hx, input_bias, hidden_bias);
+  }
   Tensor grad_hy_value;
   optional<int64_t> grad_hy_bdim;
   std::tie(grad_hy_value, grad_hy_bdim) = unwrapTensorAtLevel(grad_hy, cur_level);
@@ -11993,6 +14501,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(params, cur_level)) {
+    return ATEN_FN2(lstm, input)(input, hx, params, has_biases, num_layers, dropout, train, bidirectional, batch_first);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -12005,6 +14516,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(data, cur_level) && !isBatchedAtLevel(batch_sizes, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(params, cur_level)) {
+    return ATEN_FN2(lstm, data)(data, batch_sizes, hx, params, has_biases, num_layers, dropout, train, bidirectional);
+  }
   Tensor data_value;
   optional<int64_t> data_bdim;
   std::tie(data_value, data_bdim) = unwrapTensorAtLevel(data, cur_level);
@@ -12020,6 +14534,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(params, cur_level)) {
+    return ATEN_FN2(gru, input)(input, hx, params, has_biases, num_layers, dropout, train, bidirectional, batch_first);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -12035,6 +14552,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(data, cur_level) && !isBatchedAtLevel(batch_sizes, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(params, cur_level)) {
+    return ATEN_FN2(gru, data)(data, batch_sizes, hx, params, has_biases, num_layers, dropout, train, bidirectional);
+  }
   Tensor data_value;
   optional<int64_t> data_bdim;
   std::tie(data_value, data_bdim) = unwrapTensorAtLevel(data, cur_level);
@@ -12053,6 +14573,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(params, cur_level)) {
+    return ATEN_FN2(rnn_tanh, input)(input, hx, params, has_biases, num_layers, dropout, train, bidirectional, batch_first);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -12068,6 +14591,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(data, cur_level) && !isBatchedAtLevel(batch_sizes, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(params, cur_level)) {
+    return ATEN_FN2(rnn_tanh, data)(data, batch_sizes, hx, params, has_biases, num_layers, dropout, train, bidirectional);
+  }
   Tensor data_value;
   optional<int64_t> data_bdim;
   std::tie(data_value, data_bdim) = unwrapTensorAtLevel(data, cur_level);
@@ -12086,6 +14612,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(params, cur_level)) {
+    return ATEN_FN2(rnn_relu, input)(input, hx, params, has_biases, num_layers, dropout, train, bidirectional, batch_first);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -12101,6 +14630,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(data, cur_level) && !isBatchedAtLevel(batch_sizes, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(params, cur_level)) {
+    return ATEN_FN2(rnn_relu, data)(data, batch_sizes, hx, params, has_biases, num_layers, dropout, train, bidirectional);
+  }
   Tensor data_value;
   optional<int64_t> data_bdim;
   std::tie(data_value, data_bdim) = unwrapTensorAtLevel(data, cur_level);
@@ -12119,6 +14651,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(w_ih, cur_level) && !isBatchedAtLevel(w_hh, cur_level) && !isBatchedAtLevel(b_ih, cur_level) && !isBatchedAtLevel(b_hh, cur_level)) {
+    return ATEN_FN(lstm_cell)(input, hx, w_ih, w_hh, b_ih, b_hh);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -12147,6 +14682,9 @@ at::Tensor gru_cell_generated_plumbing(const at::Tensor & input, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(w_ih, cur_level) && !isBatchedAtLevel(w_hh, cur_level) && !isBatchedAtLevel(b_ih, cur_level) && !isBatchedAtLevel(b_hh, cur_level)) {
+    return ATEN_FN(gru_cell)(input, hx, w_ih, w_hh, b_ih, b_hh);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -12178,6 +14716,9 @@ at::Tensor rnn_tanh_cell_generated_plumbing(const at::Tensor & input, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(w_ih, cur_level) && !isBatchedAtLevel(w_hh, cur_level) && !isBatchedAtLevel(b_ih, cur_level) && !isBatchedAtLevel(b_hh, cur_level)) {
+    return ATEN_FN(rnn_tanh_cell)(input, hx, w_ih, w_hh, b_ih, b_hh);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -12209,6 +14750,9 @@ at::Tensor rnn_relu_cell_generated_plumbing(const at::Tensor & input, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(w_ih, cur_level) && !isBatchedAtLevel(w_hh, cur_level) && !isBatchedAtLevel(b_ih, cur_level) && !isBatchedAtLevel(b_hh, cur_level)) {
+    return ATEN_FN(rnn_relu_cell)(input, hx, w_ih, w_hh, b_ih, b_hh);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -12240,6 +14784,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(w_ih, cur_level) && !isBatchedAtLevel(w_hh, cur_level) && !isBatchedAtLevel(b_ih, cur_level) && !isBatchedAtLevel(b_hh, cur_level) && !isBatchedAtLevel(packed_ih, cur_level) && !isBatchedAtLevel(packed_hh, cur_level) && !isBatchedAtLevel(col_offsets_ih, cur_level) && !isBatchedAtLevel(col_offsets_hh, cur_level)) {
+    return ATEN_FN(quantized_lstm_cell)(input, hx, w_ih, w_hh, b_ih, b_hh, packed_ih, packed_hh, col_offsets_ih, col_offsets_hh, scale_ih, scale_hh, zero_point_ih, zero_point_hh);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -12276,6 +14823,9 @@ at::Tensor quantized_gru_cell_generated_plumbing(const at::Tensor & input, const
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(w_ih, cur_level) && !isBatchedAtLevel(w_hh, cur_level) && !isBatchedAtLevel(b_ih, cur_level) && !isBatchedAtLevel(b_hh, cur_level) && !isBatchedAtLevel(packed_ih, cur_level) && !isBatchedAtLevel(packed_hh, cur_level) && !isBatchedAtLevel(col_offsets_ih, cur_level) && !isBatchedAtLevel(col_offsets_hh, cur_level)) {
+    return ATEN_FN(quantized_gru_cell)(input, hx, w_ih, w_hh, b_ih, b_hh, packed_ih, packed_hh, col_offsets_ih, col_offsets_hh, scale_ih, scale_hh, zero_point_ih, zero_point_hh);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -12315,6 +14865,9 @@ at::Tensor quantized_rnn_relu_cell_generated_plumbing(const at::Tensor & input, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(w_ih, cur_level) && !isBatchedAtLevel(w_hh, cur_level) && !isBatchedAtLevel(b_ih, cur_level) && !isBatchedAtLevel(b_hh, cur_level) && !isBatchedAtLevel(packed_ih, cur_level) && !isBatchedAtLevel(packed_hh, cur_level) && !isBatchedAtLevel(col_offsets_ih, cur_level) && !isBatchedAtLevel(col_offsets_hh, cur_level)) {
+    return ATEN_FN(quantized_rnn_relu_cell)(input, hx, w_ih, w_hh, b_ih, b_hh, packed_ih, packed_hh, col_offsets_ih, col_offsets_hh, scale_ih, scale_hh, zero_point_ih, zero_point_hh);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -12354,6 +14907,9 @@ at::Tensor quantized_rnn_tanh_cell_generated_plumbing(const at::Tensor & input, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(hx, cur_level) && !isBatchedAtLevel(w_ih, cur_level) && !isBatchedAtLevel(w_hh, cur_level) && !isBatchedAtLevel(b_ih, cur_level) && !isBatchedAtLevel(b_hh, cur_level) && !isBatchedAtLevel(packed_ih, cur_level) && !isBatchedAtLevel(packed_hh, cur_level) && !isBatchedAtLevel(col_offsets_ih, cur_level) && !isBatchedAtLevel(col_offsets_hh, cur_level)) {
+    return ATEN_FN(quantized_rnn_tanh_cell)(input, hx, w_ih, w_hh, b_ih, b_hh, packed_ih, packed_hh, col_offsets_ih, col_offsets_hh, scale_ih, scale_hh, zero_point_ih, zero_point_hh);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -12393,6 +14949,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(lengths, cur_level)) {
+    return ATEN_FN(_pack_padded_sequence)(input, lengths, batch_first);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -12408,6 +14967,9 @@ at::Tensor _pack_padded_sequence_backward_generated_plumbing(const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(batch_sizes, cur_level)) {
+    return ATEN_FN(_pack_padded_sequence_backward)(grad, input_size, batch_sizes, batch_first);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -12423,6 +14985,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(data, cur_level) && !isBatchedAtLevel(batch_sizes, cur_level)) {
+    return ATEN_FN(_pad_packed_sequence)(data, batch_sizes, batch_first, padding_value, total_length);
+  }
   Tensor data_value;
   optional<int64_t> data_bdim;
   std::tie(data_value, data_bdim) = unwrapTensorAtLevel(data, cur_level);
@@ -12438,6 +15003,9 @@ at::Tensor & set__source_Storage_generated_plumbing(at::Tensor & self, at::Stora
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(set_, source_Storage)(self, source);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12450,6 +15018,9 @@ at::Tensor & set__source_Storage_storage_offset_generated_plumbing(at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(set_, source_Storage_storage_offset)(self, source, storage_offset, size, stride);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12462,6 +15033,9 @@ at::Tensor & set__source_Tensor_generated_plumbing(at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(source, cur_level)) {
+    return ATEN_FN2(set_, source_Tensor)(self, source);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12477,6 +15051,9 @@ at::Tensor & set__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(set_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12489,6 +15066,9 @@ at::Tensor & masked_fill__Scalar_generated_plumbing(at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mask, cur_level)) {
+    return ATEN_FN2(masked_fill_, Scalar)(self, mask, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12504,6 +15084,9 @@ at::Tensor masked_fill_Scalar_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mask, cur_level)) {
+    return ATEN_FN2(masked_fill, Scalar)(self, mask, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12519,6 +15102,9 @@ at::Tensor & masked_fill__Tensor_generated_plumbing(at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mask, cur_level) && !isBatchedAtLevel(value, cur_level)) {
+    return ATEN_FN2(masked_fill_, Tensor)(self, mask, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12537,6 +15123,9 @@ at::Tensor masked_fill_Tensor_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mask, cur_level) && !isBatchedAtLevel(value, cur_level)) {
+    return ATEN_FN2(masked_fill, Tensor)(self, mask, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12555,6 +15144,9 @@ at::Tensor & masked_scatter__generated_plumbing(at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mask, cur_level) && !isBatchedAtLevel(source, cur_level)) {
+    return ATEN_FN(masked_scatter_)(self, mask, source);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12573,6 +15165,9 @@ at::Tensor masked_scatter_generated_plumbing(const at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mask, cur_level) && !isBatchedAtLevel(source, cur_level)) {
+    return ATEN_FN(masked_scatter)(self, mask, source);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12591,6 +15186,9 @@ at::Tensor _masked_softmax_generated_plumbing(const at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mask, cur_level)) {
+    return ATEN_FN(_masked_softmax)(self, mask);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12606,6 +15204,9 @@ at::Tensor view_generated_plumbing(const at::Tensor & self, at::IntArrayRef size
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(view)(self, size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12618,6 +15219,9 @@ at::Tensor view_dtype_generated_plumbing(const at::Tensor & self, at::ScalarType
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(view, dtype)(self, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12630,6 +15234,9 @@ at::Tensor & put__generated_plumbing(at::Tensor & self, const at::Tensor & index
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(source, cur_level)) {
+    return ATEN_FN(put_)(self, index, source, accumulate);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12648,6 +15255,9 @@ at::Tensor put_generated_plumbing(const at::Tensor & self, const at::Tensor & in
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(source, cur_level)) {
+    return ATEN_FN(put)(self, index, source, accumulate);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12666,6 +15276,9 @@ at::Tensor & index_add__generated_plumbing(at::Tensor & self, int64_t dim, const
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(source, cur_level)) {
+    return ATEN_FN(index_add_)(self, dim, index, source, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12684,6 +15297,9 @@ at::Tensor index_add_generated_plumbing(const at::Tensor & self, int64_t dim, co
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(source, cur_level)) {
+    return ATEN_FN(index_add)(self, dim, index, source, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12702,6 +15318,9 @@ at::Tensor index_add_dimname_generated_plumbing(const at::Tensor & self, at::Dim
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(source, cur_level)) {
+    return ATEN_FN2(index_add, dimname)(self, dim, index, source, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12720,6 +15339,9 @@ at::Tensor & index_fill__int_Scalar_generated_plumbing(at::Tensor & self, int64_
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN2(index_fill_, int_Scalar)(self, dim, index, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12735,6 +15357,9 @@ at::Tensor index_fill_int_Scalar_generated_plumbing(const at::Tensor & self, int
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN2(index_fill, int_Scalar)(self, dim, index, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12750,6 +15375,9 @@ at::Tensor & index_fill__int_Tensor_generated_plumbing(at::Tensor & self, int64_
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(value, cur_level)) {
+    return ATEN_FN2(index_fill_, int_Tensor)(self, dim, index, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12768,6 +15396,9 @@ at::Tensor index_fill_int_Tensor_generated_plumbing(const at::Tensor & self, int
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(value, cur_level)) {
+    return ATEN_FN2(index_fill, int_Tensor)(self, dim, index, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12786,6 +15417,9 @@ at::Tensor & index_fill__Dimname_Scalar_generated_plumbing(at::Tensor & self, at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN2(index_fill_, Dimname_Scalar)(self, dim, index, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12801,6 +15435,9 @@ at::Tensor & index_fill__Dimname_Tensor_generated_plumbing(at::Tensor & self, at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(value, cur_level)) {
+    return ATEN_FN2(index_fill_, Dimname_Tensor)(self, dim, index, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12819,6 +15456,9 @@ at::Tensor index_fill_Dimname_Scalar_generated_plumbing(const at::Tensor & self,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN2(index_fill, Dimname_Scalar)(self, dim, index, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12834,6 +15474,9 @@ at::Tensor index_fill_Dimname_Tensor_generated_plumbing(const at::Tensor & self,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(value, cur_level)) {
+    return ATEN_FN2(index_fill, Dimname_Tensor)(self, dim, index, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12852,6 +15495,9 @@ at::Tensor scatter_src_generated_plumbing(const at::Tensor & self, int64_t dim, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(src, cur_level)) {
+    return ATEN_FN2(scatter, src)(self, dim, index, src);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12870,6 +15516,9 @@ at::Tensor & scatter__src_generated_plumbing(at::Tensor & self, int64_t dim, con
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(src, cur_level)) {
+    return ATEN_FN2(scatter_, src)(self, dim, index, src);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12888,6 +15537,9 @@ at::Tensor scatter_value_generated_plumbing(const at::Tensor & self, int64_t dim
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN2(scatter, value)(self, dim, index, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12903,6 +15555,9 @@ at::Tensor & scatter__value_generated_plumbing(at::Tensor & self, int64_t dim, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN2(scatter_, value)(self, dim, index, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12918,6 +15573,9 @@ at::Tensor scatter_reduce_generated_plumbing(const at::Tensor & self, int64_t di
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(src, cur_level)) {
+    return ATEN_FN2(scatter, reduce)(self, dim, index, src, reduce);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12936,6 +15594,9 @@ at::Tensor & scatter__reduce_generated_plumbing(at::Tensor & self, int64_t dim, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(src, cur_level)) {
+    return ATEN_FN2(scatter_, reduce)(self, dim, index, src, reduce);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12954,6 +15615,9 @@ at::Tensor scatter_value_reduce_generated_plumbing(const at::Tensor & self, int6
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN2(scatter, value_reduce)(self, dim, index, value, reduce);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12969,6 +15633,9 @@ at::Tensor & scatter__value_reduce_generated_plumbing(at::Tensor & self, int64_t
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN2(scatter_, value_reduce)(self, dim, index, value, reduce);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -12984,6 +15651,9 @@ at::Tensor scatter_dimname_src_generated_plumbing(const at::Tensor & self, at::D
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(src, cur_level)) {
+    return ATEN_FN2(scatter, dimname_src)(self, dim, index, src);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13002,6 +15672,9 @@ at::Tensor scatter_dimname_value_generated_plumbing(const at::Tensor & self, at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN2(scatter, dimname_value)(self, dim, index, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13017,6 +15690,9 @@ at::Tensor scatter_add_generated_plumbing(const at::Tensor & self, int64_t dim, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(src, cur_level)) {
+    return ATEN_FN(scatter_add)(self, dim, index, src);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13035,6 +15711,9 @@ at::Tensor & scatter_add__generated_plumbing(at::Tensor & self, int64_t dim, con
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(src, cur_level)) {
+    return ATEN_FN(scatter_add_)(self, dim, index, src);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13053,6 +15732,9 @@ at::Tensor scatter_add_dimname_generated_plumbing(const at::Tensor & self, at::D
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(src, cur_level)) {
+    return ATEN_FN2(scatter_add, dimname)(self, dim, index, src);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13071,6 +15753,9 @@ at::Tensor scatter_reduce_two_generated_plumbing(const at::Tensor & self, int64_
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN2(scatter_reduce, two)(self, dim, index, reduce, output_size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13086,6 +15771,9 @@ at::Tensor & eq__Scalar_generated_plumbing(at::Tensor & self, const at::Scalar &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(eq_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13098,6 +15786,9 @@ at::Tensor & eq__Tensor_generated_plumbing(at::Tensor & self, const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(eq_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13113,6 +15804,9 @@ at::Tensor bitwise_and_Scalar_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(bitwise_and, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13125,6 +15819,9 @@ at::Tensor bitwise_and_Tensor_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(bitwise_and, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13140,6 +15837,9 @@ at::Tensor & bitwise_and__Scalar_generated_plumbing(at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(bitwise_and_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13152,6 +15852,9 @@ at::Tensor & bitwise_and__Tensor_generated_plumbing(at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(bitwise_and_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13167,6 +15870,9 @@ at::Tensor __and___Scalar_generated_plumbing(const at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(__and__, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13179,6 +15885,9 @@ at::Tensor __and___Tensor_generated_plumbing(const at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(__and__, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13194,6 +15903,9 @@ at::Tensor & __iand___Scalar_generated_plumbing(at::Tensor & self, const at::Sca
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(__iand__, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13206,6 +15918,9 @@ at::Tensor & __iand___Tensor_generated_plumbing(at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(__iand__, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13221,6 +15936,9 @@ at::Tensor bitwise_or_Scalar_generated_plumbing(const at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(bitwise_or, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13233,6 +15951,9 @@ at::Tensor bitwise_or_Tensor_generated_plumbing(const at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(bitwise_or, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13248,6 +15969,9 @@ at::Tensor & bitwise_or__Scalar_generated_plumbing(at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(bitwise_or_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13260,6 +15984,9 @@ at::Tensor & bitwise_or__Tensor_generated_plumbing(at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(bitwise_or_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13275,6 +16002,9 @@ at::Tensor __or___Scalar_generated_plumbing(const at::Tensor & self, const at::S
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(__or__, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13287,6 +16017,9 @@ at::Tensor __or___Tensor_generated_plumbing(const at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(__or__, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13302,6 +16035,9 @@ at::Tensor & __ior___Scalar_generated_plumbing(at::Tensor & self, const at::Scal
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(__ior__, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13314,6 +16050,9 @@ at::Tensor & __ior___Tensor_generated_plumbing(at::Tensor & self, const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(__ior__, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13329,6 +16068,9 @@ at::Tensor bitwise_xor_Scalar_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(bitwise_xor, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13341,6 +16083,9 @@ at::Tensor bitwise_xor_Tensor_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(bitwise_xor, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13356,6 +16101,9 @@ at::Tensor & bitwise_xor__Scalar_generated_plumbing(at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(bitwise_xor_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13368,6 +16116,9 @@ at::Tensor & bitwise_xor__Tensor_generated_plumbing(at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(bitwise_xor_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13383,6 +16134,9 @@ at::Tensor __xor___Scalar_generated_plumbing(const at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(__xor__, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13395,6 +16149,9 @@ at::Tensor __xor___Tensor_generated_plumbing(const at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(__xor__, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13410,6 +16167,9 @@ at::Tensor & __ixor___Scalar_generated_plumbing(at::Tensor & self, const at::Sca
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(__ixor__, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13422,6 +16182,9 @@ at::Tensor & __ixor___Tensor_generated_plumbing(at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(__ixor__, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13437,6 +16200,9 @@ at::Tensor __lshift___Scalar_generated_plumbing(const at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(__lshift__, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13449,6 +16215,9 @@ at::Tensor __lshift___Tensor_generated_plumbing(const at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(__lshift__, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13464,6 +16233,9 @@ at::Tensor & __ilshift___Scalar_generated_plumbing(at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(__ilshift__, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13476,6 +16248,9 @@ at::Tensor & __ilshift___Tensor_generated_plumbing(at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(__ilshift__, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13491,6 +16266,9 @@ at::Tensor bitwise_left_shift_Tensor_generated_plumbing(const at::Tensor & self,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(bitwise_left_shift, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13506,6 +16284,9 @@ at::Tensor & bitwise_left_shift__Tensor_generated_plumbing(at::Tensor & self, co
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(bitwise_left_shift_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13521,6 +16302,9 @@ at::Tensor bitwise_left_shift_Tensor_Scalar_generated_plumbing(const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(bitwise_left_shift, Tensor_Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13533,6 +16317,9 @@ at::Tensor & bitwise_left_shift__Tensor_Scalar_generated_plumbing(at::Tensor & s
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(bitwise_left_shift_, Tensor_Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13545,6 +16332,9 @@ at::Tensor bitwise_left_shift_Scalar_Tensor_generated_plumbing(const at::Scalar 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(bitwise_left_shift, Scalar_Tensor)(self, other);
+  }
   Tensor other_value;
   optional<int64_t> other_bdim;
   std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
@@ -13557,6 +16347,9 @@ at::Tensor __rshift___Scalar_generated_plumbing(const at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(__rshift__, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13569,6 +16362,9 @@ at::Tensor __rshift___Tensor_generated_plumbing(const at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(__rshift__, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13584,6 +16380,9 @@ at::Tensor & __irshift___Scalar_generated_plumbing(at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(__irshift__, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13596,6 +16395,9 @@ at::Tensor & __irshift___Tensor_generated_plumbing(at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(__irshift__, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13611,6 +16413,9 @@ at::Tensor bitwise_right_shift_Tensor_generated_plumbing(const at::Tensor & self
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(bitwise_right_shift, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13626,6 +16431,9 @@ at::Tensor & bitwise_right_shift__Tensor_generated_plumbing(at::Tensor & self, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(bitwise_right_shift_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13641,6 +16449,9 @@ at::Tensor bitwise_right_shift_Tensor_Scalar_generated_plumbing(const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(bitwise_right_shift, Tensor_Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13653,6 +16464,9 @@ at::Tensor & bitwise_right_shift__Tensor_Scalar_generated_plumbing(at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(bitwise_right_shift_, Tensor_Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13665,6 +16479,9 @@ at::Tensor bitwise_right_shift_Scalar_Tensor_generated_plumbing(const at::Scalar
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(bitwise_right_shift, Scalar_Tensor)(self, other);
+  }
   Tensor other_value;
   optional<int64_t> other_bdim;
   std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
@@ -13677,6 +16494,9 @@ at::Tensor & tril__generated_plumbing(at::Tensor & self, int64_t diagonal) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(tril_)(self, diagonal);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13689,6 +16509,9 @@ at::Tensor & triu__generated_plumbing(at::Tensor & self, int64_t diagonal) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(triu_)(self, diagonal);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13701,6 +16524,9 @@ at::Tensor & digamma__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(digamma_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13713,6 +16539,9 @@ at::Tensor & lerp__Scalar_generated_plumbing(at::Tensor & self, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(end, cur_level)) {
+    return ATEN_FN2(lerp_, Scalar)(self, end, weight);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13728,6 +16557,9 @@ at::Tensor & lerp__Tensor_generated_plumbing(at::Tensor & self, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(end, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN2(lerp_, Tensor)(self, end, weight);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13746,6 +16578,9 @@ at::Tensor & addbmm__generated_plumbing(at::Tensor & self, const at::Tensor & ba
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(batch1, cur_level) && !isBatchedAtLevel(batch2, cur_level)) {
+    return ATEN_FN(addbmm_)(self, batch1, batch2, beta, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13764,6 +16599,9 @@ at::Tensor addbmm_generated_plumbing(const at::Tensor & self, const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(batch1, cur_level) && !isBatchedAtLevel(batch2, cur_level)) {
+    return ATEN_FN(addbmm)(self, batch1, batch2, beta, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13782,6 +16620,9 @@ at::Tensor & random__from_generated_plumbing(at::Tensor & self, int64_t from, c1
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(random_, from)(self, from, to, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13794,6 +16635,9 @@ at::Tensor & random__to_generated_plumbing(at::Tensor & self, int64_t to, c10::o
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(random_, to)(self, to, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13806,6 +16650,9 @@ at::Tensor & random__generated_plumbing(at::Tensor & self, c10::optional<at::Gen
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(random_)(self, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13818,6 +16665,9 @@ at::Tensor & uniform__generated_plumbing(at::Tensor & self, double from, double 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(uniform_)(self, from, to, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13830,6 +16680,9 @@ at::Tensor & cauchy__generated_plumbing(at::Tensor & self, double median, double
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(cauchy_)(self, median, sigma, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13842,6 +16695,9 @@ at::Tensor & log_normal__generated_plumbing(at::Tensor & self, double mean, doub
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(log_normal_)(self, mean, std, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13854,6 +16710,9 @@ at::Tensor & exponential__generated_plumbing(at::Tensor & self, double lambd, c1
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(exponential_)(self, lambd, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13866,6 +16725,9 @@ at::Tensor & geometric__generated_plumbing(at::Tensor & self, double p, c10::opt
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(geometric_)(self, p, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13878,6 +16740,9 @@ at::Tensor diag_generated_plumbing(const at::Tensor & self, int64_t diagonal) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(diag)(self, diagonal);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13890,6 +16755,9 @@ at::Tensor diag_backward_generated_plumbing(const at::Tensor & grad, at::IntArra
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level)) {
+    return ATEN_FN(diag_backward)(grad, input_sizes, diagonal);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -13902,6 +16770,9 @@ at::Tensor cross_generated_plumbing(const at::Tensor & self, const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(cross)(self, other, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13917,6 +16788,9 @@ at::Tensor triu_generated_plumbing(const at::Tensor & self, int64_t diagonal) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(triu)(self, diagonal);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13929,6 +16803,9 @@ at::Tensor tril_generated_plumbing(const at::Tensor & self, int64_t diagonal) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(tril)(self, diagonal);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13941,6 +16818,9 @@ at::Tensor trace_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(trace)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13953,6 +16833,9 @@ at::Tensor trace_backward_generated_plumbing(const at::Tensor & grad, at::IntArr
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level)) {
+    return ATEN_FN(trace_backward)(grad, sizes);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -13965,6 +16848,9 @@ at::Tensor ne_Scalar_generated_plumbing(const at::Tensor & self, const at::Scala
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(ne, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13977,6 +16863,9 @@ at::Tensor ne_Tensor_generated_plumbing(const at::Tensor & self, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(ne, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -13992,6 +16881,9 @@ at::Tensor & ne__Scalar_generated_plumbing(at::Tensor & self, const at::Scalar &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(ne_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14004,6 +16896,9 @@ at::Tensor & ne__Tensor_generated_plumbing(at::Tensor & self, const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(ne_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14019,6 +16914,9 @@ at::Tensor not_equal_Scalar_generated_plumbing(const at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(not_equal, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14031,6 +16929,9 @@ at::Tensor not_equal_Tensor_generated_plumbing(const at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(not_equal, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14046,6 +16947,9 @@ at::Tensor & not_equal__Scalar_generated_plumbing(at::Tensor & self, const at::S
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(not_equal_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14058,6 +16962,9 @@ at::Tensor & not_equal__Tensor_generated_plumbing(at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(not_equal_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14073,6 +16980,9 @@ at::Tensor eq_Scalar_generated_plumbing(const at::Tensor & self, const at::Scala
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(eq, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14085,6 +16995,9 @@ at::Tensor eq_Tensor_generated_plumbing(const at::Tensor & self, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(eq, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14100,6 +17013,9 @@ at::Tensor ge_Scalar_generated_plumbing(const at::Tensor & self, const at::Scala
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(ge, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14112,6 +17028,9 @@ at::Tensor ge_Tensor_generated_plumbing(const at::Tensor & self, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(ge, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14127,6 +17046,9 @@ at::Tensor & ge__Scalar_generated_plumbing(at::Tensor & self, const at::Scalar &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(ge_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14139,6 +17061,9 @@ at::Tensor & ge__Tensor_generated_plumbing(at::Tensor & self, const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(ge_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14154,6 +17079,9 @@ at::Tensor greater_equal_Scalar_generated_plumbing(const at::Tensor & self, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(greater_equal, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14166,6 +17094,9 @@ at::Tensor greater_equal_Tensor_generated_plumbing(const at::Tensor & self, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(greater_equal, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14181,6 +17112,9 @@ at::Tensor & greater_equal__Scalar_generated_plumbing(at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(greater_equal_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14193,6 +17127,9 @@ at::Tensor & greater_equal__Tensor_generated_plumbing(at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(greater_equal_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14208,6 +17145,9 @@ at::Tensor le_Scalar_generated_plumbing(const at::Tensor & self, const at::Scala
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(le, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14220,6 +17160,9 @@ at::Tensor le_Tensor_generated_plumbing(const at::Tensor & self, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(le, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14235,6 +17178,9 @@ at::Tensor & le__Scalar_generated_plumbing(at::Tensor & self, const at::Scalar &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(le_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14247,6 +17193,9 @@ at::Tensor & le__Tensor_generated_plumbing(at::Tensor & self, const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(le_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14262,6 +17211,9 @@ at::Tensor less_equal_Scalar_generated_plumbing(const at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(less_equal, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14274,6 +17226,9 @@ at::Tensor less_equal_Tensor_generated_plumbing(const at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(less_equal, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14289,6 +17244,9 @@ at::Tensor & less_equal__Scalar_generated_plumbing(at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(less_equal_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14301,6 +17259,9 @@ at::Tensor & less_equal__Tensor_generated_plumbing(at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(less_equal_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14316,6 +17277,9 @@ at::Tensor gt_Scalar_generated_plumbing(const at::Tensor & self, const at::Scala
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(gt, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14328,6 +17292,9 @@ at::Tensor gt_Tensor_generated_plumbing(const at::Tensor & self, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(gt, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14343,6 +17310,9 @@ at::Tensor & gt__Scalar_generated_plumbing(at::Tensor & self, const at::Scalar &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(gt_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14355,6 +17325,9 @@ at::Tensor & gt__Tensor_generated_plumbing(at::Tensor & self, const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(gt_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14370,6 +17343,9 @@ at::Tensor greater_Scalar_generated_plumbing(const at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(greater, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14382,6 +17358,9 @@ at::Tensor greater_Tensor_generated_plumbing(const at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(greater, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14397,6 +17376,9 @@ at::Tensor & greater__Scalar_generated_plumbing(at::Tensor & self, const at::Sca
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(greater_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14409,6 +17391,9 @@ at::Tensor & greater__Tensor_generated_plumbing(at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(greater_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14424,6 +17409,9 @@ at::Tensor lt_Scalar_generated_plumbing(const at::Tensor & self, const at::Scala
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(lt, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14436,6 +17424,9 @@ at::Tensor lt_Tensor_generated_plumbing(const at::Tensor & self, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(lt, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14451,6 +17442,9 @@ at::Tensor & lt__Scalar_generated_plumbing(at::Tensor & self, const at::Scalar &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(lt_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14463,6 +17457,9 @@ at::Tensor & lt__Tensor_generated_plumbing(at::Tensor & self, const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(lt_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14478,6 +17475,9 @@ at::Tensor less_Scalar_generated_plumbing(const at::Tensor & self, const at::Sca
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(less, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14490,6 +17490,9 @@ at::Tensor less_Tensor_generated_plumbing(const at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(less, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14505,6 +17508,9 @@ at::Tensor & less__Scalar_generated_plumbing(at::Tensor & self, const at::Scalar
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(less_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14517,6 +17523,9 @@ at::Tensor & less__Tensor_generated_plumbing(at::Tensor & self, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(less_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14532,6 +17541,9 @@ at::Tensor take_generated_plumbing(const at::Tensor & self, const at::Tensor & i
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN(take)(self, index);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14547,6 +17559,9 @@ at::Tensor take_along_dim_generated_plumbing(const at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(take_along_dim)(self, indices, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14562,6 +17577,9 @@ at::Tensor index_select_generated_plumbing(const at::Tensor & self, int64_t dim,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN(index_select)(self, dim, index);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14577,6 +17595,9 @@ at::Tensor index_select_dimname_generated_plumbing(const at::Tensor & self, at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN2(index_select, dimname)(self, dim, index);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14592,6 +17613,9 @@ at::Tensor index_select_backward_generated_plumbing(const at::Tensor & grad, at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN(index_select_backward)(grad, self_sizes, dim, index);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -14607,6 +17631,9 @@ at::Tensor masked_select_generated_plumbing(const at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(mask, cur_level)) {
+    return ATEN_FN(masked_select)(self, mask);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14622,6 +17649,9 @@ at::Tensor masked_select_backward_generated_plumbing(const at::Tensor & grad, co
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(mask, cur_level)) {
+    return ATEN_FN(masked_select_backward)(grad, input, mask);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -14640,6 +17670,9 @@ at::Tensor nonzero_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(nonzero)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14652,6 +17685,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(nonzero_numpy)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14664,6 +17700,9 @@ at::Tensor argwhere_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(argwhere)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14676,6 +17715,9 @@ at::Tensor gather_generated_plumbing(const at::Tensor & self, int64_t dim, const
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN(gather)(self, dim, index, sparse_grad);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14691,6 +17733,9 @@ at::Tensor gather_backward_generated_plumbing(const at::Tensor & grad, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN(gather_backward)(grad, self, dim, index, sparse_grad);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -14709,6 +17754,9 @@ at::Tensor gather_dimname_generated_plumbing(const at::Tensor & self, at::Dimnam
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
+    return ATEN_FN2(gather, dimname)(self, dim, index, sparse_grad);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14724,6 +17772,9 @@ at::Tensor _gather_sparse_backward_generated_plumbing(const at::Tensor & self, i
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(grad, cur_level)) {
+    return ATEN_FN(_gather_sparse_backward)(self, dim, index, grad);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14742,6 +17793,9 @@ at::Tensor addcmul_generated_plumbing(const at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(tensor1, cur_level) && !isBatchedAtLevel(tensor2, cur_level)) {
+    return ATEN_FN(addcmul)(self, tensor1, tensor2, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14760,6 +17814,9 @@ at::Tensor & addcmul__generated_plumbing(at::Tensor & self, const at::Tensor & t
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(tensor1, cur_level) && !isBatchedAtLevel(tensor2, cur_level)) {
+    return ATEN_FN(addcmul_)(self, tensor1, tensor2, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14778,6 +17835,9 @@ at::Tensor addcdiv_generated_plumbing(const at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(tensor1, cur_level) && !isBatchedAtLevel(tensor2, cur_level)) {
+    return ATEN_FN(addcdiv)(self, tensor1, tensor2, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14796,6 +17856,9 @@ at::Tensor & addcdiv__generated_plumbing(at::Tensor & self, const at::Tensor & t
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(tensor1, cur_level) && !isBatchedAtLevel(tensor2, cur_level)) {
+    return ATEN_FN(addcdiv_)(self, tensor1, tensor2, value);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14814,6 +17877,9 @@ at::Tensor cross_entropy_loss_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(cross_entropy_loss)(self, target, weight, reduction, ignore_index, label_smoothing);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14834,6 +17900,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(A, cur_level)) {
+    return ATEN_FN(lstsq)(self, A);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14849,6 +17918,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(A, cur_level)) {
+    return ATEN_FN(triangular_solve)(self, A, upper, transpose, unitriangular);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14864,6 +17936,9 @@ at::Tensor linalg_solve_triangular_generated_plumbing(const at::Tensor & self, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(B, cur_level)) {
+    return ATEN_FN(linalg_solve_triangular)(self, B, upper, left, unitriangular);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14879,6 +17954,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(symeig)(self, eigenvectors, upper);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14891,6 +17969,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_symeig_helper)(self, eigenvectors, upper);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14903,6 +17984,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(eig)(self, eigenvectors);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14915,6 +17999,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(svd)(self, some, compute_uv);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14927,6 +18014,9 @@ at::Tensor swapaxes_generated_plumbing(const at::Tensor & self, int64_t axis0, i
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(swapaxes)(self, axis0, axis1);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14939,6 +18029,9 @@ at::Tensor swapdims_generated_plumbing(const at::Tensor & self, int64_t dim0, in
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(swapdims)(self, dim0, dim1);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14951,6 +18044,9 @@ at::Tensor cholesky_generated_plumbing(const at::Tensor & self, bool upper) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(cholesky)(self, upper);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14963,6 +18059,9 @@ at::Tensor cholesky_solve_generated_plumbing(const at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(input2, cur_level)) {
+    return ATEN_FN(cholesky_solve)(self, input2, upper);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14978,6 +18077,9 @@ at::Tensor _cholesky_solve_helper_generated_plumbing(const at::Tensor & self, co
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(A, cur_level)) {
+    return ATEN_FN(_cholesky_solve_helper)(self, A, upper);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -14993,6 +18095,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(A, cur_level)) {
+    return ATEN_FN(solve)(self, A);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15008,6 +18113,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(A, cur_level)) {
+    return ATEN_FN(_solve_helper)(self, A);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15023,6 +18131,9 @@ at::Tensor cholesky_inverse_generated_plumbing(const at::Tensor & self, bool upp
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(cholesky_inverse)(self, upper);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15035,6 +18146,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(qr)(self, some);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15047,6 +18161,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(geqrf)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15059,6 +18176,9 @@ at::Tensor orgqr_generated_plumbing(const at::Tensor & self, const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(input2, cur_level)) {
+    return ATEN_FN(orgqr)(self, input2);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15074,6 +18194,9 @@ at::Tensor ormqr_generated_plumbing(const at::Tensor & self, const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(input2, cur_level) && !isBatchedAtLevel(input3, cur_level)) {
+    return ATEN_FN(ormqr)(self, input2, input3, left, transpose);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15092,6 +18215,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_lu_with_info)(self, pivot, check_errors);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15104,6 +18230,9 @@ at::Tensor lu_solve_generated_plumbing(const at::Tensor & self, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(LU_data, cur_level) && !isBatchedAtLevel(LU_pivots, cur_level)) {
+    return ATEN_FN(lu_solve)(self, LU_data, LU_pivots);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15122,6 +18251,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(LU_data, cur_level) && !isBatchedAtLevel(LU_pivots, cur_level)) {
+    return ATEN_FN(lu_unpack)(LU_data, LU_pivots, unpack_data, unpack_pivots);
+  }
   Tensor LU_data_value;
   optional<int64_t> LU_data_bdim;
   std::tie(LU_data_value, LU_data_bdim) = unwrapTensorAtLevel(LU_data, cur_level);
@@ -15137,6 +18269,9 @@ at::Tensor multinomial_generated_plumbing(const at::Tensor & self, int64_t num_s
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(multinomial)(self, num_samples, replacement, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15149,6 +18284,9 @@ at::Tensor & lgamma__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(lgamma_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15161,6 +18299,9 @@ at::Tensor lgamma_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(lgamma)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15173,6 +18314,9 @@ at::Tensor digamma_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(digamma)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15185,6 +18329,9 @@ at::Tensor polygamma_generated_plumbing(int64_t n, const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(polygamma)(n, self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15197,6 +18344,9 @@ at::Tensor & polygamma__generated_plumbing(at::Tensor & self, int64_t n) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(polygamma_)(self, n);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15209,6 +18359,9 @@ at::Tensor erfinv_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(erfinv)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15221,6 +18374,9 @@ at::Tensor & erfinv__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(erfinv_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15233,6 +18389,9 @@ at::Tensor i0_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(i0)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15245,6 +18404,9 @@ at::Tensor & i0__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(i0_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15257,6 +18419,9 @@ at::Tensor sign_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sign)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15269,6 +18434,9 @@ at::Tensor & sign__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sign_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15281,6 +18449,9 @@ at::Tensor signbit_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(signbit)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15293,6 +18464,9 @@ at::Tensor dist_generated_plumbing(const at::Tensor & self, const at::Tensor & o
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(dist)(self, other, p);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15308,6 +18482,9 @@ at::Tensor & atan2__generated_plumbing(at::Tensor & self, const at::Tensor & oth
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(atan2_)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15323,6 +18500,9 @@ at::Tensor atan2_generated_plumbing(const at::Tensor & self, const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(atan2)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15338,6 +18518,9 @@ at::Tensor arctan2_generated_plumbing(const at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(arctan2)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15353,6 +18536,9 @@ at::Tensor & arctan2__generated_plumbing(at::Tensor & self, const at::Tensor & o
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(arctan2_)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15368,6 +18554,9 @@ at::Tensor lerp_Scalar_generated_plumbing(const at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(end, cur_level)) {
+    return ATEN_FN2(lerp, Scalar)(self, end, weight);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15383,6 +18572,9 @@ at::Tensor lerp_Tensor_generated_plumbing(const at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(end, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN2(lerp, Tensor)(self, end, weight);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15401,6 +18593,9 @@ at::Tensor histc_generated_plumbing(const at::Tensor & self, int64_t bins, const
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(histc)(self, bins, min, max);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15413,6 +18608,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(bins, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN2(histogram, bins_tensor)(self, bins, weight, density);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15433,6 +18631,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN2(histogram, bin_ct)(self, bins, range, weight, density);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15450,6 +18651,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(_histogramdd_bin_edges)(self, bins, range, weight, density);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15467,6 +18671,9 @@ at::Tensor _histogramdd_from_bin_cts_generated_plumbing(const at::Tensor & self,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(_histogramdd_from_bin_cts)(self, bins, range, weight, density);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15484,6 +18691,9 @@ at::Tensor _histogramdd_from_bin_tensors_generated_plumbing(const at::Tensor & s
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(bins, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(_histogramdd_from_bin_tensors)(self, bins, weight, density);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15501,6 +18711,9 @@ at::Tensor fmod_Scalar_generated_plumbing(const at::Tensor & self, const at::Sca
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(fmod, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15513,6 +18726,9 @@ at::Tensor & fmod__Scalar_generated_plumbing(at::Tensor & self, const at::Scalar
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(fmod_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15525,6 +18741,9 @@ at::Tensor fmod_Tensor_generated_plumbing(const at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(fmod, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15540,6 +18759,9 @@ at::Tensor & fmod__Tensor_generated_plumbing(at::Tensor & self, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(fmod_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15555,6 +18777,9 @@ at::Tensor hypot_generated_plumbing(const at::Tensor & self, const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(hypot)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15570,6 +18795,9 @@ at::Tensor & hypot__generated_plumbing(at::Tensor & self, const at::Tensor & oth
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(hypot_)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15585,6 +18813,9 @@ at::Tensor igamma_generated_plumbing(const at::Tensor & self, const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(igamma)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15600,6 +18831,9 @@ at::Tensor & igamma__generated_plumbing(at::Tensor & self, const at::Tensor & ot
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(igamma_)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15615,6 +18849,9 @@ at::Tensor igammac_generated_plumbing(const at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(igammac)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15630,6 +18867,9 @@ at::Tensor & igammac__generated_plumbing(at::Tensor & self, const at::Tensor & o
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(igammac_)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15645,6 +18885,9 @@ at::Tensor nextafter_generated_plumbing(const at::Tensor & self, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(nextafter)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15660,6 +18903,9 @@ at::Tensor & nextafter__generated_plumbing(at::Tensor & self, const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(nextafter_)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15675,6 +18921,9 @@ at::Tensor remainder_Scalar_generated_plumbing(const at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(remainder, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15687,6 +18936,9 @@ at::Tensor & remainder__Scalar_generated_plumbing(at::Tensor & self, const at::S
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(remainder_, Scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15699,6 +18951,9 @@ at::Tensor remainder_Tensor_generated_plumbing(const at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(remainder, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15714,6 +18969,9 @@ at::Tensor & remainder__Tensor_generated_plumbing(at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(remainder_, Tensor)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15729,6 +18987,9 @@ at::Tensor remainder_Scalar_Tensor_generated_plumbing(const at::Scalar & self, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(remainder, Scalar_Tensor)(self, other);
+  }
   Tensor other_value;
   optional<int64_t> other_bdim;
   std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
@@ -15741,6 +19002,9 @@ at::Tensor min_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(min)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15753,6 +19017,9 @@ at::Tensor fmin_generated_plumbing(const at::Tensor & self, const at::Tensor & o
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(fmin)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15768,6 +19035,9 @@ at::Tensor max_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(max)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15780,6 +19050,9 @@ at::Tensor fmax_generated_plumbing(const at::Tensor & self, const at::Tensor & o
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(fmax)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15795,6 +19068,9 @@ at::Tensor maximum_generated_plumbing(const at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(maximum)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15810,6 +19086,9 @@ at::Tensor max_other_generated_plumbing(const at::Tensor & self, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(max, other)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15825,6 +19104,9 @@ at::Tensor minimum_generated_plumbing(const at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(minimum)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15840,6 +19122,9 @@ at::Tensor min_other_generated_plumbing(const at::Tensor & self, const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(min, other)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15855,6 +19140,9 @@ at::Tensor quantile_generated_plumbing(const at::Tensor & self, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(q, cur_level)) {
+    return ATEN_FN(quantile)(self, q, dim, keepdim, interpolation);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15870,6 +19158,9 @@ at::Tensor quantile_scalar_generated_plumbing(const at::Tensor & self, double q,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(quantile, scalar)(self, q, dim, keepdim, interpolation);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15882,6 +19173,9 @@ at::Tensor nanquantile_generated_plumbing(const at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(q, cur_level)) {
+    return ATEN_FN(nanquantile)(self, q, dim, keepdim, interpolation);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15897,6 +19191,9 @@ at::Tensor nanquantile_scalar_generated_plumbing(const at::Tensor & self, double
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(nanquantile, scalar)(self, q, dim, keepdim, interpolation);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15909,6 +19206,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(sort)(self, dim, descending);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15921,6 +19221,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(sort, stable)(self, stable, dim, descending);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15933,6 +19236,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(sort, dimname)(self, dim, descending);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15945,6 +19251,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(sort, dimname_stable)(self, stable, dim, descending);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15957,6 +19266,9 @@ at::Tensor msort_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(msort)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15969,6 +19281,9 @@ at::Tensor argsort_generated_plumbing(const at::Tensor & self, int64_t dim, bool
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(argsort)(self, dim, descending);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15981,6 +19296,9 @@ at::Tensor argsort_dimname_generated_plumbing(const at::Tensor & self, at::Dimna
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(argsort, dimname)(self, dim, descending);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -15993,6 +19311,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(topk)(self, k, dim, largest, sorted);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16005,6 +19326,9 @@ at::Tensor all_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(all)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16017,6 +19341,9 @@ at::Tensor any_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(any)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16029,6 +19356,9 @@ at::Tensor renorm_generated_plumbing(const at::Tensor & self, const at::Scalar &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(renorm)(self, p, dim, maxnorm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16041,6 +19371,9 @@ at::Tensor & renorm__generated_plumbing(at::Tensor & self, const at::Scalar & p,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(renorm_)(self, p, dim, maxnorm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16053,6 +19386,9 @@ at::Tensor unfold_generated_plumbing(const at::Tensor & self, int64_t dimension,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(unfold)(self, dimension, size, step);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16065,6 +19401,9 @@ at::Tensor unfold_backward_generated_plumbing(const at::Tensor & grad_in, at::In
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_in, cur_level)) {
+    return ATEN_FN(unfold_backward)(grad_in, input_sizes, dim, size, step);
+  }
   Tensor grad_in_value;
   optional<int64_t> grad_in_bdim;
   std::tie(grad_in_value, grad_in_bdim) = unwrapTensorAtLevel(grad_in, cur_level);
@@ -16077,6 +19416,9 @@ at::Tensor pow_Tensor_Tensor_generated_plumbing(const at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(exponent, cur_level)) {
+    return ATEN_FN2(pow, Tensor_Tensor)(self, exponent);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16092,6 +19434,9 @@ at::Tensor pow_Scalar_generated_plumbing(const at::Scalar & self, const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(exponent, cur_level)) {
+    return ATEN_FN2(pow, Scalar)(self, exponent);
+  }
   Tensor exponent_value;
   optional<int64_t> exponent_bdim;
   std::tie(exponent_value, exponent_bdim) = unwrapTensorAtLevel(exponent, cur_level);
@@ -16104,6 +19449,9 @@ at::Tensor pow_Tensor_Scalar_generated_plumbing(const at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(pow, Tensor_Scalar)(self, exponent);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16116,6 +19464,9 @@ at::Tensor & pow__Scalar_generated_plumbing(at::Tensor & self, const at::Scalar 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(pow_, Scalar)(self, exponent);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16128,6 +19479,9 @@ at::Tensor & pow__Tensor_generated_plumbing(at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(exponent, cur_level)) {
+    return ATEN_FN2(pow_, Tensor)(self, exponent);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16143,6 +19497,9 @@ at::Tensor float_power_Tensor_Tensor_generated_plumbing(const at::Tensor & self,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(exponent, cur_level)) {
+    return ATEN_FN2(float_power, Tensor_Tensor)(self, exponent);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16158,6 +19515,9 @@ at::Tensor float_power_Scalar_generated_plumbing(const at::Scalar & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(exponent, cur_level)) {
+    return ATEN_FN2(float_power, Scalar)(self, exponent);
+  }
   Tensor exponent_value;
   optional<int64_t> exponent_bdim;
   std::tie(exponent_value, exponent_bdim) = unwrapTensorAtLevel(exponent, cur_level);
@@ -16170,6 +19530,9 @@ at::Tensor float_power_Tensor_Scalar_generated_plumbing(const at::Tensor & self,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(float_power, Tensor_Scalar)(self, exponent);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16182,6 +19545,9 @@ at::Tensor & float_power__Scalar_generated_plumbing(at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(float_power_, Scalar)(self, exponent);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16194,6 +19560,9 @@ at::Tensor & float_power__Tensor_generated_plumbing(at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(exponent, cur_level)) {
+    return ATEN_FN2(float_power_, Tensor)(self, exponent);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16209,6 +19578,9 @@ at::Tensor & normal__generated_plumbing(at::Tensor & self, double mean, double s
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(normal_)(self, mean, std, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16221,6 +19593,9 @@ at::Tensor normal_Tensor_float_generated_plumbing(const at::Tensor & mean, doubl
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(mean, cur_level)) {
+    return ATEN_FN2(normal, Tensor_float)(mean, std, generator);
+  }
   Tensor mean_value;
   optional<int64_t> mean_bdim;
   std::tie(mean_value, mean_bdim) = unwrapTensorAtLevel(mean, cur_level);
@@ -16233,6 +19608,9 @@ at::Tensor normal_float_Tensor_generated_plumbing(double mean, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(std, cur_level)) {
+    return ATEN_FN2(normal, float_Tensor)(mean, std, generator);
+  }
   Tensor std_value;
   optional<int64_t> std_bdim;
   std::tie(std_value, std_bdim) = unwrapTensorAtLevel(std, cur_level);
@@ -16245,6 +19623,9 @@ at::Tensor normal_Tensor_Tensor_generated_plumbing(const at::Tensor & mean, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(mean, cur_level) && !isBatchedAtLevel(std, cur_level)) {
+    return ATEN_FN2(normal, Tensor_Tensor)(mean, std, generator);
+  }
   Tensor mean_value;
   optional<int64_t> mean_bdim;
   std::tie(mean_value, mean_bdim) = unwrapTensorAtLevel(mean, cur_level);
@@ -16260,6 +19641,9 @@ at::Tensor alias_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(alias)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16272,6 +19656,9 @@ at::Tensor & _index_copy__generated_plumbing(at::Tensor & self, int64_t dim, con
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level) && !isBatchedAtLevel(source, cur_level)) {
+    return ATEN_FN(_index_copy_)(self, dim, index, source);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16290,6 +19677,9 @@ at::Tensor & _amp_update_scale__generated_plumbing(at::Tensor & self, at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(growth_tracker, cur_level) && !isBatchedAtLevel(found_inf, cur_level)) {
+    return ATEN_FN(_amp_update_scale_)(self, growth_tracker, found_inf, scale_growth_factor, scale_backoff_factor, growth_interval);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16308,6 +19698,9 @@ at::Tensor _cat_generated_plumbing(at::TensorList tensors, int64_t dim) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_cat)(tensors, dim);
+  }
 
   auto results = batch_rule(tensors, dim);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16318,6 +19711,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(_foreach_add, Scalar)(tensors, scalar);
+  }
 
   auto results = batch_rule(tensors, scalar);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16328,6 +19724,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(_foreach_sub, Scalar)(tensors, scalar);
+  }
 
   auto results = batch_rule(tensors, scalar);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16338,6 +19737,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(_foreach_mul, Scalar)(tensors, scalar);
+  }
 
   auto results = batch_rule(tensors, scalar);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16348,6 +19750,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(_foreach_div, Scalar)(tensors, scalar);
+  }
 
   auto results = batch_rule(tensors, scalar);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16358,6 +19763,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors1, cur_level) && !isBatchedAtLevel(tensors2, cur_level)) {
+    return ATEN_FN2(_foreach_add, List)(tensors1, tensors2, alpha);
+  }
 
   auto results = batch_rule(tensors1, tensors2, alpha);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16368,6 +19776,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors1, cur_level) && !isBatchedAtLevel(tensors2, cur_level)) {
+    return ATEN_FN2(_foreach_sub, List)(tensors1, tensors2, alpha);
+  }
 
   auto results = batch_rule(tensors1, tensors2, alpha);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16378,6 +19789,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors1, cur_level) && !isBatchedAtLevel(tensors2, cur_level)) {
+    return ATEN_FN2(_foreach_mul, List)(tensors1, tensors2);
+  }
 
   auto results = batch_rule(tensors1, tensors2);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16388,6 +19802,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors1, cur_level) && !isBatchedAtLevel(tensors2, cur_level)) {
+    return ATEN_FN2(_foreach_div, List)(tensors1, tensors2);
+  }
 
   auto results = batch_rule(tensors1, tensors2);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16398,6 +19815,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(_foreach_add, ScalarList)(tensors, scalars);
+  }
 
   auto results = batch_rule(tensors, scalars);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16408,6 +19828,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(_foreach_sub, ScalarList)(tensors, scalars);
+  }
 
   auto results = batch_rule(tensors, scalars);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16418,6 +19841,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(_foreach_div, ScalarList)(tensors, scalars);
+  }
 
   auto results = batch_rule(tensors, scalars);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16428,6 +19854,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(_foreach_mul, ScalarList)(tensors, scalars);
+  }
 
   auto results = batch_rule(tensors, scalars);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16438,6 +19867,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_exp)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16448,6 +19880,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_sqrt)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16458,6 +19893,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_abs)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16468,6 +19906,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_acos)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16478,6 +19919,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_asin)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16488,6 +19932,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_atan)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16498,6 +19945,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_ceil)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16508,6 +19958,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_cos)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16518,6 +19971,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_cosh)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16528,6 +19984,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_erf)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16538,6 +19997,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_erfc)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16548,6 +20010,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_expm1)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16558,6 +20023,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_floor)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16568,6 +20036,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_log)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16578,6 +20049,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_log10)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16588,6 +20062,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_log1p)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16598,6 +20075,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_log2)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16608,6 +20088,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_neg)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16618,6 +20101,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_tan)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16628,6 +20114,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_tanh)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16638,6 +20127,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_sin)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16648,6 +20140,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_sinh)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16658,6 +20153,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_round)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16668,6 +20166,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_lgamma)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16678,6 +20179,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_frac)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16688,6 +20192,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_reciprocal)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16698,6 +20205,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_sigmoid)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16708,6 +20218,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(_foreach_trunc)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16718,6 +20231,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(tensor1, cur_level) && !isBatchedAtLevel(tensor2, cur_level)) {
+    return ATEN_FN2(_foreach_addcdiv, Scalar)(input, tensor1, tensor2, value);
+  }
 
   auto results = batch_rule(input, tensor1, tensor2, value);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16728,6 +20244,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(tensor1, cur_level) && !isBatchedAtLevel(tensor2, cur_level)) {
+    return ATEN_FN2(_foreach_addcmul, Scalar)(input, tensor1, tensor2, value);
+  }
 
   auto results = batch_rule(input, tensor1, tensor2, value);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16738,6 +20257,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(tensor1, cur_level) && !isBatchedAtLevel(tensor2, cur_level)) {
+    return ATEN_FN2(_foreach_addcdiv, ScalarList)(input, tensor1, tensor2, scalars);
+  }
 
   auto results = batch_rule(input, tensor1, tensor2, scalars);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16748,6 +20270,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(tensor1, cur_level) && !isBatchedAtLevel(tensor2, cur_level)) {
+    return ATEN_FN2(_foreach_addcmul, ScalarList)(input, tensor1, tensor2, scalars);
+  }
 
   auto results = batch_rule(input, tensor1, tensor2, scalars);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16758,6 +20283,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors1, cur_level) && !isBatchedAtLevel(tensors2, cur_level)) {
+    return ATEN_FN2(_foreach_maximum, List)(tensors1, tensors2);
+  }
 
   auto results = batch_rule(tensors1, tensors2);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16768,6 +20296,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors1, cur_level) && !isBatchedAtLevel(tensors2, cur_level)) {
+    return ATEN_FN2(_foreach_minimum, List)(tensors1, tensors2);
+  }
 
   auto results = batch_rule(tensors1, tensors2);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16778,6 +20309,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN2(_foreach_norm, Scalar)(tensors, ord);
+  }
 
   auto results = batch_rule(tensors, ord);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
@@ -16788,6 +20322,9 @@ at::Tensor bucketize_Tensor_generated_plumbing(const at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(boundaries, cur_level)) {
+    return ATEN_FN2(bucketize, Tensor)(self, boundaries, out_int32, right);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16803,6 +20340,9 @@ at::Tensor bucketize_Scalar_generated_plumbing(const at::Scalar & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(boundaries, cur_level)) {
+    return ATEN_FN2(bucketize, Scalar)(self, boundaries, out_int32, right);
+  }
   Tensor boundaries_value;
   optional<int64_t> boundaries_bdim;
   std::tie(boundaries_value, boundaries_bdim) = unwrapTensorAtLevel(boundaries, cur_level);
@@ -16815,6 +20355,9 @@ at::Tensor searchsorted_Tensor_generated_plumbing(const at::Tensor & sorted_sequ
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(sorted_sequence, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(sorter, cur_level)) {
+    return ATEN_FN2(searchsorted, Tensor)(sorted_sequence, self, out_int32, right, side, sorter);
+  }
   Tensor sorted_sequence_value;
   optional<int64_t> sorted_sequence_bdim;
   std::tie(sorted_sequence_value, sorted_sequence_bdim) = unwrapTensorAtLevel(sorted_sequence, cur_level);
@@ -16835,6 +20378,9 @@ at::Tensor _torch_cuda_cu_linker_symbol_op_generated_plumbing(const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_torch_cuda_cu_linker_symbol_op)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16847,6 +20393,9 @@ at::Tensor searchsorted_Scalar_generated_plumbing(const at::Tensor & sorted_sequ
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(sorted_sequence, cur_level) && !isBatchedAtLevel(sorter, cur_level)) {
+    return ATEN_FN2(searchsorted, Scalar)(sorted_sequence, self, out_int32, right, side, sorter);
+  }
   Tensor sorted_sequence_value;
   optional<int64_t> sorted_sequence_bdim;
   std::tie(sorted_sequence_value, sorted_sequence_bdim) = unwrapTensorAtLevel(sorted_sequence, cur_level);
@@ -16864,6 +20413,9 @@ at::Tensor _convert_indices_from_coo_to_csr_generated_plumbing(const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_convert_indices_from_coo_to_csr)(self, size, out_int32);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16876,6 +20428,9 @@ at::Tensor _convert_indices_from_csr_to_coo_generated_plumbing(const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(crow_indices, cur_level) && !isBatchedAtLevel(col_indices, cur_level)) {
+    return ATEN_FN(_convert_indices_from_csr_to_coo)(crow_indices, col_indices, out_int32, transpose);
+  }
   Tensor crow_indices_value;
   optional<int64_t> crow_indices_bdim;
   std::tie(crow_indices_value, crow_indices_bdim) = unwrapTensorAtLevel(crow_indices, cur_level);
@@ -16891,6 +20446,9 @@ at::Tensor mse_loss_generated_plumbing(const at::Tensor & self, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(mse_loss)(self, target, reduction);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16906,6 +20464,9 @@ at::Tensor mse_loss_backward_generated_plumbing(const at::Tensor & grad_output, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(mse_loss_backward)(grad_output, self, target, reduction);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -16924,6 +20485,9 @@ at::Tensor l1_loss_generated_plumbing(const at::Tensor & self, const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(l1_loss)(self, target, reduction);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16939,6 +20503,9 @@ at::Tensor l1_loss_backward_generated_plumbing(const at::Tensor & grad_output, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(l1_loss_backward)(grad_output, self, target, reduction);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -16957,6 +20524,9 @@ at::Tensor multi_margin_loss_generated_plumbing(const at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(multi_margin_loss)(self, target, p, margin, weight, reduction);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -16977,6 +20547,9 @@ at::Tensor multi_margin_loss_backward_generated_plumbing(const at::Tensor & grad
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(multi_margin_loss_backward)(grad_output, self, target, p, margin, weight, reduction);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17000,6 +20573,9 @@ at::Tensor multilabel_margin_loss_generated_plumbing(const at::Tensor & self, co
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(multilabel_margin_loss)(self, target, reduction);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17015,6 +20591,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(multilabel_margin_loss_forward)(self, target, reduction);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17030,6 +20609,9 @@ at::Tensor multilabel_margin_loss_backward_generated_plumbing(const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level) && !isBatchedAtLevel(is_target, cur_level)) {
+    return ATEN_FN(multilabel_margin_loss_backward)(grad_output, self, target, reduction, is_target);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17051,6 +20633,9 @@ at::Tensor nll_loss_nd_generated_plumbing(const at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(nll_loss_nd)(self, target, weight, reduction, ignore_index);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17071,6 +20656,9 @@ at::Tensor nll_loss_generated_plumbing(const at::Tensor & self, const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(nll_loss)(self, target, weight, reduction, ignore_index);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17091,6 +20679,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(nll_loss_forward)(self, target, weight, reduction, ignore_index);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17111,6 +20702,9 @@ at::Tensor nll_loss_backward_generated_plumbing(const at::Tensor & grad_output, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(total_weight, cur_level)) {
+    return ATEN_FN(nll_loss_backward)(grad_output, self, target, weight, reduction, ignore_index, total_weight);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17137,6 +20731,9 @@ at::Tensor nll_loss2d_generated_plumbing(const at::Tensor & self, const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(nll_loss2d)(self, target, weight, reduction, ignore_index);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17157,6 +20754,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN(nll_loss2d_forward)(self, target, weight, reduction, ignore_index);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17177,6 +20777,9 @@ at::Tensor nll_loss2d_backward_generated_plumbing(const at::Tensor & grad_output
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(total_weight, cur_level)) {
+    return ATEN_FN(nll_loss2d_backward)(grad_output, self, target, weight, reduction, ignore_index, total_weight);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17203,6 +20806,9 @@ at::Tensor smooth_l1_loss_generated_plumbing(const at::Tensor & self, const at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(smooth_l1_loss)(self, target, reduction, beta);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17218,6 +20824,9 @@ at::Tensor smooth_l1_loss_backward_generated_plumbing(const at::Tensor & grad_ou
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(smooth_l1_loss_backward)(grad_output, self, target, reduction, beta);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17236,6 +20845,9 @@ at::Tensor huber_loss_generated_plumbing(const at::Tensor & self, const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(huber_loss)(self, target, reduction, delta);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17251,6 +20863,9 @@ at::Tensor huber_loss_backward_generated_plumbing(const at::Tensor & grad_output
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(huber_loss_backward)(grad_output, self, target, reduction, delta);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17269,6 +20884,9 @@ at::Tensor soft_margin_loss_generated_plumbing(const at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(soft_margin_loss)(self, target, reduction);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17284,6 +20902,9 @@ at::Tensor soft_margin_loss_backward_generated_plumbing(const at::Tensor & grad_
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(target, cur_level)) {
+    return ATEN_FN(soft_margin_loss_backward)(grad_output, self, target, reduction);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17302,6 +20923,9 @@ at::Tensor elu_generated_plumbing(const at::Tensor & self, const at::Scalar & al
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(elu)(self, alpha, scale, input_scale);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17314,6 +20938,9 @@ at::Tensor elu_backward_generated_plumbing(const at::Tensor & grad_output, const
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self_or_result, cur_level)) {
+    return ATEN_FN(elu_backward)(grad_output, alpha, scale, input_scale, is_result, self_or_result);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17329,6 +20956,9 @@ at::Tensor & elu__generated_plumbing(at::Tensor & self, const at::Scalar & alpha
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(elu_)(self, alpha, scale, input_scale);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17341,6 +20971,9 @@ at::Tensor glu_generated_plumbing(const at::Tensor & self, int64_t dim) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(glu)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17353,6 +20986,9 @@ at::Tensor glu_backward_generated_plumbing(const at::Tensor & grad_output, const
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(glu_backward)(grad_output, self, dim);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17368,6 +21004,9 @@ at::Tensor hardsigmoid_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(hardsigmoid)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17380,6 +21019,9 @@ at::Tensor & hardsigmoid__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(hardsigmoid_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17392,6 +21034,9 @@ at::Tensor hardsigmoid_backward_generated_plumbing(const at::Tensor & grad_outpu
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(hardsigmoid_backward)(grad_output, self);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17407,6 +21052,9 @@ at::Tensor hardtanh_generated_plumbing(const at::Tensor & self, const at::Scalar
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(hardtanh)(self, min_val, max_val);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17419,6 +21067,9 @@ at::Tensor hardtanh_backward_generated_plumbing(const at::Tensor & grad_output, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(hardtanh_backward)(grad_output, self, min_val, max_val);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17434,6 +21085,9 @@ at::Tensor & hardtanh__generated_plumbing(at::Tensor & self, const at::Scalar & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(hardtanh_)(self, min_val, max_val);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17446,6 +21100,9 @@ at::Tensor hardswish_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(hardswish)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17458,6 +21115,9 @@ at::Tensor & hardswish__generated_plumbing(at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(hardswish_)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17470,6 +21130,9 @@ at::Tensor hardswish_backward_generated_plumbing(const at::Tensor & grad_output,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(hardswish_backward)(grad_output, self);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17485,6 +21148,9 @@ at::Tensor leaky_relu_generated_plumbing(const at::Tensor & self, const at::Scal
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(leaky_relu)(self, negative_slope);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17497,6 +21163,9 @@ at::Tensor leaky_relu_backward_generated_plumbing(const at::Tensor & grad_output
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(leaky_relu_backward)(grad_output, self, negative_slope, self_is_result);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17512,6 +21181,9 @@ at::Tensor & leaky_relu__generated_plumbing(at::Tensor & self, const at::Scalar 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(leaky_relu_)(self, negative_slope);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17524,6 +21196,9 @@ at::Tensor log_sigmoid_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(log_sigmoid)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17536,6 +21211,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(log_sigmoid_forward)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17548,6 +21226,9 @@ at::Tensor log_sigmoid_backward_generated_plumbing(const at::Tensor & grad_outpu
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(buffer, cur_level)) {
+    return ATEN_FN(log_sigmoid_backward)(grad_output, self, buffer);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17566,6 +21247,9 @@ at::Tensor rrelu_with_noise_generated_plumbing(const at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(noise, cur_level)) {
+    return ATEN_FN(rrelu_with_noise)(self, noise, lower, upper, training, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17581,6 +21265,9 @@ at::Tensor rrelu_with_noise_backward_generated_plumbing(const at::Tensor & grad_
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(noise, cur_level)) {
+    return ATEN_FN(rrelu_with_noise_backward)(grad_output, self, noise, lower, upper, training, self_is_result);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17599,6 +21286,9 @@ at::Tensor & rrelu_with_noise__generated_plumbing(at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(noise, cur_level)) {
+    return ATEN_FN(rrelu_with_noise_)(self, noise, lower, upper, training, generator);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17614,6 +21304,9 @@ at::Tensor softplus_generated_plumbing(const at::Tensor & self, const at::Scalar
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(softplus)(self, beta, threshold);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17626,6 +21319,9 @@ at::Tensor softplus_backward_generated_plumbing(const at::Tensor & grad_output, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(softplus_backward)(grad_output, self, beta, threshold);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17641,6 +21337,9 @@ at::Tensor softshrink_generated_plumbing(const at::Tensor & self, const at::Scal
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(softshrink)(self, lambd);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17653,6 +21352,9 @@ at::Tensor softshrink_backward_generated_plumbing(const at::Tensor & grad_output
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(softshrink_backward)(grad_output, self, lambd);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17668,6 +21370,9 @@ at::Tensor adaptive_avg_pool2d_generated_plumbing(const at::Tensor & self, at::I
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(adaptive_avg_pool2d)(self, output_size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17680,6 +21385,9 @@ at::Tensor mkldnn_adaptive_avg_pool2d_generated_plumbing(const at::Tensor & self
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(mkldnn_adaptive_avg_pool2d)(self, output_size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17692,6 +21400,9 @@ at::Tensor mkldnn_adaptive_avg_pool2d_backward_generated_plumbing(const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(mkldnn_adaptive_avg_pool2d_backward)(grad_output, self);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17707,6 +21418,9 @@ at::Tensor _adaptive_avg_pool2d_generated_plumbing(const at::Tensor & self, at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_adaptive_avg_pool2d)(self, output_size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17719,6 +21433,9 @@ at::Tensor _adaptive_avg_pool2d_backward_generated_plumbing(const at::Tensor & g
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_adaptive_avg_pool2d_backward)(grad_output, self);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17734,6 +21451,9 @@ at::Tensor adaptive_avg_pool3d_generated_plumbing(const at::Tensor & self, at::I
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(adaptive_avg_pool3d)(self, output_size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17746,6 +21466,9 @@ at::Tensor _adaptive_avg_pool3d_generated_plumbing(const at::Tensor & self, at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_adaptive_avg_pool3d)(self, output_size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17758,6 +21481,9 @@ at::Tensor _adaptive_avg_pool3d_backward_generated_plumbing(const at::Tensor & g
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_adaptive_avg_pool3d_backward)(grad_output, self);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17773,6 +21499,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(adaptive_max_pool2d)(self, output_size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17785,6 +21514,9 @@ at::Tensor adaptive_max_pool2d_backward_generated_plumbing(const at::Tensor & gr
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(adaptive_max_pool2d_backward)(grad_output, self, indices);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17803,6 +21535,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(adaptive_max_pool3d)(self, output_size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17815,6 +21550,9 @@ at::Tensor adaptive_max_pool3d_backward_generated_plumbing(const at::Tensor & gr
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(adaptive_max_pool3d_backward)(grad_output, self, indices);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17833,6 +21571,9 @@ at::Tensor avg_pool2d_generated_plumbing(const at::Tensor & self, at::IntArrayRe
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(avg_pool2d)(self, kernel_size, stride, padding, ceil_mode, count_include_pad, divisor_override);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17845,6 +21586,9 @@ at::Tensor avg_pool2d_backward_generated_plumbing(const at::Tensor & grad_output
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(avg_pool2d_backward)(grad_output, self, kernel_size, stride, padding, ceil_mode, count_include_pad, divisor_override);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17860,6 +21604,9 @@ at::Tensor avg_pool3d_generated_plumbing(const at::Tensor & self, at::IntArrayRe
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(avg_pool3d)(self, kernel_size, stride, padding, ceil_mode, count_include_pad, divisor_override);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17872,6 +21619,9 @@ at::Tensor avg_pool3d_backward_generated_plumbing(const at::Tensor & grad_output
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(avg_pool3d_backward)(grad_output, self, kernel_size, stride, padding, ceil_mode, count_include_pad, divisor_override);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17887,6 +21637,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(random_samples, cur_level)) {
+    return ATEN_FN(fractional_max_pool2d)(self, kernel_size, output_size, random_samples);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17902,6 +21655,9 @@ at::Tensor fractional_max_pool2d_backward_generated_plumbing(const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(fractional_max_pool2d_backward)(grad_output, self, kernel_size, output_size, indices);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17920,6 +21676,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(random_samples, cur_level)) {
+    return ATEN_FN(fractional_max_pool3d)(self, kernel_size, output_size, random_samples);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17935,6 +21694,9 @@ at::Tensor fractional_max_pool3d_backward_generated_plumbing(const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(fractional_max_pool3d_backward)(grad_output, self, kernel_size, output_size, indices);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17953,6 +21715,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(max_pool2d_with_indices)(self, kernel_size, stride, padding, dilation, ceil_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17965,6 +21730,9 @@ at::Tensor max_pool2d_with_indices_backward_generated_plumbing(const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(max_pool2d_with_indices_backward)(grad_output, self, kernel_size, stride, padding, dilation, ceil_mode, indices);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -17983,6 +21751,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(max_pool3d_with_indices)(self, kernel_size, stride, padding, dilation, ceil_mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -17995,6 +21766,9 @@ at::Tensor max_pool3d_with_indices_backward_generated_plumbing(const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(max_pool3d_with_indices_backward)(grad_output, self, kernel_size, stride, padding, dilation, ceil_mode, indices);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18013,6 +21787,9 @@ at::Tensor max_unpool2d_generated_plumbing(const at::Tensor & self, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(max_unpool2d)(self, indices, output_size);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18028,6 +21805,9 @@ at::Tensor max_unpool2d_backward_generated_plumbing(const at::Tensor & grad_outp
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(max_unpool2d_backward)(grad_output, self, indices, output_size);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18046,6 +21826,9 @@ at::Tensor max_unpool3d_generated_plumbing(const at::Tensor & self, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(max_unpool3d)(self, indices, output_size, stride, padding);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18061,6 +21844,9 @@ at::Tensor max_unpool3d_backward_generated_plumbing(const at::Tensor & grad_outp
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(max_unpool3d_backward)(grad_output, self, indices, output_size, stride, padding);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18079,6 +21865,9 @@ at::Tensor reflection_pad1d_generated_plumbing(const at::Tensor & self, at::IntA
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(reflection_pad1d)(self, padding);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18091,6 +21880,9 @@ at::Tensor reflection_pad1d_backward_generated_plumbing(const at::Tensor & grad_
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(reflection_pad1d_backward)(grad_output, self, padding);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18106,6 +21898,9 @@ at::Tensor reflection_pad2d_generated_plumbing(const at::Tensor & self, at::IntA
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(reflection_pad2d)(self, padding);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18118,6 +21913,9 @@ at::Tensor reflection_pad2d_backward_generated_plumbing(const at::Tensor & grad_
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(reflection_pad2d_backward)(grad_output, self, padding);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18133,6 +21931,9 @@ at::Tensor reflection_pad3d_generated_plumbing(const at::Tensor & self, at::IntA
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(reflection_pad3d)(self, padding);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18145,6 +21946,9 @@ at::Tensor reflection_pad3d_backward_generated_plumbing(const at::Tensor & grad_
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(reflection_pad3d_backward)(grad_output, self, padding);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18160,6 +21964,9 @@ at::Tensor replication_pad1d_generated_plumbing(const at::Tensor & self, at::Int
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(replication_pad1d)(self, padding);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18172,6 +21979,9 @@ at::Tensor replication_pad1d_backward_generated_plumbing(const at::Tensor & grad
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(replication_pad1d_backward)(grad_output, self, padding);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18187,6 +21997,9 @@ at::Tensor replication_pad2d_generated_plumbing(const at::Tensor & self, at::Int
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(replication_pad2d)(self, padding);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18199,6 +22012,9 @@ at::Tensor replication_pad2d_backward_generated_plumbing(const at::Tensor & grad
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(replication_pad2d_backward)(grad_output, self, padding);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18214,6 +22030,9 @@ at::Tensor replication_pad3d_generated_plumbing(const at::Tensor & self, at::Int
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(replication_pad3d)(self, padding);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18226,6 +22045,9 @@ at::Tensor replication_pad3d_backward_generated_plumbing(const at::Tensor & grad
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(replication_pad3d_backward)(grad_output, self, padding);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18241,6 +22063,9 @@ at::Tensor upsample_linear1d_vec_generated_plumbing(const at::Tensor & input, c1
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN2(upsample_linear1d, vec)(input, output_size, align_corners, scale_factors);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -18253,6 +22078,9 @@ at::Tensor upsample_linear1d_backward_vec_generated_plumbing(const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN2(upsample_linear1d_backward, vec)(grad_output, output_size, input_size, align_corners, scale_factors);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18265,6 +22093,9 @@ at::Tensor upsample_bilinear2d_vec_generated_plumbing(const at::Tensor & input, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN2(upsample_bilinear2d, vec)(input, output_size, align_corners, scale_factors);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -18277,6 +22108,9 @@ at::Tensor upsample_bilinear2d_backward_vec_generated_plumbing(const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN2(upsample_bilinear2d_backward, vec)(grad_output, output_size, input_size, align_corners, scale_factors);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18289,6 +22123,9 @@ at::Tensor _upsample_bilinear2d_aa_vec_generated_plumbing(const at::Tensor & inp
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN2(_upsample_bilinear2d_aa, vec)(input, output_size, align_corners, scale_factors);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -18301,6 +22138,9 @@ at::Tensor _upsample_bilinear2d_aa_backward_vec_generated_plumbing(const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN2(_upsample_bilinear2d_aa_backward, vec)(grad_output, output_size, input_size, align_corners, scale_factors);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18313,6 +22153,9 @@ at::Tensor upsample_trilinear3d_vec_generated_plumbing(const at::Tensor & input,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN2(upsample_trilinear3d, vec)(input, output_size, align_corners, scale_factors);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -18325,6 +22168,9 @@ at::Tensor upsample_trilinear3d_backward_vec_generated_plumbing(const at::Tensor
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN2(upsample_trilinear3d_backward, vec)(grad_output, output_size, input_size, align_corners, scale_factors);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18337,6 +22183,9 @@ at::Tensor upsample_bicubic2d_vec_generated_plumbing(const at::Tensor & input, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN2(upsample_bicubic2d, vec)(input, output_size, align_corners, scale_factors);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -18349,6 +22198,9 @@ at::Tensor upsample_bicubic2d_backward_vec_generated_plumbing(const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN2(upsample_bicubic2d_backward, vec)(grad_output, output_size, input_size, align_corners, scale_factors);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18361,6 +22213,9 @@ at::Tensor _upsample_bicubic2d_aa_vec_generated_plumbing(const at::Tensor & inpu
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN2(_upsample_bicubic2d_aa, vec)(input, output_size, align_corners, scale_factors);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -18373,6 +22228,9 @@ at::Tensor _upsample_bicubic2d_aa_backward_vec_generated_plumbing(const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN2(_upsample_bicubic2d_aa_backward, vec)(grad_output, output_size, input_size, align_corners, scale_factors);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18385,6 +22243,9 @@ at::Tensor upsample_nearest1d_vec_generated_plumbing(const at::Tensor & input, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN2(upsample_nearest1d, vec)(input, output_size, scale_factors);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -18397,6 +22258,9 @@ at::Tensor _upsample_nearest_exact1d_vec_generated_plumbing(const at::Tensor & i
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN2(_upsample_nearest_exact1d, vec)(input, output_size, scale_factors);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -18409,6 +22273,9 @@ at::Tensor upsample_nearest1d_backward_vec_generated_plumbing(const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN2(upsample_nearest1d_backward, vec)(grad_output, output_size, input_size, scale_factors);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18421,6 +22288,9 @@ at::Tensor _upsample_nearest_exact1d_backward_vec_generated_plumbing(const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN2(_upsample_nearest_exact1d_backward, vec)(grad_output, output_size, input_size, scale_factors);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18433,6 +22303,9 @@ at::Tensor upsample_nearest2d_vec_generated_plumbing(const at::Tensor & input, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN2(upsample_nearest2d, vec)(input, output_size, scale_factors);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -18445,6 +22318,9 @@ at::Tensor _upsample_nearest_exact2d_vec_generated_plumbing(const at::Tensor & i
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN2(_upsample_nearest_exact2d, vec)(input, output_size, scale_factors);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -18457,6 +22333,9 @@ at::Tensor upsample_nearest2d_backward_vec_generated_plumbing(const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN2(upsample_nearest2d_backward, vec)(grad_output, output_size, input_size, scale_factors);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18469,6 +22348,9 @@ at::Tensor _upsample_nearest_exact2d_backward_vec_generated_plumbing(const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN2(_upsample_nearest_exact2d_backward, vec)(grad_output, output_size, input_size, scale_factors);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18481,6 +22363,9 @@ at::Tensor upsample_nearest3d_vec_generated_plumbing(const at::Tensor & input, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN2(upsample_nearest3d, vec)(input, output_size, scale_factors);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -18493,6 +22378,9 @@ at::Tensor _upsample_nearest_exact3d_vec_generated_plumbing(const at::Tensor & i
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level)) {
+    return ATEN_FN2(_upsample_nearest_exact3d, vec)(input, output_size, scale_factors);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -18505,6 +22393,9 @@ at::Tensor upsample_nearest3d_backward_vec_generated_plumbing(const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN2(upsample_nearest3d_backward, vec)(grad_output, output_size, input_size, scale_factors);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18517,6 +22408,9 @@ at::Tensor _upsample_nearest_exact3d_backward_vec_generated_plumbing(const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN2(_upsample_nearest_exact3d_backward, vec)(grad_output, output_size, input_size, scale_factors);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18529,6 +22423,9 @@ at::Tensor upsample_linear1d_generated_plumbing(const at::Tensor & self, at::Int
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(upsample_linear1d)(self, output_size, align_corners, scales);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18541,6 +22438,9 @@ at::Tensor upsample_linear1d_backward_generated_plumbing(const at::Tensor & grad
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(upsample_linear1d_backward)(grad_output, output_size, input_size, align_corners, scales);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18553,6 +22453,9 @@ at::Tensor upsample_bilinear2d_generated_plumbing(const at::Tensor & self, at::I
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(upsample_bilinear2d)(self, output_size, align_corners, scales_h, scales_w);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18565,6 +22468,9 @@ at::Tensor upsample_bilinear2d_backward_generated_plumbing(const at::Tensor & gr
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(upsample_bilinear2d_backward)(grad_output, output_size, input_size, align_corners, scales_h, scales_w);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18577,6 +22483,9 @@ at::Tensor _upsample_bilinear2d_aa_generated_plumbing(const at::Tensor & self, a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_upsample_bilinear2d_aa)(self, output_size, align_corners, scales_h, scales_w);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18589,6 +22498,9 @@ at::Tensor _upsample_bilinear2d_aa_backward_generated_plumbing(const at::Tensor 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(_upsample_bilinear2d_aa_backward)(grad_output, output_size, input_size, align_corners, scales_h, scales_w);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18601,6 +22513,9 @@ at::Tensor upsample_bicubic2d_generated_plumbing(const at::Tensor & self, at::In
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(upsample_bicubic2d)(self, output_size, align_corners, scales_h, scales_w);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18613,6 +22528,9 @@ at::Tensor upsample_bicubic2d_backward_generated_plumbing(const at::Tensor & gra
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(upsample_bicubic2d_backward)(grad_output, output_size, input_size, align_corners, scales_h, scales_w);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18625,6 +22543,9 @@ at::Tensor _upsample_bicubic2d_aa_generated_plumbing(const at::Tensor & self, at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_upsample_bicubic2d_aa)(self, output_size, align_corners, scales_h, scales_w);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18637,6 +22558,9 @@ at::Tensor _upsample_bicubic2d_aa_backward_generated_plumbing(const at::Tensor &
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(_upsample_bicubic2d_aa_backward)(grad_output, output_size, input_size, align_corners, scales_h, scales_w);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18649,6 +22573,9 @@ at::Tensor upsample_trilinear3d_generated_plumbing(const at::Tensor & self, at::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(upsample_trilinear3d)(self, output_size, align_corners, scales_d, scales_h, scales_w);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18661,6 +22588,9 @@ at::Tensor upsample_trilinear3d_backward_generated_plumbing(const at::Tensor & g
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(upsample_trilinear3d_backward)(grad_output, output_size, input_size, align_corners, scales_d, scales_h, scales_w);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18673,6 +22603,9 @@ at::Tensor upsample_nearest1d_generated_plumbing(const at::Tensor & self, at::In
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(upsample_nearest1d)(self, output_size, scales);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18685,6 +22618,9 @@ at::Tensor _upsample_nearest_exact1d_generated_plumbing(const at::Tensor & self,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_upsample_nearest_exact1d)(self, output_size, scales);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18697,6 +22633,9 @@ at::Tensor upsample_nearest1d_backward_generated_plumbing(const at::Tensor & gra
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(upsample_nearest1d_backward)(grad_output, output_size, input_size, scales);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18709,6 +22648,9 @@ at::Tensor _upsample_nearest_exact1d_backward_generated_plumbing(const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(_upsample_nearest_exact1d_backward)(grad_output, output_size, input_size, scales);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18721,6 +22663,9 @@ at::Tensor upsample_nearest2d_generated_plumbing(const at::Tensor & self, at::In
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(upsample_nearest2d)(self, output_size, scales_h, scales_w);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18733,6 +22678,9 @@ at::Tensor _upsample_nearest_exact2d_generated_plumbing(const at::Tensor & self,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_upsample_nearest_exact2d)(self, output_size, scales_h, scales_w);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18745,6 +22693,9 @@ at::Tensor upsample_nearest2d_backward_generated_plumbing(const at::Tensor & gra
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(upsample_nearest2d_backward)(grad_output, output_size, input_size, scales_h, scales_w);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18757,6 +22708,9 @@ at::Tensor _upsample_nearest_exact2d_backward_generated_plumbing(const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(_upsample_nearest_exact2d_backward)(grad_output, output_size, input_size, scales_h, scales_w);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18769,6 +22723,9 @@ at::Tensor upsample_nearest3d_generated_plumbing(const at::Tensor & self, at::In
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(upsample_nearest3d)(self, output_size, scales_d, scales_h, scales_w);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18781,6 +22738,9 @@ at::Tensor _upsample_nearest_exact3d_generated_plumbing(const at::Tensor & self,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_upsample_nearest_exact3d)(self, output_size, scales_d, scales_h, scales_w);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18793,6 +22753,9 @@ at::Tensor upsample_nearest3d_backward_generated_plumbing(const at::Tensor & gra
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(upsample_nearest3d_backward)(grad_output, output_size, input_size, scales_d, scales_h, scales_w);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18805,6 +22768,9 @@ at::Tensor _upsample_nearest_exact3d_backward_generated_plumbing(const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(_upsample_nearest_exact3d_backward)(grad_output, output_size, input_size, scales_d, scales_h, scales_w);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18817,6 +22783,9 @@ at::Tensor sigmoid_backward_generated_plumbing(const at::Tensor & grad_output, c
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(output, cur_level)) {
+    return ATEN_FN(sigmoid_backward)(grad_output, output);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18832,6 +22801,9 @@ at::Tensor logit_backward_generated_plumbing(const at::Tensor & grad_output, con
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(logit_backward)(grad_output, self, eps);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18847,6 +22819,9 @@ at::Tensor tanh_backward_generated_plumbing(const at::Tensor & grad_output, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(output, cur_level)) {
+    return ATEN_FN(tanh_backward)(grad_output, output);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18862,6 +22837,9 @@ at::Tensor slow_conv_transpose2d_generated_plumbing(const at::Tensor & self, con
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(slow_conv_transpose2d)(self, weight, kernel_size, bias, stride, padding, output_padding, dilation);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18882,6 +22860,9 @@ at::Tensor slow_conv_transpose3d_generated_plumbing(const at::Tensor & self, con
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(slow_conv_transpose3d)(self, weight, kernel_size, bias, stride, padding, output_padding, dilation);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18902,6 +22883,9 @@ at::Tensor thnn_conv2d_generated_plumbing(const at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(thnn_conv2d)(self, weight, kernel_size, bias, stride, padding);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18922,6 +22906,9 @@ at::Tensor _slow_conv2d_forward_generated_plumbing(const at::Tensor & self, cons
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(_slow_conv2d_forward)(self, weight, kernel_size, bias, stride, padding);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18942,6 +22929,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level)) {
+    return ATEN_FN2(_slow_conv2d_backward, output_mask)(grad_output, self, weight, kernel_size, stride, padding, output_mask);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -18960,6 +22950,9 @@ at::Tensor _conv_depthwise2d_generated_plumbing(const at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(_conv_depthwise2d)(self, weight, kernel_size, bias, stride, padding, dilation);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -18980,6 +22973,9 @@ at::Tensor conv_depthwise3d_generated_plumbing(const at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(conv_depthwise3d)(self, weight, kernel_size, bias, stride, padding, dilation);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19000,6 +22996,9 @@ at::Tensor slow_conv3d_generated_plumbing(const at::Tensor & self, const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(slow_conv3d)(self, weight, kernel_size, bias, stride, padding);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19020,6 +23019,9 @@ at::Tensor slow_conv3d_forward_generated_plumbing(const at::Tensor & self, const
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(slow_conv3d_forward)(self, weight, kernel_size, bias, stride, padding);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19040,6 +23042,9 @@ at::Tensor slow_conv_dilated2d_generated_plumbing(const at::Tensor & self, const
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(slow_conv_dilated2d)(self, weight, kernel_size, bias, stride, padding, dilation);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19060,6 +23065,9 @@ at::Tensor slow_conv_dilated3d_generated_plumbing(const at::Tensor & self, const
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(weight, cur_level) && !isBatchedAtLevel(bias, cur_level)) {
+    return ATEN_FN(slow_conv_dilated3d)(self, weight, kernel_size, bias, stride, padding, dilation);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19080,6 +23088,9 @@ at::Tensor col2im_generated_plumbing(const at::Tensor & self, at::IntArrayRef ou
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(col2im)(self, output_size, kernel_size, dilation, padding, stride);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19092,6 +23103,9 @@ at::Tensor col2im_backward_generated_plumbing(const at::Tensor & grad_output, at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(col2im_backward)(grad_output, kernel_size, dilation, padding, stride);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -19104,6 +23118,9 @@ at::Tensor column_stack_generated_plumbing(at::TensorList tensors) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(column_stack)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -19114,6 +23131,9 @@ at::Tensor im2col_generated_plumbing(const at::Tensor & self, at::IntArrayRef ke
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(im2col)(self, kernel_size, dilation, padding, stride);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19126,6 +23146,9 @@ at::Tensor im2col_backward_generated_plumbing(const at::Tensor & grad_output, at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad_output, cur_level)) {
+    return ATEN_FN(im2col_backward)(grad_output, input_size, kernel_size, dilation, padding, stride);
+  }
   Tensor grad_output_value;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output_value, grad_output_bdim) = unwrapTensorAtLevel(grad_output, cur_level);
@@ -19138,6 +23161,9 @@ at::Tensor isfinite_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(isfinite)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19150,6 +23176,9 @@ at::Tensor isinf_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(isinf)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19162,6 +23191,9 @@ at::Tensor isposinf_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(isposinf)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19174,6 +23206,9 @@ at::Tensor isneginf_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(isneginf)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19186,6 +23221,9 @@ at::Tensor _add_batch_dim_generated_plumbing(const at::Tensor & self, int64_t ba
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_add_batch_dim)(self, batch_dim, level);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19198,6 +23236,9 @@ at::Tensor _remove_batch_dim_generated_plumbing(const at::Tensor & self, int64_t
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_remove_batch_dim)(self, level, batch_size, out_dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19210,6 +23251,9 @@ at::Tensor special_entr_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_entr)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19222,6 +23266,9 @@ at::Tensor special_ndtri_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_ndtri)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19234,6 +23281,9 @@ at::Tensor special_expm1_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_expm1)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19246,6 +23296,9 @@ at::Tensor special_exp2_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_exp2)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19258,6 +23311,9 @@ at::Tensor special_psi_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_psi)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19270,6 +23326,9 @@ at::Tensor special_digamma_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_digamma)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19282,6 +23341,9 @@ at::Tensor special_gammaln_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_gammaln)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19294,6 +23356,9 @@ at::Tensor special_erf_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_erf)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19306,6 +23371,9 @@ at::Tensor special_erfc_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_erfc)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19318,6 +23386,9 @@ at::Tensor special_erfcx_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_erfcx)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19330,6 +23401,9 @@ at::Tensor special_erfinv_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_erfinv)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19342,6 +23416,9 @@ at::Tensor special_ndtr_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_ndtr)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19354,6 +23431,9 @@ at::Tensor special_xlog1py_generated_plumbing(const at::Tensor & self, const at:
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(special_xlog1py)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19369,6 +23449,9 @@ at::Tensor special_xlog1py_self_scalar_generated_plumbing(const at::Scalar & sel
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(special_xlog1py, self_scalar)(self, other);
+  }
   Tensor other_value;
   optional<int64_t> other_bdim;
   std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
@@ -19381,6 +23464,9 @@ at::Tensor special_xlog1py_other_scalar_generated_plumbing(const at::Tensor & se
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(special_xlog1py, other_scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19393,6 +23479,9 @@ at::Tensor special_xlogy_generated_plumbing(const at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(special_xlogy)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19408,6 +23497,9 @@ at::Tensor special_xlogy_self_scalar_generated_plumbing(const at::Scalar & self,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(special_xlogy, self_scalar)(self, other);
+  }
   Tensor other_value;
   optional<int64_t> other_bdim;
   std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
@@ -19420,6 +23512,9 @@ at::Tensor special_xlogy_other_scalar_generated_plumbing(const at::Tensor & self
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(special_xlogy, other_scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19432,6 +23527,9 @@ at::Tensor special_zeta_generated_plumbing(const at::Tensor & self, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(special_zeta)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19447,6 +23545,9 @@ at::Tensor special_zeta_self_scalar_generated_plumbing(const at::Scalar & self, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN2(special_zeta, self_scalar)(self, other);
+  }
   Tensor other_value;
   optional<int64_t> other_bdim;
   std::tie(other_value, other_bdim) = unwrapTensorAtLevel(other, cur_level);
@@ -19459,6 +23560,9 @@ at::Tensor special_zeta_other_scalar_generated_plumbing(const at::Tensor & self,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(special_zeta, other_scalar)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19471,6 +23575,9 @@ at::Tensor special_i0_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_i0)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19483,6 +23590,9 @@ at::Tensor special_i0e_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_i0e)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19495,6 +23605,9 @@ at::Tensor special_i1_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_i1)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19507,6 +23620,9 @@ at::Tensor special_i1e_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_i1e)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19519,6 +23635,9 @@ at::Tensor special_logit_generated_plumbing(const at::Tensor & self, c10::option
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_logit)(self, eps);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19531,6 +23650,9 @@ at::Tensor special_polygamma_generated_plumbing(int64_t n, const at::Tensor & se
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_polygamma)(n, self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19543,6 +23665,9 @@ at::Tensor special_logsumexp_generated_plumbing(const at::Tensor & self, at::Int
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_logsumexp)(self, dim, keepdim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19555,6 +23680,9 @@ at::Tensor special_expit_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_expit)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19567,6 +23695,9 @@ at::Tensor special_sinc_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_sinc)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19579,6 +23710,9 @@ at::Tensor special_round_generated_plumbing(const at::Tensor & self, int64_t dec
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_round)(self, decimals);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19591,6 +23725,9 @@ at::Tensor special_log1p_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_log1p)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19603,6 +23740,9 @@ at::Tensor special_log_softmax_generated_plumbing(const at::Tensor & self, int64
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_log_softmax)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19615,6 +23755,9 @@ at::Tensor special_gammainc_generated_plumbing(const at::Tensor & self, const at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(special_gammainc)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19630,6 +23773,9 @@ at::Tensor special_gammaincc_generated_plumbing(const at::Tensor & self, const a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(special_gammaincc)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19645,6 +23791,9 @@ at::Tensor special_multigammaln_generated_plumbing(const at::Tensor & self, int6
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_multigammaln)(self, p);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19657,6 +23806,9 @@ at::Tensor special_softmax_generated_plumbing(const at::Tensor & self, int64_t d
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(special_softmax)(self, dim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19669,6 +23821,9 @@ at::Tensor fft_fft_generated_plumbing(const at::Tensor & self, c10::optional<int
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_fft)(self, n, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19681,6 +23836,9 @@ at::Tensor fft_ifft_generated_plumbing(const at::Tensor & self, c10::optional<in
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_ifft)(self, n, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19693,6 +23851,9 @@ at::Tensor fft_rfft_generated_plumbing(const at::Tensor & self, c10::optional<in
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_rfft)(self, n, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19705,6 +23866,9 @@ at::Tensor fft_irfft_generated_plumbing(const at::Tensor & self, c10::optional<i
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_irfft)(self, n, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19717,6 +23881,9 @@ at::Tensor fft_hfft_generated_plumbing(const at::Tensor & self, c10::optional<in
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_hfft)(self, n, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19729,6 +23896,9 @@ at::Tensor fft_ihfft_generated_plumbing(const at::Tensor & self, c10::optional<i
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_ihfft)(self, n, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19741,6 +23911,9 @@ at::Tensor fft_fft2_generated_plumbing(const at::Tensor & self, c10::optional<at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_fft2)(self, s, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19753,6 +23926,9 @@ at::Tensor fft_ifft2_generated_plumbing(const at::Tensor & self, c10::optional<a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_ifft2)(self, s, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19765,6 +23941,9 @@ at::Tensor fft_rfft2_generated_plumbing(const at::Tensor & self, c10::optional<a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_rfft2)(self, s, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19777,6 +23956,9 @@ at::Tensor fft_irfft2_generated_plumbing(const at::Tensor & self, c10::optional<
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_irfft2)(self, s, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19789,6 +23971,9 @@ at::Tensor fft_hfft2_generated_plumbing(const at::Tensor & self, c10::optional<a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_hfft2)(self, s, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19801,6 +23986,9 @@ at::Tensor fft_ihfft2_generated_plumbing(const at::Tensor & self, c10::optional<
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_ihfft2)(self, s, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19813,6 +24001,9 @@ at::Tensor fft_fftn_generated_plumbing(const at::Tensor & self, c10::optional<at
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_fftn)(self, s, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19825,6 +24016,9 @@ at::Tensor fft_ifftn_generated_plumbing(const at::Tensor & self, c10::optional<a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_ifftn)(self, s, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19837,6 +24031,9 @@ at::Tensor fft_rfftn_generated_plumbing(const at::Tensor & self, c10::optional<a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_rfftn)(self, s, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19849,6 +24046,9 @@ at::Tensor fft_irfftn_generated_plumbing(const at::Tensor & self, c10::optional<
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_irfftn)(self, s, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19861,6 +24061,9 @@ at::Tensor fft_hfftn_generated_plumbing(const at::Tensor & self, c10::optional<a
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_hfftn)(self, s, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19873,6 +24076,9 @@ at::Tensor fft_ihfftn_generated_plumbing(const at::Tensor & self, c10::optional<
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_ihfftn)(self, s, dim, norm);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19885,6 +24091,9 @@ at::Tensor fft_fftshift_generated_plumbing(const at::Tensor & self, c10::optiona
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_fftshift)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19897,6 +24106,9 @@ at::Tensor fft_ifftshift_generated_plumbing(const at::Tensor & self, c10::option
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(fft_ifftshift)(self, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19909,6 +24121,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_cholesky_ex)(self, upper, check_errors);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19921,6 +24136,9 @@ at::Tensor linalg_cholesky_generated_plumbing(const at::Tensor & self, bool uppe
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_cholesky)(self, upper);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19933,6 +24151,9 @@ at::Tensor linalg_cross_generated_plumbing(const at::Tensor & self, const at::Te
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(linalg_cross)(self, other, dim);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19948,6 +24169,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(A, cur_level)) {
+    return ATEN_FN(linalg_lu_factor)(A, pivot);
+  }
   Tensor A_value;
   optional<int64_t> A_bdim;
   std::tie(A_value, A_bdim) = unwrapTensorAtLevel(A, cur_level);
@@ -19960,6 +24184,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(A, cur_level)) {
+    return ATEN_FN(linalg_lu_factor_ex)(A, pivot, check_errors);
+  }
   Tensor A_value;
   optional<int64_t> A_bdim;
   std::tie(A_value, A_bdim) = unwrapTensorAtLevel(A, cur_level);
@@ -19972,6 +24199,9 @@ at::Tensor linalg_det_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_det)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19984,6 +24214,9 @@ at::Tensor det_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(det)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -19996,6 +24229,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_det_lu_based_helper)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20008,6 +24244,9 @@ at::Tensor _det_lu_based_helper_backward_helper_generated_plumbing(const at::Ten
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(det_grad, cur_level) && !isBatchedAtLevel(det, cur_level) && !isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(lu, cur_level) && !isBatchedAtLevel(pivs, cur_level)) {
+    return ATEN_FN(_det_lu_based_helper_backward_helper)(det_grad, det, self, lu, pivs);
+  }
   Tensor det_grad_value;
   optional<int64_t> det_grad_bdim;
   std::tie(det_grad_value, det_grad_bdim) = unwrapTensorAtLevel(det_grad, cur_level);
@@ -20032,6 +24271,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(b, cur_level)) {
+    return ATEN_FN(linalg_lstsq)(self, b, rcond, driver);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20047,6 +24289,9 @@ at::Tensor linalg_matmul_generated_plumbing(const at::Tensor & self, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(linalg_matmul)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20062,6 +24307,9 @@ at::Tensor linalg_matrix_exp_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_matrix_exp)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20074,6 +24322,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_slogdet)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20086,6 +24337,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_eig)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20098,6 +24352,9 @@ at::Tensor linalg_eigvals_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_eigvals)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20110,6 +24367,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_eigh)(self, UPLO);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20122,6 +24382,9 @@ at::Tensor linalg_eigvalsh_generated_plumbing(const at::Tensor & self, c10::stri
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_eigvalsh)(self, UPLO);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20134,6 +24397,9 @@ at::Tensor linalg_householder_product_generated_plumbing(const at::Tensor & inpu
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(tau, cur_level)) {
+    return ATEN_FN(linalg_householder_product)(input, tau);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -20149,6 +24415,9 @@ at::Tensor & _linalg_inv_out_helper__generated_plumbing(at::Tensor & self, at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(infos_lu, cur_level) && !isBatchedAtLevel(infos_getri, cur_level)) {
+    return ATEN_FN(_linalg_inv_out_helper_)(self, infos_lu, infos_getri);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20167,6 +24436,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_inv_ex)(self, check_errors);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20179,6 +24451,9 @@ at::Tensor linalg_inv_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_inv)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20191,6 +24466,9 @@ at::Tensor inner_generated_plumbing(const at::Tensor & self, const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(inner)(self, other);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20206,6 +24484,9 @@ at::Tensor outer_generated_plumbing(const at::Tensor & self, const at::Tensor & 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(vec2, cur_level)) {
+    return ATEN_FN(outer)(self, vec2);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20221,6 +24502,9 @@ at::Tensor ger_generated_plumbing(const at::Tensor & self, const at::Tensor & ve
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(vec2, cur_level)) {
+    return ATEN_FN(ger)(self, vec2);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20236,6 +24520,9 @@ at::Tensor linalg_norm_generated_plumbing(const at::Tensor & self, const c10::op
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_norm)(self, ord, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20248,6 +24535,9 @@ at::Tensor linalg_norm_ord_str_generated_plumbing(const at::Tensor & self, c10::
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(linalg_norm, ord_str)(self, ord, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20260,6 +24550,9 @@ at::Tensor linalg_vector_norm_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_vector_norm)(self, ord, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20272,6 +24565,9 @@ at::Tensor linalg_matrix_norm_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_matrix_norm)(self, ord, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20284,6 +24580,9 @@ at::Tensor linalg_matrix_norm_str_ord_generated_plumbing(const at::Tensor & self
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(linalg_matrix_norm, str_ord)(self, ord, dim, keepdim, dtype);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20296,6 +24595,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(A, cur_level)) {
+    return ATEN_FN(_linalg_svd)(A, full_matrices, compute_uv);
+  }
   Tensor A_value;
   optional<int64_t> A_bdim;
   std::tie(A_value, A_bdim) = unwrapTensorAtLevel(A, cur_level);
@@ -20308,6 +24610,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(A, cur_level)) {
+    return ATEN_FN(linalg_svd)(A, full_matrices);
+  }
   Tensor A_value;
   optional<int64_t> A_bdim;
   std::tie(A_value, A_bdim) = unwrapTensorAtLevel(A, cur_level);
@@ -20320,6 +24625,9 @@ at::Tensor linalg_svdvals_generated_plumbing(const at::Tensor & A) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(A, cur_level)) {
+    return ATEN_FN(linalg_svdvals)(A);
+  }
   Tensor A_value;
   optional<int64_t> A_bdim;
   std::tie(A_value, A_bdim) = unwrapTensorAtLevel(A, cur_level);
@@ -20332,6 +24640,9 @@ at::Tensor linalg_cond_generated_plumbing(const at::Tensor & self, const c10::op
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_cond)(self, p);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20344,6 +24655,9 @@ at::Tensor linalg_cond_p_str_generated_plumbing(const at::Tensor & self, c10::st
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(linalg_cond, p_str)(self, p);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20356,6 +24670,9 @@ at::Tensor linalg_pinv_atol_rtol_tensor_generated_plumbing(const at::Tensor & se
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(atol, cur_level) && !isBatchedAtLevel(rtol, cur_level)) {
+    return ATEN_FN2(linalg_pinv, atol_rtol_tensor)(self, atol, rtol, hermitian);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20378,6 +24695,9 @@ at::Tensor linalg_pinv_atol_rtol_float_generated_plumbing(const at::Tensor & sel
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(linalg_pinv, atol_rtol_float)(self, atol, rtol, hermitian);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20390,6 +24710,9 @@ at::Tensor linalg_pinv_generated_plumbing(const at::Tensor & self, double rcond,
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_pinv)(self, rcond, hermitian);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20402,6 +24725,9 @@ at::Tensor linalg_pinv_rcond_tensor_generated_plumbing(const at::Tensor & self, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(rcond, cur_level)) {
+    return ATEN_FN2(linalg_pinv, rcond_tensor)(self, rcond, hermitian);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20417,6 +24743,9 @@ at::Tensor linalg_solve_generated_plumbing(const at::Tensor & input, const at::T
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(linalg_solve)(input, other);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -20432,6 +24761,9 @@ at::Tensor linalg_tensorinv_generated_plumbing(const at::Tensor & self, int64_t 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_tensorinv)(self, ind);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20444,6 +24776,9 @@ at::Tensor linalg_tensorsolve_generated_plumbing(const at::Tensor & self, const 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(linalg_tensorsolve)(self, other, dims);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20459,6 +24794,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_qr)(self, mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20471,6 +24809,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_linalg_qr_helper)(self, mode);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20483,6 +24824,9 @@ at::Tensor linalg_matrix_power_generated_plumbing(const at::Tensor & self, int64
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_matrix_power)(self, n);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20495,6 +24839,9 @@ at::Tensor linalg_matrix_rank_atol_rtol_tensor_generated_plumbing(const at::Tens
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(atol, cur_level) && !isBatchedAtLevel(rtol, cur_level)) {
+    return ATEN_FN2(linalg_matrix_rank, atol_rtol_tensor)(input, atol, rtol, hermitian);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -20517,6 +24864,9 @@ at::Tensor linalg_matrix_rank_atol_rtol_float_generated_plumbing(const at::Tenso
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN2(linalg_matrix_rank, atol_rtol_float)(self, atol, rtol, hermitian);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20529,6 +24879,9 @@ at::Tensor linalg_matrix_rank_generated_plumbing(const at::Tensor & self, double
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(linalg_matrix_rank)(self, tol, hermitian);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20541,6 +24894,9 @@ at::Tensor linalg_matrix_rank_tol_tensor_generated_plumbing(const at::Tensor & i
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(input, cur_level) && !isBatchedAtLevel(tol, cur_level)) {
+    return ATEN_FN2(linalg_matrix_rank, tol_tensor)(input, tol, hermitian);
+  }
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -20556,6 +24912,9 @@ at::Tensor linalg_multi_dot_generated_plumbing(at::TensorList tensors) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(linalg_multi_dot)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -20566,6 +24925,9 @@ at::Tensor _test_serialization_subcmul_generated_plumbing(const at::Tensor & sel
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(other, cur_level)) {
+    return ATEN_FN(_test_serialization_subcmul)(self, other, alpha);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20581,6 +24943,9 @@ at::Tensor _test_optional_intlist_generated_plumbing(const at::Tensor & values, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(values, cur_level)) {
+    return ATEN_FN(_test_optional_intlist)(values, addends);
+  }
   Tensor values_value;
   optional<int64_t> values_bdim;
   std::tie(values_value, values_bdim) = unwrapTensorAtLevel(values, cur_level);
@@ -20593,6 +24958,9 @@ at::Tensor _test_optional_filled_intlist_generated_plumbing(const at::Tensor & v
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(values, cur_level)) {
+    return ATEN_FN(_test_optional_filled_intlist)(values, addends);
+  }
   Tensor values_value;
   optional<int64_t> values_bdim;
   std::tie(values_value, values_bdim) = unwrapTensorAtLevel(values, cur_level);
@@ -20605,6 +24973,9 @@ at::Tensor _test_optional_floatlist_generated_plumbing(const at::Tensor & values
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(values, cur_level)) {
+    return ATEN_FN(_test_optional_floatlist)(values, addends);
+  }
   Tensor values_value;
   optional<int64_t> values_bdim;
   std::tie(values_value, values_bdim) = unwrapTensorAtLevel(values, cur_level);
@@ -20617,6 +24988,9 @@ at::Tensor _test_string_default_generated_plumbing(const at::Tensor & dummy, c10
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(dummy, cur_level)) {
+    return ATEN_FN(_test_string_default)(dummy, a, b);
+  }
   Tensor dummy_value;
   optional<int64_t> dummy_bdim;
   std::tie(dummy_value, dummy_bdim) = unwrapTensorAtLevel(dummy, cur_level);
@@ -20629,6 +25003,9 @@ at::Tensor _test_ambiguous_defaults_a_generated_plumbing(const at::Tensor & dumm
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(dummy, cur_level)) {
+    return ATEN_FN2(_test_ambiguous_defaults, a)(dummy, a, b);
+  }
   Tensor dummy_value;
   optional<int64_t> dummy_bdim;
   std::tie(dummy_value, dummy_bdim) = unwrapTensorAtLevel(dummy, cur_level);
@@ -20641,6 +25018,9 @@ at::Tensor _test_ambiguous_defaults_b_generated_plumbing(const at::Tensor & dumm
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(dummy, cur_level)) {
+    return ATEN_FN2(_test_ambiguous_defaults, b)(dummy, a, b);
+  }
   Tensor dummy_value;
   optional<int64_t> dummy_bdim;
   std::tie(dummy_value, dummy_bdim) = unwrapTensorAtLevel(dummy, cur_level);
@@ -20653,6 +25033,9 @@ at::Tensor _test_warn_in_autograd_generated_plumbing(const at::Tensor & self) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    return ATEN_FN(_test_warn_in_autograd)(self);
+  }
   Tensor self_value;
   optional<int64_t> self_bdim;
   std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
@@ -20665,6 +25048,9 @@ at::Tensor segment_reduce_generated_plumbing(const at::Tensor & data, c10::strin
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(data, cur_level) && !isBatchedAtLevel(lengths, cur_level) && !isBatchedAtLevel(indices, cur_level)) {
+    return ATEN_FN(segment_reduce)(data, reduce, lengths, indices, axis, unsafe, initial);
+  }
   Tensor data_value;
   optional<int64_t> data_bdim;
   std::tie(data_value, data_bdim) = unwrapTensorAtLevel(data, cur_level);
@@ -20687,6 +25073,9 @@ at::Tensor _segment_reduce_backward_generated_plumbing(const at::Tensor & grad, 
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(grad, cur_level) && !isBatchedAtLevel(output, cur_level) && !isBatchedAtLevel(data, cur_level) && !isBatchedAtLevel(lengths, cur_level)) {
+    return ATEN_FN(_segment_reduce_backward)(grad, output, data, reduce, lengths, axis);
+  }
   Tensor grad_value;
   optional<int64_t> grad_bdim;
   std::tie(grad_value, grad_bdim) = unwrapTensorAtLevel(grad, cur_level);
@@ -20710,6 +25099,9 @@ at::Tensor pad_sequence_generated_plumbing(at::TensorList sequences, bool batch_
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(sequences, cur_level)) {
+    return ATEN_FN(pad_sequence)(sequences, batch_first, padding_value);
+  }
 
   auto results = batch_rule(sequences, batch_first, padding_value);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -20720,6 +25112,9 @@ at::Tensor flatten_dense_tensors_generated_plumbing(at::TensorList tensors) {
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(flatten_dense_tensors)(tensors);
+  }
 
   auto results = batch_rule(tensors);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
@@ -20730,6 +25125,9 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(flat, cur_level) && !isBatchedAtLevel(tensors, cur_level)) {
+    return ATEN_FN(unflatten_dense_tensors)(flat, tensors);
+  }
   Tensor flat_value;
   optional<int64_t> flat_bdim;
   std::tie(flat_value, flat_bdim) = unwrapTensorAtLevel(flat, cur_level);
