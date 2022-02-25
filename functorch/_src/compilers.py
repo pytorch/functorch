@@ -10,10 +10,16 @@ import time
 def ts_compile(fx_g, _):
     # print(fx_g.code)
     for node in fx_g.graph.nodes:
-        if node.target == torch.ops.aten.new_zeros:
+        if node.target in (torch.ops.aten.new_zeros, torch.ops.aten.new_empty):
             if node.args[1] == []:
                 args = list(node.args)
                 args[1] = [1]
+                node.args = tuple(args)
+        elif node.target == torch.ops.aten.avg_pool2d_backward:
+            # Handle empty strides
+            if node.args[3] == []:
+                args = list(node.args)
+                args[3] = [1, 1]
                 node.args = tuple(args)
 
     for node in fx_g.graph.nodes:
