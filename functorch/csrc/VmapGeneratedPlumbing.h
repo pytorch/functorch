@@ -6641,38 +6641,6 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level), makeBatched(std::get<4>(results), std::get<5>(results), cur_level));
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor native_multi_head_self_attention_generated_plumbing(const at::Tensor & query, const at::Tensor & qkv_weight, const at::Tensor & qkv_bias, const at::Tensor & proj_weight, const at::Tensor & proj_bias, const c10::optional<at::Tensor> & mask) {
-  c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-  auto maybe_layer = maybeCurrentDynamicLayer();
-  TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
-  int64_t cur_level = maybe_layer->layerId();
-  if (!isBatchedAtLevel(query, cur_level) && !isBatchedAtLevel(qkv_weight, cur_level) && !isBatchedAtLevel(qkv_bias, cur_level) && !isBatchedAtLevel(proj_weight, cur_level) && !isBatchedAtLevel(proj_bias, cur_level) && !isBatchedAtLevel(mask, cur_level)) {
-    return ATEN_FN(native_multi_head_self_attention)(query, qkv_weight, qkv_bias, proj_weight, proj_bias, mask);
-  }
-  Tensor query_value;
-  optional<int64_t> query_bdim;
-  std::tie(query_value, query_bdim) = unwrapTensorAtLevel(query, cur_level);
-  Tensor qkv_weight_value;
-  optional<int64_t> qkv_weight_bdim;
-  std::tie(qkv_weight_value, qkv_weight_bdim) = unwrapTensorAtLevel(qkv_weight, cur_level);
-  Tensor qkv_bias_value;
-  optional<int64_t> qkv_bias_bdim;
-  std::tie(qkv_bias_value, qkv_bias_bdim) = unwrapTensorAtLevel(qkv_bias, cur_level);
-  Tensor proj_weight_value;
-  optional<int64_t> proj_weight_bdim;
-  std::tie(proj_weight_value, proj_weight_bdim) = unwrapTensorAtLevel(proj_weight, cur_level);
-  Tensor proj_bias_value;
-  optional<int64_t> proj_bias_bdim;
-  std::tie(proj_bias_value, proj_bias_bdim) = unwrapTensorAtLevel(proj_bias, cur_level);
-  optional<Tensor> mask_value;
-  optional<int64_t> mask_bdim;
-  if (mask) {
-      std::tie(mask_value, mask_bdim) = unwrapTensorAtLevel(mask.value(), cur_level);
-  }
-  auto results = batch_rule(query_value, query_bdim, qkv_weight_value, qkv_weight_bdim, qkv_bias_value, qkv_bias_bdim, proj_weight_value, proj_weight_bdim, proj_bias_value, proj_bias_bdim, mask_value, mask_bdim);
-  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
-}
-template <typename batch_rule_t, batch_rule_t batch_rule>
 ::std::tuple<at::Tensor,at::Tensor,at::Tensor> native_layer_norm_backward_generated_plumbing(const at::Tensor & grad_out, const at::Tensor & input, at::IntArrayRef normalized_shape, const at::Tensor & mean, const at::Tensor & rstd, const c10::optional<at::Tensor> & weight, const c10::optional<at::Tensor> & bias, ::std::array<bool,3> output_mask) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();

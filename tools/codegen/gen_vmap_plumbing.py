@@ -153,6 +153,10 @@ def gen_vmap_plumbing(native_function: NativeFunction) -> str:
     sig = DispatcherSignature.from_schema(schema)
     returns = schema.returns
 
+    # NB: I don't know what's wrong, this is only necessary on the release branch.
+    if str(schema.name) == 'native_multi_head_self_attention':
+        return None
+
     # Only support cases where all returns are Tensors or vector<Tensor>
     if len(returns) == 0:
         return None
