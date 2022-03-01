@@ -33,7 +33,7 @@ import types
 from collections import namedtuple
 
 import functorch
-from functorch import vmap
+from functorch import vmap, grad
 from functorch._C import reshape_dim_into, reshape_dim_outof
 from functorch._src.make_functional import functional_init_with_buffers
 
@@ -1299,6 +1299,14 @@ class TestVmapOperators(Namespace.TestVmapBase):
             vmap(lambda x: x.clone(memory_format=torch.channels_last))(torch.randn(B0))
         with self.assertRaisesRegex(RuntimeError, msg):
             vmap(lambda x: x.clone(memory_format=torch.channels_last_3d))(torch.randn(B0))
+
+    def test_weird_matmul_case(self):
+        # Check that this doesn't crash.
+        # https://github.com/pytorch/functorch/issues/417
+        x = torch.randn(5, 2, 2, 2)
+        y = torch.randn(5, 7, 2)
+
+        vmap(vmap(torch.matmul, in_dims=(None, 0)))(x, y)
 
     @parametrize("case",
                  (
@@ -2960,6 +2968,14 @@ class TestVmapBatchedGradient(Namespace.TestVmapBase):
     def test_trace(self, device):
         x = torch.randn(2, 3, device=device, requires_grad=True)
         self._batched_grad_test(Tensor.trace, (x,))
+
+        x = torch.randn(3, 2, 2, device=device)
+
+        def sum_grad_trace(x):
+            return grad(torch.trace)(x).sum()
+
+        output = vmap(grad(sum_grad_trace))(x)
+        self.assertEqual(output, torch.zeros_like(output))
 
     @skipCUDAIfNoMagma
     @allowVmapFallbackUsage
