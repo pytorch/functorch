@@ -14,6 +14,8 @@
 #include <torch/csrc/autograd/variable.h>
 #include <c10/util/irange.h>
 #include <ATen/FuncTorchTLS.h>
+#include <ATen/ATen.h>
+#include <ATen/native/ConvUtils.h>
 
 namespace at {
 namespace functorch {
@@ -529,6 +531,88 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
   op.callBoxed(stack);
 }
 
+std::vector<int64_t> unbox_and_sanitize(const c10::List<int64_t>& thing) {
+  if (thing.size() == 2) {
+    return {thing[0], thing[1]};
+  }
+  if (thing.size() == 1) {
+    return {thing[0], thing[0]};
+  }
+  TORCH_INTERNAL_ASSERT(false);
+}
+
+// Meh, hack
+void dynamicLayerFrontConv(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
+  auto& dynamicLayerStack = dynamicLayerStackAccessor();
+  if (dynamicLayerStack.size() > 0) {
+    dynamicLayerFrontFallback(op, stack);
+    return;
+  }
+
+  auto num_args = op.schema().arguments().size();
+  auto args = torch::jit::last(stack, num_args);
+  auto groups = args[8].toInt();
+  if (groups == 1) {
+    dynamicLayerFrontFallback(op, stack);
+    return;
+  }
+  auto transposed = args[6].toBool();
+  if (transposed) {
+    dynamicLayerFrontFallback(op, stack);
+    return;
+  }
+  auto self = args[0].toTensor();
+  if (self.dim() != 4) {
+    dynamicLayerFrontFallback(op, stack);
+    return;
+  }
+
+  sanityCheckStack(op, stack);
+  c10::impl::ExcludeDispatchKeyGuard guard(all_dynlayer_keyset);
+
+  auto weight = args[1].toTensor();
+  optional<Tensor> bias;
+  if (args[2].isTensor()) {
+    bias = args[2].toTensor();
+  }
+#define UNBOX(arg) unbox_and_sanitize(arg)
+  auto stride = UNBOX(args[3].toIntList());
+  auto padding = UNBOX(args[4].toIntList());
+  auto dilation = UNBOX(args[5].toIntList());
+  auto output_padding = UNBOX(args[7].toIntList());
+
+  // Strategy: unfold + einsum
+  self = self.unflatten(1, {groups, -1}).flatten(0, 1);
+
+  int64_t iH = weight.size(-2);
+  int64_t iW = weight.size(-1);
+
+  auto output_size = at::native::conv_output_size(
+      self.sizes(),
+      weight.sizes(),
+      {padding[0], padding[1]},
+      {stride[0], stride[1]},
+      {dilation[0], dilation[1]});
+
+  self = at::im2col(
+      self, {iH, iW},
+      {dilation[0], dilation[1]},
+      {padding[0], padding[1]},
+      {stride[0], stride[1]});
+  self = self.unflatten(0, {-1, groups});
+  weight = weight.unflatten(0, {groups, -1}).flatten(2);
+
+  auto result = at::einsum("ngab,goa->ngob", {self, weight});
+  result = result.flatten(1, 2);  // n(go)b
+  result = result.unflatten(-1, {output_size[2], output_size[3]});
+  if (bias.has_value() && bias->defined()) {
+    result = bias.value().view({bias.value().size(0), 1, 1}) + result;
+  }
+
+  torch::jit::pop(stack, num_args);
+  torch::jit::push(stack, result);
+}
+
 struct WithoutTop {
   WithoutTop(): layer_(popDynamicLayer()) {
   }
@@ -664,6 +748,10 @@ void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* 
 
 TORCH_LIBRARY_IMPL(_, FT_DYNAMIC_LAYER_FRONT_MODE_KEY, m) {
   m.fallback(torch::CppFunction::makeFromBoxedFunction<&dynamicLayerFrontFallback>());
+}
+
+TORCH_LIBRARY_IMPL(aten, FT_DYNAMIC_LAYER_FRONT_MODE_KEY, m) {
+  m.impl("convolution", torch::CppFunction::makeFromBoxedFunction<&dynamicLayerFrontConv>());
 }
 
 TORCH_LIBRARY_IMPL(_, FT_DYNAMIC_LAYER_BACK_MODE_KEY, m) {
