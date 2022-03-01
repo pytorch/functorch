@@ -4,6 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from typing import OrderedDict
 from unittest.case import skipIf, skip
 from torch.testing._internal.common_utils import TestCase, run_tests
 import torch
@@ -302,6 +303,34 @@ class TestVmapAPI(TestCase):
         self.assertEqual(y2, y3)
         self.assertEqual(y4, y3)
         self.assertEqual(y5, y4)
+
+    def test_pytree_odict_returns(self):
+        x = torch.randn(2, 3)
+
+        def f(t):
+            y = t.sin()
+            return OrderedDict([("sin", y), ("cos", t.cos())])
+
+        out = vmap(f)(x)
+        assert isinstance(out, OrderedDict)
+        expected = f(x)
+        self.assertEqual(out["sin"], expected["sin"])
+        self.assertEqual(out["cos"], expected["cos"])
+
+    # temporary test for _odict_flatten and _odict_unflatten
+    def test_pytest_odict_flatten_unflatten(self):
+
+        from functorch._src.vmap import _odict_flatten, _odict_unflatten
+
+        x = torch.randn(2, 3)
+        inpt = OrderedDict([("sin", x.sin()), ("cos", x.cos())])
+
+        out = _odict_flatten(inpt)
+        self.assertEqual(out[0], list(inpt.values()))
+        self.assertEqual(out[1], list(inpt.keys()))
+
+        recon_inpt = _odict_unflatten(*out)
+        self.assertEqual(recon_inpt, inpt)
 
     def test_pytree_returns_outdims(self):
         x = torch.randn(2, 3)
@@ -2974,6 +3003,24 @@ class TestVmapBatchedGradient(Namespace.TestVmapBase):
 
         output = vmap(grad(sum_grad_trace))(x)
         self.assertEqual(output, torch.zeros_like(output))
+
+    def test_where(self, device):
+        x = torch.randn(3, 2, device=device)
+        y = torch.ones(3, 2, device=device)
+
+        def f(x, y):
+            return torch.where(x > 0, x, y)
+
+        # Check that there is no runtime error, exactness tests are done with opinfo
+        vmap(f)(x, y)
+
+        x = torch.randint(0, 2, size=(4, 3), dtype=torch.float)
+
+        def f(t):
+            return torch.where(t)
+
+        with self.assertRaisesRegex(RuntimeError, r"Attempted to vmap over aten::where"):
+            vmap(f)(x)
 
     @skipCUDAIfNoMagma
     @allowVmapFallbackUsage
