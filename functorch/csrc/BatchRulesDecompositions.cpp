@@ -92,6 +92,13 @@ void decompose_functional(const c10::OperatorHandle& op, torch::jit::Stack* stac
 #define OP_DECOMPOSE(op)  m.impl(#op, static_cast<decltype(&ATEN_FN(op))>(native::op));
 #define OP_DECOMPOSE2(op, overload)  m.impl(#op"."#overload, static_cast<decltype(&ATEN_FN2(op, overload))>(native::op));
 
+TORCH_LIBRARY_IMPL(aten, FT_VMAP_MODE_KEY, m) {
+  OP_DECOMPOSE(alpha_dropout);
+  OP_DECOMPOSE(dropout);
+  OP_DECOMPOSE(feature_alpha_dropout);
+  OP_DECOMPOSE(feature_dropout);
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE2(__and__, Scalar);
   OP_DECOMPOSE2(__and__, Tensor);
@@ -114,6 +121,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(adaptive_avg_pool2d);
   OP_DECOMPOSE(adaptive_avg_pool3d);
   OP_DECOMPOSE(adjoint);
+  OP_DECOMPOSE(alpha_dropout);
   OP_DECOMPOSE(arccos);
   OP_DECOMPOSE(arccosh);
   OP_DECOMPOSE(arcsin);
@@ -151,10 +159,13 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(diag_backward);
   OP_DECOMPOSE(diff);
   OP_DECOMPOSE2(divide, Tensor );
+  OP_DECOMPOSE(dropout);
   OP_DECOMPOSE(dstack);
   OP_DECOMPOSE(einsum);
   OP_DECOMPOSE(embedding_backward);
   OP_DECOMPOSE(expand_as);
+  OP_DECOMPOSE(feature_alpha_dropout);
+  OP_DECOMPOSE(feature_dropout);
   OP_DECOMPOSE(fft_fft);
   OP_DECOMPOSE(fft_fftshift);
   OP_DECOMPOSE(fft_fft2);
@@ -223,7 +234,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(mT);
   OP_DECOMPOSE2(multiply, Tensor );
   OP_DECOMPOSE(narrow);
-  OP_DECOMPOSE(dropout);
   OP_DECOMPOSE(negative);
   OP_DECOMPOSE(nll_loss_nd);
   OP_DECOMPOSE(nll_loss);

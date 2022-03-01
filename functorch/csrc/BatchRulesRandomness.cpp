@@ -240,6 +240,17 @@ struct UnaryPointwiseRandomLeadingFloatBatchRule<F, Func, typelist<A0, A1, T...>
   }
 };
 
+TORCH_LIBRARY_IMPL(aten, FuncTorchBatched, m) {
+  #define RANDOM_INPLACE_BATCH_RULE2(op, overload) \
+    m.impl(#op"."#overload, SINGLE_ARG(\
+      RandomInplaceBatchRuleHelper<decltype(&ATEN_FN2(op, overload)), &ATEN_FN2(op, overload), \
+                            c10::guts::function_traits<decltype(ATEN_FN2(op, overload))>::parameter_types>::apply))
+  
+  RANDOM_INPLACE_BATCH_RULE2(bernoulli_, float);
+
+  #undef RANDOM_INPLACE_BATCH_RULE2
+}
+
 TORCH_LIBRARY_IMPL(aten, FuncTorchVmapMode, m) {
   #define RANDOM_BATCH_RULE(op) \
     m.impl(#op, SINGLE_ARG(\
