@@ -48,33 +48,13 @@ def pythonkey_meta():
         USE_META = False
 
 
-def get_output_device(devices, op):
-    # The device propagation is a bit sketchy.
-    # aten::index(CPU, CUDA) => CPU tensor
-    # aten::index(CUDA, CPU) => CUDA tensor
-    if op == aten.index:
-        return devices[0]
-    devices = list(set(devices))
-    if len(devices) == 1:
-        return devices[0]
-    else:
-        for device in devices:
-            if device.type == 'cuda':
-                return device
-        raise RuntimeError("Couldn't infer output device from input device")
-
-
 class PythonTensor(torch.Tensor):
     elem: torch.Tensor
 
     __slots__ = ['elem', 'proxy']
 
     @staticmethod
-    def __new__(cls, elem, proxy, device=None):
-        # This is a hold-over from the (untested) meta codepath.  Need to
-        # figure out what I want to do here.
-        assert device is None or device == elem.device
-
+    def __new__(cls, elem, proxy):
         # Wrapping something in PythonTensor implicitly detaches
         # gradients.  If something required grad, we will collect it as if it
         # were a leaf.  A consequence of detaching in this way is you
@@ -110,11 +90,6 @@ class PythonTensor(torch.Tensor):
         def unwrap_proxy(e):
             return e.proxy if isinstance(e, PythonTensor) else e
 
-        input_devices = [i.device for i in pytree.tree_flatten(args)[0] +
-                         pytree.tree_flatten(kwargs)[0] if isinstance(i, torch.Tensor)]
-
-        output_device = get_output_device(input_devices, func)
-
         proxy_args = pytree.tree_map(unwrap_proxy, args)
         proxy_kwargs = pytree.tree_map(unwrap_proxy, kwargs)
 
@@ -128,9 +103,12 @@ class PythonTensor(torch.Tensor):
             try:
                 real_out = func(*args, **kwargs)
             except NotImplementedError:
-                args = pytree.tree_map(lambda x: torch.ones_like(x, device=output_device)
+                # TODO: this might not actually work, I didn't test it when
+                # I changed device derivation to work off of the types of the
+                # input devices
+                args = pytree.tree_map(lambda x: torch.ones_like(x, device=x.device)
                                        if isinstance(x, torch.Tensor) else x, args)
-                kwargs = pytree.tree_map(lambda x: torch.ones_like(x, device=output_device)
+                kwargs = pytree.tree_map(lambda x: torch.ones_like(x, device=x.device)
                                          if isinstance(x, torch.Tensor) else x, kwargs)
                 real_out = func(*args, **kwargs)
 
@@ -142,7 +120,7 @@ class PythonTensor(torch.Tensor):
             if e is None:
                 e = torch.empty(())
             if type(e) == torch.Tensor:
-                return PythonTensor(e, proxy, output_device)
+                return PythonTensor(e, proxy)
             else:
                 return e
         if isinstance(real_out, tuple):
