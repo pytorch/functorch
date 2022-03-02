@@ -20,6 +20,15 @@ USE_META = False
 
 
 @contextmanager
+def no_dispatch():
+    guard = torch._C._DisableTorchDispatch()
+    try:
+        yield
+    finally:
+        del guard
+
+
+@contextmanager
 def pythonkey_decompose(decomposition_table):
     global CURRENT_DECOMPOSITION_TABLE
     CURRENT_DECOMPOSITION_TABLE = decomposition_table
@@ -62,28 +71,30 @@ class PythonTensor(torch.Tensor):
 
     @staticmethod
     def __new__(cls, elem, proxy, device=None):
-        # The wrapping tensor (PythonTensor) is just a meta tensor, so it
-        # doesn't hold any memory (meta tensor is generally the preferred type
-        # of tensor you want to make a subclass from)...
+        # This is a hold-over from the (untested) meta codepath.  Need to
+        # figure out what I want to do here.
+        assert device is None or device == elem.device
 
-        r = torch.Tensor._make_wrapper_subclass(
-            cls, elem.size(),
-            strides=elem.stride(), storage_offset=elem.storage_offset(),
-            dtype=elem.dtype, layout=elem.layout, requires_grad=elem.requires_grad,
-            device=(elem.device if device is None else device),
-        )
+        # Wrapping something in PythonTensor implicitly detaches
+        # gradients.  If something required grad, we will collect it as if it
+        # were a leaf.  A consequence of detaching in this way is you
+        # need to maintain a parameter cache when translating tensors
+        # into PythonTensor, so you don't create multiple copies of
+        # a gradient (they are aliased, but they would count as independent
+        # leaves).  An alternate strategy would be to avoid implicitly
+        # detaching and instead "catch" gradients as they exit the
+        # PythonTensor boundary.
+        # assert not elem.requires_grad or not torch.is_grad_enabled()
 
-        # ...the real tensor is held as an element on the tensor.
-        if USE_META:
-            r.elem = elem.to('meta')
-        else:
-            r.elem = elem
+        r = torch.Tensor._make_subclass(cls, elem, elem.requires_grad)
         r.proxy = proxy
         proxy.node.meta['tensor_meta'] = _extract_tensor_metadata(r)
         return r
 
     def __repr__(self):
-        return f"PythonTensor({self.elem})"
+        # This is a bit goofy but whatever.  Should fix up _tensor_str.py to
+        # work on subclasses when it calls tolist
+        return f"PythonTensor({torch.Tensor._make_subclass(torch.Tensor, self)})"
 
     __torch_function__ = _disabled_torch_function_impl
 
@@ -99,9 +110,6 @@ class PythonTensor(torch.Tensor):
         def unwrap_proxy(e):
             return e.proxy if isinstance(e, PythonTensor) else e
 
-        def unwrap_tensor(e):
-            return e.elem if isinstance(e, PythonTensor) else e
-
         input_devices = [i.device for i in pytree.tree_flatten(args)[0] +
                          pytree.tree_flatten(kwargs)[0] if isinstance(i, torch.Tensor)]
 
@@ -115,17 +123,16 @@ class PythonTensor(torch.Tensor):
         # Kind of a hacky way to test if an op is in-place or not
         if func.__name__[-1] == "_" and func.__name__[0] != "_":
             args[0].proxy = proxy_out
-        args = pytree.tree_map(unwrap_tensor, args)
-        kwargs = pytree.tree_map(unwrap_tensor, kwargs)
 
-        try:
-            real_out = func(*args, **kwargs)
-        except NotImplementedError:
-            args = pytree.tree_map(lambda x: torch.ones_like(x, device=output_device)
-                                   if isinstance(x, torch.Tensor) else x, args)
-            kwargs = pytree.tree_map(lambda x: torch.ones_like(x, device=output_device)
-                                     if isinstance(x, torch.Tensor) else x, kwargs)
-            real_out = func(*args, **kwargs)
+        with no_dispatch():
+            try:
+                real_out = func(*args, **kwargs)
+            except NotImplementedError:
+                args = pytree.tree_map(lambda x: torch.ones_like(x, device=output_device)
+                                       if isinstance(x, torch.Tensor) else x, args)
+                kwargs = pytree.tree_map(lambda x: torch.ones_like(x, device=output_device)
+                                         if isinstance(x, torch.Tensor) else x, kwargs)
+                real_out = func(*args, **kwargs)
 
         def wrap_with_proxy(e, proxy):
             # Some ops (like native_batch_norm_backward) return undefined tensors that get
