@@ -270,6 +270,14 @@ def min_cut_rematerialization_partition(joint_module: fx.GraphModule, _joint_inp
 
     saved_values = [name_to_node[node] for node in cut_nodes]
 
+    # Save the gradients which are not dependendent on the tangents. This can
+    # happen when the primary output is not dependent on the inputs. For such
+    # cases, we just compute the gradient in the forward pass.
+    _, bwd_outputs = _extract_fwd_bwd_outputs(joint_module)
+    for bwd_output in bwd_outputs:
+        if bwd_output not in tangent_closure and bwd_output is not None:
+            saved_values.append(name_to_node[bwd_output.name])
+
     return _extract_fwd_bwd_modules(joint_module, saved_values)
 
 
