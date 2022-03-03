@@ -3489,16 +3489,12 @@ class TestVmapOperatorsOpInfo(TestCase):
             lambda t, _: t.bernoulli_(torch.tensor([0.3, 0.4, 0.5, 0.6]), **only_gen_kwarg),
             lambda t, _: t.bernoulli_(**only_gen_kwarg),
         ]
-        supported_ops_no_generator = [
-            lambda t, _: torch.nn.functional.dropout(torch.ones_like(t), training=True),
-            lambda t, _: torch.nn.functional.alpha_dropout(torch.ones_like(t), training=True),
-        ]
 
         B0 = 4
         seed = 1234567
         passed = torch.randn(B0, device=device)
 
-        for op in (supported_ops_no_generator + supported_random_ops) if not use_generator else supported_random_ops:
+        for op in supported_random_ops:
             if randomness == 'error':
                 with self.assertRaisesRegex(RuntimeError, r"called random operation while in randomness error mode"):
                     vmap(op, in_dims=(0, None), randomness=randomness)(passed, [B0])
@@ -3557,6 +3553,8 @@ class TestVmapOperatorsOpInfo(TestCase):
 
         seed = 1234567
         supported_ops = [
+            lambda t: torch.nn.functional.dropout(torch.ones_like(t), training=True),
+            lambda t: torch.nn.functional.alpha_dropout(torch.ones_like(t), training=True),
             lambda t: torch.nn.functional.feature_alpha_dropout(t, training=True),
             lambda t: torch.nn.functional.dropout2d(t, training=True),
             lambda t: torch.nn.functional.dropout3d(t.unsqueeze(-1), training=True),
