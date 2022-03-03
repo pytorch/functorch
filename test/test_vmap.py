@@ -3112,7 +3112,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('resize_as_'),
         xfail('tensor_split'),
         xfail('to_sparse'),
-        xfail('nn.functional.dropout'),
+        xfail('nn.functional.dropout'),  # works, can't check against for loop because of randomness inconsistency
         xfail('view_as_complex'),
         xfail('masked_select'),
 
@@ -3221,7 +3221,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('any'),
         xfail('count_nonzero'),
         xfail('nanmean'),
-        xfail('nn.functional.dropout'),
+        xfail('nn.functional.dropout'),  # works, can't check against for loop because of randomness inconsistency
         xfail('resize_'),
         xfail('view_as_complex'),
         xfail('matrix_exp'),
