@@ -16,7 +16,6 @@ from contextlib import contextmanager
 aten = torch.ops.aten
 
 CURRENT_DECOMPOSITION_TABLE = {}
-USE_META = False
 
 
 @contextmanager
@@ -36,16 +35,6 @@ def pythonkey_decompose(decomposition_table):
         yield CURRENT_DECOMPOSITION_TABLE
     finally:
         CURRENT_DECOMPOSITION_TABLE = {}
-
-
-@contextmanager
-def pythonkey_meta():
-    global USE_META
-    USE_META = True
-    try:
-        yield USE_META
-    finally:
-        USE_META = False
 
 
 class PythonTensor(torch.Tensor):
@@ -100,17 +89,7 @@ class PythonTensor(torch.Tensor):
             args[0].proxy = proxy_out
 
         with no_dispatch():
-            try:
-                real_out = func(*args, **kwargs)
-            except NotImplementedError:
-                # TODO: this might not actually work, I didn't test it when
-                # I changed device derivation to work off of the types of the
-                # input devices
-                args = pytree.tree_map(lambda x: torch.ones_like(x, device=x.device)
-                                       if isinstance(x, torch.Tensor) else x, args)
-                kwargs = pytree.tree_map(lambda x: torch.ones_like(x, device=x.device)
-                                         if isinstance(x, torch.Tensor) else x, kwargs)
-                real_out = func(*args, **kwargs)
+            real_out = func(*args, **kwargs)
 
         def wrap_with_proxy(e, proxy):
             # Some ops (like native_batch_norm_backward) return undefined tensors that get
