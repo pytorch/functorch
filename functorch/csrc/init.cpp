@@ -266,7 +266,7 @@ static bool is_gradtrackingtensor(const Tensor& tensor) {
 }
 
 static bool is_functionaltensor(const Tensor& tensor) {
-  return dynamic_cast<FunctionalTensorWrapper*>(tensor.unsafeGetTensorImpl()) != nullptr;
+  return tensor.unsafeGetTensorImpl()->key_set.has(c10::DispatchKey::Functionalize);
 }
 
 static Tensor get_unwrapped(const Tensor& tensor) {
