@@ -149,6 +149,34 @@ Tensor unary_pointwise_random_batch_rule(const Tensor& tensor, ExtraArgs... extr
   return makeBatched(out, 0, cur_level);
 }
 
+template<typename... ExtraArgs>
+Tensor randint_like_random_batch_rule(const Tensor& self, ExtraArgs... extra_args) {
+  c10::impl::ExcludeDispatchKeyGuard guard(kVmapModeKey);
+  auto maybe_layer = maybeCurrentDynamicLayer();
+  const auto cur_level = maybe_layer->layerId();
+  const auto batch_size = maybe_layer->batchSize();
+  RandomnessType randomness = maybe_layer->randomness();
+  check_randomness(randomness);
+
+  Tensor tensor_value;
+  optional<int64_t> tensor_bdim;
+  std::tie(tensor_value, tensor_bdim) = unwrapTensorAtLevel(self, cur_level);
+  tensor_value = moveBatchDimToFront(tensor_value, tensor_bdim);
+
+  if (randomness == RandomnessType::Same && tensor_bdim) {
+    tensor_value = tensor_value[0];
+  } else if (randomness == RandomnessType::Different && !tensor_bdim) {
+    auto shape = tensor_value.sizes();
+    VmapDimVector shapeVec(1, maybe_layer->batchSize());
+    shapeVec.reserve(shape.size() + 1);
+    shapeVec.insert(shapeVec.end(), shape.begin(), shape.end());
+    tensor_value = tensor_value.unsqueeze(0).expand(shapeVec);
+  }
+
+  auto res = randint_like(tensor_value, std::forward<ExtraArgs>(extra_args)...);
+  return (randomness == RandomnessType::Same) ? res : makeBatched(res, 0, cur_level);
+}
+
 std::tuple<Tensor,Tensor> native_dropout_batching_rule(const Tensor& tensor, double p, c10::optional<bool> train) {
   c10::impl::ExcludeDispatchKeyGuard guard(kVmapModeKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
@@ -396,6 +424,10 @@ TORCH_LIBRARY_IMPL(aten, FuncTorchVmapMode, m) {
   UNARY_POINTWISE_RANDOM(poisson);
   UNARY_POINTWISE_RANDOM(bernoulli);
 
+  #define RANDINT_LIKE_COMMON_ARG_TYPES optional<ScalarType>, optional<Layout>, optional<Device>, optional<bool>, optional<MemoryFormat>
+  m.impl("randint_like", randint_like_random_batch_rule<int64_t, RANDINT_LIKE_COMMON_ARG_TYPES>);
+  m.impl("randint_like.low_dtype", randint_like_random_batch_rule<int64_t, int64_t, RANDINT_LIKE_COMMON_ARG_TYPES>);
+  
   #undef RANDOM_BATCH_RULE
   #undef RANDOM_BATCH_RULE2
   #undef RANDOM_INPLACE_BATCH_RULE
