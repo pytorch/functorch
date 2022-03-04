@@ -2606,7 +2606,7 @@ class TestExamplesCorrectness(TestCase):
 
 
 class TestFunctionalize(TestCase):
-    def _check_functionalize_correctness(self, f: Callable, inpt: torch.Tensor) -> None:
+    def _check_functionalize_correctness(self, f, inpt):
         inpt1 = inpt.clone()
         inpt2 = inpt.clone()
 

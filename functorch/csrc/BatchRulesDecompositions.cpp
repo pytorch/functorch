@@ -59,7 +59,7 @@ void decompose_functional(const c10::OperatorHandle& op, torch::jit::Stack* stac
   auto local_keyset = c10::impl::tls_local_dispatch_key_set();
   local_keyset.excluded_ = local_keyset.excluded_.remove(c10::DispatchKey::Functionalize);
   local_keyset.included_ = local_keyset.included_.add(c10::DispatchKey::Functionalize);
-  ForceLocalDispatchKeySet guard(local_keyset);
+  c10::impl::ForceDispatchKeyGuard guard(local_keyset);
 
   // Step 3: redispatch to native kernel
   // TODO: this is technically kind of sketchy, since we're relying on the fact

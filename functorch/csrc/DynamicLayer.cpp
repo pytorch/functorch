@@ -537,7 +537,7 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
   auto local_keyset = c10::impl::tls_local_dispatch_key_set();
   local_keyset.excluded_ = local_keyset.excluded_ | exclude;
   local_keyset.included_ = local_keyset.included_ | hacky_include;
-  ForceLocalDispatchKeySet guard(local_keyset);
+  c10::impl::ForceDispatchKeyGuard guard(local_keyset);
 
 #ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
   if (c10::show_dispatch_trace_enabled()) {

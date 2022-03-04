@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Callable, Union, Tuple, List
+from typing import Callable, Union, Tuple, List, Any
 import torch
 from functools import partial, wraps
 import contextlib
