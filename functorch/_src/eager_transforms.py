@@ -1201,16 +1201,20 @@ def _maybe_wrap_functional_tensor(maybe_tensor, level):
     _assert_wrapped_functional(maybe_tensor, wrapped)
     return wrapped
 
+
 def _wrap_all_tensors_to_functional(tensor_pytree, level):
     return tree_map(partial(_maybe_wrap_functional_tensor, level=level), tensor_pytree)
+
 
 def _maybe_unwrap_functional_tensor(maybe_tensor):
     if not isinstance(maybe_tensor, torch.Tensor):
         return maybe_tensor
     return _unwrap_functional_tensor(maybe_tensor)
 
+
 def _unwrap_all_tensors_from_functional(tensor_pytree):
     return tree_map(_maybe_unwrap_functional_tensor, tensor_pytree)
+
 
 def functionalize(func: Callable) -> Callable:
     @wraps(func)
@@ -1233,7 +1237,6 @@ def functionalize(func: Callable) -> Callable:
                 if isinstance(a, torch.Tensor):
                     # Call sync_() on the inputs, to ensure that any pending mutations have been applied.
                     torch._sync(a)
-
 
             # And if any mutations were applied to the inputs, we need to propagate them back to the user.
             for unwrapped, wrapped in zip(flattened_unwrapped_args, flattened_wrapped_args):
