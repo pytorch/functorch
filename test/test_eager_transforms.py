@@ -2635,10 +2635,11 @@ class TestFunctionalize(TestCase):
     def test_inplace_view(self, device):
         def f(x: torch.Tensor) -> torch.Tensor:
             tmp = torch.ones(4, device=device)
-            x.transpose_(1, 0)
-            y = x[0]
-            y.add_(tmp)
-            return x
+            y = x + x
+            y2 = y.transpose(1, 0)
+            z = y2[0]
+            z.add_(tmp)
+            return y
         self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
 
     def test_multioutput_inplace_slice_view(self, device):

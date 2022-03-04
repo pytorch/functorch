@@ -32,10 +32,10 @@ static bool has_level(const Tensor& self, int64_t level) {
 }
 
 static bool has_functional_level(const Tensor& self, int64_t level) {
-  const auto* functional = dynamic_cast<FunctionalTensorWrapper*>(self.unsafeGetTensorImpl());
-  if (!functional) {
+  if (!at::functionalization::impl::isFunctionalTensor(self)) {
     return false;
   }
+  const auto* functional = at::functionalization::impl::unsafeGetFunctionalWrapper(self);
   return functional->level() >= level;
 }
 
@@ -70,13 +70,10 @@ void _propagate_functional_input_mutation(const Tensor& unwrapped, const Tensor&
   if (unwrapped.unsafeGetTensorImpl() == wrapped_inner.unsafeGetTensorImpl()) {
   } else {
       TORCH_INTERNAL_ASSERT(unwrapped.nbytes() == wrapped_inner.nbytes());
-      if (unwrapped.sizes() == wrapped_inner.sizes()) {
-          std::cout << "propagating changes to a mutated input!" << std::endl;
-          unwrapped.copy_(wrapped_inner);
-      } else {
-          std::cout << "An inplace-mutation op (like transpose_() was called on an input to the functionalization pass.";
-          std::cout << " Propagating those mutations to the input is currently not supported." << std::endl;
-      }
+      TORCH_INTERNAL_ASSERT(unwrapped.sizes() == wrapped_inner.sizes(),
+          "An inplace-mutation op (like transpose_() was called on an input to the functionalization pass."
+          " Propagating those mutations to the input is currently not supported.");
+      unwrapped.copy_(wrapped_inner);
   }
 }
 
@@ -152,6 +149,9 @@ Tensor _unwrap_functional_tensor(const Tensor& self) {
   // We only ever call that after popping out of a functionalize() call, in which case the current tensors
   // should always be wrapped in a FunctionalTensorWrapper.
   TORCH_INTERNAL_ASSERT(functional != nullptr);
+  // Ensure that the input is up to date by committing any pending updates to the alias.
+  functional->apply_updates();
+  functional->regenerate_from_base();
   return functional->value();
 }
 

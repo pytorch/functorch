@@ -273,8 +273,8 @@ static Tensor unwrapIfDead(const Tensor& tensor) {
   return wrapped->value();
 }
 
-void foreachTensorInplaceWithIdx(std::vector<IValue>& args, int64_t begin, int64_t end,
-    std::function<Tensor(const Tensor&, size_t idx)> func) {
+void foreachTensorInplace(std::vector<IValue>& args, int64_t begin, int64_t end,
+    std::function<Tensor(const Tensor&)> func) {
   TORCH_INTERNAL_ASSERT(begin >= 0);
   TORCH_INTERNAL_ASSERT(end >= 0);
   TORCH_INTERNAL_ASSERT(begin <= end);
@@ -288,7 +288,7 @@ void foreachTensorInplaceWithIdx(std::vector<IValue>& args, int64_t begin, int64
       for (const auto list_idx : c10::irange(0, list.size())) {
         const auto& elt = list.get(list_idx);
         if (elt.isTensor()) {
-          list.set(list_idx, func(elt.toTensor(), idx));
+          list.set(list_idx, func(elt.toTensor()));
           modified = true;
         }
       }
@@ -300,7 +300,7 @@ void foreachTensorInplaceWithIdx(std::vector<IValue>& args, int64_t begin, int64
     if (ivalue.isTensorList()) {
       auto list = ivalue.toTensorList();
       for (const auto list_idx : c10::irange(0, list.size())) {
-        list[list_idx] = func(list[list_idx], idx);
+        list[list_idx] = func(list[list_idx]);
       }
       args[idx] = list;
     }
@@ -309,7 +309,7 @@ void foreachTensorInplaceWithIdx(std::vector<IValue>& args, int64_t begin, int64
       continue;
     }
     Tensor value = ivalue.toTensor();
-    Tensor replacement = func(value, idx);
+    Tensor replacement = func(value);
     args[idx] = std::move(replacement);
     // sanity checks
     if (ivalue.toTensor().defined()) {
@@ -329,11 +329,6 @@ std::ostream& operator<< (std::ostream& os, const std::vector<DynamicLayer>& dls
   }
   os << "]";
   return os;
-}
-
-void foreachTensorInplace(std::vector<IValue>& args, int64_t begin, int64_t end,
-    std::function<Tensor(const Tensor&)> func) {
-    foreachTensorInplaceWithIdx(args, begin, end, [&func](const Tensor& t, size_t) { return func(t); });
 }
 
 void sanityCheckNotFunctional(const c10::OperatorHandle& op, torch::jit::Stack* stack, size_t num_args) {
@@ -476,7 +471,7 @@ static DispatchKeySet keysToExcludeWhenEnteringDynamicLayer(DispatchKey key) {
   exclude = exclude - keysForEnteringDynamicLayer(key);
   return exclude;
 }
-static bool functionalAtCurrentLevel(const Tensor& tensor) {
+static bool isFunctionalTensorAtCurrentLevel(const Tensor& tensor) {
   auto& dynamicLayerStack = dynamicLayerStackAccessor();
   auto layer = dynamicLayerStack.back();
   auto level = layer.layerId();
@@ -518,6 +513,7 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
   foreachTensorInplace(*stack, stack->size() - num_args, stack->size(), maybeTransformGradWrappers);
 
   auto layer = dynamicLayerStack.back();
+  bool called_functionalize_kernel = false;
 
   DispatchKeySet exclude = keysToExcludeWhenEnteringDynamicLayer(layer.key());
   DispatchKeySet hacky_include;
@@ -527,12 +523,14 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
   } else if (layer.key() == DispatchKey::Functionalize) {
     const auto args = torch::jit::last(stack, op.schema().arguments().size());
     bool any_tensor_args = anyTensors(args, [&](const Tensor& tensor) { return true; });
-    bool any_functional_args = anyTensors(args, functionalAtCurrentLevel);
+    bool any_functional_args = anyTensors(args, isFunctionalTensorAtCurrentLevel);
     // Only enable dispatch on Functionalize if either:
     // - there are any functional tensors at the current level
     // - we hit a factory op
     if (!any_functional_args && any_tensor_args) {
       exclude = exclude.add(DispatchKey::Functionalize);
+    } else {
+      called_functionalize_kernel = true;
     }
     hacky_include = hacky_include.add(DispatchKey::Functionalize);
   }
@@ -549,8 +547,7 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
 
   // Re-dispatch
   op.callBoxed(stack);
-  // checking exclude set because we should only do this if we actually hit a functionalization kernel.
-  if (layer.key() == DispatchKey::Functionalize && !exclude.has(DispatchKey::Functionalize)) {
+  if (called_functionalize_kernel) {
     auto ret_size = op.schema().returns().size();
     foreachTensorInplace(*stack, stack->size() - ret_size, stack->size(),
       [&](const Tensor& tensor) {
@@ -558,6 +555,8 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
         auto wrapper = at::functionalization::impl::unsafeGetFunctionalWrapper(tensor);
         // Functorch is responsible for setting the level on the wrapper, since we don't
         // have that info available in core (for now).
+        // We could just "propagate" the level from the input tensors inside of the functionalize kernels,
+        // but unfortunately we can't do that for factory operators.
         wrapper->set_level(layer.layerId());
         return tensor;
       }
@@ -647,6 +646,10 @@ void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* 
     // Step 2
     foreachTensorInplace(*stack, stack->size() - args_size, stack->size(), unwrap);
   } else if (cur_key == DispatchKey::Functionalize) {
+    // For now, we don't support nested functionalization calls.
+    // This check just enforces that - after the functionalize kernel runs
+    // and we hit the BackModeFallback, we'll have unwrapped our FunctionalTensors
+    // so we can check that the unwrapped thing is not another (nested) FunctionalTensor.
     sanityCheckNotFunctional(op, stack, args_size);
   }
 
