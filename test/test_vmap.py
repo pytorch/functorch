@@ -3594,7 +3594,7 @@ class TestVmapOperatorsOpInfo(TestCase):
             vmap_result = vmap(op, randomness=randomness, in_dims=in_dims)(passed, always_batched)
             torch.manual_seed(seed)
             if not batched_input:
-                passed = passed.unsqueeze(0).expand(B0, 3, 3, 3, 3)  # 
+                passed = passed.unsqueeze(0).expand(B0, 3, 3, 3, 3)
             if randomness == 'different':
                 expected = op(passed.flatten(0, 1), always_batched)  # (B0, B, ...) -> (B0 * B, ...)
                 expected = expected.reshape(passed.shape[0], passed.shape[1], *expected.shape[1:])
