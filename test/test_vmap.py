@@ -3310,7 +3310,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         # test = functools.partial(_vmap_test, check_propagates_grad=False)
 
         B, N, C, H, W = 2, 3, 24, 5, 7
-        for op in [torch.ones_like, torch.zeros_like, torch.randn_like, torch.rand_like]:
+        for op in [torch.ones_like, torch.zeros_like]:
             x = torch.randn(B, N, C, H, W)
             # todo(chilli): test these better
             # Not testing correctness, just that they run
@@ -3707,6 +3707,8 @@ class TestVmapOperatorsOpInfo(TestCase):
         supported_ops = [
             lambda t, _: torch.randint_like(t, 20),
             lambda t, _: torch.randint_like(t, 0, 20),
+            lambda t, _: torch.rand_like(t),
+            lambda t, _: torch.randn_like(t),
         ]
         B0 = 4
 
