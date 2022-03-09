@@ -201,18 +201,6 @@ variable_list GenericPythonBackward::apply(variable_list&& grads) {
   return grad_inputs;
 }
 
-thread_local bool come_up_with_a_better_name = true;
-
-struct SwitchGuard {
- public:
-  SwitchGuard() {
-    come_up_with_a_better_name = false;
-  }
-  ~SwitchGuard() {
-    come_up_with_a_better_name = true;
-  }
-};
-
 typedef TensorList (*custom_python_function_t)(TensorList);
 
 using torch::autograd::compute_requires_grad;
@@ -220,7 +208,7 @@ using torch::autograd::collect_next_edges;
 using torch::autograd::deleteNode;
 using torch::autograd::flatten_tensor_args;
 
-void customFunctionBoxed(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
+void customFunctionBoxed(const c10::OperatorHandle& op, torch::jit::Stack* stack, bool get_output_by_running_forward_pass) {
   auto tensors = torch::jit::pop(stack).toTensorList().vec();
   auto tensors_ = unpack(tensors, "tensors", 0);
   auto _any_requires_grad = compute_requires_grad(tensors);
@@ -245,10 +233,11 @@ void customFunctionBoxed(const c10::OperatorHandle& op, torch::jit::Stack* stack
   // - construct the autograd graph
   // - return the result
   // When this is false, we:
-  // - DONT run the forward pass
+  // - DONT run the forward pass (and instead, assume that the output from the forward pass
+  //   was already pushed on the stack)
   // - construct the autograd graph, using the (unwrapped) inputs and outputs from the fwd pass
   // - DONT return the result
-  if (come_up_with_a_better_name) {
+  if (get_output_by_running_forward_pass) {
     auto typed_handle = op.typed<custom_function_t>();
     std::vector<Tensor> _tmp = ([&]() {
       at::AutoDispatchBelowADInplaceOrView guard;
@@ -275,10 +264,16 @@ void customFunctionBoxed(const c10::OperatorHandle& op, torch::jit::Stack* stack
       grad_fn->saved_tensors_.push_back(torch::autograd::SavedVariable(tensor, !is_input));
     }
   }
-  if (come_up_with_a_better_name) {
+  // if we computed the output ourselves, return it.
+  if (get_output_by_running_forward_pass) {
     torch::jit::push(stack, result);
   }
 }
+
+void customFunctionBoxed(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
+  customFunctionBoxed(op, stack, /*get_output_by_running_forward_pass=*/true);
+}
+
 
 void generatedCustomBatchingRule(const c10::OperatorHandle& op, c10::DispatchKeySet ks, torch::jit::Stack* stack) {
   // We basically simulate running the user's op in inference mode WITH the decomposition
@@ -330,11 +325,10 @@ void generatedCustomBatchingRule(const c10::OperatorHandle& op, c10::DispatchKey
   torch::jit::push(stack, unwrapped_outs);
   torch::jit::push(stack, unwrapped_args);
   {
-    // When the guard is set, the autograd boxed fallback knows to:
+    // When get_output_by_running_forward_pass is false, the autograd boxed fallback knows to:
     // (a) add the vjp to the autograd graph
     // (b) NOT run the forward pass
-    SwitchGuard guard;
-    customFunctionBoxed(op, stack);
+    customFunctionBoxed(op, stack, /*get_output_by_running_forward_pass=*/false);
   }
 
   torch::jit::push(stack, forward_result);
