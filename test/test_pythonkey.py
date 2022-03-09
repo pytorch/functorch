@@ -387,7 +387,6 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('matrix_exp'),
         xfail('trapezoid'),
         xfail('trapz'),
-        xfail('trace'),
         skip('nn.functional.binary_cross_entropy_with_logits'),  # seems to fail sometimes?
         xfail('block_diag'),
     })
