@@ -1,4 +1,4 @@
-# An introduction to some of the (prototype) compilation features in Functorch
+# AOT Autograd - Introduction to an experimental compilation feature in Functorch
 
 The primary compilation API we provide is something called AOTAutograd. AOT
 Autograd is an experimental feature that allows ahead of time capture of forward
@@ -67,7 +67,9 @@ def ts_compiler(fx_g: fx.GraphModule, inps):
 aot_function(f, ts_compiler, ts_compiler)(torch.randn(3, requires_grad=True))
 ```
 
+## Documentation
+* AOT Autograd [documentation](https://pytorch.org/functorch/nightly/)
+* Min-cut [recomputation]((https://dev-discuss.pytorch.org/t/min-cut-optimal-recomputation-i-e-activation-checkpointing-with-aotautograd/467) with AOT Autograd.
 
-You can find AOT Autograd documentation at [here](https://pytorch.org/functorch/nightly/).
-
+## Tutorials
 You can use this [tutorial](https://pytorch.org/functorch/nightly/notebooks/aot_autograd_optimizations.html) to play with AOT Autograd.
