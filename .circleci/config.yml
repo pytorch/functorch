@@ -130,3 +130,20 @@ workflows:
             parameters:
               python_version: ["3.7", "3.8", "3.9"]
               cu_version: ["cu102"]
+
+  nightly-run:
+    when:
+      equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
+    jobs:
+      - unittest_linux_cpu:
+          name: unittest_linux_<< matrix.cu_version >>_py<< matrix.python_version >>
+          matrix:
+            parameters:
+              python_version: ["3.7", "3.8", "3.9"]
+              cu_version: ["cpu"]
+      - unittest_linux_gpu:
+          name: unittest_linux_<< matrix.cu_version >>_py<< matrix.python_version >>
+          matrix:
+            parameters:
+              python_version: ["3.7", "3.8", "3.9"]
+              cu_version: ["cu102"]
