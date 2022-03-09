@@ -474,7 +474,6 @@ class TestPartitioning(TestCase):
         assert torch.allclose(ref_a.grad, res_a.grad, atol=1e-3, rtol=1e-3)
         assert torch.allclose(ref_b.grad, res_b.grad, atol=1e-3, rtol=1e-3)
 
-
     def test_meta_tensor_inplace_op(self):
         # Following module results in inplace ops while tracing. The test checks
         # that the meta tensor information is stored for inplace ops.
@@ -485,8 +484,8 @@ class TestPartitioning(TestCase):
                 self.bias = torch.nn.Parameter(torch.randn(3072, requires_grad=True))
 
             def forward(self, add_4):
-                linear_4 = torch.nn.functional.linear(add_4, self.weight, bias = self.bias)
-                gelu = torch.nn.functional.gelu(linear_4, approximate = False);  linear_4 = None
+                linear_4 = torch.nn.functional.linear(add_4, self.weight, bias=self.bias)
+                gelu = torch.nn.functional.gelu(linear_4, approximate=False)
                 return gelu
 
         def check_meta_tensor(fx_g, _):
