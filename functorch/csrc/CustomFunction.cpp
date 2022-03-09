@@ -287,6 +287,10 @@ void generatedCustomBatchingRule(const c10::OperatorHandle& op, c10::DispatchKey
 
   // Step (1) = run the forward using the decomposition
   std::vector<Tensor> _tmp = ([&]() {
+    // NOTE: I don't think this composes with DynamicLayer very well.
+    // I want to fully turn off autograd when I call the custom python operator,
+    // but when vmap() is active, DynamicLayer will overwrite TLS and (potentially) run autograd anyway.
+    // TODO: think more about this.
     at::AutoDispatchBelowADInplaceOrView guard;
     // The tensor arguments should all be batched tensors at this point,
     // so what will happen is we:
@@ -295,12 +299,8 @@ void generatedCustomBatchingRule(const c10::OperatorHandle& op, c10::DispatchKey
     // (b) Enter the user's python kernel, which runs a bunch of "prim" aten ops
     // (c) Those prim ops each enter the dispatcher, and we'll hit each of their
     //     batching rule kernels (because our inputs are *still* BatchedTensors)
-    constexpr DispatchKeySet after_vmap_keyset = DispatchKeySet(
-        DispatchKeySet::FULL_AFTER,
-        c10::DispatchKey::FuncTorchBatched);
-    // See the comment in DynamicLayer.cpp
-    auto final_ks = after_vmap_keyset.remove(kDynamicLayerBackModeKey);
-    return typed_handle.redispatch(ks & final_ks, tensors);
+    // TODO better idiom for this - I just want to go straight to the python impl
+    return typed_handle.redispatch(c10::DispatchKeySet(c10::DispatchKey::CPU), tensors);
   })();
   auto forward_result = std::move(_tmp);
 
