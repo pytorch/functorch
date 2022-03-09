@@ -1926,10 +1926,10 @@ class TestCustomFunction(TestCase):
         def filter_fn(args):
             return args[0]
 
-        my_sin = custom_vjp('my_sin', filter_fn, my_sin_impl, my_sin_vjp)
+        my_sin = custom_vjp('my_sin2', filter_fn, my_sin_impl, my_sin_vjp)
 
         x = torch.tensor([[1., 2.], [3., 4.]], requires_grad=True, device=device)
-        x_copy = x.clone()
+        x_copy = torch.tensor([[1., 2.], [3., 4.]], requires_grad=True, device=device)
 
         vmap_my_sin = vmap(my_sin)
         y = vmap_my_sin(x)
@@ -1943,7 +1943,7 @@ class TestCustomFunction(TestCase):
         y_copy = my_sin(x_copy)
         y_copy.sum().backward()
         assert torch.allclose(y_copy, y)
-        assert torch.allclose(x_copy.grad, x)
+        assert torch.allclose(x_copy.grad, x.grad)
 
 
 class TestComposability(TestCase):
