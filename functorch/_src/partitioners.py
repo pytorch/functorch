@@ -127,6 +127,9 @@ def default_partition(
     of the generated forward graph. The remaining operators are then placed in
     the backward graph.
 
+    .. warning::
+        This API is experimental and likely to change.
+
     Args:
         joint_module(fx.GraphModule): The joint forward and backward graph. This
             is the result of AOT Autograd tracing.
@@ -187,6 +190,9 @@ def min_cut_rematerialization_partition(
     To create the fwd and bwd graph, we copy the joint graph, manually set the
     outputs to just original forward or backward outputs. And then we run the
     resulting graphs through dead code elimintation.
+
+    .. warning::
+        This API is experimental and likely to change.
 
     Args:
         joint_module(fx.GraphModule): The joint forward and backward graph. This

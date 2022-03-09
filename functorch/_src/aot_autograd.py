@@ -293,6 +293,9 @@ def aot_function(
     ``int`` or ``bool``. A change in the actual value of static arg causes
     recompilation.
 
+    .. warning::
+        This API is experimental and likely to change.
+
     Args:
         fn (Callable): A Python function that takes one ore more arguments. Must
             return one or more Tensors.
@@ -488,6 +491,9 @@ def aot_module(mod: nn.Module, *args, **kwargs) -> nn.Module:
 
     :func:`aot_module` lifts the parameters and buffers of ``nn.Module`` as inputs
     to a new callable which is then compiled through :func:`aot_function`.
+
+    .. warning::
+        This API is experimental and likely to change.
 
     Args:
         mod (Callable): A ``nn.Module`` module.

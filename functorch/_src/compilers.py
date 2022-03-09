@@ -13,6 +13,9 @@ def ts_compile(fx_g: fx.GraphModule, _) -> Callable:
     """
     Compiles the :attr:`fx_g` with Torchscript compiler.
 
+    .. warning::
+        This API is experimental and likely to change.
+
     Args:
         fx_g(fx.GraphModule): The input Fx graph module to be compiled.
 
@@ -225,6 +228,10 @@ def nop(fx_g: fx.GraphModule, _) -> Callable:
     """
     Returns the :attr:`fx_g` Fx graph module as it is. This is a no-op compiler
     and can be used to check accuracy.
+
+    .. warning::
+        This API is experimental and likely to change.
+
     """
     return fx_g
 
@@ -274,6 +281,9 @@ def memory_efficient_fusion(
     :func:`min_cut_rematerialization_partition` partitioner to perform efficient
     recomputation. It uses NVFuser to compile the generated forward and backward
     graphs.
+
+    .. warning::
+        This API is experimental and likely to change.
 
     Args:
         fn (Union[Callable, nn.Module]): A Python function or a ``nn.Module``
