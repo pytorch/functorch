@@ -435,7 +435,18 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
   }
 #endif
   if (dynamicLayerStack.size() == 0) {
-    sanityCheckStack(op, stack);
+    // total hack: for now, the logic I added to generate the vmap rule
+    // doesn't play well with DynamicLayer (only one layer of vmap works right now).
+    // Why? In the generated batching rule, I effectively want to treat it as a "composite kernel",
+    // and have it run the to the python-defined forward function. But:
+    // (1) I want to go there through the dispatcher so other functionalities can run (e.g. AMP).
+    //     That means I need to re-enter the dispatcher, calling the *same* operator.
+    // (2) I DONT want to unwrap the batched tensors, since when we decompose I want to run the batching rule
+    //     on the base ops
+    // (3) I can't use dispatcher::call(), since given the above two constraints I'll infinite loop
+    //     (I can't add the batched key to the TLS exclude set)
+    // (4) I have to ::redispatch() then. But that plays poorly with dynamicLayer.
+    //sanityCheckStack(op, stack);
     c10::impl::ExcludeDispatchKeyGuard guard(all_dynlayer_keyset);
     op.callBoxed(stack);
     return;

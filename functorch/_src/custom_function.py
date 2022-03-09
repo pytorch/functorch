@@ -8,6 +8,8 @@ def custom_vjp(name, filter_fn, fwd_fn, bwd_fn):
     m.def_(f"{name}(Tensor[] args) -> Tensor[]")
     m.impl(f"{name}", "CompositeImplicitAutograd", fwd_fn)
 
+    m.gen_vmap_binding(f"{name}")
+
     m.def_(f"{name}_vjp(Tensor[] args) -> Tensor[]")
     m.impl(f"{name}_vjp", "CompositeImplicitAutograd", bwd_fn)
 

@@ -1905,6 +1905,46 @@ class TestCustomFunction(TestCase):
 
         assert torch.allclose(x.grad, 3 * x.cos())
 
+    @onlyCPU
+    def test_generated_batching_rule_for_custom_op(self, device):
+        called_impl = False
+        called_vjp = False
+
+        def my_sin_impl(args):
+            x, = args
+            nonlocal called_impl
+            called_impl = True
+            called_impl = True
+            return x.sin(), x
+
+        def my_sin_vjp(args):
+            grad_y, result, x = args
+            nonlocal called_vjp
+            called_vjp = True
+            return (grad_y * 3 * x.cos(),)
+
+        def filter_fn(args):
+            return args[0]
+
+        my_sin = custom_vjp('my_sin', filter_fn, my_sin_impl, my_sin_vjp)
+
+        x = torch.tensor([[1., 2.], [3., 4.]], requires_grad=True, device=device)
+        x_copy = x.clone()
+
+        vmap_my_sin = vmap(my_sin)
+        y = vmap_my_sin(x)
+        self.assertTrue(called_impl)
+
+        y.sum().backward()
+        self.assertTrue(called_vjp)
+
+        assert torch.allclose(x.grad, 3 * x.cos())
+
+        y_copy = my_sin(x_copy)
+        y_copy.sum().backward()
+        assert torch.allclose(y_copy, y)
+        assert torch.allclose(x_copy.grad, x)
+
 
 class TestComposability(TestCase):
     def test_grad_grad(self, device):
