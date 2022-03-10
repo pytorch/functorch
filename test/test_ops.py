@@ -1127,13 +1127,13 @@ class TestDecompositionOpInfo(TestCase):
                 # pytorch_out_64}. In other words, we compare how far the
                 # decomposition and pytorch are from the "ground truth" (i.e.
                 # fp64). If the decomposition results in more error, we error
-                if func in decomposition_table and func not in [torch.ops.aten.detach]:
+                if func in decomposition_table and func not in [torch.ops.aten.detach.default]:
                     # Some functions take a dtype as argument, so we need to
                     # manually change that dtype in order to run it with a
                     # higher precision
                     dtype_arg_table = set([
-                        aten._softmax_backward_data,
-                        aten._log_softmax_backward_data,
+                        aten._softmax_backward_data.default,
+                        aten._log_softmax_backward_data.default,
                     ])
                     arg_string = f"args = {tree_map(unwrap_tensor, args)}\n"
                     arg_string += f"kwargs = {tree_map(unwrap_tensor, kwargs)}"
