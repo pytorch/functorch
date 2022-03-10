@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Overview: module code &mdash; functorch 0.1.0 documentation</title>
+  <title>functorch.compile.memory_efficient_fusion &mdash; functorch 0.1.0 documentation</title>
   
 
   
@@ -34,6 +34,8 @@
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="functorch.compile.default_partition" href="functorch.compile.default_partition.html" />
+    <link rel="prev" title="functorch.compile.aot_module" href="functorch.compile.aot_module.html" />
   <!-- Google Analytics -->
   
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-117752657-2"></script>
@@ -159,9 +161,9 @@
 <li class="toctree-l1"><a class="reference internal" href="../ux_limitations.html">UX Limitations</a></li>
 </ul>
 <p class="caption"><span class="caption-text">API Reference and Notes</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../functorch.html">functorch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../aot_autograd.html">functorch.compile (experimental)</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -210,10 +212,16 @@
       </li>
 
         
-      <li>Overview: module code</li>
+          <li><a href="../aot_autograd.html">functorch.compile (experimental)</a> &gt;</li>
+        
+      <li>functorch.compile.memory_efficient_fusion</li>
     
     
       <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/generated/functorch.compile.memory_efficient_fusion.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
         
       </li>
     
@@ -238,19 +246,54 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <h1>All modules for which code is available</h1>
-<ul><li><a href="functorch/_src/aot_autograd.html">functorch._src.aot_autograd</a></li>
-<li><a href="functorch/_src/compilers.html">functorch._src.compilers</a></li>
-<li><a href="functorch/_src/eager_transforms.html">functorch._src.eager_transforms</a></li>
-<li><a href="functorch/_src/make_functional.html">functorch._src.make_functional</a></li>
-<li><a href="functorch/_src/partitioners.html">functorch._src.partitioners</a></li>
-<li><a href="functorch/_src/vmap.html">functorch._src.vmap</a></li>
+  <div class="section" id="functorch-compile-memory-efficient-fusion">
+<h1>functorch.compile.memory_efficient_fusion<a class="headerlink" href="#functorch-compile-memory-efficient-fusion" title="Permalink to this headline">¶</a></h1>
+<dl class="py function">
+<dt id="functorch.compile.memory_efficient_fusion">
+<code class="sig-prename descclassname"><span class="pre">functorch.compile.</span></code><code class="sig-name descname"><span class="pre">memory_efficient_fusion</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">static_argnums</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/functorch/_src/compilers.html#memory_efficient_fusion"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.compile.memory_efficient_fusion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper function over <a class="reference internal" href="functorch.compile.aot_function.html#functorch.compile.aot_function" title="functorch.compile.aot_function"><code class="xref py py-func docutils literal notranslate"><span class="pre">aot_function()</span></code></a> and <a class="reference internal" href="functorch.compile.aot_module.html#functorch.compile.aot_module" title="functorch.compile.aot_module"><code class="xref py py-func docutils literal notranslate"><span class="pre">aot_module()</span></code></a> to perform
+memory efficient fusion. It uses the
+<a class="reference internal" href="functorch.compile.min_cut_rematerialization_partition.html#functorch.compile.min_cut_rematerialization_partition" title="functorch.compile.min_cut_rematerialization_partition"><code class="xref py py-func docutils literal notranslate"><span class="pre">min_cut_rematerialization_partition()</span></code></a> partitioner to perform efficient
+recomputation. It uses NVFuser to compile the generated forward and backward
+graphs.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This API is experimental and likely to change.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fn</strong> (<em>Union</em><em>[</em><em>Callable</em><em>, </em><em>nn.Module</em><em>]</em>) – A Python function or a <code class="docutils literal notranslate"><span class="pre">nn.Module</span></code>
+that takes one ore more arguments. Must return one or more Tensors.</p></li>
+<li><p><strong>static_argnums</strong> (<em>Optional</em><em>[</em><em>Tuple</em><em>[</em><em>Int</em><em>]</em><em>]</em>) – An option tuple of ints to mark
+the arguments of the function as static.</p></li>
 </ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns a <code class="docutils literal notranslate"><span class="pre">Callable</span></code>  or <code class="docutils literal notranslate"><span class="pre">nn.Module</span></code> that retains the eager behavior
+of the original <code class="xref py py-attr docutils literal notranslate"><span class="pre">fn</span></code>, but whose forward and backward graphs have
+gone through recomputation optimizations, and the graphs have been
+compiled with nvfuser.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+
 
              </article>
              
             </div>
             <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="functorch.compile.default_partition.html" class="btn btn-neutral float-right" title="functorch.compile.default_partition" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+      
+      
+        <a href="functorch.compile.aot_module.html" class="btn btn-neutral" title="functorch.compile.aot_module" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
+    </div>
   
 
   
@@ -279,7 +322,10 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+              <ul>
+<li><a class="reference internal" href="#">functorch.compile.memory_efficient_fusion</a></li>
+</ul>
+
             </div>
           </div>
         </div>
@@ -348,4 +394,4 @@
 </body>
 </html>
 
-<link rel="canonical" href="_modules/index.html" />
+<link rel="canonical" href="generated/functorch.compile.memory_efficient_fusion.html" />

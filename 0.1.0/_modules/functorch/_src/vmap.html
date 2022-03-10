@@ -160,7 +160,8 @@
 </ul>
 <p class="caption"><span class="caption-text">API Reference and Notes</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../functorch.html">functorch API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../functorch.html">functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -492,7 +493,9 @@
 <span class="sd">            vmap should be the same or different across batches. If &#39;different&#39;,</span>
 <span class="sd">            the randomness for each batch will be different. If &#39;same&#39;, the</span>
 <span class="sd">            randomness will be the same across batches. If &#39;error&#39;, any calls to</span>
-<span class="sd">            random functions will error. Default: &#39;error&#39;.</span>
+<span class="sd">            random functions will error. Default: &#39;error&#39;. WARNING: this flag</span>
+<span class="sd">            only applies to random PyTorch operations and does not apply to</span>
+<span class="sd">            Python&#39;s random module or numpy randomness.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Returns a new &quot;batched&quot; function. It takes the same inputs as</span>

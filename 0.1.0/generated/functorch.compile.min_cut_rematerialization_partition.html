@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Overview: module code &mdash; functorch 0.1.0 documentation</title>
+  <title>functorch.compile.min_cut_rematerialization_partition &mdash; functorch 0.1.0 documentation</title>
   
 
   
@@ -34,6 +34,8 @@
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="functorch.compile.nop" href="functorch.compile.nop.html" />
+    <link rel="prev" title="functorch.compile.default_partition" href="functorch.compile.default_partition.html" />
   <!-- Google Analytics -->
   
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-117752657-2"></script>
@@ -159,9 +161,9 @@
 <li class="toctree-l1"><a class="reference internal" href="../ux_limitations.html">UX Limitations</a></li>
 </ul>
 <p class="caption"><span class="caption-text">API Reference and Notes</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../functorch.html">functorch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../aot_autograd.html">functorch.compile (experimental)</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -210,10 +212,16 @@
       </li>
 
         
-      <li>Overview: module code</li>
+          <li><a href="../aot_autograd.html">functorch.compile (experimental)</a> &gt;</li>
+        
+      <li>functorch.compile.min_cut_rematerialization_partition</li>
     
     
       <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/generated/functorch.compile.min_cut_rematerialization_partition.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
         
       </li>
     
@@ -238,19 +246,47 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <h1>All modules for which code is available</h1>
-<ul><li><a href="functorch/_src/aot_autograd.html">functorch._src.aot_autograd</a></li>
-<li><a href="functorch/_src/compilers.html">functorch._src.compilers</a></li>
-<li><a href="functorch/_src/eager_transforms.html">functorch._src.eager_transforms</a></li>
-<li><a href="functorch/_src/make_functional.html">functorch._src.make_functional</a></li>
-<li><a href="functorch/_src/partitioners.html">functorch._src.partitioners</a></li>
-<li><a href="functorch/_src/vmap.html">functorch._src.vmap</a></li>
-</ul>
+  <div class="section" id="functorch-compile-min-cut-rematerialization-partition">
+<h1>functorch.compile.min_cut_rematerialization_partition<a class="headerlink" href="#functorch-compile-min-cut-rematerialization-partition" title="Permalink to this headline">¶</a></h1>
+<dl class="py function">
+<dt id="functorch.compile.min_cut_rematerialization_partition">
+<code class="sig-prename descclassname"><span class="pre">functorch.compile.</span></code><code class="sig-name descname"><span class="pre">min_cut_rematerialization_partition</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">joint_module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_joint_inputs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/functorch/_src/partitioners.html#min_cut_rematerialization_partition"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.compile.min_cut_rematerialization_partition" title="Permalink to this definition">¶</a></dt>
+<dd><p>Partitions the joint graph such that the backward recomputes the forward.
+Recomputing helps in trading off memory bandwidth with computation.</p>
+<p>To create the fwd and bwd graph, we copy the joint graph, manually set the
+outputs to just original forward or backward outputs. And then we run the
+resulting graphs through dead code elimintation.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This API is experimental and likely to change.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>joint_module</strong> (<em>fx.GraphModule</em>) – The joint forward and backward graph. This
+is the result of AOT Autograd tracing.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns the generated forward and backward Fx graph modules.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+
 
              </article>
              
             </div>
             <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="functorch.compile.nop.html" class="btn btn-neutral float-right" title="functorch.compile.nop" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+      
+      
+        <a href="functorch.compile.default_partition.html" class="btn btn-neutral" title="functorch.compile.default_partition" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
+    </div>
   
 
   
@@ -279,7 +315,10 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+              <ul>
+<li><a class="reference internal" href="#">functorch.compile.min_cut_rematerialization_partition</a></li>
+</ul>
+
             </div>
           </div>
         </div>
@@ -348,4 +387,4 @@
 </body>
 </html>
 
-<link rel="canonical" href="_modules/index.html" />
+<link rel="canonical" href="generated/functorch.compile.min_cut_rematerialization_partition.html" />

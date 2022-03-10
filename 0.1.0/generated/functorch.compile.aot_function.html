@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>functorch.make_functional_with_buffers &mdash; functorch 0.1.0 documentation</title>
+  <title>functorch.compile.aot_function &mdash; functorch 0.1.0 documentation</title>
   
 
   
@@ -34,8 +34,8 @@
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="functorch.combine_state_for_ensemble" href="functorch.combine_state_for_ensemble.html" />
-    <link rel="prev" title="functorch.make_functional" href="functorch.make_functional.html" />
+    <link rel="next" title="functorch.compile.aot_module" href="functorch.compile.aot_module.html" />
+    <link rel="prev" title="functorch.compile (experimental)" href="../aot_autograd.html" />
   <!-- Google Analytics -->
   
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-117752657-2"></script>
@@ -162,8 +162,8 @@
 </ul>
 <p class="caption"><span class="caption-text">API Reference and Notes</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="../functorch.html">functorch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../aot_autograd.html">functorch.compile (experimental)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../functorch.html">functorch</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -212,15 +212,15 @@
       </li>
 
         
-          <li><a href="../functorch.html">functorch</a> &gt;</li>
+          <li><a href="../aot_autograd.html">functorch.compile (experimental)</a> &gt;</li>
         
-      <li>functorch.make_functional_with_buffers</li>
+      <li>functorch.compile.aot_function</li>
     
     
       <li class="pytorch-breadcrumbs-aside">
         
             
-            <a href="../_sources/generated/functorch.make_functional_with_buffers.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+            <a href="../_sources/generated/functorch.compile.aot_function.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
           
         
       </li>
@@ -246,41 +246,79 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="functorch-make-functional-with-buffers">
-<h1>functorch.make_functional_with_buffers<a class="headerlink" href="#functorch-make-functional-with-buffers" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="functorch-compile-aot-function">
+<h1>functorch.compile.aot_function<a class="headerlink" href="#functorch-compile-aot-function" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
-<dt id="functorch.make_functional_with_buffers">
-<code class="sig-prename descclassname"><span class="pre">functorch.</span></code><code class="sig-name descname"><span class="pre">make_functional_with_buffers</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">func</span><span class="p"><span class="pre">,</span> </span><span class="pre">params</span><span class="p"><span class="pre">,</span> </span><span class="pre">buffers</span><a class="reference internal" href="../_modules/functorch/_src/make_functional.html#make_functional_with_buffers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.make_functional_with_buffers" title="Permalink to this definition">¶</a></dt>
-<dd><p>Given a <code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code>, make_functional_with_buffers extracts the
-state (params and buffers) and returns a functional version of the model
-<code class="docutils literal notranslate"><span class="pre">func</span></code> that can be invoked like a function.</p>
-<p><code class="docutils literal notranslate"><span class="pre">func</span></code> can be invoked as follows:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
-<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
-<span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">make_functional_with_buffers</span>
-
-<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-<span class="n">model</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-<span class="n">func</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">buffers</span> <span class="o">=</span> <span class="n">make_functional_with_buffers</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
-<span class="n">func</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">buffers</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+<dt id="functorch.compile.aot_function">
+<code class="sig-prename descclassname"><span class="pre">functorch.compile.</span></code><code class="sig-name descname"><span class="pre">aot_function</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="pre">fn</span></em>, <em class="sig-param"><span class="pre">fw_compiler</span></em>, <em class="sig-param"><span class="pre">bw_compiler=None</span></em>, <em class="sig-param"><span class="pre">partition_fn=&lt;function</span> <span class="pre">default_partition&gt;</span></em>, <em class="sig-param"><span class="pre">decompositions={}</span></em>, <em class="sig-param"><span class="pre">hasher_type='StaticShapeHasher'</span></em>, <em class="sig-param"><span class="pre">static_argnums=None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/functorch/_src/aot_autograd.html#aot_function"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.compile.aot_function" title="Permalink to this definition">¶</a></dt>
+<dd><p>Traces the forward and backward graph of <code class="xref py py-attr docutils literal notranslate"><span class="pre">fn</span></code> using torch dispatch
+mechanism, and then compiles the generated forward and backward graphs
+through <code class="xref py py-attr docutils literal notranslate"><span class="pre">fw_compiler</span></code> and <code class="xref py py-attr docutils literal notranslate"><span class="pre">bw_compiler</span></code>.</p>
+<p><a class="reference internal" href="#functorch.compile.aot_function" title="functorch.compile.aot_function"><code class="xref py py-func docutils literal notranslate"><span class="pre">aot_function()</span></code></a> traces the forward and backward graph ahead of time,
+and generates a joint forward and backward graph.  <code class="xref py py-attr docutils literal notranslate"><span class="pre">partition_fn</span></code> is
+then used to separate out forward and backward graphs. The partitioner
+function can be used to perform optimizations such as recomputation. One can
+set <cite>decompositions</cite> dictionary to decompose the operators into a sequence
+of core or simpler operators supported by the backend compilers.</p>
+<p><a class="reference internal" href="#functorch.compile.aot_function" title="functorch.compile.aot_function"><code class="xref py py-func docutils literal notranslate"><span class="pre">aot_function()</span></code></a> uses a compilation cache, based on input tensor
+properties, to detect when there is a need of recompilation. By default, its
+behavior is static, i.e., it recompiles if shape of any input tensor
+changes.</p>
+<p><code class="xref py py-attr docutils literal notranslate"><span class="pre">static_argnums</span></code> allows user to mark the arguments of the original
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">fn</span></code> as static. This is useful when an argument is a non-tensor, e.g.,
+<code class="docutils literal notranslate"><span class="pre">int</span></code> or <code class="docutils literal notranslate"><span class="pre">bool</span></code>. A change in the actual value of static arg causes
+recompilation.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This API is experimental and likely to change.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fn</strong> (<em>Callable</em>) – A Python function that takes one ore more arguments. Must
+return one or more Tensors.</p></li>
+<li><p><strong>fw_compiler</strong> (<em>Callable</em>) – A Python function that accepts an Fx graph with
+Aten ops and input args, and returns a Callable that semantically is
+equivalent to the input Fx graph.</p></li>
+<li><p><strong>bw_compiler</strong> (<em>Optional</em><em>[</em><em>Callable</em><em>]</em>) – A Python function that accepts an
+Fx graph with Aten ops and input args, and returns a Callable that
+semantically is equivalent to the input Fx graph.  Default: None
+(when None, it defaults to the <code class="xref py py-attr docutils literal notranslate"><span class="pre">fw_compiler</span></code>)</p></li>
+<li><p><strong>partition_fn</strong> (<em>Callable</em>) – A Python function that takes a joint forward
+and backward graph, and partitions it into separate forward and
+backward graphs.</p></li>
+<li><p><strong>decompositions</strong> (<em>Dict</em>) – A dictionary to define the decomposition of
+larger Aten ops into simpler or core Aten ops.</p></li>
+<li><p><strong>static_argnums</strong> (<em>Optional</em><em>[</em><em>Tuple</em><em>[</em><em>Int</em><em>]</em><em>]</em>) – An option tuple of ints to mark
+the arguments of the function as static.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns a <code class="docutils literal notranslate"><span class="pre">Callable</span></code> that retains the eager behavior of the original
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">fn</span></code>, but with forward and backward graph compiled via
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">fw_compile</span></code> and <code class="xref py py-attr docutils literal notranslate"><span class="pre">bw_compile</span></code>.</p>
+</dd>
+</dl>
+<p>A simple example usage of <a class="reference internal" href="#functorch.compile.aot_function" title="functorch.compile.aot_function"><code class="xref py py-func docutils literal notranslate"><span class="pre">aot_function()</span></code></a> is as follows. This example
+will print the forward and backward graphs of the function <code class="docutils literal notranslate"><span class="pre">fn</span></code></p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">fn</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span> <span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">sin</span><span class="p">()</span><span class="o">.</span><span class="n">cos</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">print_compile_fn</span><span class="p">(</span><span class="n">fx_module</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="nb">print</span><span class="p">(</span><span class="n">fx_module</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">return</span> <span class="n">fx_module</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">aot_fn</span> <span class="o">=</span> <span class="n">aot_function</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">print_compile_fn</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">aot_fn</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>And here is an example of applying the grad transform over the parameters
-of a model:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
-<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
-<span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">make_functional_with_buffers</span><span class="p">,</span> <span class="n">grad</span>
-
-<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-<span class="n">t</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-<span class="n">model</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-<span class="n">func</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">buffers</span> <span class="o">=</span> <span class="n">make_functional_with_buffers</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
-
-<span class="k">def</span> <span class="nf">compute_loss</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">buffers</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
-    <span class="n">y</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">buffers</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">mse_loss</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
-
-<span class="n">grad_weights</span> <span class="o">=</span> <span class="n">grad</span><span class="p">(</span><span class="n">compute_loss</span><span class="p">)(</span><span class="n">params</span><span class="p">,</span> <span class="n">buffers</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+<p>The static argnums are used to mark the non-tensor arguments as static. An
+example is as follows where the dropout probability is as argument to the
+original function.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">fn</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">bias</span><span class="p">,</span> <span class="n">residual</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">a</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">bias</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">b</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">dropout</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">c</span> <span class="o">=</span> <span class="n">b</span> <span class="o">+</span> <span class="n">residual</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">return</span> <span class="n">c</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">aot_fn</span> <span class="o">=</span> <span class="n">aot_function</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">print_compile_fn</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,))</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -295,10 +333,10 @@ of a model:</p>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="functorch.combine_state_for_ensemble.html" class="btn btn-neutral float-right" title="functorch.combine_state_for_ensemble" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="functorch.compile.aot_module.html" class="btn btn-neutral float-right" title="functorch.compile.aot_module" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
-        <a href="functorch.make_functional.html" class="btn btn-neutral" title="functorch.make_functional" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        <a href="../aot_autograd.html" class="btn btn-neutral" title="functorch.compile (experimental)" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
       
     </div>
   
@@ -330,7 +368,7 @@ of a model:</p>
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
-<li><a class="reference internal" href="#">functorch.make_functional_with_buffers</a></li>
+<li><a class="reference internal" href="#">functorch.compile.aot_function</a></li>
 </ul>
 
             </div>
@@ -401,4 +439,4 @@ of a model:</p>
 </body>
 </html>
 
-<link rel="canonical" href="generated/functorch.make_functional_with_buffers.html" />
+<link rel="canonical" href="generated/functorch.compile.aot_function.html" />
