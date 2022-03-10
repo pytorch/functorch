@@ -4,12 +4,13 @@ Install functorch
 pip
 ---
 
-(Coming soon)
+Coming soon! Please check back on 3/11/2022. We'll release separately (a day) after PyTorch 1.11.
 
 Colab
 -----
 
-(Coming soon)
+Coming soon! Please check back on 3/11/2022. We'll release separately (a day) after PyTorch 1.11.
+
 
 Building from source
 --------------------
