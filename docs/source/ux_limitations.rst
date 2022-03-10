@@ -182,6 +182,9 @@ We're investigating adding equivalents of those to functorch
 
 Randomness
 ----------
+Note that like with JAX's PRNG system, our system only determine the randomness behavior of PyTorch
+operators
+
 Our randomness differs from JAX because we aren't using a stateless PRNG, in part because PyTorch doesn't
 have full support for a stateless PRNG. Instead, we've introduced a flag system to allow for the most
 common forms of randmoness that we see. If your use case does not fit these forms of randomness, please
