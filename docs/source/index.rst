@@ -11,7 +11,7 @@ It aims to provide composable vmap and grad transforms that work with PyTorch mo
 and PyTorch autograd with good eager-mode performance.
 
 .. note::
-   This library is currently in [beta](https://pytorch.org/blog/pytorch-feature-classification-changes/#beta).
+   This library is currently in `beta <https://pytorch.org/blog/pytorch-feature-classification-changes/#beta>`_.
    What this means is that the features generally work (unless otherwise documented)
    and we (the PyTorch team) are committed to bringing this library forward. However, the APIs
    may change under user feedback and we don't have full coverage over PyTorch operations.
