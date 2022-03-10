@@ -61,18 +61,18 @@ Follow the instructions [in this Colab notebook](https://colab.research.google.c
 
 First, set up an environment. We will be installing a nightly PyTorch binary
 as well as functorch. If you're using conda, create a conda environment:
-```
+```bash
 conda create --name functorch
 conda activate functorch
 ```
 If you wish to use `venv` instead:
-```
+```bash
 python -m venv functorch-env
 source functorch-env/bin/activate
 ```
 
 Next, install one of the following following PyTorch nightly binaries.
-```
+```bash
 # For CUDA 10.2
 pip install --pre torch -f https://download.pytorch.org/whl/nightly/cu102/torch_nightly.html --upgrade
 # For CUDA 11.1
@@ -84,7 +84,7 @@ If you already have a nightly of PyTorch installed and wanted to upgrade it
 (recommended!), append `--upgrade` to one of those commands.
 
 Install functorch:
-```
+```bash
 pip install ninja  # Makes the build go faster
 pip install --user "git+https://github.com/pytorch/functorch.git"
 ```
@@ -107,20 +107,20 @@ assert torch.allclose(y, x.sin())
 - Run `python setup.py install`. You can use `DEBUG=1` to compile in debug mode.
 
 Then, try to run some tests to make sure all is OK:
-```
+```bash
 pytest test/test_vmap.py -v
 pytest test/test_eager_transforms.py -v
 ```
 
 To do devel install:
 
-```
+```bash
 pip install -e .
 ```
 
 To install with optional dependencies, e.g. for AOTAutograd:
 
-```
+```bash
 pip install -e .[aot]
 ```
 
@@ -142,7 +142,7 @@ Follow the instructions [here](https://colab.research.google.com/drive/1GNfb01W_
 Prerequisite: [Install PyTorch 1.10](https://pytorch.org/get-started/locally/)
 
 Next, run the following.
-```
+```bash
 pip install ninja  # Makes the build go faster
 pip install --user "git+https://github.com/pytorch/functorch.git@release/torch_1.10_preview"
 ```
@@ -390,7 +390,7 @@ Functorch has a BSD-style license, as found in the [LICENSE](LICENSE) file.
 
 If you use functorch in your publication, please cite it by using the following BibTeX entry.
 
-```
+```bibtex
 @Misc{functorch2021,
   author =       {Horace He, Richard Zou},
   title =        {functorch: JAX-like composable function transforms for PyTorch},
