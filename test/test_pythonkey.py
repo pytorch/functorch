@@ -485,7 +485,7 @@ class TestPartitioning(TestCase):
 
             def forward(self, add_4):
                 linear_4 = torch.nn.functional.linear(add_4, self.weight, bias=self.bias)
-                gelu = torch.nn.functional.gelu(linear_4, approximate=False)
+                gelu = torch.nn.functional.gelu(linear_4)
                 return gelu
 
         def check_meta_tensor(fx_g, _):
