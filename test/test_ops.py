@@ -1051,7 +1051,7 @@ class TestDecompositionOpInfo(TestCase):
             # Before adding an entry to this table, make sure your decomposition is right :)
             tol_table = {
                 # Due to strange epsilon behaviors, see https://github.com/pytorch/pytorch/issues/73161
-                (torch.float32, aten.native_layer_norm): (1e-3, 1e-3),
+                (torch.float32, aten.native_layer_norm.default): (1e-3, 1e-3),
             }
             if (b.dtype, op) in tol_table:
                 rtol, atol = tol_table[(b.dtype, op)]
