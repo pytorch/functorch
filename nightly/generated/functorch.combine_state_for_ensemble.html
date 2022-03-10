@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>functorch.combine_state_for_ensemble &mdash; functorch preview documentation</title>
+  <title>functorch.combine_state_for_ensemble &mdash; functorch nightly documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Jacobians, hessians, and more: composing functorch transforms" href="../notebooks/jacobians_hessians.html" />
+    <link rel="next" title="Patching Batch Norm" href="../batch_norm.html" />
     <link rel="prev" title="functorch.make_functional_with_buffers" href="functorch.make_functional_with_buffers.html" />
   <!-- Google Analytics -->
   
@@ -87,7 +87,7 @@
         <ul>
 
           <li>
-            <a href="tutorials.html">Tutorials</a>
+            <a href="https://pytorch.org/functorch">Tutorials</a>
           </li>
 
           <li>
@@ -126,7 +126,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>main (0.2.0a0+582c88d) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.2.0a0+6161d6d) &#x25BC</a>
                 </div>
               
             
@@ -154,18 +154,24 @@
               
             
             
-              <p class="caption"><span class="caption-text">Content</span></p>
-<ul class="current">
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="../install.html">Install functorch</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="../functorch.html">functorch API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/whirlwind_tour.html">Whirlwind Tour</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ux_limitations.html">UX Limitations</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API Reference and Notes</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../functorch.html">functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../notebooks/jacobians_hessians.html">Jacobians, hessians, and more: composing functorch transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/jacobians_hessians.html">Jacobians, Hessians, hvp, vhp, and more: composing functorch transforms</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../notebooks/ensembling.html">Model ensembling</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../notebooks/per_sample_grads.html">Per-sample-gradients</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/neural_tangent_kernels.html">Neural Tangent Kernels</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../notebooks/aot_autograd_optimizations.html">AOT Autograd - How to use and optimize?</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../notebooks/aot_autograd_optimizations.html#use-aot-autograd">Use AOT Autograd</a></li>
 </ul>
 
             
@@ -206,7 +212,7 @@
       </li>
 
         
-          <li><a href="../functorch.html">functorch API Reference</a> &gt;</li>
+          <li><a href="../functorch.html">functorch</a> &gt;</li>
         
       <li>functorch.combine_state_for_ensemble</li>
     
@@ -267,6 +273,14 @@ use <code class="docutils literal notranslate"><span class="pre">vmap(func,</spa
 <span class="k">assert</span> <span class="n">output</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="n">num_models</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">out_features</span><span class="p">)</span>
 </pre></div>
 </div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>All of the modules being stacked together must be the same (except for
+the values of their parameters/buffers). For example, they should be in the
+same mode (training vs eval).</p>
+<p>This API is subject to change – we’re investigating better ways to
+create ensembles and would love your feedback how to improve this.</p>
+</div>
 </dd></dl>
 
 </div>
@@ -279,7 +293,7 @@ use <code class="docutils literal notranslate"><span class="pre">vmap(func,</spa
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../notebooks/jacobians_hessians.html" class="btn btn-neutral float-right" title="Jacobians, hessians, and more: composing functorch transforms" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="../batch_norm.html" class="btn btn-neutral float-right" title="Patching Batch Norm" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
         <a href="functorch.make_functional_with_buffers.html" class="btn btn-neutral" title="functorch.make_functional_with_buffers" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>

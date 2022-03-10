@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Install functorch &mdash; functorch preview documentation</title>
+  <title>Install functorch &mdash; functorch nightly documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   <link rel="stylesheet" href="_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="functorch API Reference" href="functorch.html" />
+    <link rel="next" title="Whirlwind Tour" href="notebooks/whirlwind_tour.html" />
     <link rel="prev" title="functorch" href="index.html" />
   <!-- Google Analytics -->
   
@@ -87,7 +87,7 @@
         <ul>
 
           <li>
-            <a href="tutorials.html">Tutorials</a>
+            <a href="https://pytorch.org/functorch">Tutorials</a>
           </li>
 
           <li>
@@ -126,7 +126,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>main (0.2.0a0+582c88d) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.2.0a0+6161d6d) &#x25BC</a>
                 </div>
               
             
@@ -154,18 +154,24 @@
               
             
             
-              <p class="caption"><span class="caption-text">Content</span></p>
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Install functorch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="functorch.html">functorch API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/whirlwind_tour.html">Whirlwind Tour</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ux_limitations.html">UX Limitations</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API Reference and Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="functorch.html">functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/jacobians_hessians.html">Jacobians, hessians, and more: composing functorch transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/jacobians_hessians.html">Jacobians, Hessians, hvp, vhp, and more: composing functorch transforms</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/ensembling.html">Model ensembling</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/per_sample_grads.html">Per-sample-gradients</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/neural_tangent_kernels.html">Neural Tangent Kernels</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/aot_autograd_optimizations.html">AOT Autograd - How to use and optimize?</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/aot_autograd_optimizations.html#use-aot-autograd">Use AOT Autograd</a></li>
 </ul>
 
             
@@ -240,16 +246,27 @@
               
   <div class="section" id="install-functorch">
 <h1>Install functorch<a class="headerlink" href="#install-functorch" title="Permalink to this headline">¶</a></h1>
-<p>There are two ways to install functorch:</p>
-<ol class="arabic simple">
-<li><p><a class="reference external" href="https://github.com/pytorch/functorch#installing-functorch-main">functorch main</a></p></li>
-<li><p><a class="reference external" href="https://github.com/pytorch/functorch#installing-functorch-preview-with-pytorch-110">functorch preview with PyTorch 1.10</a></p></li>
-</ol>
-<p>We recommend installing the functorch main development branch for the latest and
-greatest. This requires an installation of the latest PyTorch nightly.</p>
-<p>If you’re looking for an older version of functorch that works with a stable
-version of PyTorch (1.10), please install the functorch preview.</p>
-<p>Check out <a class="reference external" href="https://github.com/pytorch/functorch/blob/main/README.md#install">the instructions at our GitHub</a>.</p>
+<div class="section" id="pip">
+<h2>pip<a class="headerlink" href="#pip" title="Permalink to this headline">¶</a></h2>
+<p>To install functorch via pip, please first install
+<a class="reference external" href="https://pytorch.org/get-started/locally/">PyTorch 1.11</a>
+and then run the following command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">functorch</span>
+</pre></div>
+</div>
+<p>We currently support manylinux and MacOS, please reach out on
+<a class="reference external" href="https://github.com/pytorch/functorch">GitHub</a> for other platforms.</p>
+</div>
+<div class="section" id="colab">
+<h2>Colab<a class="headerlink" href="#colab" title="Permalink to this headline">¶</a></h2>
+<p>Please see <a class="reference external" href="https://colab.research.google.com/drive/1GNfb01W_xf8JRu78ZKoNnLqiwcrJrbYG#scrollTo=HJ1srOGeNCGA">this colab for instructions.</a></p>
+</div>
+<div class="section" id="building-from-source">
+<h2>Building from source<a class="headerlink" href="#building-from-source" title="Permalink to this headline">¶</a></h2>
+<p>See our <a class="reference external" href="https://github.com/pytorch/functorch#installing-functorch-main">README</a>
+for instructions on how to build the functorch main development branch for the
+latest and greatest. This requires an installation of the latest PyTorch nightly.</p>
+</div>
 </div>
 
 
@@ -260,7 +277,7 @@ version of PyTorch (1.10), please install the functorch preview.</p>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="functorch.html" class="btn btn-neutral float-right" title="functorch API Reference" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="notebooks/whirlwind_tour.html" class="btn btn-neutral float-right" title="Whirlwind Tour" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
         <a href="index.html" class="btn btn-neutral" title="functorch" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
@@ -295,7 +312,12 @@ version of PyTorch (1.10), please install the functorch preview.</p>
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
-<li><a class="reference internal" href="#">Install functorch</a></li>
+<li><a class="reference internal" href="#">Install functorch</a><ul>
+<li><a class="reference internal" href="#pip">pip</a></li>
+<li><a class="reference internal" href="#colab">Colab</a></li>
+<li><a class="reference internal" href="#building-from-source">Building from source</a></li>
+</ul>
+</li>
 </ul>
 
             </div>

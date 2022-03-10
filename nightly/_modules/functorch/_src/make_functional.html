@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>functorch._src.make_functional &mdash; functorch preview documentation</title>
+  <title>functorch._src.make_functional &mdash; functorch nightly documentation</title>
   
 
   
@@ -85,7 +85,7 @@
         <ul>
 
           <li>
-            <a href="tutorials.html">Tutorials</a>
+            <a href="https://pytorch.org/functorch">Tutorials</a>
           </li>
 
           <li>
@@ -124,7 +124,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>main (0.2.0a0+582c88d) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.2.0a0+6161d6d) &#x25BC</a>
                 </div>
               
             
@@ -152,18 +152,24 @@
               
             
             
-              <p class="caption"><span class="caption-text">Content</span></p>
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../install.html">Install functorch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../functorch.html">functorch API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/whirlwind_tour.html">Whirlwind Tour</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../ux_limitations.html">UX Limitations</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API Reference and Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../functorch.html">functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/jacobians_hessians.html">Jacobians, hessians, and more: composing functorch transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/jacobians_hessians.html">Jacobians, Hessians, hvp, vhp, and more: composing functorch transforms</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/ensembling.html">Model ensembling</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/per_sample_grads.html">Per-sample-gradients</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/neural_tangent_kernels.html">Neural Tangent Kernels</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/aot_autograd_optimizations.html">AOT Autograd - How to use and optimize?</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/aot_autograd_optimizations.html#use-aot-autograd">Use AOT Autograd</a></li>
 </ul>
 
             
@@ -245,6 +251,7 @@
 <span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">from</span> <span class="nn">.named_members_polyfill</span> <span class="kn">import</span> <span class="n">_named_parameters</span><span class="p">,</span> <span class="n">_named_buffers</span>
 <span class="kn">import</span> <span class="nn">copy</span>
 
 <span class="c1"># Utilities to make nn.Module &quot;functional&quot;</span>
@@ -283,6 +290,15 @@
         <span class="n">_get_nested_attr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">names</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">names</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
 
 
+<span class="k">def</span> <span class="nf">raise_parameter_tying_error</span><span class="p">():</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+        <span class="s2">&quot;make_functional(module): we don&#39;t yet support models that &quot;</span>
+        <span class="s2">&quot;do parameter tying (also sometimes known as weight sharing). &quot;</span>
+        <span class="s2">&quot;Please try to rewrite your model by replacing all instances of the &quot;</span>
+        <span class="s2">&quot;tied parameter with another and/or comment your support in &quot;</span>
+        <span class="s2">&quot;https://github.com/pytorch/functorch/issues/446&quot;</span><span class="p">)</span>
+
+
 <span class="k">def</span> <span class="nf">extract_weights</span><span class="p">(</span><span class="n">mod</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This function removes all the Parameters from the model and</span>
@@ -292,7 +308,11 @@
 <span class="sd">    Note that this function modifies the model in place and after this</span>
 <span class="sd">    call, mod.parameters() will be empty.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">num_orig_params_with_duplicates</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">_named_parameters</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">remove_duplicate</span><span class="o">=</span><span class="kc">False</span><span class="p">)))</span>
     <span class="n">orig_params</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">orig_params</span><span class="p">)</span> <span class="o">!=</span> <span class="n">num_orig_params_with_duplicates</span><span class="p">:</span>
+        <span class="n">raise_parameter_tying_error</span><span class="p">()</span>
+
     <span class="c1"># Remove all the parameters in the model</span>
     <span class="n">names</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">named_parameters</span><span class="p">()):</span>
@@ -328,7 +348,11 @@
 
 
 <span class="k">def</span> <span class="nf">extract_buffers</span><span class="p">(</span><span class="n">mod</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+    <span class="n">num_orig_params_with_duplicates</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">_named_buffers</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">remove_duplicate</span><span class="o">=</span><span class="kc">False</span><span class="p">)))</span>
     <span class="n">orig_params</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">buffers</span><span class="p">())</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">orig_params</span><span class="p">)</span> <span class="o">!=</span> <span class="n">num_orig_params_with_duplicates</span><span class="p">:</span>
+        <span class="n">raise_parameter_tying_error</span><span class="p">()</span>
+
     <span class="c1"># Remove all the parameters in the model</span>
     <span class="n">names</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">named_buffers</span><span class="p">()):</span>
@@ -640,29 +664,28 @@
 
 <span class="sd">        assert output.shape == (num_models, batch_size, out_features)</span>
 
+<span class="sd">    .. warning::</span>
+<span class="sd">        All of the modules being stacked together must be the same (except for</span>
+<span class="sd">        the values of their parameters/buffers). For example, they should be in the</span>
+<span class="sd">        same mode (training vs eval).</span>
+
+<span class="sd">        This API is subject to change -- we&#39;re investigating better ways to</span>
+<span class="sd">        create ensembles and would love your feedback how to improve this.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">models</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;combine_state_for_ensemble: Expected at least one model, got 0.&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">all</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">training</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">models</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">all</span><span class="p">(</span><span class="ow">not</span> <span class="n">m</span><span class="o">.</span><span class="n">training</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">models</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;combine_state_for_ensemble: Expected all models to &#39;</span>
+                           <span class="s1">&#39;have the same training/eval mode.&#39;</span><span class="p">)</span>
+    <span class="n">model0_typ</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">models</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="n">model0_typ</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">models</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;combine_state_for_ensemble: Expected all models to &#39;</span>
+                           <span class="s1">&#39;be of the same class.&#39;</span><span class="p">)</span>
     <span class="n">funcs</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">buffers</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">make_functional_with_buffers</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
                                    <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">models</span><span class="p">])</span>
     <span class="n">params</span> <span class="o">=</span> <span class="n">transpose_stack</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
     <span class="n">buffers</span> <span class="o">=</span> <span class="n">transpose_stack</span><span class="p">(</span><span class="n">buffers</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">funcs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">params</span><span class="p">,</span> <span class="n">buffers</span></div>
-
-
-<span class="c1"># class Ensemble(nn.Module):</span>
-<span class="c1">#     def __init__(self, models, in_dims, out_dims=0):</span>
-<span class="c1">#         super(Ensemble, self).__init__()</span>
-<span class="c1">#         func_model, params, buffers = combine_state_for_ensemble(models)</span>
-<span class="c1">#         self.func_model = func_model</span>
-<span class="c1">#         self.params = params</span>
-<span class="c1">#         self.buffers = buffers if len(buffers) &gt; 0 else None</span>
-<span class="c1">#</span>
-<span class="c1">#         in_dims_start = (0, 0) if self.buffers is not None else (0,)</span>
-<span class="c1">#         self.in_dims = in_dims_start + in_dims</span>
-<span class="c1">#         self.out_dims = out_dims</span>
-<span class="c1">#         self._vmap_func = vmap(func_model, self.in_dims, self.out_dims)</span>
-<span class="c1">#</span>
-<span class="c1">#     def forward(self, *args, **kwargs):</span>
-<span class="c1">#         return self._vmap_func(self.params, self.buffers, *args, **kwargs)</span>
 
 
 <span class="k">def</span> <span class="nf">functional_init</span><span class="p">(</span><span class="n">model_class</span><span class="p">,</span> <span class="n">ensemble_shape</span><span class="o">=</span><span class="p">(),</span> <span class="n">device</span><span class="o">=</span><span class="s1">&#39;cpu&#39;</span><span class="p">):</span>

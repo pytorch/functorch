@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>functorch._src.eager_transforms &mdash; functorch preview documentation</title>
+  <title>functorch._src.eager_transforms &mdash; functorch nightly documentation</title>
   
 
   
@@ -85,7 +85,7 @@
         <ul>
 
           <li>
-            <a href="tutorials.html">Tutorials</a>
+            <a href="https://pytorch.org/functorch">Tutorials</a>
           </li>
 
           <li>
@@ -124,7 +124,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>main (0.2.0a0+582c88d) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.2.0a0+6161d6d) &#x25BC</a>
                 </div>
               
             
@@ -152,18 +152,24 @@
               
             
             
-              <p class="caption"><span class="caption-text">Content</span></p>
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../install.html">Install functorch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../functorch.html">functorch API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/whirlwind_tour.html">Whirlwind Tour</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../ux_limitations.html">UX Limitations</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API Reference and Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../functorch.html">functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/jacobians_hessians.html">Jacobians, hessians, and more: composing functorch transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/jacobians_hessians.html">Jacobians, Hessians, hvp, vhp, and more: composing functorch transforms</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/ensembling.html">Model ensembling</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/per_sample_grads.html">Per-sample-gradients</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/neural_tangent_kernels.html">Neural Tangent Kernels</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/aot_autograd_optimizations.html">AOT Autograd - How to use and optimize?</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/aot_autograd_optimizations.html#use-aot-autograd">Use AOT Autograd</a></li>
 </ul>
 
             
@@ -561,6 +567,23 @@
 <span class="sd">        &gt;&gt;&gt; jacobian = jacrev(torch.sin)(x)</span>
 <span class="sd">        &gt;&gt;&gt; expected = torch.diag(torch.cos(x))</span>
 <span class="sd">        &gt;&gt;&gt; assert torch.allclose(jacobian, expected)</span>
+
+<span class="sd">    If you would like to compute the output of the function as well as the</span>
+<span class="sd">    jacobian of the function, use the ``has_aux`` flag to return the output</span>
+<span class="sd">    as an auxiliary object:</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import jacrev</span>
+<span class="sd">        &gt;&gt;&gt; x = torch.randn(5)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; def f(x):</span>
+<span class="sd">        &gt;&gt;&gt;   return x.sin()</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; def g(x):</span>
+<span class="sd">        &gt;&gt;&gt;   result = f(x)</span>
+<span class="sd">        &gt;&gt;&gt;   return result, result</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; jacobian_f, f_x = jacrev(g, has_aux=True)(x)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(f_x, f(x))</span>
 
 <span class="sd">    :func:`jacrev` can be composed with vmap to produce batched</span>
 <span class="sd">    Jacobians:</span>
@@ -1071,6 +1094,23 @@
 <span class="sd">        &gt;&gt;&gt; x = torch.randn(64, 5)</span>
 <span class="sd">        &gt;&gt;&gt; jacobian = vmap(jacfwd(torch.sin))(x)</span>
 <span class="sd">        &gt;&gt;&gt; assert jacobian.shape == (64, 5, 5)</span>
+
+<span class="sd">    If you would like to compute the output of the function as well as the</span>
+<span class="sd">    jacobian of the function, use the ``has_aux`` flag to return the output</span>
+<span class="sd">    as an auxiliary object:</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import jacfwd</span>
+<span class="sd">        &gt;&gt;&gt; x = torch.randn(5)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; def f(x):</span>
+<span class="sd">        &gt;&gt;&gt;   return x.sin()</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; def g(x):</span>
+<span class="sd">        &gt;&gt;&gt;   result = f(x)</span>
+<span class="sd">        &gt;&gt;&gt;   return result, result</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; jacobian_f, f_x = jacfwd(g, has_aux=True)(x)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(f_x, f(x))</span>
 
 <span class="sd">    Additionally, :func:`jacrev` can be composed with itself or :func:`jacrev`</span>
 <span class="sd">    to produce Hessians</span>

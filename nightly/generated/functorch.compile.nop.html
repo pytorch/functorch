@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>functorch.grad_and_value &mdash; functorch nightly documentation</title>
+  <title>functorch.compile.nop &mdash; functorch nightly documentation</title>
   
 
   
@@ -34,8 +34,8 @@
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="functorch.vjp" href="functorch.vjp.html" />
-    <link rel="prev" title="functorch.grad" href="functorch.grad.html" />
+    <link rel="next" title="functorch.compile.ts_compile" href="functorch.compile.ts_compile.html" />
+    <link rel="prev" title="functorch.compile.min_cut_rematerialization_partition" href="functorch.compile.min_cut_rematerialization_partition.html" />
   <!-- Google Analytics -->
   
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-117752657-2"></script>
@@ -162,8 +162,8 @@
 </ul>
 <p class="caption"><span class="caption-text">API Reference and Notes</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="../functorch.html">functorch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../aot_autograd.html">functorch.compile (experimental)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../functorch.html">functorch</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -212,15 +212,15 @@
       </li>
 
         
-          <li><a href="../functorch.html">functorch</a> &gt;</li>
+          <li><a href="../aot_autograd.html">functorch.compile (experimental)</a> &gt;</li>
         
-      <li>functorch.grad_and_value</li>
+      <li>functorch.compile.nop</li>
     
     
       <li class="pytorch-breadcrumbs-aside">
         
             
-            <a href="../_sources/generated/functorch.grad_and_value.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+            <a href="../_sources/generated/functorch.compile.nop.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
           
         
       </li>
@@ -246,39 +246,17 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="functorch-grad-and-value">
-<h1>functorch.grad_and_value<a class="headerlink" href="#functorch-grad-and-value" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="functorch-compile-nop">
+<h1>functorch.compile.nop<a class="headerlink" href="#functorch-compile-nop" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
-<dt id="functorch.grad_and_value">
-<code class="sig-prename descclassname"><span class="pre">functorch.</span></code><code class="sig-name descname"><span class="pre">grad_and_value</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">argnums</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">has_aux</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/functorch/_src/eager_transforms.html#grad_and_value"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.grad_and_value" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a function to compute a tuple of the gradient and primal, or
-forward, computation.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>func</strong> (<em>Callable</em>) – A Python function that takes one or more arguments.
-Must return a single-element Tensor. If specified <code class="xref py py-attr docutils literal notranslate"><span class="pre">has_aux</span></code>
-equals <code class="docutils literal notranslate"><span class="pre">True</span></code>, function can return a tuple of single-element
-Tensor and other auxiliary objects: <code class="docutils literal notranslate"><span class="pre">(output,</span> <span class="pre">aux)</span></code>.</p></li>
-<li><p><strong>argnums</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em> or </em><em>Tuple</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>]</em>) – Specifies arguments to compute gradients
-with respect to. <code class="xref py py-attr docutils literal notranslate"><span class="pre">argnums</span></code> can be single integer or tuple of
-integers. Default: 0.</p></li>
-<li><p><strong>has_aux</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Flag indicating that <code class="xref py py-attr docutils literal notranslate"><span class="pre">func</span></code> returns a tensor and
-other auxiliary objects: <code class="docutils literal notranslate"><span class="pre">(output,</span> <span class="pre">aux)</span></code>. Default: False.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Function to compute a tuple of gradients with respect to its inputs
-and the forward computation. By default, the output of the function is
-a tuple of the gradient tensor(s) with respect to the first argument
-and the primal computation. If specified <code class="xref py py-attr docutils literal notranslate"><span class="pre">has_aux</span></code> equals
-<code class="docutils literal notranslate"><span class="pre">True</span></code>, tuple of gradients and tuple of the forward computation with
-output auxiliary objects is returned. If <code class="xref py py-attr docutils literal notranslate"><span class="pre">argnums</span></code> is a tuple of
-integers, a tuple of a tuple of the output gradients with respect to
-each <code class="xref py py-attr docutils literal notranslate"><span class="pre">argnums</span></code> value and the forward computation is returned.</p>
-</dd>
-</dl>
-<p>See <a class="reference internal" href="functorch.grad.html#functorch.grad" title="functorch.grad"><code class="xref py py-func docutils literal notranslate"><span class="pre">grad()</span></code></a> for examples</p>
+<dt id="functorch.compile.nop">
+<code class="sig-prename descclassname"><span class="pre">functorch.compile.</span></code><code class="sig-name descname"><span class="pre">nop</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fx_g</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/functorch/_src/compilers.html#nop"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.compile.nop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the <code class="xref py py-attr docutils literal notranslate"><span class="pre">fx_g</span></code> Fx graph module as it is. This is a no-op compiler
+and can be used to check accuracy.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This API is experimental and likely to change.</p>
+</div>
 </dd></dl>
 
 </div>
@@ -291,10 +269,10 @@ each <code class="xref py py-attr docutils literal notranslate"><span class="pre
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="functorch.vjp.html" class="btn btn-neutral float-right" title="functorch.vjp" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="functorch.compile.ts_compile.html" class="btn btn-neutral float-right" title="functorch.compile.ts_compile" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
-        <a href="functorch.grad.html" class="btn btn-neutral" title="functorch.grad" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        <a href="functorch.compile.min_cut_rematerialization_partition.html" class="btn btn-neutral" title="functorch.compile.min_cut_rematerialization_partition" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
       
     </div>
   
@@ -326,7 +304,7 @@ each <code class="xref py py-attr docutils literal notranslate"><span class="pre
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
-<li><a class="reference internal" href="#">functorch.grad_and_value</a></li>
+<li><a class="reference internal" href="#">functorch.compile.nop</a></li>
 </ul>
 
             </div>
@@ -397,4 +375,4 @@ each <code class="xref py py-attr docutils literal notranslate"><span class="pre
 </body>
 </html>
 
-<link rel="canonical" href="generated/functorch.grad_and_value.html" />
+<link rel="canonical" href="generated/functorch.compile.nop.html" />

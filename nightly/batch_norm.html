@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Index &mdash; functorch nightly documentation</title>
+  <title>Patching Batch Norm &mdash; functorch nightly documentation</title>
   
 
   
@@ -32,8 +32,10 @@
   <link rel="stylesheet" href="_static/mystnb.css" type="text/css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" type="text/css" />
   <link rel="stylesheet" href="_static/css/custom.css" type="text/css" />
-    <link rel="index" title="Index" href="#" />
+    <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="functorch.compile (experimental)" href="aot_autograd.html" />
+    <link rel="prev" title="functorch.combine_state_for_ensemble" href="generated/functorch.combine_state_for_ensemble.html" />
   <!-- Google Analytics -->
   
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-117752657-2"></script>
@@ -159,8 +161,8 @@
 <li class="toctree-l1"><a class="reference internal" href="ux_limitations.html">UX Limitations</a></li>
 </ul>
 <p class="caption"><span class="caption-text">API Reference and Notes</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="functorch.html">functorch</a></li>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="functorch.html">functorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
@@ -210,12 +212,16 @@
       </li>
 
         
-      <li>Index</li>
+          <li><a href="functorch.html">functorch</a> &gt;</li>
+        
+      <li>Patching Batch Norm</li>
     
     
       <li class="pytorch-breadcrumbs-aside">
         
             
+            <a href="_sources/batch_norm.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
+          
         
       </li>
     
@@ -240,134 +246,66 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-
-<h1 id="index">Index</h1>
-
-<div class="genindex-jumpbox">
- <a href="#A"><strong>A</strong></a>
- | <a href="#C"><strong>C</strong></a>
- | <a href="#D"><strong>D</strong></a>
- | <a href="#G"><strong>G</strong></a>
- | <a href="#H"><strong>H</strong></a>
- | <a href="#J"><strong>J</strong></a>
- | <a href="#M"><strong>M</strong></a>
- | <a href="#N"><strong>N</strong></a>
- | <a href="#T"><strong>T</strong></a>
- | <a href="#V"><strong>V</strong></a>
- 
+  <div class="section" id="patching-batch-norm">
+<h1>Patching Batch Norm<a class="headerlink" href="#patching-batch-norm" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="what-s-happening">
+<h2>What’s happening?<a class="headerlink" href="#what-s-happening" title="Permalink to this headline">¶</a></h2>
+<p>Batch Norm requires in-place updates to running_mean and running_var of the same size as the input.
+Functorch does not support inplace update to a regular tensor that takes in a batched tensor (i.e.
+<code class="docutils literal notranslate"><span class="pre">regular.add_(batched)</span></code> is not allowed). So when vmaping over a batch of inputs to a single module,
+we end up with this error</p>
 </div>
-<h2 id="A">A</h2>
-<table style="width: 100%" class="indextable genindextable"><tr>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="generated/functorch.compile.aot_function.html#functorch.compile.aot_function">aot_function() (in module functorch.compile)</a>
-</li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="generated/functorch.compile.aot_module.html#functorch.compile.aot_module">aot_module() (in module functorch.compile)</a>
-</li>
-  </ul></td>
-</tr></table>
-
-<h2 id="C">C</h2>
-<table style="width: 100%" class="indextable genindextable"><tr>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="generated/functorch.combine_state_for_ensemble.html#functorch.combine_state_for_ensemble">combine_state_for_ensemble() (in module functorch)</a>
-</li>
-  </ul></td>
-</tr></table>
-
-<h2 id="D">D</h2>
-<table style="width: 100%" class="indextable genindextable"><tr>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="generated/functorch.compile.default_partition.html#functorch.compile.default_partition">default_partition() (in module functorch.compile)</a>
-</li>
-  </ul></td>
-</tr></table>
-
-<h2 id="G">G</h2>
-<table style="width: 100%" class="indextable genindextable"><tr>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="generated/functorch.grad.html#functorch.grad">grad() (in module functorch)</a>
-</li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="generated/functorch.grad_and_value.html#functorch.grad_and_value">grad_and_value() (in module functorch)</a>
-</li>
-  </ul></td>
-</tr></table>
-
-<h2 id="H">H</h2>
-<table style="width: 100%" class="indextable genindextable"><tr>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="generated/functorch.hessian.html#functorch.hessian">hessian() (in module functorch)</a>
-</li>
-  </ul></td>
-</tr></table>
-
-<h2 id="J">J</h2>
-<table style="width: 100%" class="indextable genindextable"><tr>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="generated/functorch.jacfwd.html#functorch.jacfwd">jacfwd() (in module functorch)</a>
-</li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="generated/functorch.jacrev.html#functorch.jacrev">jacrev() (in module functorch)</a>
-</li>
-      <li><a href="generated/functorch.jvp.html#functorch.jvp">jvp() (in module functorch)</a>
-</li>
-  </ul></td>
-</tr></table>
-
-<h2 id="M">M</h2>
-<table style="width: 100%" class="indextable genindextable"><tr>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="generated/functorch.make_functional.html#functorch.make_functional">make_functional() (in module functorch)</a>
-</li>
-      <li><a href="generated/functorch.make_functional_with_buffers.html#functorch.make_functional_with_buffers">make_functional_with_buffers() (in module functorch)</a>
-</li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="generated/functorch.compile.memory_efficient_fusion.html#functorch.compile.memory_efficient_fusion">memory_efficient_fusion() (in module functorch.compile)</a>
-</li>
-      <li><a href="generated/functorch.compile.min_cut_rematerialization_partition.html#functorch.compile.min_cut_rematerialization_partition">min_cut_rematerialization_partition() (in module functorch.compile)</a>
-</li>
-  </ul></td>
-</tr></table>
-
-<h2 id="N">N</h2>
-<table style="width: 100%" class="indextable genindextable"><tr>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="generated/functorch.compile.nop.html#functorch.compile.nop">nop() (in module functorch.compile)</a>
-</li>
-  </ul></td>
-</tr></table>
-
-<h2 id="T">T</h2>
-<table style="width: 100%" class="indextable genindextable"><tr>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="generated/functorch.compile.ts_compile.html#functorch.compile.ts_compile">ts_compile() (in module functorch.compile)</a>
-</li>
-  </ul></td>
-</tr></table>
-
-<h2 id="V">V</h2>
-<table style="width: 100%" class="indextable genindextable"><tr>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="generated/functorch.vjp.html#functorch.vjp">vjp() (in module functorch)</a>
-</li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="generated/functorch.vmap.html#functorch.vmap">vmap() (in module functorch)</a>
-</li>
-  </ul></td>
-</tr></table>
-
+<div class="section" id="how-to-fix">
+<h2>How to fix<a class="headerlink" href="#how-to-fix" title="Permalink to this headline">¶</a></h2>
+<p>All of these options assume that you don’t need running stats. If you’re using a module this means
+that it’s assumed you won’t use batch norm in evalution mode. If you have a use case that involves
+running batch norm with vmap in evaluation mode, please file an issue</p>
+<div class="section" id="option-1-change-the-batchnorm">
+<h3>Option 1: Change the BatchNorm<a class="headerlink" href="#option-1-change-the-batchnorm" title="Permalink to this headline">¶</a></h3>
+<p>If you’ve built the module yourself, you can change the module to not use running stats. In other
+words, anywhere that there’s a BatchNorm module, set the <code class="docutils literal notranslate"><span class="pre">track_running_stats</span></code> flag to be False</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="n">track_running_stats</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="option-2-torchvision-parameter">
+<h3>Option 2: torchvision parameter<a class="headerlink" href="#option-2-torchvision-parameter" title="Permalink to this headline">¶</a></h3>
+<p>Some torchvision models, like resnet and regnet, can take in a <code class="docutils literal notranslate"><span class="pre">norm_layer</span></code> parameter. These are
+often defaulted to be BatchNorm2d if they’ve been defaulted. Instead you can set it to BatchNorm
+that doesn’t use running stats</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torchvision</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="n">torchvision</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">resnet18</span><span class="p">(</span><span class="n">norm_layer</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="n">BatchNorm2d</span><span class="p">,</span> <span class="n">track_running_stats</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="option-3-functorch-s-patching">
+<h3>Option 3: functorch’s patching<a class="headerlink" href="#option-3-functorch-s-patching" title="Permalink to this headline">¶</a></h3>
+<p>functorch has added some functionality to allow for quick, in-place patching of the module. If you
+have a net that you want to change, you can run <code class="docutils literal notranslate"><span class="pre">replace_all_batch_norm_modules_</span></code> to update the
+module in-place to not use running stats</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">functorch.experimental</span> <span class="kn">import</span> <span class="n">replace_all_batch_norm_modules_</span>
+<span class="n">replace_all_batch_norm_modules_</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
 
 
              </article>
              
             </div>
             <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="aot_autograd.html" class="btn btn-neutral float-right" title="functorch.compile (experimental)" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+      
+      
+        <a href="generated/functorch.combine_state_for_ensemble.html" class="btn btn-neutral" title="functorch.combine_state_for_ensemble" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
+    </div>
   
 
   
@@ -396,7 +334,19 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+              <ul>
+<li><a class="reference internal" href="#">Patching Batch Norm</a><ul>
+<li><a class="reference internal" href="#what-s-happening">What’s happening?</a></li>
+<li><a class="reference internal" href="#how-to-fix">How to fix</a><ul>
+<li><a class="reference internal" href="#option-1-change-the-batchnorm">Option 1: Change the BatchNorm</a></li>
+<li><a class="reference internal" href="#option-2-torchvision-parameter">Option 2: torchvision parameter</a></li>
+<li><a class="reference internal" href="#option-3-functorch-s-patching">Option 3: functorch’s patching</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
             </div>
           </div>
         </div>
@@ -465,4 +415,4 @@
 </body>
 </html>
 
-<link rel="canonical" href="genindex.html" />
+<link rel="canonical" href="batch_norm.html" />
