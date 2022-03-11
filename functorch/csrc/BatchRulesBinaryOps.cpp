@@ -110,8 +110,9 @@ struct BinaryRandomPointwiseBatchRuleHelper<F, Func, typelist<T1, T2, T...>> {
     check_randomness(randomness, (tensor_bdim || other_bdim));
     if (randomness == RandomnessType::Different && !tensor_bdim && !other_bdim) {
       auto shape = tensor_value.sizes();
-      VmapDimVector shapeVec(shape.begin(), shape.end());
-      shapeVec.insert(shapeVec.begin(), maybe_layer->batchSize());
+      VmapDimVector shapeVec(1, maybe_layer->batchSize());
+      shapeVec.reserve(shape.size() + 1);
+      shapeVec.insert(shapeVec.end(), shape.begin(), shape.end());
       tensor_value = tensor_value.unsqueeze(0).expand(shapeVec);
       tensor_bdim = 0;
     } else if (randomness == RandomnessType::Same && !tensor_bdim && !other_bdim) {

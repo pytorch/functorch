@@ -136,8 +136,9 @@ Tensor unary_pointwise_random_batch_rule(const Tensor& tensor, ExtraArgs... extr
   RandomnessType randomness = maybe_layer->randomness();
   check_randomness(randomness, tensor_bdim.has_value());
   auto shape = tensor_value.sizes();
-  VmapDimVector shapeVec(shape.begin(), shape.end());
-  shapeVec.insert(shapeVec.begin(), maybe_layer->batchSize());
+  VmapDimVector shapeVec(1, maybe_layer->batchSize());
+  shapeVec.reserve(shape.size() + 1);
+  shapeVec.insert(shapeVec.end(), shape.begin(), shape.end());
 
   if (randomness == RandomnessType::Different && !tensor_bdim) {
     tensor_value = tensor_value.unsqueeze(0).expand(shapeVec);
