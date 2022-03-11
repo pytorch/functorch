@@ -182,13 +182,9 @@ We're investigating adding equivalents of those to functorch
 
 Randomness
 ----------
-Note that like with JAX's PRNG system, our system only determine the randomness behavior of PyTorch
-operators
-
-Our randomness differs from JAX because we aren't using a stateless PRNG, in part because PyTorch doesn't
-have full support for a stateless PRNG. Instead, we've introduced a flag system to allow for the most
-common forms of randmoness that we see. If your use case does not fit these forms of randomness, please
-file an issue.
+The user's intention when calling a random operation can be unclear. Specifically, some users may want
+the random behavior to be the same across batches while others may want it to differ across batches.
+To address this, ``vmap`` takes a randomness flag.
 
 The flag can only be passed to vmap and can take on 3 values, "error," "different," or "same," defaulting
 to error. Under "error" mode, any call to a random function will produce an error asking the user to use
@@ -199,25 +195,34 @@ Under "different" randomness, elements in a batch produce different random value
 ::
 
   def add_noise(x):
-    y = torch.randn(4)  # y will be different across the batch
+    y = torch.randn(())  # y will be different across the batch
     return x + y
 
-  x = torch.ones(3, 4)
-  result = vmap(add_noise, randomness="different")(x)
-  assert result[0] != result[1]
+  x = torch.ones(3)
+  result = vmap(add_noise, randomness="different")(x)  # we get 3 different values
 
 Under "same" randomness, elements in a batch produce same random values. For instance,
 
 ::
 
   def add_noise(x):
-    y = torch.randn(4)  # y will be the same across the batch
+    y = torch.randn((,))  # y will be the same across the batch
     return x + y
 
-  x = torch.ones(3, 4)
-  result = vmap(add_noise, randomness="same")(x)
-  assert result[0] == result[1]
+  x = torch.ones(3)
+  result = vmap(add_noise, randomness="same")(x)  # we get the same value, repeated 3 times
 
-As a note, multiple vmap calls using either type of supported randomness will not produce
-the same results. Like with standard PyTorch, a user can get randomness reproducibility through
-either using ``torch.manual_seed()`` outside of vmap or by using generators.
+.. note:
+    Our system only determine the randomness behavior of PyTorch operators and cannot control the
+    behavior of other libraries, like numpy. This is similar to JAX's limitations with their solutions
+
+.. note::
+    Multiple vmap calls using either type of supported randomness will not produce
+    the same results. Like with standard PyTorch, a user can get randomness reproducibility through
+    either using ``torch.manual_seed()`` outside of vmap or by using generators.
+
+.. note::
+    Finally, our randomness differs from JAX because we aren't using a stateless PRNG, in part because PyTorch
+    doesn't have full support for a stateless PRNG. Instead, we've introduced a flag system to allow for the
+    most common forms of randmoness that we see. If your use case does not fit these forms of randomness, please
+    file an issue.
