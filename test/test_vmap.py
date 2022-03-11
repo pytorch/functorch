@@ -3535,12 +3535,12 @@ class TestRandomness(TestCase):
             if randomness == "different":
                 expected = op(passed, [B0, *shape])
                 self._assert_all_slices_unique(vmap_result)
-                assert torch.allclose(vmap_result, expected)
+                self.assertEqual(vmap_result, expected)
             else:
                 expected = op(passed, shape)
                 self._assert_all_slices_equal(vmap_result)
                 for i in range(B0):
-                    assert torch.allclose(vmap_result[i], expected)
+                    self.assertEqual(vmap_result[i], expected)
 
     @parametrize('randomness', ['same', 'different', 'error'])
     @parametrize('use_generator', [True, False])
@@ -3567,11 +3567,11 @@ class TestRandomness(TestCase):
         if randomness == 'different':
             for i in range(B0):
                 expected = torch.randperm(10, **kwargs)
-                assert torch.allclose(vmap_result[i], expected)
+                self.assertEqual(vmap_result[i], expected)
         else:
             expected = torch.randperm(10, **kwargs)
             for i in range(B0):
-                assert torch.allclose(vmap_result[i], expected)
+                self.assertEqual(vmap_result[i], expected)
 
     @parametrize('randomness', ['error', 'same', 'different'])
     @parametrize('batched_input', [True, False])
@@ -3797,14 +3797,14 @@ class TestRandomness(TestCase):
             if randomness == "different":
                 expected = op(passed_expected, always_batched)
                 self._assert_all_slices_unique(vmap_result)
-                assert torch.allclose(vmap_result, expected)
+                self.assertEqual(vmap_result, expected)
             else:
                 if batched_input:
                     passed_expected = passed_expected[0]
                 expected = op(passed_expected, always_batched)
                 self._assert_all_slices_equal(vmap_result)
                 for i in range(B0):
-                    assert torch.allclose(vmap_result[i], expected)
+                    self.assertEqual(vmap_result[i], expected)
 
     @parametrize('randomness', ['error', 'same', 'different'])
     @parametrize('batched_input', [True, False])
@@ -3845,14 +3845,14 @@ class TestRandomness(TestCase):
         if randomness == "different":
             expected = op(input_expected, probability, always_batched)
             self._assert_all_slices_unique(vmap_result)
-            assert torch.allclose(vmap_result, expected)
+            self.assertEqual(vmap_result, expected)
         else:
             if batched_input:
                 input_expected = input_expected[0]
             expected = op(input_expected, probability, always_batched)
             self._assert_all_slices_equal(vmap_result)
             for i in range(B0):
-                assert torch.allclose(vmap_result[i], expected)
+                self.assertEqual(vmap_result[i], expected)
 
     @parametrize('use_generator', [True, False])
     @parametrize('randomness', ['error', 'same', 'different'])
@@ -3892,14 +3892,14 @@ class TestRandomness(TestCase):
                     input = input.expand(B0, *input.shape)
                 expected = op(input, other, always_batched)
                 self._assert_all_slices_unique(vmap_result)
-                assert torch.allclose(vmap_result, expected)
+                self.assertEqual(vmap_result, expected)
             else:
                 if batched_input:
                     input = input[0]
                 expected = op(input, other, always_batched)
                 self._assert_all_slices_equal(vmap_result)
                 for i in range(B0):
-                    assert torch.allclose(vmap_result[i], expected)
+                    self.assertEqual(vmap_result[i], expected)
 
     @parametrize('use_generator', [True, False])
     @parametrize('randomness', ['error', 'same', 'different'])
@@ -3948,12 +3948,12 @@ class TestRandomness(TestCase):
                     passed = passed.expand(B0, *passed.shape)
                 expected = op(passed, always_batched)
                 self._assert_all_slices_unique(vmap_result)
-                assert torch.allclose(vmap_result, expected)
+                self.assertEqual(vmap_result, expected)
             else:
                 expected = op(passed, always_batched)
                 self._assert_all_slices_equal(vmap_result)
                 for i in range(B0):
-                    assert torch.allclose(vmap_result[i], expected)
+                    self.assertEqual(vmap_result[i], expected)
 
     def test_unsupported_random(self, device):
         x = torch.randn(3, device=device)
