@@ -206,13 +206,14 @@ Under "same" randomness, elements in a batch produce same random values. For ins
 ::
 
   def add_noise(x):
-    y = torch.randn((,))  # y will be the same across the batch
+    y = torch.randn(())  # y will be the same across the batch
     return x + y
 
   x = torch.ones(3)
   result = vmap(add_noise, randomness="same")(x)  # we get the same value, repeated 3 times
 
-.. note:
+
+.. warning::
     Our system only determine the randomness behavior of PyTorch operators and cannot control the
     behavior of other libraries, like numpy. This is similar to JAX's limitations with their solutions
 
