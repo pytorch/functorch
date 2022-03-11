@@ -70,7 +70,7 @@ Tensor& bernoulli_inplace_Tensor_batching_rule(Tensor& self, const Tensor& p_, c
   check_randomness(randomness, other_bdim.has_value());
 
   if (!self_bdim && other_bdim) {
-    vmapIncompatibleInplaceError("inplace arithmetic");
+    vmapIncompatibleInplaceError("inplace bernoulli");
   }
 
   // compute max logical rank
