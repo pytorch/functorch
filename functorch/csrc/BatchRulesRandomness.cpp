@@ -141,7 +141,7 @@ Tensor unary_pointwise_random_batch_rule(const Tensor& tensor, ExtraArgs... extr
   shapeVec.insert(shapeVec.end(), shape.begin(), shape.end());
 
   if (randomness == RandomnessType::Different && !tensor_bdim) {
-    tensor_value = tensor_value.unsqueeze(0).expand(shapeVec);
+    tensor_value = tensor_value.expand(shapeVec);
   }
   auto out = Func(tensor_value, std::forward<ExtraArgs>(extra_args)...);
   if (randomness == RandomnessType::Same && !tensor_bdim) {
@@ -170,7 +170,7 @@ Tensor tensor_like_random_batch_rule(const Tensor& self, ExtraArgs... extra_args
     VmapDimVector shapeVec(1, maybe_layer->batchSize());
     shapeVec.reserve(shape.size() + 1);
     shapeVec.insert(shapeVec.end(), shape.begin(), shape.end());
-    tensor_value = tensor_value.unsqueeze(0).expand(shapeVec);
+    tensor_value = tensor_value.expand(shapeVec);
   }
 
   auto res = Func(tensor_value, std::forward<ExtraArgs>(extra_args)...);

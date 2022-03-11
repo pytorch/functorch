@@ -113,7 +113,7 @@ struct BinaryRandomPointwiseBatchRuleHelper<F, Func, typelist<T1, T2, T...>> {
       VmapDimVector shapeVec(1, maybe_layer->batchSize());
       shapeVec.reserve(shape.size() + 1);
       shapeVec.insert(shapeVec.end(), shape.begin(), shape.end());
-      tensor_value = tensor_value.unsqueeze(0).expand(shapeVec);
+      tensor_value = tensor_value.expand(shapeVec);
       tensor_bdim = 0;
     } else if (randomness == RandomnessType::Same && !tensor_bdim && !other_bdim) {
       return Func(tensor_value, other_value, std::forward<T>(extra_args)...);
