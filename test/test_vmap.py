@@ -3506,8 +3506,7 @@ class TestRandomness(TestCase):
 
     @parametrize('randomness', ['same', 'different', 'error'])
     @parametrize('use_generator', [True, False])
-    def test_shape_OOP_ops(self, device, randomness, use_generator):
-        # ops that take in the final shape and are out of place
+    def test_factory_ops(self, device, randomness, use_generator):
         generator = torch.Generator(device=device)
         orig_state = generator.get_state()
         kwargs = {'device': device, 'generator': generator} if use_generator else {'device': device}
@@ -3755,17 +3754,15 @@ class TestRandomness(TestCase):
     @parametrize('use_generator', [True, False])
     @parametrize('randomness', ['error', 'same', 'different'])
     @parametrize('batched_input', [True, False])
-    def test_random_inplace_single(self, device, use_generator, randomness, batched_input):
+    def test_random_unary_inplace(self, device, use_generator, randomness, batched_input):
         generator = torch.Generator(device=device)
         orig_state = generator.get_state()
         kwargs = {'generator': generator} if use_generator else {}
-        p = torch.rand(14)
         ops = [
             lambda t, _: t.random_(**kwargs),
             lambda t, _: t.random_(100, **kwargs),
             lambda t, _: t.random_(-5, 100, **kwargs),
             lambda t, _: t.normal_(**kwargs),
-            lambda t, _: t.bernoulli_(p, **kwargs),
             lambda t, _: t.bernoulli_(**kwargs),
             lambda t, _: t.cauchy_(**kwargs),
             lambda t, _: t.exponential_(**kwargs),
@@ -3806,16 +3803,20 @@ class TestRandomness(TestCase):
                 for i in range(B0):
                     self.assertEqual(vmap_result[i], expected)
 
+    @parametrize('use_generator', [True, False])
     @parametrize('randomness', ['error', 'same', 'different'])
     @parametrize('batched_input', [True, False])
     @parametrize('batched_probability', [True, False])
-    def test_bernoulli_in_place(self, device, randomness, batched_input, batched_probability):
+    def test_bernoulli_in_place(self, device, use_generator, randomness, batched_input, batched_probability):
         B0 = 4
         seed = 1234567
+        generator = torch.Generator(device=device)
+        orig_state = generator.get_state()
+        kwargs = {'generator': generator} if use_generator else {}
         in_dims = self._in_dims(batched_input, batched_probability)
 
         def op(t, p, ignored):
-            return t.bernoulli_(p)
+            return t.bernoulli_(p, **kwargs)
 
         # because of in place updates, clone inputs
         always_batched = torch.randn(B0, device=device)
@@ -3838,10 +3839,10 @@ class TestRandomness(TestCase):
             self._assert_throws_in_different_mode_inplace(op, (input, probability, always_batched), in_dims=in_dims)
             return
 
-        torch.manual_seed(seed)
+        self._reset_random(generator, orig_state, use_generator, seed)
         vmap_result = vmap(op, in_dims=in_dims, randomness=randomness)(input, probability, always_batched)
 
-        torch.manual_seed(seed)
+        self._reset_random(generator, orig_state, use_generator, seed)
         if randomness == "different":
             expected = op(input_expected, probability, always_batched)
             self._assert_all_slices_unique(vmap_result)
@@ -3858,7 +3859,7 @@ class TestRandomness(TestCase):
     @parametrize('randomness', ['error', 'same', 'different'])
     @parametrize('batched_input', [True, False])
     @parametrize('batched_other', [True, False])
-    def test_random_out_of_place_two_tensors(self, device, use_generator, randomness, batched_input, batched_other):
+    def test_random_binary_out_of_place(self, device, use_generator, randomness, batched_input, batched_other):
         generator = torch.Generator(device=device)
         orig_state = generator.get_state()
         kwargs = {'generator': generator} if use_generator else {}
@@ -3904,7 +3905,7 @@ class TestRandomness(TestCase):
     @parametrize('use_generator', [True, False])
     @parametrize('randomness', ['error', 'same', 'different'])
     @parametrize('batched_input', [True, False])
-    def test_random_out_of_place_single(self, device, use_generator, randomness, batched_input):
+    def test_random_unary_out_of_place(self, device, use_generator, randomness, batched_input):
         generator = torch.Generator(device=device)
         orig_state = generator.get_state()
         kwargs = {'generator': generator} if use_generator else {}
