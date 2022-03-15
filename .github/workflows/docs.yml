@@ -55,20 +55,28 @@ jobs:
           path: /tmp/docs
 
       - name: Copy built docs to nightly
+        id: copy-docs
         run: |
           cp -R /tmp/docs/* nightly/
-          # Manipulations to squash the history:
-          # 1) reset to a fixed commit
-          # 2) use github-actions-x/commit to commit everything as a single commit
-          git reset --soft 218f32faf8b8cc5236bc49ea77ef7d222e21e5d6
+          git log -3
+          # Set commit name and hash as variables: commit_name, commit_hash
+          echo "::set-output name=commit_name::$(git log -1 --format='%s')"
+          echo "::set-output name=commit_hash::$(git log -1 --format='%h')"
 
-      # Can not use commit --amend to squash history
+      - name: Git reset to commit/amend
+        if: ${{ steps.copy-docs.outputs.commit_name == 'auto-generated commit' }}
+        run: |
+          # if commit_name is "auto-generated commit"
+          # then go back in commit history to commit to the same commit
+          git reset --soft ${{ steps.copy-docs.outputs.commit_hash }}~1
+          git log -3
+
       - name: Commit and push to gh-pages
         uses: github-actions-x/commit@v2.8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           push-branch: 'gh-pages'
-          commit-message: 'New docs'
+          commit-message: 'auto-generated commit'
           force-push: 'true'
           name: gha
           email: gha@email.org
