@@ -168,6 +168,18 @@ int64_t _grad_decrement_nesting() {
   return layer.layerId();
 }
 
+int64_t _jvp_increment_nesting() {
+  // See NOTE [grad and vjp interaction with no_grad]
+  bool prev_fwd_grad_mode = get_fwd_grad_enabled();
+  return initAndPushDynamicLayer(at::DispatchKey::Autograd, nullopt, nullopt, nullopt, prev_fwd_grad_mode);
+}
+
+int64_t _jvp_decrement_nesting() {
+  auto layer = popDynamicLayerAndDeleteMetadata();
+  TORCH_INTERNAL_ASSERT(layer.key() == DispatchKey::Autograd);
+  return layer.layerId();
+}
+
 int64_t _vmap_increment_nesting(int64_t batch_size, const std::string& randomness) {
   return initAndPushDynamicLayer(kBatchedKey, batch_size, get_randomness_enum(randomness));
 }
@@ -277,6 +289,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("_vmap_decrement_nesting", &at::functorch::_vmap_decrement_nesting, "remove batch dim");
   m.def("_grad_increment_nesting", &at::functorch::_grad_increment_nesting, "remove batch dim");
   m.def("_grad_decrement_nesting", &at::functorch::_grad_decrement_nesting, "remove batch dim");
+  m.def("_jvp_increment_nesting", &at::functorch::_jvp_increment_nesting);
+  m.def("_jvp_decrement_nesting", &at::functorch::_jvp_decrement_nesting);
   m.def("_wrap_for_grad", &at::functorch::_wrap_for_grad, "wrap as gradtrackingtensor");
   m.def("_unwrap_for_grad", &at::functorch::_unwrap_for_grad, "unwrap from gradtrackingtensor");
   m.def("_set_vmap_fallback_warning_enabled", &at::functorch::setVmapFallbackWarningEnabled, "Set vmap fallback warnings");
