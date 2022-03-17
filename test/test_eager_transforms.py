@@ -1891,6 +1891,38 @@ class TestJvp(TestCase):
             with self.assertRaisesRegex(RuntimeError, r"Expected tensors, got unsupported type"):
                 _ = jvp(lambda x: (x, [x, aux]), (x, ), (t, ), has_aux=True)
 
+    def test_fwd_grad_enabled(self, device):
+        # Tests some private helper functions to enable/disable fwd grad mode
+        enabled = functorch._C.get_fwd_grad_enabled()
+        self.assertTrue(enabled)
+
+        try:
+            functorch._C.set_fwd_grad_enabled(False)
+            enabled = functorch._C.get_fwd_grad_enabled()
+            self.assertFalse(enabled)
+        finally:
+            functorch._C.set_fwd_grad_enabled(True)
+
+        enabled = functorch._C.get_fwd_grad_enabled()
+        self.assertTrue(enabled)
+
+    def test_autograd_function_disables_fwd_grad(self, device):
+        # Sanity check. We don't really assume this anywhere so
+        # it's fine if this breaks one day.
+        class MySquare(torch.autograd.Function):
+            @staticmethod
+            def forward(ctx, x):
+                enabled = functorch._C.get_fwd_grad_enabled()
+                self.assertFalse(enabled)
+                return x * x
+
+            @staticmethod
+            def backward(ctx, gx):
+                return gx
+
+        x = torch.randn(3, requires_grad=True)
+        MySquare.apply(x)
+
 
 class TestCustomFunction(TestCase):
     @onlyCPU

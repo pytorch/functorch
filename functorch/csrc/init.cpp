@@ -16,6 +16,7 @@
 #include <functorch/csrc/PointwiseOperatorCompileCache.h>
 #include <functorch/csrc/CompileCache.h>
 #include <functorch/csrc/CustomFunction.h>
+#include <c10/core/AutogradState.h>
 
 
 namespace at {
@@ -145,6 +146,14 @@ RandomnessType get_randomness_enum(const std::string& randomness) {
     } else {
         TORCH_CHECK(false, "randomness argument must be error, same, or different.");
     }
+}
+
+void set_fwd_grad_enabled(bool enabled) {
+  AutogradState::get_tls_state().set_fw_grad_mode(enabled);
+}
+
+bool get_fwd_grad_enabled() {
+  return AutogradState::get_tls_state().get_fw_grad_mode();
 }
 
 int64_t _grad_increment_nesting() {
@@ -292,6 +301,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("_set_dynamic_layer_keys_included", &at::functorch::_set_dynamic_layer_keys_included);
   m.def("dump_dls", &at::functorch::dump_dls);
   m.def("dump_local_tls", &at::functorch::dump_local_tls);
+  m.def("set_fwd_grad_enabled", &at::functorch::set_fwd_grad_enabled);
+  m.def("get_fwd_grad_enabled", &at::functorch::get_fwd_grad_enabled);
   at::functorch::initPointwiseOperatorCompileCacheBindings(m.ptr());
   at::functorch::initCompileCacheBindings(m.ptr());
   initDispatchBindings(m.ptr());
