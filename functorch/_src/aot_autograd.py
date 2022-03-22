@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from functorch import make_fx
-from torch.fx import immutable_collections
+from torch.fx import immutable_collections, Tracer
 import torch.utils._pytree as pytree
 import torch.utils.dlpack
 from torch.nn.utils import _stateless
@@ -11,6 +11,8 @@ from .decompositions import register_decomposition
 from .partitioners import default_partition
 from .named_members_polyfill import _named_parameters, _named_buffers
 from typing import Callable, List, Dict, Any, Tuple, Optional
+
+import torchdynamo
 
 pytree._register_pytree_node(
     immutable_collections.immutable_list,
@@ -129,6 +131,7 @@ def create_aot_autograd_function(
 
     class CompiledFunction(torch.autograd.Function):
         @staticmethod
+        @torchdynamo.disable
         def forward(ctx, *flat_tensor_args):
             nonlocal compiled_fw, compiled_bw, num_outs
             if compiled_fw is None:
@@ -163,6 +166,7 @@ def create_aot_autograd_function(
             return tuple(fw_outs[0:num_outs])
 
         @staticmethod
+        @torchdynamo.disable
         def backward(ctx, *flat_args):
             # hmm... this doesn't feel right. todo
             # contiguous_args = [t.contiguous() for t in flat_args]
@@ -483,7 +487,52 @@ def clear_compile_cache():
         compile_cache = None
 
 
-def aot_module(mod: nn.Module, *args, **kwargs) -> nn.Module:
+# def aot_module(mod: nn.Module, *args, **kwargs) -> nn.Module:
+#     """
+#     Traces the forward and backward graph of :attr:`mod` using torch dispatch
+#     tracing mechanism. It is wrapper function, that underneath uses
+#     :func:`aot_function` to perform tracing and compilation.
+# 
+#     :func:`aot_module` lifts the parameters and buffers of ``nn.Module`` as inputs
+#     to a new callable which is then compiled through :func:`aot_function`.
+# 
+#     .. warning::
+#         This API is experimental and likely to change.
+# 
+#     Args:
+#         mod (Callable): A ``nn.Module`` module.
+#         args : args to be passed to :func:`aot_function`
+#         kwargs : kwargs to be passed to :func:`aot_function`
+# 
+#     Returns:
+#         Returns a ``nn.Module`` that retains the eager behavior of the original
+#         :attr:`mod`, but with forward and backward graph compiled.
+# 
+#     """
+# 
+#     def functional_call(named_params, named_buffers, *args, **kwargs):
+#         params_and_buffers = {**named_params, **named_buffers}
+#         return _stateless.functional_call(mod, params_and_buffers, args, kwargs)
+# 
+#     compiled_f = aot_function(functional_call, *args, **kwargs)
+# 
+#     class AOTModule(nn.Module):
+#         def __init__(self):
+#             super(AOTModule, self).__init__()
+#             self.orig_module = mod
+# 
+#         def forward(self, *args, **kwargs):
+#             return compiled_f(
+#                 dict(_named_parameters(mod, remove_duplicate=False)),
+#                 dict(_named_buffers(mod, remove_duplicate=False)),
+#                 *args,
+#                 **kwargs,
+#             )
+# 
+#     return AOTModule()
+
+
+def aot_module(mod: nn.Module, *top_args, **top_kwargs) -> nn.Module:
     """
     Traces the forward and backward graph of :attr:`mod` using torch dispatch
     tracing mechanism. It is wrapper function, that underneath uses
@@ -506,11 +555,92 @@ def aot_module(mod: nn.Module, *args, **kwargs) -> nn.Module:
 
     """
 
-    def functional_call(named_params, named_buffers, *args, **kwargs):
-        params_and_buffers = {**named_params, **named_buffers}
-        return _stateless.functional_call(mod, params_and_buffers, args, kwargs)
 
-    compiled_f = aot_function(functional_call, *args, **kwargs)
+    #########################################################
+    """
+    (1) Create a new fn_for_tracing that lifts params as inputs (TODO: buffers)
+    (2) A new tracer - MyTracer (slight modification of PythonKeyTracer). This
+    works with Proxy tensors instead of PythonTensors. Goal is to get a torch
+    graph, and not torch.aten graph yet.
+    (3) This traced function is then passed on to aot_function.
+    (4) The params are read and flattened on every forward call, as they can change during training.
+    """
+    #########################################################
+
+    def fake_signature(fn, nargs):
+        """FX gets confused by varargs, de-confuse it"""
+        argnames = ",".join(f"arg{i}" for i in range(nargs))
+        return eval(f"lambda {argnames}: fn({argnames})", {"fn": fn})
+
+
+    # Copied from PythonKeyTracer. Overrides submodule functionality mostly.
+    class MyTracer(Tracer):
+        def __init__(self):
+            super().__init__()
+
+        def call_module(
+            self, m: torch.nn.Module, forward, args, kwargs
+        ):
+            return forward(*args, **kwargs)
+
+        # We need to do this so that parameters entering the `make_fx` context have
+        # a reference to them (and also have requires_grad set on them correctly
+        # I'm not actually sure if this is the right thing to do ...
+        def create_arg(self, a):
+            if isinstance(a, torch.nn.Parameter):
+                for n, p in self.root.named_parameters():
+                    if a is p:
+                        return self.create_node('get_attr', n, (), {})
+                qualname = None
+
+                if not qualname:
+                    i = 0
+                    while True:
+                        qualname = f'_param_constant{i}'
+                        if not hasattr(self.root, qualname):
+                            break
+                        i += 1
+                    setattr(self.root, qualname, a)
+
+                return self.create_node('get_attr', qualname, (), {})
+            return super().create_arg(a)
+    
+    def flattened_fn(gm, nargs):
+        # Lets flatten the params
+        # Params value will change over time but spec will remain same
+
+        params = {
+            **dict(_named_parameters(gm, remove_duplicate=False)),
+            **dict(_named_buffers(gm, remove_duplicate=False)),
+        }
+        params_flat, params_spec = pytree.tree_flatten(params)
+        params_flat = tuple(params_flat)
+        params_len = len(params_flat)
+
+        def fn_for_tracing(*proxy_args):
+            assert len(proxy_args) == nargs
+            with _stateless.reparametrize_module(
+                gm, pytree.tree_unflatten(proxy_args[:params_len], params_spec)
+            ):
+                # out = PatchingInterpreter(gm).run(*args[params_len:])
+                out = gm(*proxy_args[params_len:])
+            assert isinstance(out, (tuple, list)), "graph must output tuple()"
+            return out
+
+        tracer: torch.fx.Tracer = MyTracer()
+        graph = tracer.trace(fake_signature(fn_for_tracing, nargs))
+        traced = torch.fx.GraphModule(tracer.root, graph, "my_tracer")
+        traced.recompile()
+
+
+        def fn_with_params_as_args(*joint_args):
+            return traced(*joint_args)
+        return fn_with_params_as_args
+
+
+    gm = torch.fx.symbolic_trace(mod)
+    compiled_f = None
+
 
     class AOTModule(nn.Module):
         def __init__(self):
@@ -518,12 +648,26 @@ def aot_module(mod: nn.Module, *args, **kwargs) -> nn.Module:
             self.orig_module = mod
 
         def forward(self, *args, **kwargs):
-            return compiled_f(
-                dict(_named_parameters(mod, remove_duplicate=False)),
-                dict(_named_buffers(mod, remove_duplicate=False)),
-                *args,
-                **kwargs,
-            )
+            nonlocal compiled_f
+
+            params = {
+                **dict(_named_parameters(gm, remove_duplicate=False)),
+                **dict(_named_buffers(gm, remove_duplicate=False)),
+            }
+            if HAS_TREE:
+                params_flat = tree.flatten(params)
+            else:
+                params_flat, _ = pytree.tree_flatten(params)
+
+            params_flat = tuple(params_flat)
+            joint_args = (*params_flat, *args) 
+            nargs = len(joint_args)
+
+            if compiled_f is None:
+                fn_with_params_as_args = flattened_fn(gm, nargs)
+                compiled_f = aot_function(fn_with_params_as_args, *top_args, **top_kwargs)
+
+            return compiled_f(*joint_args)
 
     return AOTModule()
 
