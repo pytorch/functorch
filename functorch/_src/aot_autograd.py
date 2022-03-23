@@ -580,6 +580,33 @@ def aot_module_simplified(mod: nn.Module, *top_args, **top_kwargs) -> nn.Module:
     """
     #########################################################
 
+
+    def validate():
+        """
+        MyTracer below traces even the leaf modules. Find out a way to prevent that.
+        Until then, validate if tracing the leaf module exposes control flow, and fallback to
+        original aot_module if it does.
+        """
+
+        class ValidatingTracer(Tracer):
+            def __init__(self):
+                super().__init__()
+
+            def call_module(
+                self, m: torch.nn.Module, forward, args, kwargs
+            ):
+                return forward(*args, **kwargs)
+        try:
+            validate_tracer = ValidatingTracer()
+            validate_tracer.trace(mod)
+        except (torch.fx.proxy.TraceError, RuntimeError) as e:
+            print("AOT Module simplified is not used")
+            return False
+        return True
+
+    if not validate():
+        return aot_module(mod, *top_args, **top_kwargs)
+
     def fake_signature(fn, nargs):
         """FX gets confused by varargs, de-confuse it"""
         argnames = ",".join(f"arg{i}" for i in range(nargs))
