@@ -8,12 +8,14 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from typing import List, Tuple
+from .named_members_polyfill import _named_parameters, _named_buffers
 import copy
-import warnings
 
 # Utilities to make nn.Module "functional"
 # In particular the goal is to be able to provide a function that takes as input
 # the parameters and evaluate the nn.Module using fixed inputs.
+
+
 def _del_nested_attr(obj: nn.Module, names: List[str]) -> None:
     """
     Deletes the attribute specified by the given list of names.
@@ -24,6 +26,7 @@ def _del_nested_attr(obj: nn.Module, names: List[str]) -> None:
         delattr(obj, names[0])
     else:
         _del_nested_attr(getattr(obj, names[0]), names[1:])
+
 
 def _set_nested_attr(obj: nn.Module, names: List[str], value: Tensor) -> None:
     """
@@ -36,11 +39,22 @@ def _set_nested_attr(obj: nn.Module, names: List[str], value: Tensor) -> None:
     else:
         _set_nested_attr(getattr(obj, names[0]), names[1:], value)
 
+
 def _get_nested_attr(obj: nn.Module, names: List[str]) -> None:
     if len(names) == 1:
         return getattr(obj, names[0])
     else:
         _get_nested_attr(getattr(obj, names[0]), names[1:])
+
+
+def raise_parameter_tying_error():
+    raise RuntimeError(
+        "make_functional(module): we don't yet support models that "
+        "do parameter tying (also sometimes known as weight sharing). "
+        "Please try to rewrite your model by replacing all instances of the "
+        "tied parameter with another and/or comment your support in "
+        "https://github.com/pytorch/functorch/issues/446")
+
 
 def extract_weights(mod: nn.Module) -> Tuple[Tuple[Tensor, ...], List[str]]:
     """
@@ -51,7 +65,11 @@ def extract_weights(mod: nn.Module) -> Tuple[Tuple[Tensor, ...], List[str]]:
     Note that this function modifies the model in place and after this
     call, mod.parameters() will be empty.
     """
+    num_orig_params_with_duplicates = len(tuple(_named_parameters(mod, remove_duplicate=False)))
     orig_params = tuple(mod.parameters())
+    if len(orig_params) != num_orig_params_with_duplicates:
+        raise_parameter_tying_error()
+
     # Remove all the parameters in the model
     names = []
     for name, p in list(mod.named_parameters()):
@@ -62,6 +80,7 @@ def extract_weights(mod: nn.Module) -> Tuple[Tuple[Tensor, ...], List[str]]:
     # Make params regular Tensors instead of nn.Parameter
     params = tuple(p for p in orig_params)
     return params, names
+
 
 def load_weights(mod: nn.Module, names: List[str], params: Tuple[Tensor, ...], as_params=False) -> None:
     """
@@ -75,6 +94,7 @@ def load_weights(mod: nn.Module, names: List[str], params: Tuple[Tensor, ...], a
         _del_nested_attr(mod, name.split("."))
         _set_nested_attr(mod, name.split("."), p)
 
+
 def _swap_state(mod: nn.Module, split_names: List[str], elems):
     result = []
     for split_name, elem in zip(split_names, elems):
@@ -83,8 +103,13 @@ def _swap_state(mod: nn.Module, split_names: List[str], elems):
         _set_nested_attr(mod, split_name, elem)
     return result
 
+
 def extract_buffers(mod: nn.Module) -> Tuple[Tuple[Tensor, ...], List[str]]:
+    num_orig_params_with_duplicates = len(tuple(_named_buffers(mod, remove_duplicate=False)))
     orig_params = tuple(mod.buffers())
+    if len(orig_params) != num_orig_params_with_duplicates:
+        raise_parameter_tying_error()
+
     # Remove all the parameters in the model
     names = []
     for name, p in list(mod.named_buffers()):
@@ -195,13 +220,16 @@ def make_functional_with_buffers_deprecated_v1(model: nn.Module):
 
     return weights, buffers, fun, weight_descriptors, buf_descriptors
 
+
 def make_split_names(lst):
     return [name.split('.') for name in lst]
+
 
 class FunctionalModuleWithBuffers(nn.Module):
     """
     This is the callable object returned by :func:`make_functional_with_buffers`.
     """
+
     def __init__(self, stateless_model, param_names, buffer_names):
         super(FunctionalModuleWithBuffers, self).__init__()
         self.stateless_model = stateless_model
@@ -233,10 +261,12 @@ class FunctionalModuleWithBuffers(nn.Module):
             # Remove the loaded state on self.stateless_model
             _swap_state(self.stateless_model, self.split_names, old_state)
 
+
 class FunctionalModule(nn.Module):
     """
     This is the callable object returned by :func:`make_functional`.
     """
+
     def __init__(self, stateless_model, param_names):
         super(FunctionalModule, self).__init__()
         self.stateless_model = stateless_model
@@ -258,6 +288,7 @@ class FunctionalModule(nn.Module):
         finally:
             # Remove the loaded state on self.stateless_model
             _swap_state(self.stateless_model, self.split_names, old_state)
+
 
 def make_functional(model: nn.Module):
     """make_functional(model) -> func, params
@@ -390,29 +421,28 @@ def combine_state_for_ensemble(models):
 
         assert output.shape == (num_models, batch_size, out_features)
 
+    .. warning::
+        All of the modules being stacked together must be the same (except for
+        the values of their parameters/buffers). For example, they should be in the
+        same mode (training vs eval).
+
+        This API is subject to change -- we're investigating better ways to
+        create ensembles and would love your feedback how to improve this.
     """
+    if len(models) == 0:
+        raise RuntimeError('combine_state_for_ensemble: Expected at least one model, got 0.')
+    if not (all(m.training for m in models) or all(not m.training for m in models)):
+        raise RuntimeError('combine_state_for_ensemble: Expected all models to '
+                           'have the same training/eval mode.')
+    model0_typ = type(models[0])
+    if not all(type(m) == model0_typ for m in models):
+        raise RuntimeError('combine_state_for_ensemble: Expected all models to '
+                           'be of the same class.')
     funcs, params, buffers = zip(*[make_functional_with_buffers(model)
                                    for model in models])
     params = transpose_stack(params)
     buffers = transpose_stack(buffers)
     return funcs[0], params, buffers
-
-
-# class Ensemble(nn.Module):
-#     def __init__(self, models, in_dims, out_dims=0):
-#         super(Ensemble, self).__init__()
-#         func_model, params, buffers = combine_state_for_ensemble(models)
-#         self.func_model = func_model
-#         self.params = params
-#         self.buffers = buffers if len(buffers) > 0 else None
-#
-#         in_dims_start = (0, 0) if self.buffers is not None else (0,)
-#         self.in_dims = in_dims_start + in_dims
-#         self.out_dims = out_dims
-#         self._vmap_func = vmap(func_model, self.in_dims, self.out_dims)
-#
-#     def forward(self, *args, **kwargs):
-#         return self._vmap_func(self.params, self.buffers, *args, **kwargs)
 
 
 def functional_init(model_class, ensemble_shape=(), device='cpu'):

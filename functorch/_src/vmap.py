@@ -6,12 +6,13 @@
 
 import torch
 import functools
+from collections import OrderedDict
 from torch import Tensor
 from typing import Any, Callable, Optional, Tuple, Union, List
-from torch.utils._pytree import tree_flatten, tree_unflatten, _broadcast_to_and_flatten, TreeSpec
-from .pytree_hacks import tree_flatten_hack, tree_map_
+from torch.utils._pytree import tree_flatten, tree_unflatten, _broadcast_to_and_flatten, TreeSpec, _register_pytree_node
+from .pytree_hacks import tree_map_
 from functools import partial
-import warnings
+import inspect
 
 from functorch._C import (
     _add_batch_dim,
@@ -23,7 +24,38 @@ from functorch._C import (
 in_dims_t = Union[int, Tuple]
 out_dims_t = Union[int, Tuple[int, ...]]
 
+
+def register_torch_return_types():
+    # Register torch.return_types as pytree node.
+    for name in dir(torch.return_types):
+        if name.startswith('__'):
+            continue
+        attr = getattr(torch.return_types, name)
+        if inspect.isclass(attr):
+            return_type_class = attr
+            # Note: We capture the current `return_type_class` with default argument `constructor`
+            # in the lambda otherwise we will point to the last value of `return_type_class` for all lambdas
+            torch.utils._pytree._register_pytree_node(return_type_class, lambda x: (
+                list(x), None), lambda x, c, constructor=return_type_class: constructor(x))
+
+
+register_torch_return_types()
+
+
+# Temporary OrderedDict registration as pytree
+def _odict_flatten(d):
+    return list(d.values()), list(d.keys())
+
+
+def _odict_unflatten(values, context):
+    return OrderedDict((key, value) for key, value in zip(context, values))
+
+
+_register_pytree_node(OrderedDict, _odict_flatten, _odict_unflatten)
+
+
 # Checks that all args-to-be-batched have the same batch dim size
+
 def _validate_and_get_batch_size(
         flat_in_dims: List[Optional[int]],
         flat_args: List) -> int:
@@ -35,6 +67,7 @@ def _validate_and_get_batch_size(
             f'dimension, got sizes {batch_sizes} for the mapped dimension')
     return batch_sizes[0]
 
+
 def _num_outputs(batched_outputs: Union[Tensor, Tuple[Tensor, ...]]) -> int:
     if isinstance(batched_outputs, tuple):
         return len(batched_outputs)
@@ -42,6 +75,8 @@ def _num_outputs(batched_outputs: Union[Tensor, Tuple[Tensor, ...]]) -> int:
 
 # If value is a tuple, check it has length `num_elements`.
 # If value is not a tuple, make a tuple with `value` repeated `num_elements` times
+
+
 def _as_tuple(value: Any, num_elements: int, error_message_lambda: Callable[[], str]) -> Tuple:
     if not isinstance(value, tuple):
         return (value,) * num_elements
@@ -49,7 +84,10 @@ def _as_tuple(value: Any, num_elements: int, error_message_lambda: Callable[[], 
         raise ValueError(error_message_lambda())
     return value
 
-def _process_batched_inputs(in_dims: in_dims_t, args: Tuple, func: Callable) -> Tuple[int, List[Any], List[Any], TreeSpec]:
+
+def _process_batched_inputs(
+    in_dims: in_dims_t, args: Tuple, func: Callable
+) -> Tuple[int, List[Any], List[Any], TreeSpec]:
     if not isinstance(in_dims, int) and not isinstance(in_dims, tuple):
         raise ValueError(
             f'vmap({_get_name(func)}, in_dims={in_dims}, ...)(<inputs>): '
@@ -95,6 +133,8 @@ def _process_batched_inputs(in_dims: in_dims_t, args: Tuple, func: Callable) -> 
 
 # Creates BatchedTensors for every Tensor in arg that should be batched.
 # Returns the (potentially) batched arguments and the batch_size.
+
+
 def _create_batched_inputs(
         flat_in_dims: List[Any], flat_args: List[Any], vmap_level: int, args_spec) -> Tuple:
     # See NOTE [Ignored _remove_batch_dim, _add_batch_dim]
@@ -104,11 +144,13 @@ def _create_batched_inputs(
     return tree_unflatten(batched_inputs, args_spec)
 
 # Undos the batching (and any batch dimensions) associated with the `vmap_level`.
+
+
 def _unwrap_batched(
         batched_outputs: Union[Tensor, Tuple[Tensor, ...]],
         out_dims: out_dims_t,
         vmap_level: int, batch_size: int, func: Callable) -> Tuple:
-    flat_batched_outputs, output_spec = tree_flatten_hack(batched_outputs)
+    flat_batched_outputs, output_spec = tree_flatten(batched_outputs)
 
     for out in flat_batched_outputs:
         if isinstance(out, torch.Tensor):
@@ -144,6 +186,7 @@ def _unwrap_batched(
     ]
     return tree_unflatten(flat_outputs, output_spec)
 
+
 def _check_int(x, func, out_dims):
     if isinstance(x, int):
         return
@@ -152,10 +195,12 @@ def _check_int(x, func, out_dims):
         f'an int or a python collection of ints representing where in the outputs the '
         f'vmapped dimension should appear.')
 
+
 def _check_out_dims_is_int_or_int_pytree(out_dims: out_dims_t, func: Callable) -> None:
     if isinstance(out_dims, int):
         return
     tree_map_(partial(_check_int, func=func, out_dims=out_dims), out_dims)
+
 
 def _get_name(func: Callable):
     if hasattr(func, '__name__'):
@@ -169,7 +214,16 @@ def _get_name(func: Callable):
 # vmap(func)(inputs) wraps all Tensor inputs to be batched in BatchedTensors,
 # sends those into func, and then unwraps the output BatchedTensors. Operations
 # on BatchedTensors perform the batched operations that the user is asking for.
-def vmap(func: Callable, in_dims: in_dims_t = 0, out_dims: out_dims_t = 0) -> Callable:
+#
+# vmap's randomness behavior differs from JAX's, which would require a PRNG key
+# to be passed everywhere.
+
+
+def vmap(
+        func: Callable,
+        in_dims: in_dims_t = 0,
+        out_dims: out_dims_t = 0,
+        randomness: str = 'error') -> Callable:
     """
     vmap is the vectorizing map; ``vmap(func)`` returns a new function that
     maps :attr:`func` over some dimension of the inputs. Semantically, vmap
@@ -192,6 +246,13 @@ def vmap(func: Callable, in_dims: in_dims_t = 0, out_dims: out_dims_t = 0) -> Ca
         out_dims (int or Tuple[int]): Specifies where the mapped dimension
             should appear in the outputs. If :attr:`out_dims` is a Tuple, then
             it should have one element per output. Default: 0.
+        randomness (str): Specifies whether the randomness in this
+            vmap should be the same or different across batches. If 'different',
+            the randomness for each batch will be different. If 'same', the
+            randomness will be the same across batches. If 'error', any calls to
+            random functions will error. Default: 'error'. WARNING: this flag
+            only applies to random PyTorch operations and does not apply to
+            Python's random module or numpy randomness.
 
     Returns:
         Returns a new "batched" function. It takes the same inputs as
@@ -309,11 +370,14 @@ def vmap(func: Callable, in_dims: in_dims_t = 0, out_dims: out_dims_t = 0) -> Ca
         vmap does not provide general autobatching or handle variable-length
         sequences out of the box.
     """
+    if randomness not in ['error', 'different', 'same']:
+        raise RuntimeError(f"Only allowed values for randomness are 'error', 'different', or 'same'. Got {randomness}")
+
     @functools.wraps(func)
     def wrapped(*args, **kwargs):
         _check_out_dims_is_int_or_int_pytree(out_dims, func)
         batch_size, flat_in_dims, flat_args, args_spec = _process_batched_inputs(in_dims, args, func)
-        vmap_level = _vmap_increment_nesting(batch_size)
+        vmap_level = _vmap_increment_nesting(batch_size, randomness)
         try:
             batched_inputs = _create_batched_inputs(flat_in_dims, flat_args, vmap_level, args_spec)
             batched_outputs = func(*batched_inputs, **kwargs)

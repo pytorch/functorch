@@ -57,7 +57,7 @@ namespace at { namespace functorch {
 // TORCH_LIBRARY_IMPL block:
 //   TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
 //     ...
-//     VMAP_SUPPORT("sum.int", sum_batch_rule);
+//     VMAP_SUPPORT2(sum, int, sum_batch_rule);
 //     ...
 //   }
 //
@@ -175,6 +175,10 @@ const Tensor& resize__plumbing(
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    c10::impl::ExcludeDispatchKeyGuard guard2(kBatchedKey);
+    return self.resize_(size, optional_memory_format);
+  }
 
   Tensor self_value;
   optional<int64_t> self_bdim;
@@ -339,6 +343,46 @@ std::tuple<Tensor,optional<int64_t>> diagonal_backward_batch_rule(
   return std::make_tuple(std::move(result), 0);
 }
 
+std::tuple<Tensor,optional<int64_t>> slice_batch_rule(
+    const Tensor& self,
+    optional<int64_t> self_bdim,
+    int64_t dim,
+    c10::optional<int64_t> start,
+    c10::optional<int64_t> end,
+    int64_t step) {
+  auto self_ = moveBatchDimToFront(self, self_bdim);
+  dim = getPhysicalDim(self, self_bdim.has_value(), dim);
+
+  auto result = self_.slice(dim, start, end, step);
+  return std::make_tuple(result, 0);
+}
+
+static bool is_allowed_dim_on_scalar_tensor(int64_t dim) {
+  return dim == 0 || dim == -1;
+}
+
+std::tuple<Tensor,optional<int64_t>>
+transpose_int_batch_rule(
+    const Tensor& self,
+    optional<int64_t> self_bdim,
+    int64_t dim0,
+    int64_t dim1) {
+  // PyTorch has a special case where scalar_tensor.transpose(dim0, dim1) works
+  // for dim0, dim1 in {0, -1} and returns the scalar tensor. If the following happens:
+  // >>> x = torch.randn(B0)  # the per-examples are all scalars
+  // >>> vmap(lambda x: x.transpose(0, -1), x)
+  // then we replicate this behavior.
+  if (/*physical*/self.dim() == 1 && is_allowed_dim_on_scalar_tensor(dim0) &&
+      is_allowed_dim_on_scalar_tensor(dim1)) {
+    return std::make_tuple(self, self_bdim);
+  }
+  auto self_ = moveBatchDimToFront(self, self_bdim);
+  dim0 = getPhysicalDim(self, self_bdim.has_value(), dim0);
+  dim1 = getPhysicalDim(self, self_bdim.has_value(), dim1);
+  auto result = self_.transpose(dim0, dim1);
+  return std::make_tuple(result, 0);
+}
+
 std::tuple<Tensor, optional<int64_t>> permute_batching_rule(
     const Tensor &self, optional<int64_t> self_bdim, IntArrayRef dims)
 {
@@ -454,31 +498,33 @@ std::tuple<Tensor, optional<int64_t>> movedim_batch_rule(const Tensor& self, opt
 }
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
-  VMAP_SUPPORT("diag", diag_batch_rule);
-  VMAP_SUPPORT("chunk", chunk_batching_rule);
+  VMAP_SUPPORT(diag, diag_batch_rule);
+  VMAP_SUPPORT(chunk, chunk_batching_rule);
   m.impl("flatten.using_ints", static_cast<decltype(&ATEN_FN2(flatten, using_ints))>(native::flatten));
-  VMAP_SUPPORT("flip", flip_batch_rule);
+  VMAP_SUPPORT(flip, flip_batch_rule);
   m.impl("trace", trace_decomp);
-  VMAP_SUPPORT("tril", VARIADIC_BDIMS_BATCH_RULE(ATEN_FN(tril)));
-  VMAP_SUPPORT("triu", VARIADIC_BDIMS_BATCH_RULE(ATEN_FN(triu)));
-  VMAP_SUPPORT("repeat", repeat_batch_rule);
-  VMAP_SUPPORT("_unsafe_view", _unsafe_view_batch_rule);
-  VMAP_SUPPORT("unsqueeze", unsqueeze_batch_rule);
+  VMAP_SUPPORT(tril, VARIADIC_BDIMS_BATCH_RULE(ATEN_FN(tril)));
+  VMAP_SUPPORT(triu, VARIADIC_BDIMS_BATCH_RULE(ATEN_FN(triu)));
+  VMAP_SUPPORT(repeat, repeat_batch_rule);
+  VMAP_SUPPORT(_unsafe_view, _unsafe_view_batch_rule);
+  VMAP_SUPPORT(unsqueeze, unsqueeze_batch_rule);
   m.impl("resize_", resize__plumbing);
-  VMAP_SUPPORT("select.int", select_batching_rule);
-  VMAP_SUPPORT("squeeze", squeeze_batch_rule);
-  VMAP_SUPPORT("squeeze.dim", squeeze_dim_batch_rule);
-  VMAP_SUPPORT("_reshape_alias", _reshape_alias_batch_rule);
-  VMAP_SUPPORT("roll", roll_batch_rule);
-  VMAP_SUPPORT("permute", permute_batching_rule);
-  VMAP_SUPPORT("diagonal", diagonal_batching_rule);
-  VMAP_SUPPORT("diagonal_backward", diagonal_backward_batch_rule);
-  VMAP_SUPPORT("select_backward", select_backward_batch_rule);
-  VMAP_SUPPORT("slice_backward", slice_backward_batch_rule);
-  VMAP_SUPPORT("view", view_batching_rule);
-  VMAP_SUPPORT("expand", expand_batch_rule);
-  VMAP_SUPPORT("unfold", unfold_batch_rule);
-  VMAP_SUPPORT("movedim.intlist", movedim_batch_rule);
+  VMAP_SUPPORT2(select, int, select_batching_rule);
+  VMAP_SUPPORT(squeeze, squeeze_batch_rule);
+  VMAP_SUPPORT2(squeeze, dim, squeeze_dim_batch_rule);
+  VMAP_SUPPORT(_reshape_alias, _reshape_alias_batch_rule);
+  VMAP_SUPPORT(roll, roll_batch_rule);
+  VMAP_SUPPORT(permute, permute_batching_rule);
+  VMAP_SUPPORT(diagonal, diagonal_batching_rule);
+  VMAP_SUPPORT(diagonal_backward, diagonal_backward_batch_rule);
+  VMAP_SUPPORT(select_backward, select_backward_batch_rule);
+  VMAP_SUPPORT(slice_backward, slice_backward_batch_rule);
+  VMAP_SUPPORT(view, view_batching_rule);
+  VMAP_SUPPORT(expand, expand_batch_rule);
+  VMAP_SUPPORT(unfold, unfold_batch_rule);
+  VMAP_SUPPORT2(movedim, intlist, movedim_batch_rule);
+  VMAP_SUPPORT2(slice, Tensor, slice_batch_rule);
+  VMAP_SUPPORT2(transpose, int, transpose_int_batch_rule);
 }
 
 }}

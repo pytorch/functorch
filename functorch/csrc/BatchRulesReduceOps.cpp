@@ -69,13 +69,20 @@ void boxed_reduction_batch_rule(const c10::OperatorHandle& op, torch::jit::Stack
   const auto& schema = op.schema();
   const auto num_returns = schema.returns().size();
   const auto num_arguments = schema.arguments().size();
-  auto arguments = torch::jit::pop(*stack, num_arguments);
 
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
 
+  auto orig_arguments = torch::jit::last(*stack, num_arguments);
+  if (std::none_of(orig_arguments.begin(), orig_arguments.end(), ivalueParticipatesInCurrentLevel)) {
+    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
+    op.callBoxed(stack);
+    return;
+  }
+
+  auto arguments = torch::jit::pop(*stack, num_arguments);
   std::vector<std::pair<Tensor, optional<int64_t>>> tensor_inputs;
   std::vector<int64_t> tensor_pos;
 
@@ -326,9 +333,9 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   REDUCTION_BOXED(var_mean.correction);
   REDUCTION_BOXED(_log_softmax);
   REDUCTION_BOXED_ARGS(rot90, 2);
-  VMAP_SUPPORT("aminmax", aminmax_batching_rule);
+  VMAP_SUPPORT(aminmax, aminmax_batching_rule);
 
-  VMAP_SUPPORT("_log_softmax_backward_data", _log_softmax_backward_batch_rule);
-  VMAP_SUPPORT("_softmax_backward_data", _softmax_backward_batch_rule);
+  VMAP_SUPPORT(_log_softmax_backward_data, _log_softmax_backward_batch_rule);
+  VMAP_SUPPORT(_softmax_backward_data, _softmax_backward_batch_rule);
 }
 }}

@@ -202,33 +202,6 @@ Tensor& zero_inplace_batching_rule(Tensor &self) {
   return self;
 }
 
-Tensor trace_batching_rule(const Tensor& self) {
-  if (!participatesInCurrentLevel(self)) {
-    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-    return self.trace();
-  }
-  auto self_physical = MultiBatchVmapTransform::logicalToPhysical(self);
-  // Batched Diagonal View
-  auto self_diag = at::diagonal(self_physical.tensor(), /*offset*/0, /*dim1*/-2, /*dim2*/-1);
-  auto result =  at::sum(self_diag, -1);
-  return self_physical.getPhysicalToLogicalMap().apply(result);
-}
-
-Tensor trace_backward_batching_rule(const Tensor& grad, IntArrayRef input_sizes) {
-  if (!participatesInCurrentLevel(grad)) {
-    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-    return at::trace_backward(grad, input_sizes);
-  }
-  auto grad_physical = MultiBatchVmapTransform::logicalToPhysical(grad);
-  auto grad_input = at::zeros(grad_physical.getPhysicalShape(input_sizes), grad.options());
-  // Batched Diagonal View
-  auto grad_input_diag = at::diagonal(grad_input, /*offset*/0, /*dim1*/-2, /*dim2*/-1);
-  // Append a dimension of size one to the grad output
-  auto grad_physical_tensor = grad_physical.tensor().unsqueeze(-1);
-  grad_input_diag.copy_(grad_physical_tensor);
-  return grad_physical.getPhysicalToLogicalMap().apply(grad_input);
-}
-
 Tensor transpose_int_batching_rule(const Tensor& self, int64_t dim0, int64_t dim1) {
   if (!participatesInCurrentLevel(self)) {
     c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
@@ -264,22 +237,6 @@ Tensor select_backward_batching_rule(const Tensor& grad, IntArrayRef input_sizes
   auto physical_dim = getGradInputPhysicalDim(dim, input_sizes, grad_physical.numBatchDims());
   grad_input.select(physical_dim, index).copy_(grad_physical.tensor());
   return grad_physical.getPhysicalToLogicalMap().apply(grad_input);
-}
-
-Tensor slice_batching_rule(
-    const Tensor& self,
-    int64_t dim,
-    c10::optional<int64_t> start,
-    c10::optional<int64_t> end,
-    int64_t step) {
-  if (!participatesInCurrentLevel(self)) {
-    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-    return at::slice(self, dim, start, end, step);
-  }
-  auto self_physical = MultiBatchVmapTransform::logicalToPhysical(self);
-  auto dim_physical = self_physical.getPhysicalDim(dim);
-  auto result = self_physical.tensor().slice(dim_physical, start, end, step);
-  return self_physical.getPhysicalToLogicalMap().apply(result);
 }
 
 Tensor slice_backward_batching_rule(const Tensor& grad, IntArrayRef input_sizes, int64_t dim, int64_t start, int64_t end, int64_t step) {
@@ -330,32 +287,6 @@ std::vector<Tensor> unbind_batching_rule(const Tensor& self, int64_t dim) {
   return result;
 }
 
-Tensor contiguous_batching_rule(const Tensor& self, MemoryFormat memory_format) {
-  if (!participatesInCurrentLevel(self)) {
-    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-    return self.contiguous(memory_format);
-  }
-  TORCH_CHECK(memory_format == MemoryFormat::Contiguous,
-      "NYI: Tensor.contiguous(...) inside of vmap for memory_format other ",
-      "than torch.contiguous_format");
-  auto physical_view = MultiBatchVmapTransform::logicalToPhysical(self);
-  auto result = physical_view.tensor().contiguous(memory_format);
-  return physical_view.getPhysicalToLogicalMap().apply(result);
-}
-
-Tensor view_as_complex_batching_rule(const Tensor& self) {
-  if (!participatesInCurrentLevel(self)) {
-    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-    return at::view_as_complex(self);
-  }
-  // guard against the user passing in a batch of scalar tensors with batch
-  // size equal to 2.
-  TORCH_CHECK(self.sizes().size() != 0, "Input tensor must have one or more dimensions");
-  auto self_physical = MultiBatchVmapTransform::logicalToPhysical(self);
-  auto result = at::view_as_complex(self_physical.tensor());
-  return self_physical.getPhysicalToLogicalMap().apply(result);
-}
-
 // Checks that the smallest batch stride is greater than the largest example
 // stride. This is something we can support but we choose not to because it's
 // potentially error prone.
@@ -366,6 +297,10 @@ static void checkBatchDimsAtFrontInLayout(IntArrayRef physical_strides, int64_t 
       physical_strides.begin() + num_batch_dims, physical_strides.end());
   if (largest_example_stride == physical_strides.end()) {
     // No example dimensions
+    return;
+  }
+  if (num_batch_dims == 1 && physical_strides.size() > 0 && physical_strides[0] == 0) {
+    // degenerate batch dim
     return;
   }
   TORCH_CHECK(*smallest_batch_stride >= *largest_example_stride,
@@ -608,57 +543,6 @@ Tensor unwrap_and_call_method(const Tensor& input, ExtraArgs... extra_args) {
   return makeBatched(output_physical, input_batched->bdim(), input_batched->level());
 }
 
-
-Tensor clone_batching_rule(const Tensor& self, optional<MemoryFormat> memory_format) {
-  if (!participatesInCurrentLevel(self)) {
-    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-    return at::clone(self, memory_format);
-  }
-  // Memory format support is a little tricky because vmap is allowed to move
-  // around batch dimensions and some memory formats are rank-dependent.
-  // Another weird case is:
-  // - a tensor with MemoryFormat::ChannelsLast MUST have 4 dimensions. Do we
-  //   allow the user to clone a Tensor with 3 logical dimensions and 1 batch
-  //   dim into a ChannelsLast Tensor? What about a Tensor with 3 logical dims
-  //   and N>1 batch dims?
-  TORCH_CHECK(!memory_format.has_value() || memory_format == MemoryFormat::Preserve
-      || memory_format == MemoryFormat::Contiguous,
-      "NYI: Tensor.clone(memory_format) inside vmap is only supported with ",
-      "memory_format torch.preserve_format or torch.contiguous_format (got ",
-      *memory_format, ")");
-
-  if (memory_format == MemoryFormat::Contiguous) {
-    // There is an ambiguity here when the batch dims are not at the front of
-    // the tensor.
-    // >>> x = torch.randn(3, B0, 5)
-    // >>> y = vmap(lambda x: x.clone(torch.contiguous_format), in_dims=1, out_dims=0)(x)
-    // >>> y[0].is_contiguous()
-    // ???
-    // Should we make the whole tensor contiguous, or should we
-    // make the non-batch dims contiguous? We've chosen the latter because
-    // philosophically vmap hides the batch dims and operates on a per-sample level.
-    auto physical_view = MultiBatchVmapTransform::logicalToPhysical(self);
-    auto output_physical = at::clone(physical_view.tensor(), memory_format);
-    return physical_view.getPhysicalToLogicalMap().apply(output_physical);
-  }
-
-  TORCH_INTERNAL_ASSERT(!memory_format.has_value() || memory_format == MemoryFormat::Preserve);
-  auto* self_batched = unsafeGetBatchedImpl(self);
-  auto output_physical = at::clone(self_batched->value(), memory_format);
-  return makeBatched(output_physical, self_batched->bdim(), self_batched->level());
-}
-
-Tensor bmm_batching_rule(const Tensor& self, const Tensor& other) {
-  TORCH_CHECK(/*logical*/self.dim() == 3 && /*logical*/other.dim() == 3,
-      "bmm(self, other): Shape mismatch: expected 3D `self` "
-      "(got `self` of size ", self.sizes(), ") ",
-      "and 3D `other` (got `other` of size ", other.sizes(), ")");
-
-  auto physical_args = BroadcastingVmapTransform::logicalToPhysical({self, other});
-  auto result = at::matmul(physical_args[0].tensor(), physical_args[1].tensor());
-  return physical_args[0].getPhysicalToLogicalMap().apply(result);
-}
-
 Tensor cat_batching_rule(TensorList tensors, int64_t dim) {
   if (!participatesInCurrentLevel(tensors)) {
     c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
@@ -691,64 +575,6 @@ Tensor stack_batching_rule(TensorList tensors, int64_t dim) {
   return physical_views[0].getPhysicalToLogicalMap().apply(result);
 }
 
-// I am quite sad that we need to register operators with exploded TensorOptions,
-// even though the native:: implementations can use TensorOptions&.
-// This also makes it hard to metaprogram: i.e., we can't use
-// unwrap_and_call<..., at::to> because at::to takes TensorOptions& (!!)
-Tensor to_dtype_layout_batching_rule(
-    const Tensor& self,
-    optional<ScalarType> dtype,
-    optional<Layout> layout,
-    optional<Device> device,
-    optional<bool> pin_memory,
-    bool non_blocking, bool copy,
-    optional<MemoryFormat> memory_format) {
-  auto options = TensorOptions()
-    .dtype(dtype)
-    .layout(layout)
-    .device(device)
-    .pinned_memory(pin_memory);
-  auto* input_batched = unsafeGetBatchedImpl(self);
-  auto output_physical = input_batched->value().to(options, non_blocking, copy, memory_format);
-  return makeBatched(output_physical, input_batched->bdim(), input_batched->level());
-}
-
-Tensor new_zeros_batching_rule(
-    const Tensor& self,
-    IntArrayRef size,
-    optional<ScalarType> dtype,
-    optional<Layout> layout,
-    optional<Device> device,
-    optional<bool> pin_memory) {
-  auto physical_view = MultiBatchVmapTransform::logicalToPhysical(self);
-  auto physical_size = physical_view.getPhysicalShape(size);
-  auto options = TensorOptions()
-    .dtype(dtype)
-    .layout(layout)
-    .device(device)
-    .pinned_memory(pin_memory);
-  auto result = physical_view.tensor().new_zeros(physical_size, options);
-  return physical_view.getPhysicalToLogicalMap().apply(result);
-}
-
-Tensor new_empty_batching_rule(
-    const Tensor& self,
-    IntArrayRef size,
-    c10::optional<ScalarType> dtype,
-    c10::optional<Layout> layout,
-    c10::optional<Device> device,
-    c10::optional<bool> pin_memory) {
-  auto physical_view = MultiBatchVmapTransform::logicalToPhysical(self);
-  auto physical_size = physical_view.getPhysicalShape(size);
-  auto result = physical_view.tensor().new_empty(physical_size, TensorOptions().dtype(dtype).layout(layout).device(device).pinned_memory(pin_memory));
-  return physical_view.getPhysicalToLogicalMap().apply(result);
-}
-
-Tensor addmm_batching_rule(const Tensor& self, const Tensor& mat1, const Tensor& mat2, const Scalar& beta, const Scalar& alpha) {
-  // Decomposition that is probably not very fast...
-  return at::add(self * beta, at::mm(mat1, mat2), alpha);
-}
-
 Tensor new_empty_strided_batching_rule(
     const Tensor& self,
     IntArrayRef size,
@@ -757,6 +583,12 @@ Tensor new_empty_strided_batching_rule(
     optional<Layout> layout,
     optional<Device> device,
     optional<bool> pin_memory) {
+  if (!participatesInCurrentLevel(self)) {
+    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
+    return self.new_empty_strided(
+        size, stride, dtype, layout, device, pin_memory);
+  }
+
   auto physical_view = MultiBatchVmapTransform::logicalToPhysical(self);
   auto physical_size = physical_view.getPhysicalShape(size);
 
@@ -827,112 +659,31 @@ TORCH_LIBRARY_IMPL(_, FT_BATCHED_KEY, m) {
 }
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
-  // VMAP_OUTPLACE_OP("abs", abs_batch_rule);
-  // m.impl("abs", PrimBatchRule7<decltype(&abs_batch_rule), &abs_batch_rule, to_operator_t<decltype(abs_batch_rule)>>::apply);
-
-  // NB: Ideally we would like some operators, like size.int, to "fallthrough"
-  // to the underlying implementation. However, because a BatchedTensor is a
-  // Tensor wrapper, it only has one dispatch key (Batched) on it. The resolution
-  // here is to just directly call the underlying implementation.
-  m.impl("size.int", static_cast<int64_t (*)(const Tensor&, int64_t)>(native::size));
-  // m.impl("_add_batch_dim", native::_add_batch_dim);
-  // m.impl("_remove_batch_dim", native::_remove_batch_dim);
-
-  m.impl("is_complex", native::is_complex);
-//
-//   // inplace operations
-//   m.impl("fill_.Scalar", fill_inplace_scalar_batching_rule);
-//   m.impl("fill_.Tensor", fill_inplace_tensor_batching_rule);
-//   m.impl("zero_", zero_inplace_batching_rule);
-
-//   // autograd things...
-//   m.impl("is_leaf", BatchedTensor_is_leaf);
-//   m.impl("requires_grad_", BatchedTensor_requires_grad_);
-
-  // view operations
-  m.impl("as_strided", as_strided_batching_rule);
-  // m.impl("chunk", chunk_batching_rule);
+  // still legacy b/c teturns multiple tensors
   m.impl("tensor_split.sections", tensor_split_sections_batching_rule);
   m.impl("tensor_split.indices", tensor_split_indices_batching_rule);
-  // NB: static_cast because there's another variant of narrow. However, we don't
-  // want to support the other variant yet bc it isn't documented...
-  m.impl("numpy_T", native::numpy_T); // composite wrt autograd
-  m.impl("reshape_as", native::reshape_as); // composite wrt autograd
-  m.impl("slice.Tensor", slice_batching_rule);
   m.impl("split.Tensor", split_batching_rule);
   m.impl("split_with_sizes", split_with_sizes_batching_rule);
-  m.impl("squeeze_.dim", squeeze_dim__batching_rule);
-  m.impl("t", native::t); // composite wrt autograd
-  // m.impl("trace", trace_batching_rule);
-  m.impl("transpose.int", transpose_int_batching_rule);
   m.impl("unbind.int", unbind_batching_rule);
+  m.impl("cat", cat_batching_rule);
+  m.impl("stack", stack_batching_rule);
+
+  // still legacy b/c needs special inplace rules
+  m.impl("squeeze_.dim", squeeze_dim__batching_rule);
   m.impl("unsqueeze_", unsqueeze__batching_rule);
-  m.impl("view_as", native::view_as); // composite wrt autograd
 
-  m.impl("addmm", addmm_batching_rule);
-  // clamp operations
-
-// unary pointwise, out-of-place, no additional arguments.
+  // still legacy b/c this op is weird
 #define TO_BATCHING_RULE(name, ...) \
   { \
     using to_type = Tensor(Tensor::*)(__VA_ARGS__) const; \
     m.impl(name, unwrap_and_call_method< \
         to_type, &Tensor::to, __VA_ARGS__>);\
   }
-  TO_BATCHING_RULE("to.device", Device, ScalarType, bool, bool, optional<MemoryFormat>)
-  TO_BATCHING_RULE("to.dtype", ScalarType, bool, bool, optional<MemoryFormat>)
   TO_BATCHING_RULE("to.other", const Tensor&, bool, bool, optional<MemoryFormat>)
-  m.impl("to.dtype_layout", to_dtype_layout_batching_rule);
-#undef TO_BATCHING_RULE
-  m.impl("clone", clone_batching_rule);
 
-//   m.impl("sigmoid_backward", binary_pointwise_batching_rule<TensorTensorType, at::sigmoid_backward>);
-//   m.impl(
-//       "threshold_backward",
-//       binary_pointwise_batching_rule<
-//           TensorTensorScalarType,
-//           at::threshold_backward,
-//           Scalar>);
-//
-  // for at::result_type, call the native::result_type implementation.
-  // We don't have to do anything special because native::result_type operates
-  // on the logical shape of the tensors.
-  m.impl("result_type.Tensor", static_cast<ScalarType (*)(const Tensor&, const Tensor&)>(native::result_type));
-  m.impl("result_type.Scalar", static_cast<ScalarType (*)(const Tensor&, const Scalar&)>(native::result_type));
-  m.impl("result_type.Scalar_Tensor", static_cast<ScalarType (*)(const Scalar&, const Tensor&)>(native::result_type));
-  m.impl("result_type.Scalar_Scalar", static_cast<ScalarType (*)(const Scalar&, const Scalar&)>(native::result_type));
-//
-// #undef BINARY_POINTWISE_VA
-// #undef BINARY_POINTWISE
-//
-//
-#define TRIVIAL_OP(op) m.impl(#op, \
-    unwrap_and_call<Tensor (*)(const Tensor&), at::op>);
-  // complex number view operators
-  TRIVIAL_OP(imag)
-  TRIVIAL_OP(real);
-  TRIVIAL_OP(view_as_real);
-  m.impl("view_as_complex", view_as_complex_batching_rule);
-// #undef TRIVIAL
-// //
-// //   // matmul-like operators
-// //   m.impl("bmm", bmm_batching_rule);
-// //
-  // cat/stack
-  m.impl("cat", cat_batching_rule);
-  m.impl("stack", stack_batching_rule);
-  m.impl("is_same_size", native::is_same_size);
-// //
-// //   // backward operators
-// //   m.impl("trace_backward", trace_backward_batching_rule);
-// //
-// //   // Tensor.new_* operators
-//   m.impl("ones_like", ones_like_batching_rule);
-// //   m.impl("new_empty", new_empty_batching_rule);
-//   m.impl("new_empty_strided", new_empty_strided_batching_rule);
-// //   m.impl("new_zeros", new_zeros_batching_rule);
-// //
-  m.impl("contiguous", contiguous_batching_rule);
+  // still legacy because these are ridiculously complicated
+  m.impl("as_strided", as_strided_batching_rule);
+  m.impl("new_empty_strided", new_empty_strided_batching_rule);
 }
 
 }

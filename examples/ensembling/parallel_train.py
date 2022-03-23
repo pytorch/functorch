@@ -1,10 +1,13 @@
+import argparse
 import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from functorch import make_functional, grad_and_value, vmap, combine_state_for_ensemble
 
-# Adapted from http://willwhitney.com/parallel-training-jax.html
+# Adapted from http://willwhitney.com/parallel-training-jax.html , which is a
+# tutorial on Model Ensembling with JAX by Will Whitney.
+#
 # The original code comes with the following citation:
 # @misc{Whitney2021Parallelizing,
 #     author = {William F. Whitney},
@@ -16,20 +19,32 @@ from functorch import make_functional, grad_and_value, vmap, combine_state_for_e
 # GOAL: Demonstrate that it is possible to use eager-mode vmap
 # to parallelize training over models.
 
-DEVICE = 'cpu'
+parser = argparse.ArgumentParser(description="Functorch Ensembled Models")
+parser.add_argument(
+    "--device",
+    type=str,
+    default="cpu",
+    help="CPU or GPU ID for this process (default: 'cpu')",
+)
+args = parser.parse_args()
+
+DEVICE = args.device
 
 # Step 1: Make some spirals
+
+
 def make_spirals(n_samples, noise_std=0., rotations=1.):
     ts = torch.linspace(0, 1, n_samples, device=DEVICE)
     rs = ts ** 0.5
     thetas = rs * rotations * 2 * math.pi
     signs = torch.randint(0, 2, (n_samples,), device=DEVICE) * 2 - 1
-    labels = (signs > 0).to(torch.long)
+    labels = (signs > 0).to(torch.long).to(DEVICE)
 
     xs = rs * signs * torch.cos(thetas) + torch.randn(n_samples, device=DEVICE) * noise_std
     ys = rs * signs * torch.sin(thetas) + torch.randn(n_samples, device=DEVICE) * noise_std
     points = torch.stack([xs, ys], dim=1)
     return points, labels
+
 
 points, labels = make_spirals(100, noise_std=0.05)
 
@@ -51,12 +66,14 @@ class MLPClassifier(nn.Module):
         x = F.log_softmax(x, -1)
         return x
 
+
 loss_fn = nn.NLLLoss()
 
 # Step 3: Make the model functional(!!) and define a training function.
 # NB: this mechanism doesn't exist in PyTorch today, but we want it to:
 # https://github.com/pytorch/pytorch/issues/49171
 func_model, weights = make_functional(MLPClassifier().to(DEVICE))
+
 
 def train_step_fn(weights, batch, targets, lr=0.2):
     def compute_loss(weights, batch, targets):
@@ -85,18 +102,23 @@ def step4():
         if i % 100 == 0:
             print(loss)
 
+
 step4()
 
 # Step 5: We're ready for multiple models. Let's define an init_fn
 # that, given a number of models, returns to us all of the weights.
+
+
 def init_fn(num_models):
-    models = [MLPClassifier() for _ in range(num_models)]
+    models = [MLPClassifier().to(DEVICE) for _ in range(num_models)]
     _, params, _ = combine_state_for_ensemble(models)
     return params
 
 # Step 6: Now, can we try multiple models at the same time?
 # The answer is: yes! `loss` is a 2-tuple, and we can see that the value keeps
 # on decreasing
+
+
 def step6():
     parallel_train_step_fn = vmap(train_step_fn, in_dims=(0, None, None))
     batched_weights = init_fn(num_models=2)
@@ -104,6 +126,7 @@ def step6():
         loss, batched_weights = parallel_train_step_fn(batched_weights, points, labels)
         if i % 200 == 0:
             print(loss)
+
 
 step6()
 

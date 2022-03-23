@@ -4,33 +4,31 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import copy
 from torch.testing._internal.common_utils import (
     TestCase, run_tests, parametrize, subtest
 )
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import textwrap
 import unittest
 import warnings
 import math
-from typing import Callable, Type
-from torch.testing._internal.common_device_type import instantiate_device_type_tests, \
-    skipCUDAIfNoMagma, onlyCPU
+from torch.testing._internal.common_device_type import instantiate_device_type_tests, onlyCPU
+from torch.testing._internal.common_dtype import get_all_fp_dtypes
 from functools import partial
+from functorch.experimental import replace_all_batch_norm_modules_
 
 import functorch
 from functorch import (
-    grad, vjp, vmap, jacrev, grad_and_value,
-    make_functional, make_functional_with_buffers,
+    grad, vjp, vmap, jacrev, jacfwd, grad_and_value, hessian,
+    jvp, make_functional, make_functional_with_buffers,
+    combine_state_for_ensemble,
 )
 from functorch._src.make_functional import (
     functional_init, functional_init_with_buffers,
 )
-from functorch.experimental import (
-    jvp, jacfwd, hessian,
-)
-from functorch._src.eager_transforms import _argnums_partial
+from functorch._src.eager_transforms import _argnums_partial, enable_fwd_grad
 from functorch._src.custom_function import custom_vjp
 
 # NB: numpy is a testing dependency!
@@ -38,7 +36,7 @@ import numpy as np
 
 USE_TORCHVISION = False
 try:
-    import torchvision
+    import torchvision  # noqa: F401
     USE_TORCHVISION = True
 except ImportError:
     warnings.warn("Couldn't import torchvision. Some of our tests use it, try "
@@ -47,6 +45,8 @@ except ImportError:
                   UserWarning)
 
 # TestCase for _argnums_partial, an important helper funciton
+
+
 class TestArgnumsPartial(TestCase):
     def test_invalid_argnum_type(self):
         x = torch.randn(3)
@@ -59,6 +59,7 @@ class TestArgnumsPartial(TestCase):
             _argnums_partial(torch.sin, args, (0.0,))
 
         args = (0.1, 1.1, 2.1, 3.1, 4.1)
+
         def f(a, b, c, d, e):
             return a
         with self.assertRaisesRegex(RuntimeError, "must be int"):
@@ -90,6 +91,7 @@ class TestArgnumsPartial(TestCase):
 
     def test_flat_args_with_positive_int_argnum(self):
         args = (0.1, 1.1, 2.1, 3.1, 4.1)
+
         def f(a, b, c, d, e):
             return a
 
@@ -103,6 +105,7 @@ class TestArgnumsPartial(TestCase):
 
     def test_flat_args_with_negative_int_argnum(self):
         args = (0.1, 1.1, 2.1, 3.1, 4.1)
+
         def f(a, b, c, d, e):
             return a
 
@@ -117,6 +120,7 @@ class TestArgnumsPartial(TestCase):
 
     def test_flat_args_with_tuple_argnum(self):
         args = (0.1, 1.1, 2.1, 3.1, 4.1)
+
         def f(a, b, c, d, e):
             return a
 
@@ -130,6 +134,7 @@ class TestArgnumsPartial(TestCase):
 
     def test_pytree_args(self):
         args = ((0.1, 1.1), 2.0, [3.1])
+
         def f(a, b, c):
             return a[0] + a[1] + b + c[0]
 
@@ -153,6 +158,7 @@ class TestArgnumsPartial(TestCase):
 
     def test_argnums_reorders(self):
         args = ((0.1, 1.1, 2.1), 3.1, 4.1)
+
         def f(a, b, c):
             return a[0] + a[1] + a[2] + b + c
 
@@ -163,6 +169,7 @@ class TestArgnumsPartial(TestCase):
 
     def test_function_with_default_args(self):
         args = ((0.1, 1.1, 2.1), 3.1)
+
         def f(a, b, c=4.1):
             return a[0] + a[1] + a[2] + b + c
 
@@ -176,6 +183,7 @@ class TestArgnumsPartial(TestCase):
         f_new, res = _argnums_partial(f, args, -1)
         self.assertEqual(res, args[-1:])
         self.assertEqual(f_new(*res), expected)
+
 
 class TestGradTransform(TestCase):
     def test_primitive(self, device):
@@ -313,23 +321,25 @@ class TestGradTransform(TestCase):
     def test_escaped_wrappers_are_marked_as_dead(self, device):
         x = torch.randn([], device=device)
         escaped = []
+
         def foo(x):
             y = x.sin()
             escaped.append(y)
             return y
 
-        result = grad(foo)(x)
+        grad(foo)(x)
         self.assertEqual(functorch._C.dlevel(escaped[0]), -1)
 
     def test_escaped_wrappers_are_ignored(self, device):
         x = torch.randn([], device=device)
         escaped = []
+
         def foo(x):
             y = x.sin()
             escaped.append(y)
             return y
 
-        result = grad(foo)(x)
+        grad(foo)(x)
 
         something = escaped[0].sum()
         self.assertEqual(functorch._C.dlevel(something), 0)
@@ -352,6 +362,7 @@ class TestGradTransform(TestCase):
 
     def test_conj_bit(self):
         x = torch.tensor(1+1j)
+
         def foo(x):
             assert not x.is_conj()
             y = x.conj()
@@ -489,6 +500,7 @@ class TestGradTransform(TestCase):
 
     def test_grad_pytree_inputs(self, device):
         x = torch.randn([], device=device)
+
         def f(a, b):
             x, y = a
             return 1 * x + 2 * y + 3 * b['foo']
@@ -508,10 +520,52 @@ class TestGradTransform(TestCase):
         self.assertEqual(gy, torch.tensor(2., device=device))
         self.assertEqual(gz['foo'], torch.tensor(3., device=device))
 
+    def test_grad_aux_tensor(self, device):
+
+        x = torch.randn(3, device=device)
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            r'grad_and_value\(f\)\(\*args\): output of function f should be a tuple'
+        ):
+            grad(lambda t: [t, t], has_aux=True)(x)
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            r'grad_and_value\(f\)\(\*args\): output of function f should be a tuple'
+        ):
+            grad(lambda t: (t, t + 2, t + 3), has_aux=True)(x)
+
+        def f(t):
+            y = t.sin()
+            return y.sum(), t.cos()
+
+        out, aux = grad(f, has_aux=True)(x)
+        self.assertEqual(aux, x.cos())
+        self.assertEqual(out, x.cos())
+
+    def test_grad_aux_pytree(self, device):
+        def f(x):
+            y = x.sin()
+            return y.sum(), {'a': x.cos(), 'b': [x.tan()]}
+
+        x = torch.randn(3, device=device)
+
+        out, aux = grad(f, has_aux=True)(x)
+        _, expected_aux = f(x)
+        self.assertEqual(aux, expected_aux)
+        self.assertEqual(out, x.cos())
+
+        for aux in [1, 1.0, "abc"]:
+            with self.assertRaisesRegex(RuntimeError, r"Expected tensors, got unsupported type"):
+                _ = grad(lambda x: (x.sum(), aux), has_aux=True)(x)
+            with self.assertRaisesRegex(RuntimeError, r"Expected tensors, got unsupported type"):
+                _ = grad(lambda x: (x.sum(), [x, aux]), has_aux=True)(x)
+
     def test_zero_grad(self, device):
         def f(x):
             return (x['a']**2.0).sum()
-        inps = ({'a':torch.randn(10, device=device) + 3, 'b':torch.randn(10, device=device)})
+        inps = ({'a': torch.randn(10, device=device) + 3, 'b': torch.randn(10, device=device)})
         grads = grad(f)(inps)
         self.assertNotEqual(grads['a'].sum(), 0.0)
         self.assertEqual(grads['b'].sum(), 0.0)
@@ -591,6 +645,48 @@ class TestGradTransform(TestCase):
         result, = vjp_fn((v1, (v2, v3)))
         self.assertEqual(result, v1 + v2 + v3)
 
+    def test_vjp_outputs_can_any_pytree(self, device):
+        x = torch.randn(2, 3, device=device)
+        t = torch.randn(2, 3, device=device)
+
+        for output in [None, ()]:
+            with self.assertRaisesRegex(
+                RuntimeError, r"vjp\(f, \*primals\): Expected f to be a function that has non-empty output"
+            ):
+                _, vjp_fn = vjp(lambda _: output, x)
+                vjp_fn(t)
+
+        for output in [1, True, 12.2, "abc"]:
+            with self.assertRaisesRegex(
+                RuntimeError, r"vjp\(f, \*primals\): expected f\(\*primals\) to return only tensors"
+            ):
+                _, vjp_fn = vjp(lambda _: output, x)
+                vjp_fn(t)
+
+        # Check list output
+        output, vjp_fn = vjp(lambda x: [x, x.sum()], x)
+        vjp_out, = vjp_fn([t, t.sum()])
+        assert isinstance(output, list) and len(output) == 2
+        assert isinstance(vjp_out, torch.Tensor)
+
+        # Check dict output
+        output, vjp_fn = vjp(lambda x: {"x": x, "xsum": x.sum()}, x)
+        vjp_out, = vjp_fn({"x": t, "xsum": t.sum()})
+        assert isinstance(output, dict) and len(output) == 2 and "xsum" in output
+        assert isinstance(vjp_out, torch.Tensor)
+
+        def composite_output(x):
+            out = x.sum()
+            return [
+                (out, {"a": x, "out": [x, out]}),
+            ]
+
+        output, vjp_fn = vjp(composite_output, x)
+        vjp_out, = vjp_fn([(t.sum(), {"a": t, "out": [t, t.sum()]}), ])
+        assert isinstance(output, list)
+        assert isinstance(output[0], tuple) and isinstance(output[0][1], dict)
+        assert isinstance(vjp_out, torch.Tensor)
+
     def test_vjp_pytree_error(self, device):
         def f(x):
             return x, (x, x)
@@ -604,11 +700,18 @@ class TestGradTransform(TestCase):
             result, = vjp_fn(((v1, (v2, v3)),))
 
     def test_vjp_aux_tensor(self, device):
-        def f(x):
-            y = x.sin()
-            return y, x.cos()
 
         x = torch.randn(3, device=device)
+
+        with self.assertRaisesRegex(RuntimeError, r'vjp\(f, \*primals\): output of function f should be a tuple'):
+            vjp(lambda t: [t, t], x, has_aux=True)
+
+        with self.assertRaisesRegex(RuntimeError, r'vjp\(f, \*primals\): output of function f should be a tuple'):
+            vjp(lambda t: (t, t + 2, t + 3), x, has_aux=True)
+
+        def f(t):
+            y = t.sin()
+            return y, t.cos()
 
         out, vjp_fn, aux = vjp(f, x, has_aux=True)
         self.assertEqual(aux, x.cos())
@@ -633,6 +736,12 @@ class TestGradTransform(TestCase):
         v = torch.randn(3, device=device)
         grad_x, = vjp_fn(v)
         self.assertEqual(grad_x, v * x.cos())
+
+        for aux in [1, 1.0, "abc"]:
+            with self.assertRaisesRegex(RuntimeError, r"Expected tensors, got unsupported type"):
+                _ = vjp(lambda x: (x, aux), x, has_aux=True)
+            with self.assertRaisesRegex(RuntimeError, r"Expected tensors, got unsupported type"):
+                _ = vjp(lambda x: (x, [x, aux]), x, has_aux=True)
 
     def test_functional_init(self, device):
         class MLPClassifier(nn.Module):
@@ -707,24 +816,51 @@ class TestGradTransform(TestCase):
         x = torch.tensor(3.14, device=device)
         functorch.grad(foo)(x)
 
-    @onlyCPU
-    def test_tensor_print(self, device):
-        x = torch.tensor(3.14, device=device)
-        buf = None
+    @parametrize("op_list_data", [
+        subtest(([vmap, ], [(4, 2), (64, 3, 32, 32)]), name='vmap'),
+        subtest(([vmap, vmap], [(4, 3, 2), (64, 3, 32, 32)]), name='vmap_vmap'),
+        subtest(([grad, ], [(0, ), [], (4, 2), (64, 3, 32, 32)]), name='grad'),
+        subtest(([grad, grad], [[], ]), name='grad_grad'),
+        subtest(([vmap, grad], [(4, 2)]), name='vmap_grad'),
+    ])
+    def test_tensor_print(self, device, op_list_data):
 
-        def foo(x):
-            nonlocal buf
-            buf = repr(x)
-            return x
+        op_list, shapes = op_list_data
 
-        grad(grad(foo))(x)
-        expected = textwrap.dedent("""\
-                GradTrackingTensor(lvl=3, value=
-                    GradTrackingTensor(lvl=2, value=
-                        tensor(3.1400)
-                    )
-                )""")
-        self.assertEqual(buf, expected)
+        for dt in get_all_fp_dtypes():
+            data = [torch.randn(s, dtype=dt, device=device) for s in shapes]
+
+            for x in data:
+                buf = None
+
+                def foo(t):
+                    nonlocal buf
+                    buf = repr(t)
+                    return t.mean()
+
+                fn = foo
+                bdim = 0
+                for op in reversed(op_list):
+                    if op == vmap:
+                        fn = op(fn, in_dims=bdim)
+                        bdim += 1
+                    else:
+                        fn = op(fn)
+
+                expected = f"{repr(x)}"
+                level = 1
+                for op in op_list:
+                    level += 1
+                    if op == grad:
+                        expected = f"GradTrackingTensor(lvl={level}, value={expected})"
+                    elif op == vmap:
+                        bdim -= 1
+                        expected = f"BatchedTensor(lvl={level}, bdim={bdim}, value={expected})"
+
+                fn(x)
+                buf = buf.replace("\n", "").replace("  ", "")
+                expected = expected.replace("\n", "").replace("  ", "")
+                self.assertEqual(expected, buf)
 
     def test_no_grad_outside(self, device):
         x = torch.randn([], device=device, requires_grad=True)
@@ -856,6 +992,7 @@ class TestGradTransform(TestCase):
         z, = torch.autograd.grad(y, x)
         self.assertEqual(z, 2)
 
+
 class TestVmapOfGrad(TestCase):
     def test_per_sample_grads_inplace_view(self, device):
         def compute_loss(weight, x, t):
@@ -977,9 +1114,11 @@ class TestVmapOfGrad(TestCase):
         output.backward(v)
         self.assertEqual(result, x.grad)
 
+
 jacrev_and_jacfwd = parametrize("jacapi", [subtest(jacrev, name='jacrev'), subtest(jacfwd, name='jacfwd')])
 
 FIXME_jacrev_only = parametrize("jacapi", [subtest(jacrev, name='jacrev')])
+
 
 class TestJac(TestCase):
     @jacrev_and_jacfwd
@@ -1124,7 +1263,7 @@ class TestJac(TestCase):
         expected = ((torch.tensor(1., device=device), torch.tensor(2., device=device)),)
         self.assertEqual(result, expected)
 
-        result = jacapi(f )(*args)
+        result = jacapi(f)(*args)
         expected = (torch.tensor(1., device=device), torch.tensor(2., device=device))
         self.assertEqual(result, expected)
 
@@ -1155,20 +1294,60 @@ class TestJac(TestCase):
         self.assertEqual(result, torch.eye(3, 3, device=device))
         self.assertEqual(aux, x.cos())
 
-    @FIXME_jacrev_only
+    @jacrev_and_jacfwd
     def test_aux_pytree(self, device, jacapi):
         def f(x):
             y = x.clone()
             return y, {'a': y.cos(), 'b': [y.tan()]}
 
         x = torch.randn(3, device=device)
-        result, aux = jacapi(f, has_aux=True)(x)
 
+        result, aux = jacapi(f, has_aux=True)(x)
         self.assertEqual(result, torch.eye(3, 3, device=device))
-        expected_aux = {'a': x.cos(), 'b': [x.tan()]}
+        _, expected_aux = f(x)
         self.assertEqual(aux, expected_aux)
 
-    @FIXME_jacrev_only
+        for aux in [1, 1.0, "abc"]:
+            with self.assertRaisesRegex(RuntimeError, r"Expected tensors, got unsupported type"):
+                _ = jacapi(lambda x: (x, aux), has_aux=True)(x)
+            with self.assertRaisesRegex(RuntimeError, r"Expected tensors, got unsupported type"):
+                _ = jacapi(lambda x: (x, [x, aux]), has_aux=True)(x)
+
+    @jacrev_and_jacfwd
+    def test_outputs_can_any_pytree(self, device, jacapi):
+        x = torch.randn(2, 3, device=device)
+
+        for output in [None, ()]:
+            with self.assertRaisesRegex(
+                RuntimeError, r"(vjp|jvp).+: Expected f to be a function that has non-empty output"
+            ):
+                jacapi(lambda _: output)(x)
+
+        for output in [1, True, 12.2, "abc"]:
+            with self.assertRaisesRegex(
+                RuntimeError, r"(vjp|jvp).+: expected f\(\*primals\) to return only tensors"
+            ):
+                jacapi(lambda _: output)(x)
+
+        # Check list output
+        out = jacapi(lambda x: [x, x.sum()])(x)
+        assert isinstance(out, list) and len(out) == 2
+
+        # Check dict output
+        out = jacapi(lambda x: {"x": x, "xsum": x.sum()})(x)
+        assert isinstance(out, dict) and len(out) == 2 and "xsum" in out
+
+        def composite_output(x):
+            out = x.sum()
+            return [
+                (out, {"a": x, "out": [x, out]}),
+            ]
+
+        out = jacapi(composite_output)(x)
+        assert isinstance(out, list)
+        assert isinstance(out[0], tuple) and isinstance(out[0][1], dict)
+
+    @jacrev_and_jacfwd
     def test_multiple_inputs_outputs_pytree(self, device, jacapi):
         def f(a, b, c):
             a0, a1 = a
@@ -1248,6 +1427,7 @@ class TestJac(TestCase):
     def test_empty_output(self, device, jacapi):
         x = torch.randn(3, device=device)
         y = torch.randn(3, device=device)
+
         def f(x, y):
             return ()
 
@@ -1297,40 +1477,40 @@ class TestJac(TestCase):
     def test_empty_argnums(self, device, jacapi):
         x = torch.randn(3, device=device)
         with self.assertRaisesRegex(RuntimeError, "must be non-empty"):
-            z = jacapi(torch.sin, argnums=())(x)
+            jacapi(torch.sin, argnums=())(x)
 
     @jacrev_and_jacfwd
     def test_out_of_bounds_argnums(self, device, jacapi):
         x = torch.randn(3, device=device)
         with self.assertRaisesRegex(RuntimeError, "only 1 positional inputs"):
-            z = jacapi(torch.sin, argnums=2)(x)
+            jacapi(torch.sin, argnums=2)(x)
 
     @jacrev_and_jacfwd
     def test_negative_argnums(self, device, jacapi):
         x = torch.randn(3, device=device)
         with self.assertRaisesRegex(RuntimeError, "only 1 positional inputs"):
-            z = jacapi(torch.sin, argnums=-2)(x)
+            jacapi(torch.sin, argnums=-2)(x)
 
     @jacrev_and_jacfwd
     def test_repeated_argnums(self, device, jacapi):
         x = torch.randn(3, device=device)
         with self.assertRaisesRegex(RuntimeError, "must be unique"):
-            z = jacapi(torch.sin, argnums=(0, 0))(x)
+            jacapi(torch.sin, argnums=(0, 0))(x)
 
     @jacrev_and_jacfwd
     def test_float_argnums(self, device, jacapi):
         x = torch.randn(3, device=device)
         with self.assertRaisesRegex(RuntimeError, "must be int or Tuple"):
-            z = jacapi(torch.sin, argnums=0.0)(x)
+            jacapi(torch.sin, argnums=0.0)(x)
         with self.assertRaisesRegex(RuntimeError, "must be int"):
-            z = jacapi(torch.multiply, argnums=(1, 0.0))(x, x)
+            jacapi(torch.multiply, argnums=(1, 0.0))(x, x)
 
     def test_hessian_simple(self, device):
         def f(x):
             return x.sin()
 
         x = torch.randn(3, device=device)
-        result = hessian(f)(x)
+        hessian(f)(x)
 
     def _test_against_reference(self, f, inputs, jacapi):
         def foo(inputs):
@@ -1409,6 +1589,7 @@ class TestJac(TestCase):
         y = torch.randn(3)
         self._test_against_reference(f, (x, y), jacapi)
 
+
 class TestHessian(TestCase):
     def _test_against_reference(self, f, inputs):
         def foo(inputs):
@@ -1450,6 +1631,27 @@ class TestHessian(TestCase):
         x = torch.randn(2, device=device)
         y = torch.randn(3, device=device)
         self._test_against_reference(f, (x, y))
+
+    def test_jacfwd_different_levels(self, device):
+        # Test case from:
+        # https://github.com/pytorch/functorch/issues/597
+        b = 8
+        n = 100
+        d = 2
+        x1 = torch.randn(b, n, d, device=device)
+        x2 = x1
+        A = 0.1 * torch.randn(b, d, d, device=device)
+
+        def loss(A, x1, x2):
+            x2_hat = (A@(x1.T)).T
+            res = x2-x2_hat
+            res_sqr = res**2
+            return res_sqr.sum()
+
+        hess1 = vmap(jacrev(jacrev(loss)))(A, x1, x2)
+        hess2 = vmap(hessian(loss))(A, x1, x2)
+        self.assertEqual(hess2, hess1)
+
 
 class TestJvp(TestCase):
     def test_inplace_on_captures(self, device):
@@ -1607,25 +1809,192 @@ class TestJvp(TestCase):
         with self.assertRaisesRegex(RuntimeError, 'only contain Tensors'):
             jvp(torch.sin, (x,), (1.,))
 
-    def test_outputs_should_be_tensor_or_tensors(self, device):
+    def test_outputs_can_any_pytree(self, device):
         x = torch.randn(2, 3, device=device)
         t = torch.randn(2, 3, device=device)
 
+        for output in [None, ()]:
+            with self.assertRaisesRegex(
+                RuntimeError, r"jvp\(f, primals, tangents\): Expected f to be a function that has non-empty output"
+            ):
+                jvp(lambda _: output, (x,), (t,))
+
+        for output in [1, True, 12.2, "abc"]:
+            with self.assertRaisesRegex(
+                RuntimeError, r"jvp\(f, primals, tangents\): expected f\(\*primals\) to return only tensors"
+            ):
+                jvp(lambda _: output, (x,), (t,))
+
+        # Check list output
+        out = jvp(lambda x: [x, x.sum()], (x,), (t,))
+        for i in range(2):
+            assert isinstance(out[i], list) and len(out[i]) == 2
+
+        # Check dict output
+        out = jvp(lambda x: {"x": x, "xsum": x.sum()}, (x,), (t,))
+        for i in range(2):
+            assert isinstance(out[i], dict) and len(out[i]) == 2 and "xsum" in out[i]
+
+        def composite_output(x):
+            out = x.sum()
+            return [
+                (out, {"a": x, "out": [x, out]}),
+            ]
+
+        out = jvp(composite_output, (x,), (t,))
+        for i in range(2):
+            assert isinstance(out[i], list)
+            assert isinstance(out[i][0], tuple) and \
+                isinstance(out[i][0][1], dict)
+
+    def test_aux_tensor(self, device):
+
+        x = torch.randn(3, device=device)
+        t = torch.randn(3, device=device)
+
+        with self.assertRaisesRegex(
+            RuntimeError, r'jvp\(f, primals, tangents\): output of function f should be a tuple'
+        ):
+            jvp(lambda t: [t, t], (x, ), (t, ), has_aux=True)
+
+        with self.assertRaisesRegex(
+            RuntimeError, r'jvp\(f, primals, tangents\): output of function f should be a tuple'
+        ):
+            jvp(lambda t: (t, t + 2, t + 3), (x, ), (t, ), has_aux=True)
+
+        def f(z):
+            y = z.sin()
+            return y, z.cos()
+
+        out, jvp_out, aux = jvp(f, (x, ), (t, ), has_aux=True)
+        self.assertEqual(aux, x.cos())
+        self.assertEqual(out, x.sin())
+        self.assertEqual(jvp_out, t * x.cos())
+
+    def test_aux_pytree(self, device):
         def f(x):
-            return
+            y = x.sin()
+            return y, {'a': x.cos(), 'b': [x.tan()]}
 
-        def g(x):
-            return ()
+        x = torch.randn(3, device=device)
+        t = torch.randn(3, device=device)
 
-        def h(x):
-            return x, [x]
+        out, jvp_out, aux = jvp(f, (x, ), (t, ), has_aux=True)
+        expected_out, expected_aux = f(x)
+        self.assertEqual(out, expected_out)
+        self.assertEqual(aux, expected_aux)
+        self.assertEqual(jvp_out, t * x.cos())
 
-        with self.assertRaisesRegex(RuntimeError, "a Tensor or Tensors"):
-            jvp(f, (x,), (t,))
-        with self.assertRaisesRegex(RuntimeError, "non-empty"):
-            jvp(g, (x,), (t,))
-        with self.assertRaisesRegex(RuntimeError, "a Tensor or Tensors"):
-            jvp(h, (x,), (t,))
+        for aux in [1, 1.0, "abc"]:
+            with self.assertRaisesRegex(RuntimeError, r"Expected tensors, got unsupported type"):
+                _ = jvp(lambda x: (x, aux), (x, ), (t, ), has_aux=True)
+            with self.assertRaisesRegex(RuntimeError, r"Expected tensors, got unsupported type"):
+                _ = jvp(lambda x: (x, [x, aux]), (x, ), (t, ), has_aux=True)
+
+    def test_fwd_grad_enabled(self, device):
+        # Tests some private helper functions to enable/disable fwd grad mode
+        enabled = functorch._C.get_fwd_grad_enabled()
+        self.assertTrue(enabled)
+
+        try:
+            functorch._C.set_fwd_grad_enabled(False)
+            enabled = functorch._C.get_fwd_grad_enabled()
+            self.assertFalse(enabled)
+        finally:
+            functorch._C.set_fwd_grad_enabled(True)
+
+        enabled = functorch._C.get_fwd_grad_enabled()
+        self.assertTrue(enabled)
+
+    def test_autograd_function_disables_fwd_grad(self, device):
+        # Sanity check. We don't really assume this anywhere so
+        # it's fine if this breaks one day.
+        class MySquare(torch.autograd.Function):
+            @staticmethod
+            def forward(ctx, x):
+                enabled = functorch._C.get_fwd_grad_enabled()
+                self.assertFalse(enabled)
+                return x * x
+
+            @staticmethod
+            def backward(ctx, gx):
+                return gx
+
+        x = torch.randn(3, requires_grad=True)
+        MySquare.apply(x)
+
+    def test_enable_fwd_grad(self, device):
+        # Tests a private helper function
+        try:
+            functorch._C.set_fwd_grad_enabled(False)
+            enabled = functorch._C.get_fwd_grad_enabled()
+            self.assertFalse(enabled)
+
+            with enable_fwd_grad():
+                enabled = functorch._C.get_fwd_grad_enabled()
+                self.assertTrue(enabled)
+
+            enabled = functorch._C.get_fwd_grad_enabled()
+            self.assertFalse(enabled)
+        finally:
+            functorch._C.set_fwd_grad_enabled(True)
+
+    def test_disable_fwd_grad_outside(self, device):
+        x = torch.randn([], device=device)
+        t = torch.ones_like(x)
+        with enable_fwd_grad(False):
+            _, y = jvp(torch.sin, (x,), (t,))
+        self.assertEqual(y, x.cos())
+
+    def test_disable_fwd_grad_inside(self, device):
+        def f(x):
+            with enable_fwd_grad(False):
+                shift = x ** 2
+            return x ** 2 - shift
+
+        x = torch.randn([], device=device)
+        t = torch.ones_like(x)
+        _, y = jvp(f, (x,), (t,))
+        self.assertEqual(y, 2 * x)
+        _, y = jvp(lambda x: jvp(f, (x,), (t,))[1], (x,), (t,))
+        self.assertEqual(y, 2)
+
+    def test_disable_fwd_grad_mixed(self, device):
+        def f(x):
+            with enable_fwd_grad(False):
+                shift = x ** 2
+            return x ** 2 - shift
+
+        x = torch.randn([], device=device)
+        t = torch.ones_like(x)
+        with enable_fwd_grad():
+            _, y = jvp(f, (x,), (t,))
+
+        self.assertEqual(y, 2 * x)
+
+    def test_jvp_inside_autograd_function(self, device):
+        class MySin(torch.autograd.Function):
+            @staticmethod
+            def forward(ctx, x):
+                t = torch.ones_like(x)
+                _, neg_sin_x = jvp(torch.cos, (x,), (t,))
+                ctx.save_for_backward(x)
+                return -neg_sin_x
+
+            @staticmethod
+            def backward(ctx, gx):
+                x, = ctx.saved_tensors
+                t = torch.ones_like(x)
+                _, cos_x = jvp(torch.sin, (x,), (t,))
+                return gx * cos_x
+
+        x = torch.randn([], device=device, requires_grad=True)
+        y = MySin.apply(x)
+        self.assertEqual(y, x.sin())
+
+        gx, = torch.autograd.grad(y, x)
+        self.assertEqual(gx, x.cos())
+
 
 class TestCustomFunction(TestCase):
     @onlyCPU
@@ -1659,6 +2028,7 @@ class TestCustomFunction(TestCase):
         self.assertTrue(called_vjp)
 
         assert torch.allclose(x.grad, 3 * x.cos())
+
 
 class TestComposability(TestCase):
     def test_grad_grad(self, device):
@@ -1742,6 +2112,60 @@ class TestComposability(TestCase):
         # Honestly IDK what the result here is... but at least it runs
 
 
+class TestMakeFunctional(TestCase):
+    def test_parameter_tying(self):
+        class Foo(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.bias = nn.Parameter(torch.randn(3))
+                self.linear = nn.Linear(3, 3)
+                self.linear.bias = self.bias
+                self.linear_tied = self.linear
+
+        mod = Foo()
+        with self.assertRaisesRegex(RuntimeError, "parameter tying"):
+            func, params = make_functional(mod)
+
+    def test_buffer_tying(self):
+        class Foo(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.bias = nn.Parameter(torch.randn(3))
+                self.linear = nn.Linear(3, 3)
+                self.register_buffer('buffer', torch.randn(3))
+                self.register_buffer('buffer_tied', self.buffer)
+
+        mod = Foo()
+        with self.assertRaisesRegex(RuntimeError, "parameter tying"):
+            func, params, buffers = make_functional_with_buffers(mod)
+
+    def test_combine_state_for_ensemble_error(self):
+        in_features = 2
+        out_features = 2
+
+        models = []
+        with self.assertRaisesRegex(RuntimeError, "Expected at least one model"):
+            _ = combine_state_for_ensemble(models)
+
+        num_models = 3
+        models = [torch.nn.Linear(in_features, out_features) for i in range(num_models)]
+        models[1].eval()
+        with self.assertRaisesRegex(RuntimeError, "same training/eval mode"):
+            _ = combine_state_for_ensemble(models)
+
+        models = [torch.nn.Linear(in_features, out_features) for i in range(num_models)]
+        models[1] = torch.nn.Conv2d(3, 3, (3, 3))
+        with self.assertRaisesRegex(RuntimeError, "models to be of the same class"):
+            _ = combine_state_for_ensemble(models)
+
+    def test_combine_state_for_ensemble_smoke(self):
+        in_features = 2
+        out_features = 2
+        num_models = 3
+        models = [torch.nn.Linear(in_features, out_features) for i in range(num_models)]
+        _ = combine_state_for_ensemble(models)
+
+
 class TestExamplesCorrectness(TestCase):
     def test_maml_regression(self, device):
         class ThreeLayerNet(nn.Module):
@@ -1761,13 +2185,12 @@ class TestExamplesCorrectness(TestCase):
                 x = self.fc3(x)
                 return x
 
-        # The prototype doesn't like F.mse_loss.
+        # TODO: should replace with F.mse_loss
         def mse_loss(x, y):
             return torch.mean((x - y) ** 2)
 
         net, params = make_functional(ThreeLayerNet().to(device))
         K = 20
-        losses = []
         num_tasks = 4
         alpha = 0.1
 
@@ -1778,6 +2201,7 @@ class TestExamplesCorrectness(TestCase):
             for _ in range(outer_batch_size):
                 As.append(np.random.uniform(low=0.1, high=.5))
                 phases.append(np.random.uniform(low=0., high=np.pi))
+
             def get_batch():
                 xs, ys = [], []
                 for A, phase in zip(As, phases):
@@ -1810,8 +2234,7 @@ class TestExamplesCorrectness(TestCase):
         task = sample_tasks(num_tasks, K)
 
         # Compute with vmap+grad
-        inner_losses = vmap(partial(get_loss_for_task, True))\
-                            (task[0], task[1], task[2], task[3])
+        inner_losses = vmap(partial(get_loss_for_task, True))(task[0], task[1], task[2], task[3])
         loss2 = sum(inner_losses)/len(inner_losses)
         result_grads = torch.autograd.grad(loss2, params)
 
@@ -1829,30 +2252,28 @@ class TestExamplesCorrectness(TestCase):
         # TODO: there appears to be precision issues for float32
         dtype = torch.double
 
-        # TODO: The prototype doesn't support in-place relu (and some other
-        # in-place operations. That can be fixed.)
+        # TODO: We don't support inplace relu?
         inplace_relu = False
         n_way = 5
         n_inner_iter = 2
         num_tasks = 2
-        class Flatten(nn.Module):
-            def forward(self, input):
-                return input.view(input.size(0), -1)
 
+        # real example uses batch norm but it's numerically unstable in the first
+        # iteration, when near 0, and won't produce same gradients. Uses group norm instead
         net = nn.Sequential(
             nn.Conv2d(1, 64, 3),
-            nn.BatchNorm2d(64, momentum=1, affine=True),
+            nn.GroupNorm(64, 64, affine=True),
             nn.ReLU(inplace=inplace_relu),
             nn.MaxPool2d(2, 2),
             nn.Conv2d(64, 64, 3),
-            nn.BatchNorm2d(64, momentum=1, affine=True),
+            nn.GroupNorm(64, 64, affine=True),
             nn.ReLU(inplace=inplace_relu),
             nn.MaxPool2d(2, 2),
             nn.Conv2d(64, 64, 3),
-            nn.BatchNorm2d(64, momentum=1, affine=True),
+            nn.GroupNorm(64, 64, affine=True),
             nn.ReLU(inplace=inplace_relu),
             nn.MaxPool2d(2, 2),
-            Flatten(),
+            nn.Flatten(),
             nn.Linear(64, n_way)).to(device).to(dtype)
 
         fnet, params, buffers = make_functional_with_buffers(net)
@@ -1886,7 +2307,7 @@ class TestExamplesCorrectness(TestCase):
         # Get some sample inputs...
         x_spt = torch.randn(num_tasks, 25, 1, 28, 28, dtype=dtype, device=device)
         y_spt = torch.randint(0, 5, (num_tasks, 25), device=device)
-        x_qry = torch.randn(num_tasks, 75, 1, 28, 28, dtype=dtype,device=device)
+        x_qry = torch.randn(num_tasks, 75, 1, 28, 28, dtype=dtype, device=device)
         y_qry = torch.randint(0, 5, (num_tasks, 75), device=device)
 
         # compute with vmap + grad
@@ -1902,9 +2323,51 @@ class TestExamplesCorrectness(TestCase):
 
         self.assertEqual(result_grads, expected_grads)
 
-    def test_lennard_jones_batched_jacrev(self, device):
+    @parametrize('originally_track_running_stats', [True, False])
+    def test_update_batch_norm(self, device, originally_track_running_stats):
+        dtype = torch.double
+        inplace_relu = False
+        classes = 5
+        num_batches = 2
+        net = nn.Sequential(
+            nn.Conv2d(64, 64, 3),
+            nn.BatchNorm2d(64, affine=True, track_running_stats=originally_track_running_stats),
+            nn.ReLU(inplace=inplace_relu),
+            nn.Flatten(),
+            nn.Linear(43264, classes)).to(device).to(dtype)
+
+        replace_all_batch_norm_modules_(net)
+        transformed_net = net
+        fnet, params, buffers = make_functional_with_buffers(transformed_net)
+        net = (params, buffers, fnet)
+        criterion = nn.CrossEntropyLoss()
+
+        def compute_loss(x, y, params, buffers):
+            return criterion(fnet(params, buffers, x), y)
+
+        # Get some sample inputs...
+        x = torch.randn(num_batches, 1, 64, 28, 28, device=device, dtype=dtype)
+        y = torch.randint(0, classes, (num_batches, 1), device=device)
+
+        # compute some per sample grads with vmap + grad
+        result_grads = vmap(grad(compute_loss, argnums=2), in_dims=(0, 0, None, None))(x, y, params, buffers)
+
+        # compute some per sample grads without vmap + grad
+        fnet, params, buffers = make_functional_with_buffers(transformed_net)
+        expected_grads = [
+            torch.autograd.grad(compute_loss(x[i], y[i], params, buffers), params)
+            for i in range(num_batches)
+        ]
+        expected_grads = [torch.stack(shards) for shards in zip(*expected_grads)]
+
+        self.assertEqual(result_grads, expected_grads)
+
+    @parametrize('jac', ['jacfwd', 'jacrev'])
+    def test_lennard_jones_batched_jac(self, device, jac):
         sigma = 0.5
         epsilon = 4.
+
+        jac = getattr(functorch, jac)
 
         def lennard_jones(r):
             return epsilon * ((sigma / r)**12 - (sigma / r)**6)
@@ -1914,7 +2377,7 @@ class TestExamplesCorrectness(TestCase):
             return \
                 -epsilon * ((-12 * sigma**12 / r**13) + (6 * sigma**6 / r**7))
 
-        r = torch.linspace(0.5, 2 * sigma, requires_grad=True, device=device)
+        r = torch.linspace(0.5, 2 * sigma, steps=100, requires_grad=True, device=device)
         drs = torch.outer(r, torch.tensor([1.0, 0, 0], device=device))
         norms = torch.norm(drs, dim=1).reshape(-1, 1)
         training_energies = \
@@ -1940,7 +2403,7 @@ class TestExamplesCorrectness(TestCase):
             energies = model(norms)
 
             if use_functorch:
-                network_derivs = vmap(jacrev(model))(norms).squeeze(-1)
+                network_derivs = vmap(jac(model))(norms).squeeze(-1)
                 forces = -network_derivs * drs / norms
             else:
                 forces = []
@@ -2046,54 +2509,82 @@ class TestExamplesCorrectness(TestCase):
         self.assertEqual(result_loss, expected_loss)
         self.assertEqual(result_weights, expected_weights)
 
+    @parametrize("dropout_layer", [nn.Dropout, nn.AlphaDropout, nn.FeatureAlphaDropout])
+    def test_find_learning_rate_ensembling(self, device, dropout_layer):
+        # This example mimics what a user might do when trying to find the optimal learning rate. They would
+        # want to run a bunch of models with the same behavior (including the same dropout!) and have them
+        # each run with different learning rates. Specifically, this is an example of using same randomness with vmap
+        points, labels = torch.randn(100, 2, 2, 2, 2, device=device), torch.randint(0, 2, (100,), device=device)
+
+        class MLPClassifier(nn.Module):
+            def __init__(self, hidden_dim=32, n_classes=2):
+                super().__init__()
+                self.hidden_dim = hidden_dim
+                self.n_classes = n_classes
+
+                self.dropout = dropout_layer()
+                self.fc1 = nn.Linear(16, self.hidden_dim)
+                self.fc2 = nn.Linear(self.hidden_dim, self.n_classes)
+
+            def forward(self, x):
+                x = self.dropout(x)
+                x = torch.flatten(x, start_dim=1)
+                x = self.fc1(x)
+                x = F.relu(x)
+                x = self.fc2(x)
+                x = F.log_softmax(x, -1)
+                return x
+
+        loss_fn = nn.NLLLoss()
+
+        func_model, weights = make_functional(MLPClassifier().to(device))
+
+        def train_step_fn(weights, batch, targets, lr):
+            def compute_loss(weights, batch, targets):
+                output = func_model(weights, batch)
+                loss = loss_fn(output, targets)
+                return loss
+
+            grad_weights, loss = grad_and_value(compute_loss)(weights, batch, targets)
+            new_weights = []
+            with torch.no_grad():
+                for grad_weight, weight in zip(grad_weights, weights):
+                    new_weights.append(weight - grad_weight * lr)
+            # NB: return looks weird because torch.vmap must return Tensors
+            return (loss, *new_weights)
+
+        def unpack(train_result):
+            return train_result[0], train_result[1:]
+
+        def init_fn(num_models):
+            og_model = MLPClassifier().to(device)
+            models = tuple(copy.deepcopy(og_model) for _ in range(num_models))  # have same initialization
+            weights = tuple(make_functional(model)[1] for model in models)
+            weights = tuple(zip(*weights))
+            weights = tuple(torch.stack(shards).detach() for shards in weights)
+            return weights
+
+        batched_weights = init_fn(num_models=2)
+        parallel_train_step_fn = vmap(train_step_fn, in_dims=(0, None, None, 0), randomness="same")
+
+        lrs = torch.tensor([0.2, 0.4], device=device)
+        result_loss, result_weights = unpack(parallel_train_step_fn(batched_weights, points, labels, lrs))
+
+        self.assertEqual(result_loss[0], result_loss[1])
+        self.assertNotEqual(tuple(weight[0] for weight in result_weights),
+                            tuple(weight[1] for weight in result_weights))
+
     @unittest.skipIf(not USE_TORCHVISION, "test requires torchvision")
     def test_resnet18_per_sample_grads(self, device):
-        # Straight out of opacus
-        def _replace_child(
-            root: nn.Module, child_name: str, converter: Callable[[nn.Module], nn.Module]
-        ) -> None:
-            # find the immediate parent
-            parent = root
-            nameList = child_name.split(".")
-            for name in nameList[:-1]:
-                parent = parent._modules[name]
-            # set to identity
-            parent._modules[nameList[-1]] = converter(parent._modules[nameList[-1]])
-
-        def replace_all_modules(
-            root: nn.Module,
-            target_class: Type[nn.Module],
-            converter: Callable[[nn.Module], nn.Module],
-        ) -> nn.Module:
-            # base case
-            if isinstance(root, target_class):
-                return converter(root)
-
-            for name, obj in root.named_modules():
-                if isinstance(obj, target_class):
-                    _replace_child(root, name, converter)
-            return root
-
-        def _batchnorm_to_groupnorm(module: nn.modules.batchnorm._BatchNorm) -> nn.Module:
-            return nn.GroupNorm(min(32, module.num_features), module.num_features, affine=True)
-
-        def convert_batchnorm_modules(
-            model: nn.Module,
-            converter: Callable[
-                [nn.modules.batchnorm._BatchNorm], nn.Module
-            ] = _batchnorm_to_groupnorm,
-        ) -> nn.Module:
-            return replace_all_modules(model, nn.modules.batchnorm._BatchNorm, converter)
-
         import torchvision.models as models
-        model = convert_batchnorm_modules(models.resnet18(num_classes=10)).to(device)
-        criterion = nn.CrossEntropyLoss()
+        model = models.__dict__['resnet18'](
+            pretrained=False, norm_layer=(lambda c: nn.GroupNorm(min(32, c), c))
+        ).to(device)
+        criterion = nn.CrossEntropyLoss(reduction='sum')  # avoid cross batch reductions for for loop comparison
 
         func_model, weights = make_functional(model)
 
         def compute_loss(weights, image, target):
-            images = image.unsqueeze(0)
-            targets = target.unsqueeze(0)
             output = func_model(weights, images)
             loss = criterion(output, targets)
             return loss
@@ -2105,12 +2596,13 @@ class TestExamplesCorrectness(TestCase):
         result_grads = vmap(grad(compute_loss), in_dims=(None, 0, 0))(weights, images, targets)
 
         expected_grads = [
-            torch.autograd.grad(compute_loss(weights, images[i], targets[i]), weights)
+            torch.autograd.grad(compute_loss(weights, images[i].unsqueeze(0), targets[i].unsqueeze(0)), weights)
             for i in range(batch_size)
         ]
         expected_grads = [torch.stack(shards) for shards in zip(*expected_grads)]
 
-        self.assertEqual(result_grads, expected_grads)
+        self.assertEqual(result_grads, expected_grads, atol=1e-3, rtol=1.)
+
 
 only_for = ("cpu", "cuda")
 instantiate_device_type_tests(

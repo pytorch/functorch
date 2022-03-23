@@ -1,19 +1,29 @@
 from .._src.operator_authoring import pointwise_operator
-from .._src.memory_efficient_op_authoring import memory_efficient_pointwise_fusion, torchscript_nvfuser_compile
-from .._src.python_key import nnc_jit, make_nnc, pythonkey_decompose
-from .._src.decompositions import register_decomposition, decomposition_table
-from .._src.nnc_compile import nnc_compile, get_ops
-from .._src.fx_minifier import minimizer
+from .._src.python_key import pythonkey_decompose
+from .._src.decompositions import register_decomposition, decomposition_table, get_decompositions
+from .._src.fx_minifier import minifier, check_nvfuser_subprocess, check_nvfuser_correctness_subprocess
 from .._src.aot_autograd import (
     aot_function,
     aot_module,
     compiled_function,
     compiled_module,
-    tvm_compile,
-    draw_joint_graph,
-    default_partition,
-    partition_with_recompute_fwd_in_bwd,
     num_of_recompilations,
     clear_compile_cache,
+)
+from .._src.compilers import (
+    ts_compile,
+    tvm_compile,
+    draw_graph_compile,
+    nop,
+    nnc_jit,
+    memory_efficient_fusion,
+    debug_compile,
+    print_compile,
+    default_decompositions
+)
+from .._src.partitioners import (
+    min_cut_rematerialization_partition,
+    default_partition,
     draw_graph,
+    draw_joint_graph,
 )

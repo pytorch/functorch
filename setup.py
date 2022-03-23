@@ -48,9 +48,13 @@ requirements = [
     "torch>=1.10.0.dev",
 ]
 
+extras = {}
+extras["aot"] = ["networkx", ]
+
 
 class clean(distutils.command.clean.clean):
     def run(self):
+
         with open(".gitignore", "r") as f:
             ignores = f.read()
             for wildcard in filter(None, ignores.split("\n")):
@@ -112,24 +116,31 @@ def get_extensions():
     return ext_modules
 
 
+class BuildExtension_(BuildExtension):
+    def build_extensions(self, *args, **kwargs):
+        if '-Wstrict-prototypes' in self.compiler.compiler_so:
+            self.compiler.compiler_so.remove('-Wstrict-prototypes')
+        super().build_extensions(*args, **kwargs)
+
+
 if __name__ == '__main__':
     print("Building wheel {}-{}".format(package_name, version))
     write_version_file()
-
     setup(
         # Metadata
         name=package_name,
         version=version,
         author='PyTorch Core Team',
         url="https://github.com/pytorch/functorch",
-        description='prototype of composable function transforms for PyTorch',
+        description='JAX-like composable function transforms for PyTorch',
         license='BSD',
 
         # Package info
         packages=find_packages(),
         install_requires=requirements,
+        extras_require=extras,
         ext_modules=get_extensions(),
         cmdclass={
-            "build_ext": BuildExtension.with_options(no_python_abi_suffix=True),
+            "build_ext": BuildExtension_.with_options(no_python_abi_suffix=True),
             'clean': clean,
         })

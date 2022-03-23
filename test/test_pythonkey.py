@@ -7,35 +7,26 @@
 from torch.testing._internal.common_utils import TestCase, run_tests
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.utils._pytree as pytree
 import unittest
-import functools
-import itertools
 import warnings
-import math
-from typing import Callable, Type
-from torch.testing._internal.common_device_type import instantiate_device_type_tests, \
-    skipCUDAIfNoMagma, onlyCPU
-import types
-from functools import partial, wraps
-
-import functorch
+import itertools
+from functools import partial
+from torch.testing._internal.common_device_type import instantiate_device_type_tests
 from functorch import (
-    grad, vjp, vmap, jacrev, grad_and_value,
+    grad, vjp, vmap, jacrev,
     make_fx
 )
 from functorch.compile import (
     nnc_jit, compiled_function, compiled_module,
-    partition_with_recompute_fwd_in_bwd, pythonkey_decompose, decomposition_table
+    min_cut_rematerialization_partition, aot_function, aot_module, decomposition_table, nop,
+    num_of_recompilations
 )
 
-from torch.testing._internal.common_device_type import ops, onlyCPU
+from torch.testing._internal.common_device_type import ops
 from functorch_lagging_op_db import functorch_lagging_op_db
 from functorch_additional_op_db import additional_op_db
 from common_utils import (
-    get_fallback_and_vmap_exhaustive,
-    opinfo_in_dict,
     xfail,
     skip,
     skipOps,
@@ -51,8 +42,16 @@ except ImportError:
                   "`--no-deps` to avoid overwriting the pytorch installation",
                   UserWarning)
 
+USE_NETWORKX = False
+try:
+    import networkx  # noqa: F401
+    USE_NETWORKX = True
+except ImportError:
+    warnings.warn("Some tests use networkx but it was not installed",
+                  UserWarning)
+
 # NB: numpy is a testing dependency!
-import numpy as np
+
 
 class TestPythonKey(TestCase):
     def test_make_fx(self, device):
@@ -74,6 +73,13 @@ class TestPythonKey(TestCase):
         new_inp = torch.randn(3)
         self.assertEqual(fx_f(new_inp), f(new_inp))
 
+    def test_scalar_device(self, device):
+        def f(a, b):
+            return a + b
+        inps = [torch.randn(3, device=device), torch.tensor(5)]
+        fx_f = make_fx(f)(*inps)
+        self.assertEqual(fx_f(*inps), f(*inps))
+
     def test_make_fx_vmap(self, device):
         def f(x):
             return torch.sin(x)
@@ -92,7 +98,7 @@ class TestPythonKey(TestCase):
         new_inp = torch.randn(3)
         self.assertEqual(fx_f(new_inp), f(new_inp))
 
-    def test_make_fx_jvp(self, device):
+    def test_make_fx_vjp(self, device):
         def f(x):
             return torch.sin(x).sum()
 
@@ -112,12 +118,10 @@ class TestPythonKey(TestCase):
 
         self.assertEqual(torch.ops.aten.tanh_backward in ops, True)
 
-        with pythonkey_decompose():
-            fx_f = make_fx(grad(f))(torch.randn(5))
+        fx_f = make_fx(grad(f), decomposition_table)(torch.randn(5))
         ops = set([i.target for i in fx_f.graph.nodes])
         self.assertEqual(torch.ops.aten.tanh_backward in ops, False)
 
-    @unittest.expectedFailure
     def test_nnc_jit(self, device):
         def f(x):
             return torch.sin(x)
@@ -127,25 +131,6 @@ class TestPythonKey(TestCase):
         inp = torch.randn(3)
         self.assertEqual(jit_f(inp), f(inp))
 
-    @unittest.expectedFailure
-    def test_nnc_jit_warns_on_recompilation(self, device):
-        def f(x):
-            return torch.sin(x)
-
-        jit_f = nnc_jit(f)
-
-        inp = torch.randn(3)
-        jit_f(inp)
-        inp2 = torch.randn(5)
-
-        with warnings.catch_warnings(record=True) as warns:
-            warnings.simplefilter("always")
-            jit_f(inp2)
-
-        self.assertEqual(len(warns), 1)
-        self.assertTrue("Recompiling" in str(warns[-1].message))
-
-    @unittest.expectedFailure
     def test_nnc_scalar(self, device):
         def f(x):
             return torch.sin(x)
@@ -155,7 +140,6 @@ class TestPythonKey(TestCase):
         inp = torch.randn(())
         self.assertEqual(jit_f(inp), f(inp))
 
-    @unittest.expectedFailure
     def test_nnc_pytrees(self, device):
         def f(x):
             return [torch.sin(x[0])]
@@ -172,7 +156,6 @@ class TestPythonKey(TestCase):
         inp = [torch.randn(3, 3), torch.randn(3)]
         self.assertEqual(jit_f(*inp), f(*inp))
 
-    @unittest.expectedFailure
     def test_nnc_passthrough(self, device):
         def f(x, y):
             return x + y, y
@@ -190,6 +173,7 @@ class TestPythonKey(TestCase):
     @unittest.skipIf(not USE_TORCHVISION, "test requires torchvision")
     def test_resnet18_backward_trace(self, device):
         mod = torchvision.models.resnet18()
+
         def f(x):
             out = mod(x)
             out.sum().backward()
@@ -207,25 +191,22 @@ class TestPythonKey(TestCase):
 make_fx_failures = {
     xfail('to_sparse'),
     xfail('allclose'),
-    xfail('rsub', 'rsub_scalar'),
-    xfail('linalg.matrix_power'),
-    xfail('linalg.inv'),
-    xfail('linalg.cholesky'),
     xfail('nn.functional.dropout'),
     xfail('linalg.eigvals'),
-    xfail('nn.functional.ctc_loss'),
     xfail('nn.functional.fractional_max_pool3d', device_type='cpu'),
-    xfail('randn_like'), # randomness
-    xfail('rand_like'), # randomness
-    xfail('randint_like'), # randomness
-    skip('new_empty'), # nondeterministic
-    skip('empty_like'), # nondeterministic
-    skip('linalg.lstsq', 'grad_oriented'), # flaky
+    xfail('randn_like'),  # randomness
+    xfail('rand_like'),  # randomness
+    xfail('randint_like'),  # randomness
+    skip('new_empty'),  # nondeterministic
+    skip('empty_like'),  # nondeterministic
+    skip('linalg.lstsq', 'grad_oriented'),  # flaky
 }
+
+
 class TestPythonKeyOperatorsOpInfo(TestCase):
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestPythonKeyOperatorsOpInfo', 'test_make_fx_exhaustive', make_fx_failures
-    )
+             )
     def test_make_fx_exhaustive(self, device, dtype, op):
 
         def f(args, kwargs):
@@ -246,106 +227,158 @@ class TestPythonKeyOperatorsOpInfo(TestCase):
                     arg.uniform_(0, 1)
             try:
                 old_out = f(args, kwargs)
-            except:
+            except Exception:
                 continue
             new_out = new_f(args, kwargs)
             self.assertEqual(new_out, old_out)
             pass
 
-def _nop_compile(x, _):
-    return x
 
 def _outs_and_grads(fn, inps):
     outs = fn(*inps)
-    [out.sum().backward(retain_graph=True) for out in outs]
-    grads = [inp.grad for inp in inps]
-    for inp in inps:
+    for out in pytree.tree_flatten(outs)[0]:
+        if isinstance(out, torch.Tensor) and out.requires_grad:
+            out.sum().backward(retain_graph=True)
+    grads = [inp.grad for inp in pytree.tree_flatten(inps)[0]]
+    for inp in pytree.tree_flatten(inps)[0]:
         inp.grad = None
     return outs, grads
 
-class TestEagerFusion(TestCase):
-    def test_single_output(self):
-        def f(a, b):
-            return a + b
-        compiled_f = compiled_function(f, _nop_compile, _nop_compile)
-        inp = [torch.randn(3, 3, requires_grad=True), torch.randn(3, 3)]
+
+class TestAOTAutograd(TestCase):
+    def verify_aot_autograd(self, f, inp):
+        if isinstance(f, nn.Module):
+            compiled_f = aot_module(f, nop)
+        else:
+            compiled_f = aot_function(f, nop)
         ref_out, ref_grad = _outs_and_grads(f, inp)
         test_out, test_grad = _outs_and_grads(compiled_f, inp)
         self.assertEqual(ref_out, test_out)
         self.assertEqual(ref_grad, test_grad)
+
+    def test_single_output(self):
+        def f(a, b):
+            return a + b
+        inp = [torch.randn(3, 3, requires_grad=True), torch.randn(3, 3)]
+        self.verify_aot_autograd(f, inp)
 
     def test_multi_output(self):
         def f(a, b):
             return a + b, a - b
-        compiled_f = compiled_function(f, _nop_compile, _nop_compile)
         inp = [torch.randn(3, 3, requires_grad=True), torch.randn(3, 3)]
-        ref_out, ref_grad = _outs_and_grads(f, inp)
-        test_out, test_grad = _outs_and_grads(compiled_f, inp)
-        self.assertEqual(ref_out, test_out)
-        self.assertEqual(ref_grad, test_grad)
+        self.verify_aot_autograd(f, inp)
 
     def test_multi_output_list(self):
         def f(a, b):
             return [a + b, a - b]
-        compiled_f = compiled_function(f, _nop_compile, _nop_compile)
         inp = [torch.randn(3, 3, requires_grad=True), torch.randn(3, 3)]
-        ref_out, ref_grad = _outs_and_grads(f, inp)
-        test_out, test_grad = _outs_and_grads(compiled_f, inp)
-        self.assertEqual(ref_out, test_out)
-        self.assertEqual(ref_grad, test_grad)
+        self.verify_aot_autograd(f, inp)
+
+    def test_no_grad_input_output(self):
+        def f(a, b):
+            return a.cos(), b.cos(), a * b
+
+        inp_thunks = [lambda: torch.randn(5, requires_grad=True), lambda: torch.randn(5, requires_grad=False)]
+        for inps in itertools.product(inp_thunks, repeat=2):
+            inps = [i() for i in inps]
+            self.verify_aot_autograd(f, inps)
+
+    def test_inner_grad(self):
+        def foo(x):
+            y = torch.exp(x)
+            z = torch.autograd.grad(y, x)
+            return z
+        inps = [torch.randn((), requires_grad=True)]
+        self.verify_aot_autograd(foo, inps)
+
+    def test_grad_context(self):
+        def foo(x):
+            return x * 2
+        inps = [torch.randn((), requires_grad=True)]
+        graph_size = None
+
+        def assert_graph_empty(fx_g, _):
+            nonlocal graph_size
+            graph_size = len(fx_g.graph.nodes)
+            return fx_g
+
+        start_recompilations = num_of_recompilations()
+        f = aot_function(foo, nop, assert_graph_empty)
+        with torch.set_grad_enabled(False):
+            f(*inps)
+        self.assertEqual(graph_size, 2)
+        with torch.set_grad_enabled(True):
+            f(*inps)
+        self.assertTrue(graph_size > 2)
+        self.assertEqual(num_of_recompilations() - start_recompilations, 2)
+
+    def test_output_dict(self):
+        def f(x):
+            return {'a': x, 'b': x}
+        inp = [torch.randn(3, 3, requires_grad=True)]
+        self.verify_aot_autograd(f, inp)
+
+        def f(x, y):
+            return {'a': x, 'b': y + x}
+        inp = [torch.randn(3, requires_grad=True), torch.randn(3)]
+        self.verify_aot_autograd(f, inp)
+
+        def f(x):
+            new_d = {}
+            for k in x:
+                new_d[k] = x[k] * 2
+            return new_d
+        inp = [{'a': torch.randn(3, requires_grad=True), 'b': torch.randn(3, requires_grad=True)}]
+        self.verify_aot_autograd(f, inp)
 
     def test_module(self):
         mod = nn.Sequential(nn.Linear(32, 32), nn.ReLU())
-        compiled_mod = compiled_module(mod, _nop_compile, _nop_compile)
+        compiled_mod = compiled_module(mod, nop, nop)
         inp = torch.randn(32, 32)
         ref_out = mod(inp)
         ref_out.sum().backward()
-        ref_grads = [p.grad for p in mod.parameters()]
+        ref_grads = sorted([(name, p.grad) for name, p in mod.named_parameters()])
         out = compiled_mod(inp)
         out.sum().backward()
-        grads = [p.grad for p in compiled_mod.parameters()]
+        grads = sorted([(name, p.grad) for name, p in mod.named_parameters()])
         self.assertEqual((out, grads), (ref_out, ref_grads))
 
     def test_batchnorm(self):
-        mod = compiled_module(nn.BatchNorm2d(4), _nop_compile, _nop_compile)
+        mod = compiled_module(nn.BatchNorm2d(4), nop, nop)
         x = torch.ones(1, 4, 2, 2)
         mod(x).sum().backward()
+
 
 class TestEagerFusionOpInfo(TestCase):
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     # entries in here need don't work and need to be fixed.
     # Each one of these is a bug (or needs to be investigated)
     @skipOps('TestEagerFusionOpInfo', 'test_aot_autograd_exhaustive', {
-        xfail('__rmatmul__'),
         xfail('linalg.cholesky'),
-        xfail('linalg.det'),
-        xfail('linalg.inv'),
-        xfail('matmul'),
-        xfail('nn.functional.linear'),
+        skip('msort'),
         xfail('nn.functional.dropout'),
         xfail('polar'),
         xfail('special.zeta', 'grad'),
         xfail('to_sparse'),
         xfail('addcdiv'),
-        xfail('angle'),
         xfail('cholesky'),
         xfail('cumulative_trapezoid'),
         xfail('diag_embed'),
         xfail('linalg.householder_product'),
         xfail('logit'),
         xfail('matrix_exp'),
-        xfail('sgn'),
+        xfail('trace'),
         xfail('trapezoid'),
         xfail('trapz'),
+        skip('nn.functional.binary_cross_entropy_with_logits'),  # seems to fail sometimes?
+        xfail('block_diag'),
     })
     def test_aot_autograd_exhaustive(self, device, dtype, op):
-
         def f(args, kwargs):
             return op.op(*args, **kwargs)
         if not op.supports_autograd:
             return
         sample_inputs_itr = op.sample_inputs(device, dtype, requires_grad=True)
-        new_f = None
         for sample_input in sample_inputs_itr:
             args = [sample_input.input] + list(sample_input.args)
             kwargs = sample_input.kwargs
@@ -367,7 +400,7 @@ class TestEagerFusionOpInfo(TestCase):
             def get_grads(args):
                 return pytree.tree_map(lambda x: x.grad, args)
 
-            compiled_f = compiled_function(f, lambda x,_: x, lambda x,_: x)
+            compiled_f = compiled_function(f, nop, nop)
 
             reset_grads()
             compiled_f(args, kwargs).sum().backward()
@@ -392,7 +425,35 @@ class TestEagerFusionOpInfo(TestCase):
             orig_grad = get_grads(args)
             self.assertEqual(orig_grad, compiled_grad)
 
+
+def extract_graph(fx_g, _, graph_cell):
+    graph_cell[0] = fx_g
+    return fx_g
+
+
+def get_num_ins_outs(fx_g):
+    num_inps = 0
+    num_outs = 0
+    for n in fx_g.graph.nodes:
+        if n.op == 'placeholder':
+            num_inps += 1
+        elif n.op == 'output':
+            num_outs = len(n.args[0])
+    return num_inps, num_outs
+
+
+def get_fw_bw_graph(f, inps):
+    fw_graph_cell = [None]
+    bw_graph_cell = [None]
+    aot_function(f,
+                 fw_compiler=partial(extract_graph, graph_cell=fw_graph_cell),
+                 bw_compiler=partial(extract_graph, graph_cell=bw_graph_cell),
+                 partition_fn=min_cut_rematerialization_partition)(*inps)
+    return (fw_graph_cell[0], bw_graph_cell[0])
+
+
 class TestPartitioning(TestCase):
+    @unittest.skipIf(not USE_NETWORKX, "networkx not available")
     def test_recompute_partitioning(self):
         def fn(a, b):
             return torch.sin(torch.sin(a)) + b
@@ -406,13 +467,59 @@ class TestPartitioning(TestCase):
         # Compiled function calculation
         res_a = ref_a.clone().detach().requires_grad_(True)
         res_b = ref_b.clone().detach().requires_grad_(True)
-        compile_fn = lambda x, _ : x
-        compiled_fn = compiled_function(fn, compile_fn, compile_fn, partition_with_recompute_fwd_in_bwd)
+
+        def compile_fn(x, _):
+            return x
+
+        compiled_fn = compiled_function(fn, compile_fn, compile_fn, min_cut_rematerialization_partition)
         res = compiled_fn(res_a, res_b)
         res.sum().backward()
         assert torch.allclose(ref, res, atol=1e-3, rtol=1e-3)
         assert torch.allclose(ref_a.grad, res_a.grad, atol=1e-3, rtol=1e-3)
         assert torch.allclose(ref_b.grad, res_b.grad, atol=1e-3, rtol=1e-3)
+
+    def test_meta_tensor_inplace_op(self):
+        # Following module results in inplace ops while tracing. The test checks
+        # that the meta tensor information is stored for inplace ops.
+        class MockModule(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.weight = torch.nn.Parameter(torch.randn(3072, 768, requires_grad=True))
+                self.bias = torch.nn.Parameter(torch.randn(3072, requires_grad=True))
+
+            def forward(self, add_4):
+                linear_4 = torch.nn.functional.linear(add_4, self.weight, bias=self.bias)
+                gelu = torch.nn.functional.gelu(linear_4)
+                return gelu
+
+        def check_meta_tensor(fx_g, _):
+            for node in fx_g.graph.nodes:
+                if node.op != 'output':
+                    assert 'tensor_meta' in node.meta
+            return fx_g
+
+        inp0 = torch.randn(16, 128, 768, requires_grad=True)
+        inputs = [inp0, ]
+        mod = MockModule().to(device="cpu")
+        aot_mod = aot_module(mod, fw_compiler=check_meta_tensor)
+        aot_mod(*inputs)
+
+    @unittest.skipIf(not USE_NETWORKX, "networkx not available")
+    def test_min_cut_partitioner(self):
+        def f(x):
+            return x.cos().cos().cos()
+
+        fw_graph, bw_graph = get_fw_bw_graph(f, [torch.randn(3, requires_grad=True)])
+        self.assertEqual(get_num_ins_outs(fw_graph), (1, 2))
+        self.assertEqual(get_num_ins_outs(bw_graph), (2, 1))
+
+        def f(a, b, c, d):
+            x = a + b + c + d
+            return x.cos().cos()
+
+        fw_graph, bw_graph = get_fw_bw_graph(f, [torch.randn(3, requires_grad=True) for _ in range(4)])
+        self.assertEqual(get_num_ins_outs(fw_graph), (4, 2))
+        self.assertEqual(get_num_ins_outs(bw_graph), (2, 4))
 
 
 only_for = ("cpu")

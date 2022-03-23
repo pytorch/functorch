@@ -10,7 +10,14 @@ functorch is `JAX-like <https://github.com/google/jax>`_ composable function tra
 It aims to provide composable vmap and grad transforms that work with PyTorch modules
 and PyTorch autograd with good eager-mode performance.
 
-**This library is currently under heavy development - if you have suggestions on the API or use-cases you'd like to be covered, please open an github issue or reach out. We'd love to hear about how you're using the library.**
+.. note::
+   This library is currently in [beta](https://pytorch.org/blog/pytorch-feature-classification-changes/#beta).
+   What this means is that the features generally work (unless otherwise documented)
+   and we (the PyTorch team) are committed to bringing this library forward. However, the APIs
+   may change under user feedback and we don't have full coverage over PyTorch operations.
+
+   If you have suggestions on the API or use-cases you'd like to be covered, please
+   open an github issue or reach out. We'd love to hear about how you're using the library.
 
 Why composable function transforms?
 -----------------------------------
@@ -33,7 +40,27 @@ For a whirlwind tour of how to use the transforms, please check out `this sectio
 
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
+   :caption: Getting Started
 
-   Install <install>
-   functorch API Reference <functorch>
+   install
+   notebooks/whirlwind_tour.ipynb
+   ux_limitations
+
+.. toctree::
+   :maxdepth: 2
+   :caption: API Reference and Notes
+
+   functorch
+   aot_autograd
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Tutorials
+
+   notebooks/jacobians_hessians.ipynb
+   notebooks/ensembling.ipynb
+   notebooks/per_sample_grads.ipynb
+   notebooks/neural_tangent_kernels.ipynb
+   notebooks/aot_autograd_optimizations.ipynb
+   notebooks/minifier.ipynb

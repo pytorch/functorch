@@ -165,14 +165,22 @@ householder_product_batch_rule(const Tensor &input, c10::optional<int64_t> input
   return std::make_tuple(at::linalg_householder_product(input_, tau_), 0);
 }
 
+Tensor addmm_decomp(const Tensor& self, const Tensor& mat1, const Tensor& mat2, const Scalar& beta, const Scalar& alpha) {
+  // Decomposition that is probably not very fast...
+  return at::add(self * beta, at::mm(mat1, mat2), alpha);
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
-  VMAP_SUPPORT("bmm", bmm_batch_rule);
+  VMAP_SUPPORT(bmm, bmm_batch_rule);
   m.impl("addmv", addmv_decomp);
+  m.impl("addmm", addmm_decomp);
   m.impl("addbmm", addbmm_decomp);
   m.impl("baddbmm", baddbmm_decomp);
-  VMAP_SUPPORT("dot", dot_batch_rule);
-  VMAP_SUPPORT("mv", mv_batch_rule);
-  VMAP_SUPPORT("mm", mm_batch_rule);
+  VMAP_SUPPORT(dot, dot_batch_rule);
+  VMAP_SUPPORT(mv, mv_batch_rule);
+  VMAP_SUPPORT(mm, mm_batch_rule);
+  VMAP_SUPPORT(linalg_householder_product,
+               householder_product_batch_rule);
   m.impl("linear", linear_decomp);
 
   VARIADIC_BDIMS_BOXED(cholesky_solve);
@@ -183,7 +191,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VARIADIC_BDIMS(linalg_pinv);
   VARIADIC_BDIMS_BOXED(linalg_qr);
   VARIADIC_BDIMS_BOXED(linalg_slogdet);
-  VMAP_SUPPORT("linalg_householder_product", householder_product_batch_rule);
 
   VARIADIC_BDIMS(cholesky);
   VARIADIC_BDIMS(cholesky_inverse);
@@ -193,7 +200,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VARIADIC_BDIMS(pinverse);
   VARIADIC_BDIMS(inverse);
   VARIADIC_BDIMS_BOXED(slogdet);
-  VARIADIC_BDIMS_BOXED(_svd_helper);
+  VARIADIC_BDIMS_BOXED(_linalg_svd);
   VARIADIC_BDIMS_BOXED(solve);
   VARIADIC_BDIMS_BOXED(symeig);
   VARIADIC_BDIMS_BOXED(triangular_solve);

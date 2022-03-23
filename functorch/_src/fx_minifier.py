@@ -1,36 +1,43 @@
+import subprocess
 import torch.fx as fx
 import copy
 import torch
 import math
 
+
 class ConcreteProp(torch.fx.Interpreter):
-        def run_node(self, n):
-                result = super().run_node(n)
+    def run_node(self, n):
+        result = super().run_node(n)
 
-                found_tensor = False
+        found_tensor = False
 
-                def extract_tensor_meta(obj):
-                        if isinstance(obj, torch.Tensor):
-                                nonlocal found_tensor
-                                found_tensor = True
-                                return obj
-                        else:
-                                return obj
+        def extract_tensor_meta(obj):
+            if isinstance(obj, torch.Tensor):
+                nonlocal found_tensor
+                found_tensor = True
+                return obj
+            else:
+                return obj
 
-                from torch.fx.node import map_aggregate
-                concrete_value = map_aggregate(result, extract_tensor_meta)
-                if found_tensor:
-                        n.meta['concrete_value'] = concrete_value
-                return result
+        from torch.fx.node import map_aggregate
+        concrete_value = map_aggregate(result, extract_tensor_meta)
+        if found_tensor:
+            n.meta['concrete_value'] = concrete_value
+        return result
 
-        def propagate(self, *args):
-                return super().run(*args)
+    def propagate(self, *args):
+        return super().run(*args)
+
 
 def _get_placeholders(graph):
     return list(filter(lambda x: x.op == 'placeholder', graph.nodes))
 
 # inplace modifies node/inps
+
+
 def _convert_node_to_placeholder(node, inps):
+    if node.op == 'output':
+        return
     node.op = 'placeholder'
     node.args = ()
     node.target = node.name
@@ -42,13 +49,15 @@ def _convert_node_to_placeholder(node, inps):
         for tuple_user in list(node.users):
             _convert_node_to_placeholder(tuple_user, inps)
 
-def minimizer(fail_f: fx.GraphModule, inps, module_fails):
+
+def minifier(fail_f: fx.GraphModule, inps, module_fails):
     """
     Minimizes a FX graph with given inputs, such that the resulting FX graph still returns True for module_fails.
 
     Does 2 main strategies:
     1. Truncates suffix: Removes some suffix from the graph and sets a new output.
-    2. Delta Debugging: Tries replacing half of the graph with inputs. If fails, tries replacing quarter of the graph, etc.
+    2. Delta Debugging: Tries replacing half of the graph with inputs. If fails,
+        tries replacing quarter of the graph, etc.
 
     >>> failing_function = fx.symbolic_trace(f)
     >>> minimize(failing_function, [torch.randn(5)], lambda fx_g, inps: fx_g(*inps))
@@ -94,7 +103,6 @@ def minimizer(fail_f: fx.GraphModule, inps, module_fails):
         print("FAIL: Could not remove suffix")
         return (cur_graph, cur_inps), False
 
-
     def remove_unused_inputs(cur_graph, cur_inps):
         assert graph_fails(cur_graph, cur_inps)
         ph_nodes = _get_placeholders(cur_graph)
@@ -139,7 +147,7 @@ def minimizer(fail_f: fx.GraphModule, inps, module_fails):
                 new_node = new_graph.node_copy(node, lambda x: env[x])
                 env[node] = new_node
         return new_graph
-            
+
     def delta_debugging(cur_graph: fx.Graph, cur_inps):
         print("Strategy: Delta Debugging")
         assert graph_fails(cur_graph, cur_inps)
@@ -158,30 +166,36 @@ def minimizer(fail_f: fx.GraphModule, inps, module_fails):
                         is_removing = True
                         _convert_node_to_placeholder(new_node, new_inps)
                 if not is_removing:
-                    continue 
+                    continue
                 new_graph = consolidate_placeholders(new_graph)
                 if graph_fails(new_graph, new_inps):
-                    print(f"SUCCESS: Removed ({start_range}:{end_range}] - Went from {starting_placeholders} placeholders to {len(_get_placeholders(new_graph))}")
+                    print(
+                        f"SUCCESS: Removed ({start_range}:{end_range}] - Went from {starting_placeholders} "
+                        f"placeholders to {len(_get_placeholders(new_graph))}"
+                    )
                     return (new_graph, new_inps), True
             gap //= 2
 
         print("FAIL: Could not remove prefix")
         return (cur_graph, inps), False
 
-
-    print(f"###################")
+    print("###################")
     print(f"Current size: {len(failing_graph.nodes)}")
-    print(f"###################")
+    print("###################")
     while True:
         any_succeeded = False
-        for strategy in [remove_suffix, eliminate_dead_code, remove_unused_inputs, delta_debugging, eliminate_dead_code, remove_unused_inputs]:
+        strategies = [
+            remove_suffix, eliminate_dead_code, remove_unused_inputs,
+            delta_debugging, eliminate_dead_code, remove_unused_inputs
+        ]
+        for strategy in strategies:
             out = strategy(copy.deepcopy(failing_graph), inps[:])
             (cur_graph, cur_inps), succeeded = out
             if succeeded:
                 print()
-                print(f"###################")
+                print("###################")
                 print(f"Current size: {len(cur_graph.nodes)}")
-                print(f"###################")
+                print("###################")
                 failing_graph = cur_graph
                 inps = cur_inps
                 any_succeeded = True
@@ -189,28 +203,67 @@ def minimizer(fail_f: fx.GraphModule, inps, module_fails):
         if not any_succeeded:
             break
     failing_fx = fx.GraphModule(fail_f, failing_graph)
-    print(failing_fx.code)
-    print([i.shape for i in inps])
+    print(f"""
+inps = {[(i.shape, i.dtype) for i in inps]}
+inps = [torch.zeros(())] + [torch.ones(shape, dtype=dtype, device='cuda') for (shape, dtype) in inps]
+{failing_fx.code}
+f = torch.jit.script(forward)
+with torch.jit.fuser("fuser2"):
+  for _ in range(5):
+    f(*inps)""")
     return failing_fx, inps
 
-import subprocess
+
 def check_nvfuser_subprocess(f, inps):
     f.to_folder("temp")
     with open("_temp.py", 'w') as fil:
         fil.write(f'''
-    import torch
-    from temp import FxModule
-    f = FxModule().cuda()
-    inps = {[(i.shape, i.dtype) for i in inps]}
-    inps = [torch.randn(shape, dtype=dtype, device='cuda') for shape, dtype in inps]
-    with torch.jit.fuser("fuser2"):
+import torch
+from temp import FxModule
+f = FxModule().cuda()
+inps = {[(i.shape, i.dtype) for i in inps]}
+inps = [torch.ones(shape, dtype=dtype, device='cuda') for shape, dtype in inps]
+with torch.jit.fuser("fuser2"):
     nf = torch.jit.script(f)
     for _ in range(5):
         nf(*inps)
     ''')
-    try:
-        subprocess.check_call("PYTORCH_NVFUSER_DISABLE_FALLBACK=1 python _temp.py", shell=True)
-    except Exception as e:
-        print(e)
+    p = subprocess.Popen(["PYTORCH_NVFUSER_DISABLE_FALLBACK=1 python _temp.py"],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    out, err = p.communicate()
+    if p.returncode != 0:
+        err = err.decode('utf-8')
+        print(err)
+        return True
+    return False
+
+
+def check_nvfuser_correctness_subprocess(f, inps):
+    f.to_folder("temp")
+    with open("_temp.py", 'w') as fil:
+        fil.write(f'''
+import torch
+from temp import FxModule
+f = FxModule().cuda()
+inps = {[(i.shape, i.dtype) for i in inps]}
+inps = [torch.randn(shape, dtype=dtype, device='cuda')
+        if dtype.is_floating_point else torch.ones(shape, dtype=dtype, device='cuda')
+        for shape, dtype in inps]
+
+ref = f(*inps)
+nv_f = torch.jit.script(f)
+with torch.jit.fuser("fuser2"):
+    for _ in range(5):
+        res = nv_f(*inps)
+for a, b in zip(ref, res):
+    if not torch.allclose(a, b, atol=0.1):
+        exit(1)
+''')
+    p = subprocess.Popen(["PYTORCH_NVFUSER_DISABLE_FALLBACK=1 python _temp.py"],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    out, err = p.communicate()
+    if p.returncode != 0:
+        err = err.decode('utf-8')
+        print(err)
         return True
     return False

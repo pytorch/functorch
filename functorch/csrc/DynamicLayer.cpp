@@ -27,7 +27,7 @@ constexpr DispatchKeySet all_dynlayer_keyset = DispatchKeySet({
   DispatchKey::ADInplaceOrView
 }) | autograd_dispatch_keyset;
 
-static void setDynamicLayerFrontBackKeysIncluded(bool included) {
+void setDynamicLayerFrontBackKeysIncluded(bool included) {
   c10::impl::tls_set_dispatch_key_included(kDynamicLayerFrontModeKey, included);
   c10::impl::tls_set_dispatch_key_included(kDynamicLayerBackModeKey, included);
 }
@@ -50,15 +50,19 @@ DynamicLayer::DynamicLayer(
     DispatchKey key,
     int64_t layerId,
     optional<int64_t> batchSize,
-    optional<bool> prev_grad_mode)
+    optional<RandomnessType> randomness,
+    optional<bool> prev_grad_mode,
+    optional<bool> prev_fwd_grad_mode)
   :
     key_(key),
     layerId_(layerId),
     batchSize_(batchSize),
-    prevGradMode_(prev_grad_mode)
+    randomness_(randomness),
+    prevGradMode_(prev_grad_mode),
+    prevFwdGradMode_(prev_fwd_grad_mode)
 {
   if (key_ == DispatchKey::Autograd) {
-    TORCH_INTERNAL_ASSERT(prev_grad_mode.has_value());
+    TORCH_INTERNAL_ASSERT(prev_grad_mode.has_value() || prev_fwd_grad_mode.has_value());
   }
 }
 
@@ -75,8 +79,17 @@ int64_t DynamicLayer::batchSize() const {
   return *batchSize_;
 }
 
+RandomnessType DynamicLayer::randomness() const {
+  TORCH_INTERNAL_ASSERT(randomness_);
+  return *randomness_;
+}
+
 optional<bool> DynamicLayer::prevGradMode() const {
   return prevGradMode_;
+}
+
+optional<bool> DynamicLayer::prevFwdGradMode() const {
+  return prevFwdGradMode_;
 }
 
 using DynmetaData = std::unordered_map<int64_t, std::shared_ptr<bool>>;
@@ -96,9 +109,23 @@ class FuncTorchTLS : public FuncTorchTLSBase {
     return result;
   }
 
+  int64_t checkSupportsAutogradFunction() const override {
+    TORCH_CHECK(dynamicLayerStack.size() <= 1, // we're inside a transform if the stack has more than the inital layer
+        "functorch functions (vmap, grad, vjp, etc.) currently do not support the use of autograd.Function. ",
+        "Please rewrite your function to not use autograd.Function while we work on fixing this");
+    return 0;
+  }
+
+  void checkSupportsInplaceRequiresGrad() const override {
+    // Does nothing
+  }
+  void checkSupportsRetainGrad() const override {
+    // Does nothing
+  }
+
   // Initial autograd layer, because autograd is always "on"
   // TODO: Get rid of this, it is bad for composability
-  std::vector<DynamicLayer> dynamicLayerStack = { DynamicLayer(DispatchKey::Autograd, 1, nullopt, true) };
+  std::vector<DynamicLayer> dynamicLayerStack = { DynamicLayer(DispatchKey::Autograd, 1, nullopt, nullopt, true) };
 };
 
 static FuncTorchTLS* getRawFunctorchTLS() {
@@ -151,7 +178,7 @@ static DynamicLayer popDynamicLayer() {
   TORCH_INTERNAL_ASSERT(result.key() != DispatchKey::Undefined);
   dynamicLayerStack.pop_back();
 
-  if (dynamicLayerStack.size() == 0) {
+  if (dynamicLayerStack.size() == 1) {
 #ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
     if (c10::show_dispatch_trace_enabled()) {
       std::cout << "DynamicLayer off" << std::endl;
@@ -179,18 +206,20 @@ static int64_t pushDynamicLayer(DynamicLayer&& dynamic_layer) {
 int64_t initAndPushDynamicLayer(
     DispatchKey key,
     optional<int64_t> batch_size,
-    optional<bool> prev_grad_mode) {
+    optional<RandomnessType> randomness,
+    optional<bool> prev_grad_mode,
+    optional<bool> prev_fwd_grad_mode) {
   TORCH_INTERNAL_ASSERT(key == DispatchKey::Autograd || key == kBatchedKey);
   const auto& dynamicLayerStack = dynamicLayerStackAccessor();
   const auto layerId = 1 + dynamicLayerStack.size();
-  DynamicLayer new_layer(key, layerId, batch_size, prev_grad_mode);
+  DynamicLayer new_layer(key, layerId, batch_size, randomness, prev_grad_mode, prev_fwd_grad_mode);
   pushDynamicLayer(std::move(new_layer));
 
   auto& data = getGlobalDynmetaData();
 
   TORCH_INTERNAL_ASSERT(data.find(layerId) == data.end());
   if (key == DispatchKey::Autograd) {
-    TORCH_INTERNAL_ASSERT(prev_grad_mode.has_value());
+    TORCH_INTERNAL_ASSERT(prev_grad_mode.has_value() || prev_fwd_grad_mode.has_value());
   }
   data[layerId] = std::make_shared<bool>(true);
   return layerId;
@@ -312,45 +341,6 @@ std::ostream& operator<< (std::ostream& os, const std::vector<DynamicLayer>& dls
   return os;
 }
 
-static bool allTensors(
-    ArrayRef<IValue> args,
-    std::function<bool(const Tensor&)> pred) {
-  for (const auto& ivalue : args) {
-    // Tensor?[] translates to a c10::List<IValue> so we need to peek inside List
-    if (ivalue.isList()) {
-      for (const auto& elt : ivalue.toListRef()) {
-        if (elt.isTensor() && !pred(elt.toTensor())) {
-            return false;
-        }
-      }
-      continue;
-    }
-    if (ivalue.isTensorList()) {
-      for (const auto& elt : ivalue.toTensorList()) {
-        if (!pred(elt)) {
-          return false;
-        }
-      }
-      continue;
-    }
-    TORCH_INTERNAL_ASSERT(!ivalue.isGenericDict(), "No operators can accept GenericDict");
-    if (!ivalue.isTensor()) {
-      continue;
-    }
-    if (!pred(ivalue.toTensor())) {
-      return false;
-    }
-  }
-  return true;
-}
-
-static bool anyTensors(
-    ArrayRef<IValue> args,
-    std::function<bool(const Tensor&)> pred) {
-  // Demorgan's law
-  return !allTensors(args, [&](const Tensor& self) { return !pred(self); });
-}
-
 static void sanityCheckStack(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   auto num_args = op.schema().arguments().size();
   foreachTensorInplace(*stack, stack->size() - num_args, stack->size(),
@@ -362,23 +352,6 @@ static void sanityCheckStack(const c10::OperatorHandle& op, torch::jit::Stack* s
         TORCH_INTERNAL_ASSERT(batched == nullptr);
         return tensor;
       });
-}
-
-static bool batchedAtCurrentLevel(const Tensor& tensor) {
-  auto& dynamicLayerStack = dynamicLayerStackAccessor();
-  auto layer = dynamicLayerStack.back();
-  auto level = layer.layerId();
-
-  auto* batched = maybeGetBatchedImpl(tensor);
-  if (!batched) {
-    return false;
-  }
-  auto batched_at_level = batched->level();
-  return batched_at_level == level;
-}
-
-static bool notBatchedAtCurrentLevel(const Tensor& tensor) {
-  return !batchedAtCurrentLevel(tensor);
 }
 
 bool isInplaceOp(const FunctionSchema& schema) {
@@ -445,11 +418,13 @@ static DispatchKeySet keysForEnteringDynamicLayer(DispatchKey key) {
   }
 }
 
+#ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
 static void dump_local_tls() {
   auto tls = c10::impl::tls_local_dispatch_key_set();
   std::cout << "[Local Include] " << tls.included_ << std::endl;
   std::cout << "[Local Exclude] " << tls.excluded_ << std::endl;
 }
+#endif
 
 static DispatchKeySet keysToExcludeWhenEnteringDynamicLayer(DispatchKey key) {
   DispatchKeySet exclude = all_dynlayer_keyset;
@@ -492,12 +467,6 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
   DispatchKeySet hacky_include;
   // hack
   if (layer.key() == kBatchedKey) {
-    // Only enable dispatch on kBatchedKey if there are tensors batched
-    // at the current level.
-    const auto args = torch::jit::last(stack, op.schema().arguments().size());
-    if (allTensors(args, notBatchedAtCurrentLevel)) {
-      exclude = exclude.add(kBatchedKey);
-    }
     hacky_include = hacky_include.add(kVmapModeKey);
   }
   auto local_keyset = c10::impl::tls_local_dispatch_key_set();
@@ -542,8 +511,9 @@ void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* 
   auto cur_key = getDynamicLayerStack().back().key();
 
   optional<bool> prev_grad_mode = getDynamicLayerStack().back().prevGradMode();
+  optional<bool> prev_fwd_grad_mode = getDynamicLayerStack().back().prevFwdGradMode();
   if (cur_key == DispatchKey::Autograd) {
-    TORCH_INTERNAL_ASSERT(prev_grad_mode.has_value());
+    TORCH_INTERNAL_ASSERT(prev_grad_mode.has_value() || prev_fwd_grad_mode.has_value());
   }
 
   auto unwrap = [&](const Tensor& tensor) {
@@ -614,9 +584,14 @@ void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* 
 #endif
 
   // Re-dispatch
-  if (cur_key == DispatchKey::Autograd && *prev_grad_mode == false) {
+  if (cur_key == DispatchKey::Autograd && prev_grad_mode.has_value() && *prev_grad_mode == false) {
     // See NOTE [grad and vjp interaction with no_grad]
     c10::AutoGradMode guard(*prev_grad_mode);
+    op.callBoxed(stack);
+  }
+  else if (cur_key == DispatchKey::Autograd &&
+           prev_fwd_grad_mode.has_value() && prev_fwd_grad_mode.value() == false) {
+    c10::AutoFwGradMode guard(*prev_fwd_grad_mode);
     op.callBoxed(stack);
   } else {
     op.callBoxed(stack);

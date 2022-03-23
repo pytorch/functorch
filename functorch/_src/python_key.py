@@ -3,34 +3,39 @@
 #
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
-from dataclasses import dataclass
 import functools
-from typing import Any, Dict, NamedTuple, Optional, Set, Tuple, List, Callable, Union
+from typing import Any, Dict, Optional, Tuple, Callable, Union
 import torch
 from torch._C import _disabled_torch_function_impl
-from torch.fx.node import map_aggregate
 import torch.utils._pytree as pytree
 from torch.fx import Tracer, GraphModule
 import torch.fx as fx
-import torch.fx._pytree as fx_pytree
-from torch import Tensor
-from .nnc_compile import nnc_compile
-from .decompositions import decomposition_table
-from enum import Enum
-import warnings
+from torch.fx.passes.shape_prop import _extract_tensor_metadata
 from contextlib import contextmanager
 
+aten = torch.ops.aten
 
-USE_DECOMPOSE = False
+CURRENT_DECOMPOSITION_TABLE = {}
+
 
 @contextmanager
-def pythonkey_decompose():
-    global USE_DECOMPOSE
-    USE_DECOMPOSE = True
+def no_dispatch():
+    guard = torch._C._DisableTorchDispatch()
     try:
-        yield USE_DECOMPOSE
+        yield
     finally:
-        USE_DECOMPOSE = False
+        del guard
+
+
+@contextmanager
+def pythonkey_decompose(decomposition_table):
+    global CURRENT_DECOMPOSITION_TABLE
+    CURRENT_DECOMPOSITION_TABLE = decomposition_table
+    try:
+        yield CURRENT_DECOMPOSITION_TABLE
+    finally:
+        CURRENT_DECOMPOSITION_TABLE = {}
+
 
 class PythonTensor(torch.Tensor):
     elem: torch.Tensor
@@ -39,57 +44,83 @@ class PythonTensor(torch.Tensor):
 
     @staticmethod
     def __new__(cls, elem, proxy):
-        # The wrapping tensor (PythonTensor) is just a meta tensor, so it
-        # doesn't hold any memory (meta tensor is generally the preferred type
-        # of tensor you want to make a subclass from)...
-        meta = elem.new_empty((0,))
-        meta.set_(meta.storage(), 0, elem.size(), elem.stride())
-        r = torch.Tensor._make_subclass(cls, meta, elem.requires_grad)
+        # Wrapping something in PythonTensor implicitly detaches
+        # gradients.  If something required grad, we will collect it as if it
+        # were a leaf.  A consequence of detaching in this way is you
+        # need to maintain a parameter cache when translating tensors
+        # into PythonTensor, so you don't create multiple copies of
+        # a gradient (they are aliased, but they would count as independent
+        # leaves).  An alternate strategy would be to avoid implicitly
+        # detaching and instead "catch" gradients as they exit the
+        # PythonTensor boundary.
+        # assert not elem.requires_grad or not torch.is_grad_enabled()
 
-        # ...the real tensor is held as an element on the tensor.
-        r.elem = elem
+        r = torch.Tensor._make_subclass(cls, elem, elem.requires_grad)
         r.proxy = proxy
+        proxy.node.meta['tensor_meta'] = _extract_tensor_metadata(r)
         return r
 
     def __repr__(self):
-        return f"PythonTensor({self.elem})"
+        # This is a bit goofy but whatever.  Should fix up _tensor_str.py to
+        # work on subclasses when it calls tolist
+        return f"PythonTensor({torch.Tensor._make_subclass(torch.Tensor, self)})"
 
     __torch_function__ = _disabled_torch_function_impl
+
     @classmethod
-    def __torch_dispatch__(cls, func, types, args=(), kwargs=None):
-        if func in decomposition_table and USE_DECOMPOSE:
-            return decomposition_table[func](*args, **kwargs)
+    def __torch_dispatch__(cls, func_overload, types, args=(), kwargs=None):
+        func = func_overload.overloadpacket
+        if func_overload in CURRENT_DECOMPOSITION_TABLE:
+            return CURRENT_DECOMPOSITION_TABLE[func_overload](*args, **kwargs)
+        # Commenting this out for now since it causes some spurious failures (such as error checking)
+        # if func == aten._local_scalar_dense:
+        #     raise RuntimeError("It appears that you're trying to get value out of a tracing tensor - erroring out! "
+        #                        "It's likely that this is caused by data-dependent control flow or similar.")
+
         def unwrap_proxy(e):
             return e.proxy if isinstance(e, PythonTensor) else e
 
-        def unwrap_tensor(e):
-            return e.elem if isinstance(e, PythonTensor) else e
         proxy_args = pytree.tree_map(unwrap_proxy, args)
         proxy_kwargs = pytree.tree_map(unwrap_proxy, kwargs)
-        proxy_out = func(*proxy_args, **proxy_kwargs)
-        real_out = func(*pytree.tree_map(unwrap_tensor, args), **pytree.tree_map(unwrap_tensor, kwargs))
 
-        def wrap_with_proxy(e, idx):
-            # Some ops (like native_batch_norm_backward) return undefined tensors that get converted into None in python.
-            # As the function signature expects tensors, if we directly return these None tensors back to C++, we'll error.
+        proxy_out = func(*proxy_args, **proxy_kwargs)
+
+        # Kind of a hacky way to test if an op is in-place or not
+        if func.__name__[-1] == "_" and func.__name__[0] != "_":
+            args[0].proxy = proxy_out
+            proxy_out.node.meta['tensor_meta'] = _extract_tensor_metadata(args[0])
+
+        with no_dispatch():
+            real_out = func_overload(*args, **kwargs)
+
+        def wrap_with_proxy(e, proxy):
+            # Some ops (like native_batch_norm_backward) return undefined tensors that get
+            # converted into None in python.
+            # As the function signature expects tensors, if we directly return these None
+            # tensors back to C++, we'll error.
             if e is None:
-                return PythonTensor(torch.empty(()), proxy_out[idx])
-            return PythonTensor(e, proxy_out[idx]) if type(e) == torch.Tensor else e
+                e = torch.empty(())
+            if type(e) == torch.Tensor:
+                return PythonTensor(e, proxy)
+            else:
+                return e
         if isinstance(real_out, tuple):
-            return tuple([wrap_with_proxy(e, idx) for idx, e in enumerate(real_out)])
+            return tuple([wrap_with_proxy(e, proxy_out[idx]) for idx, e in enumerate(real_out)])
         elif isinstance(real_out, list):
-            return list([wrap_with_proxy(e, idx) for idx, e in enumerate(real_out)])
+            return list([wrap_with_proxy(e, proxy_out[idx]) for idx, e in enumerate(real_out)])
         elif isinstance(real_out, torch.Tensor):
-            return PythonTensor(real_out, proxy_out)
+            return wrap_with_proxy(real_out, proxy_out)
         else:
             return real_out
+
 
 class PythonKeyTracer(Tracer):
     def __init__(self):
         super().__init__()
 
-
-    def call_module(self, m: torch.nn.Module, forward: Callable[..., Any], args : Tuple[Any, ...], kwargs : Dict[str, Any]) -> Any:
+    def call_module(
+        self, m: torch.nn.Module, forward: Callable[..., Any], args: Tuple[Any, ...], kwargs: Dict[str, Any]
+    ) -> Any:
         return forward(*args, **kwargs)
 
     def _module_getattr(self, attr, attr_val, parameter_proxy_cache):
@@ -111,7 +142,7 @@ class PythonKeyTracer(Tracer):
             for n, p in self.root.named_parameters():
                 if a is p:
                     return self.create_node('get_attr', n, (), {})
-            qualname : Optional[str] = None
+            qualname: Optional[str] = None
 
             if not qualname:
                 i = 0
@@ -126,14 +157,18 @@ class PythonKeyTracer(Tracer):
         return super().create_arg(a)
 
 
-def pythonkey_trace(root : Union[torch.nn.Module, Callable], concrete_args: Optional[Dict[str, Any]] = None) -> GraphModule:
+def pythonkey_trace(
+    root: Union[torch.nn.Module, Callable], concrete_args: Optional[Dict[str, Any]] = None
+) -> GraphModule:
     tracer = PythonKeyTracer()
     graph = tracer.trace(root, concrete_args)
     name = root.__class__.__name__ if isinstance(root, torch.nn.Module) else root.__name__
     return GraphModule(tracer.root, graph, name)
 
+
 def wrap_key(f, inps):
     flat_inps, inp_spec = pytree.tree_flatten(inps)
+
     @functools.wraps(f)
     def wrapped(*args):
         flat_args, args_spec = pytree.tree_flatten(args)
@@ -154,107 +189,13 @@ def wrap_key(f, inps):
 
     return wrapped
 
-def make_fx(f):
+
+def make_fx(f, decomposition_table={}):
     @functools.wraps(f)
     def wrapped(*args):
         phs = pytree.tree_map(lambda x: fx.PH, args)
-        t = pythonkey_trace(wrap_key(f, args), concrete_args=tuple(phs))
+        with pythonkey_decompose(decomposition_table):
+            t = pythonkey_trace(wrap_key(f, args), concrete_args=tuple(phs))
         return t
-
-    return wrapped
-
-@dataclass(eq=True, frozen=True)
-class TensorSpec:
-    shape: Tuple[int, ...]
-    stride: Tuple[int, ...]
-    dtype: torch.dtype
-    device: torch.device
-
-@dataclass(eq=True, frozen=True)
-class ConcreteValueSpec:
-    value: Any
-
-@dataclass(eq=True, frozen=True)
-class SpecializationKey:
-    func: Callable
-    specs: Tuple[Union[TensorSpec, ConcreteValueSpec], ...]
-
-def get_spec(arg):
-    if isinstance(arg, torch.Tensor):
-        return TensorSpec(
-            tuple(arg.shape),
-            tuple(arg.stride()),
-            arg.dtype,
-            arg.device)
-    return ConcreteValueSpec(arg)
-
-def construct_specialization_key(f, args):
-    flat_args, _ = pytree.tree_flatten(args)
-    return SpecializationKey(f, tuple(get_spec(arg) for arg in flat_args))
-
-nnc_jit_cache: Dict[Callable, Dict[SpecializationKey, Callable]] = {}
-
-class RetrievalStatus(Enum):
-    Success = 0
-    UnknownFunc = 1
-    UnknownSpecialization = 2
-
-def retrieve_from_cache(f, key):
-    if f not in nnc_jit_cache:
-        return RetrievalStatus.UnknownFunc, None
-    cache_for_f = nnc_jit_cache[f]
-    if key not in cache_for_f:
-        return RetrievalStatus.UnknownSpecialization, None
-    return RetrievalStatus.Success, cache_for_f[key]
-
-def add_to_cache(f, key, compiled_f):
-    if f not in nnc_jit_cache:
-        nnc_jit_cache[f] = {key: compiled_f}
-    else:
-        nnc_jit_cache[f][key] = compiled_f
-
-def nnc_jit(f, static_argnums=None, skip_specialization = False):
-    local_cache = None
-    @functools.wraps(f)
-    def compiled(*args):
-        nonlocal local_cache, static_argnums
-        if local_cache is not None and skip_specialization:
-            return local_cache(*args)
-        key = construct_specialization_key(f, args)
-        status, compiled_f = retrieve_from_cache(f, key)
-        if status is RetrievalStatus.Success:
-            return compiled_f(*args)
-        if status is RetrievalStatus.UnknownSpecialization:
-            warnings.warn(
-                f'Recompiling kernel for {f} due to new specialization. '
-                f'We recompile when we see inputs with new sizes/strides/'
-                f'dtype/device. Frequent recompilations can be bad for '
-                f'performance.',
-                stacklevel=2)
-
-        fx_model = make_fx(f)(*args)
-        fx_model.graph.lint()
-        if static_argnums is None:
-            static_argnums = []
-        if isinstance(static_argnums, int):
-            static_argnums = [static_argnums]
-        args = list(args)
-        for idx in range(len(args)):
-            if idx in static_argnums:
-                args[idx] = torch.empty(())
-        args = tuple(args)
-        compiled_f = nnc_compile(fx_model, args)
-        local_cache = compiled_f
-        add_to_cache(f, key, compiled_f)
-        return compiled_f(*args)
-    return compiled
-
-def make_nnc(f):
-    @functools.wraps(f)
-    def wrapped(*args):
-        fx_model = make_fx(f)(*args)
-        fx_model.graph.lint()
-        compiled_f = nnc_compile(fx_model, args, get_loopnest=True)
-        return compiled_f
 
     return wrapped

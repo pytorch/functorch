@@ -27,32 +27,27 @@ Our MAML++ fork and experiments are available at:
 https://github.com/bamos/HowToTrainYourMAMLPytorch
 """
 
+from support.omniglot_loaders import OmniglotNShot
+from functorch import make_functional_with_buffers, vmap, grad
+import functorch
+import torch.optim as optim
+import torch.nn.functional as F
+from torch import nn
+import torch
+import matplotlib.pyplot as plt
 import argparse
 import time
-import typing
 import functools
 
 import pandas as pd
 import numpy as np
 import matplotlib as mpl
 mpl.use('Agg')
-import matplotlib.pyplot as plt
 plt.style.use('bmh')
 
-import torch
-from torch import nn
-import torch.nn.functional as F
-import torch.optim as optim
-
-import functorch
-from functorch import make_functional_with_buffers, vmap, grad
 
 # Squash the warning spam
 functorch._C._set_vmap_fallback_warning_enabled(False)
-
-import higher
-
-from support.omniglot_loaders import OmniglotNShot
 
 
 def main():
@@ -90,23 +85,21 @@ def main():
     )
 
     # Create a vanilla PyTorch neural network.
-    # TODO: The prototype doesn't support in-place relu (and some other
-    # in-place operations. That can be fixed.)
-    inplace_relu = False
+    inplace_relu = True
     net = nn.Sequential(
         nn.Conv2d(1, 64, 3),
-        nn.BatchNorm2d(64, momentum=1, affine=True),
+        nn.BatchNorm2d(64, affine=True, track_running_stats=False),
         nn.ReLU(inplace=inplace_relu),
         nn.MaxPool2d(2, 2),
         nn.Conv2d(64, 64, 3),
-        nn.BatchNorm2d(64, momentum=1, affine=True),
+        nn.BatchNorm2d(64, affine=True, track_running_stats=False),
         nn.ReLU(inplace=inplace_relu),
         nn.MaxPool2d(2, 2),
         nn.Conv2d(64, 64, 3),
-        nn.BatchNorm2d(64, momentum=1, affine=True),
+        nn.BatchNorm2d(64, affine=True, track_running_stats=False),
         nn.ReLU(inplace=inplace_relu),
         nn.MaxPool2d(2, 2),
-        Flatten(),
+        nn.Flatten(),
         nn.Linear(64, args.n_way)).to(device)
 
     net.train()
@@ -245,8 +238,6 @@ def test(db, net, device, epoch, log):
     })
 
 
-
-
 def plot(log):
     # Generally you should pull your plotting code out of your training
     # script but we are doing it here for brevity.
@@ -266,13 +257,6 @@ def plot(log):
     print(f'--- Plotting accuracy to {fname}')
     fig.savefig(fname)
     plt.close(fig)
-
-
-# Won't need this after this PR is merged in:
-# https://github.com/pytorch/pytorch/pull/22245
-class Flatten(nn.Module):
-    def forward(self, input):
-        return input.view(input.size(0), -1)
 
 
 if __name__ == '__main__':

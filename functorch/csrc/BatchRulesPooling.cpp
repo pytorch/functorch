@@ -11,21 +11,6 @@
 
 namespace at { namespace functorch {
 
-static Tensor reshape_bdim_into_front(
-    const Tensor& value,
-    optional<int64_t> bdim,
-    int64_t batch_size,
-    bool is_no_batch_dim_case) {
-  auto value_ = ensure_has_bdim(value, bdim.has_value(), batch_size);
-  if (!bdim.has_value()) {
-    bdim = 0;
-  }
-  if (is_no_batch_dim_case) {
-    return moveBatchDimToFront(value_, bdim);
-  }
-  return reshape_dim_into(*bdim, 0, value_);
-}
-
 std::tuple<Tensor,optional<int64_t>,Tensor,optional<int64_t>>
 max_pool2d_with_indices_batch_rule(
     const Tensor& self, optional<int64_t> self_bdim,
@@ -64,7 +49,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   ALL_TENSORS_HAVE_OPTIONAL_BDIM_BOXED_CONTIG1(3, adaptive_max_pool2d_backward, 2);
   ALL_TENSORS_HAVE_OPTIONAL_BDIM_BOXED_CONTIG1(4, adaptive_max_pool3d_backward, 2);
 
-  VMAP_SUPPORT("max_pool2d_with_indices", max_pool2d_with_indices_batch_rule);
+  VMAP_SUPPORT(max_pool2d_with_indices, max_pool2d_with_indices_batch_rule);
   ALL_TENSORS_HAVE_OPTIONAL_BDIM_BOXED_CONTIG1(3, max_pool2d_with_indices_backward, 2);
 }
 

@@ -17,6 +17,7 @@
 #include <functorch/csrc/PlumbingHelper.h>
 #include <ATen/core/dispatch/Dispatcher.h>
 #include <functorch/csrc/Constants.h>
+#include <functorch/csrc/VmapGeneratedPlumbing.h>
 
 namespace at { namespace functorch {
 Tensor reshape_dim_into(int64_t src, int64_t dst, const Tensor& x);
@@ -33,6 +34,9 @@ void vmapIncompatibleInplaceError(const char* schema_name);
 
 Tensor maybePadToLogicalRank(const Tensor& tensor, optional<int64_t> has_bdim, int64_t logical_rank);
 
+void check_randomness(RandomnessType randomness);
+void check_randomness(RandomnessType randomness, bool any_tensor_bdim);
+
 inline Tensor ensure_has_bdim(const Tensor& tensor, bool has_bdim, int64_t batch_size) {
   if (has_bdim) {
     return tensor;
@@ -45,11 +49,11 @@ inline Tensor ensure_has_bdim(const Tensor& tensor, bool has_bdim, int64_t batch
   return tensor.expand(expanded_shape);
 }
 
-
 #define VMAP_SUPPORT(op, batch_rule) \
-  m.impl(op, PrimBatchRule7< \
-      decltype(&batch_rule), &batch_rule, to_operator_t<decltype(batch_rule)> \
-      >::apply);
+  m.impl(#op, op ## _generated_plumbing<decltype(&batch_rule), &batch_rule>);
+
+#define VMAP_SUPPORT2(op, overload, batch_rule) \
+  m.impl(#op "." #overload, op ## _ ## overload ## _generated_plumbing<decltype(&batch_rule), &batch_rule>);
 
 // DO NOT USE ME DIRECTLY! Use BASIC_UNARY_BATCH_RULE to save yourself some pain
 template <typename A, A a, typename C>
@@ -75,7 +79,7 @@ struct BasicUnaryBatchRuleHelper<F, Func, typelist<A, T...>> {
       c10::guts::function_traits<decltype(fn)>::parameter_types>::apply)
 
 #define UNARY_POINTWISE(op) \
-  VMAP_SUPPORT(#op, BASIC_UNARY_BATCH_RULE(ATEN_FN(op)));
+  VMAP_SUPPORT(op, BASIC_UNARY_BATCH_RULE(ATEN_FN(op)));
 
 template <typename A, A a, typename C>
 struct VariadicBdimsBatchRuleHelper;
@@ -101,24 +105,29 @@ struct VariadicBdimsBatchRuleHelper<F, Func, typelist<A, T...>> {
       c10::guts::function_traits<decltype(fn)>::parameter_types>::apply)
 
 #define VARIADIC_BDIMS(op) \
-  VMAP_SUPPORT(#op, VARIADIC_BDIMS_BATCH_RULE(ATEN_FN(op)));
+  VMAP_SUPPORT(op, VARIADIC_BDIMS_BATCH_RULE(ATEN_FN(op)));
 
 #define VARIADIC_BDIMS2(op, overload) \
-  VMAP_SUPPORT(#op"."#overload, VARIADIC_BDIMS_BATCH_RULE(ATEN_FN2(op, overload)));
+  VMAP_SUPPORT2(op, overload, VARIADIC_BDIMS_BATCH_RULE(ATEN_FN2(op, overload)));
 
 template<class F, F Func>
 void boxed_tensor_inputs_batch_rule(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   const auto& schema = op.schema();
   const auto num_returns = schema.returns().size();
   const auto num_arguments = schema.arguments().size();
-  auto arguments = torch::jit::pop(*stack, num_arguments);
 
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
 
+  auto orig_arguments = torch::jit::last(*stack, num_arguments);
+  if (std::none_of(orig_arguments.begin(), orig_arguments.end(), ivalueParticipatesInCurrentLevel)) {
+    op.callBoxed(stack);
+    return;
+  }
 
+  auto arguments = torch::jit::pop(*stack, num_arguments);
   std::vector<std::pair<Tensor, optional<int64_t>>> tensor_inputs;
   std::vector<int64_t> tensor_pos;
   for (const auto idx : c10::irange(0, num_arguments)) {
@@ -170,6 +179,9 @@ inline void handle_pointwise_ops(std::vector<std::pair<Tensor, optional<int64_t>
 
 #define POINTWISE_BOXED(op) \
   m.impl(#op, torch::CppFunction::makeFromBoxedFunction<boxed_tensor_inputs_batch_rule<decltype(&handle_pointwise_ops), &handle_pointwise_ops>>());
+
+#define POINTWISE_BOXED2(op, overload) \
+  m.impl(#op #overload, torch::CppFunction::makeFromBoxedFunction<boxed_tensor_inputs_batch_rule<decltype(&handle_pointwise_ops), &handle_pointwise_ops>>());
 
 inline void handle_variadic_bdims(std::vector<std::pair<Tensor, optional<int64_t>>> &tensor_inputs) {
   for (auto & tensor_input : tensor_inputs) {
@@ -227,6 +239,12 @@ inline void boxed_existing_bdim_all_batch_rule(
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
 
+  const auto arguments = torch::jit::last(stack, num_arguments);
+  if (std::none_of(arguments.begin(), arguments.end(), ivalueParticipatesInCurrentLevel)) {
+    op.callBoxed(stack);
+    return;
+  }
+
   int64_t args_begin = stack->size() - num_arguments;
   SmallVector<UnpackedBatchedTensor, 5> tensor_inputs;
   SmallVector<int64_t, 5> tensor_pos;
@@ -276,6 +294,12 @@ inline void boxed_all_tensors_have_optional_bdim(
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+
+  const auto arguments = torch::jit::last(stack, num_arguments);
+  if (std::none_of(arguments.begin(), arguments.end(), ivalueParticipatesInCurrentLevel)) {
+    op.callBoxed(stack);
+    return;
+  }
 
   int64_t args_begin = stack->size() - num_arguments;
   SmallVector<UnpackedBatchedTensor, 5> tensor_inputs;
@@ -372,10 +396,10 @@ struct ExistingBdimBatchRuleHelper<F, Func, typelist<A, T...>> {
 
 
 #define EXISTING_BDIM(op) \
-  VMAP_SUPPORT(#op, EXISTING_BDIM_BATCH_RULE(ATEN_FN(op)));
+  VMAP_SUPPORT(op, EXISTING_BDIM_BATCH_RULE(ATEN_FN(op)));
 
 #define EXISTING_BDIM2(op, overload) \
-  VMAP_SUPPORT(#op"."#overload, EXISTING_BDIM_BATCH_RULE(ATEN_FN2(op, overload)));
+  VMAP_SUPPORT2(op, overload, EXISTING_BDIM_BATCH_RULE(ATEN_FN2(op, overload)));
 
 #define INVOKE(object,ptrToMember)  ((object).*(ptrToMember))
 
@@ -384,6 +408,22 @@ template <typename F, F Method, typename... ExtraArgs>
 Tensor& unary_inplace_batch_rule(Tensor& self, optional<int64_t>, ExtraArgs... extra_args) {
   INVOKE(self, Method)(std::forward<ExtraArgs>(extra_args)...);
   return self;
+}
+
+inline int64_t get_bdim_size4(
+    const Tensor& a_value, optional<int64_t> a_bdim,
+    const Tensor& b_value, optional<int64_t> b_bdim,
+    const Tensor& c_value, optional<int64_t> c_bdim,
+    const Tensor& d_value, optional<int64_t> d_bdim) {
+  if (a_bdim)
+    return a_value.size(*a_bdim);
+  if (b_bdim)
+    return b_value.size(*b_bdim);
+  if (c_bdim)
+    return c_value.size(*c_bdim);
+  if (d_bdim)
+    return d_value.size(*d_bdim);
+  TORCH_INTERNAL_ASSERT(false);
 }
 
 inline int64_t get_bdim_size3(

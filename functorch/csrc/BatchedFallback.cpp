@@ -9,6 +9,7 @@
 #include <functorch/csrc/Constants.h>
 #include <functorch/csrc/TensorWrapper.h>
 #include <functorch/csrc/DynamicLayer.h>
+#include <functorch/csrc/PlumbingHelper.h>
 
 #include <ATen/Context.h>
 #include <ATen/MatrixRef.h>
@@ -67,7 +68,10 @@ static bool areAnyArgumentsTensorList(const at::FunctionSchema& schema) {
   return std::any_of(
       schema.arguments().begin(),
       schema.arguments().end(),
-      [] (const Argument& arg) { return arg.type()->isSubtypeOf(ListType::ofTensors()); });
+      [] (const Argument& arg) {
+        return arg.type()->isSubtypeOf(ListType::ofTensors()) ||
+          arg.type()->isSubtypeOf(ListType::ofOptionalTensors());
+      });
 }
 
 static void warnFallback(const c10::FunctionSchema& schema, bool is_inplace) {
@@ -235,27 +239,6 @@ static Tensor safeStack(TensorList tensors) {
       "vmap: slow fallback received a mix of undefined and defined tensors ",
       "as the result of an operation. This is not supported, please file us ",
       "an issue on github.");
-}
-
-// TODO: dedup
-static bool participatesInCurrentLevel(const Tensor& self) {
-  auto maybe_level = maybeCurrentDynamicLayer();
-  TORCH_INTERNAL_ASSERT(maybe_level.has_value());
-  auto current_level = maybe_level->layerId();
-  auto* maybe_batched_impl = maybeGetBatchedImpl(self);
-  if (!maybe_batched_impl) {
-    return false;
-  }
-  auto self_level = maybe_batched_impl->level();
-  TORCH_INTERNAL_ASSERT(self_level <= current_level);
-  return self_level == current_level;
-}
-
-static bool ivalueParticipatesInCurrentLevel(const IValue& ivalue) {
-  if (!ivalue.isTensor()) {
-    return false;
-  }
-  return participatesInCurrentLevel(ivalue.toTensor());
 }
 
 // TODO: Consider rewriting the following to look like:
