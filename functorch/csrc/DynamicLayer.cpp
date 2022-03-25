@@ -476,10 +476,10 @@ static bool isFunctionalTensorAtCurrentLevel(const Tensor& tensor) {
   auto layer = dynamicLayerStack.back();
   auto level = layer.layerId();
 
-  auto* functional = dynamic_cast<FunctionalTensorWrapper*>(tensor.unsafeGetTensorImpl());
-  if (!functional) {
+  if (!at::functionalization::impl::isFunctionalTensor(tensor)) {
     return false;
   }
+  const auto* functional = at::functionalization::impl::unsafeGetFunctionalWrapper(tensor);
   auto functional_level = functional->level();
   return functional_level == level;
 }
