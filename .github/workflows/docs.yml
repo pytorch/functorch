@@ -28,6 +28,11 @@ jobs:
         run: |
           cd docs
           python3 -mpip install -r requirements.txt
+          # force installing Jinja2<3.1.0 to avoid issues with Sphinx
+          # File "/usr/local/lib/python3.8/dist-packages/sphinx/util/rst.py", line 21, in <module>                                                                                              
+          #   from jinja2 import Environment, environmentfilter
+          # ImportError: cannot import name 'environmentfilter' from 'jinja2'
+          pip install --upgrade 'Jinja2<3.1.0'
       - name: Build docs
         run: |
           cd docs
