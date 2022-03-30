@@ -25018,18 +25018,5 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   auto results = batch_rule(flat_value, flat_bdim, tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
 }
-template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor _nested_tensor_generated_plumbing(at::TensorList list, c10::optional<at::ScalarType> dtype, c10::optional<at::Layout> layout, c10::optional<at::Device> device, c10::optional<bool> pin_memory) {
-  c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-  auto maybe_layer = maybeCurrentDynamicLayer();
-  TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
-  int64_t cur_level = maybe_layer->layerId();
-  if (!isBatchedAtLevel(list, cur_level)) {
-    return at::_ops::_nested_tensor::call(list, dtype, layout, device, pin_memory);
-  }
-
-  auto results = batch_rule(list, dtype, layout, device, pin_memory);
-  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
-}
 
 }} // namespace at::functorch
