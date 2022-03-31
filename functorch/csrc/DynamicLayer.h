@@ -45,6 +45,8 @@ struct TORCH_API DynamicLayer {
 
   // only valid for jvp transform
   optional<bool> prevFwdGradMode() const;
+
+  c10::impl::LocalDispatchKeySet prevLocalDispatchKeySet() const;
  private:
   DispatchKey key_;
   int64_t layerId_;
@@ -55,6 +57,9 @@ struct TORCH_API DynamicLayer {
   optional<RandomnessType> randomness_;
   optional<bool> prevGradMode_;
   optional<bool> prevFwdGradMode_;
+
+  // The dispatcher TLS state when we entered this layer
+  c10::impl::LocalDispatchKeySet prevLocalDispatchKeySet_;
 };
 
 TORCH_API int64_t initAndPushDynamicLayer(

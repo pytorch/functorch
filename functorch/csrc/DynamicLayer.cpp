@@ -32,20 +32,6 @@ void setDynamicLayerFrontBackKeysIncluded(bool included) {
   c10::impl::tls_set_dispatch_key_included(kDynamicLayerBackModeKey, included);
 }
 
-struct ForceLocalDispatchKeySet {
- public:
-  ForceLocalDispatchKeySet(c10::impl::LocalDispatchKeySet key_set) :
-      saved_keyset_(c10::impl::tls_local_dispatch_key_set()) {
-    c10::impl::_force_tls_local_dispatch_key_set(key_set);
-  }
-  ~ForceLocalDispatchKeySet() {
-    c10::impl::_force_tls_local_dispatch_key_set(saved_keyset_);
-  }
-
- private:
-  c10::impl::LocalDispatchKeySet saved_keyset_;
-};
-
 DynamicLayer::DynamicLayer(
     DispatchKey key,
     int64_t layerId,
@@ -59,7 +45,8 @@ DynamicLayer::DynamicLayer(
     batchSize_(batchSize),
     randomness_(randomness),
     prevGradMode_(prev_grad_mode),
-    prevFwdGradMode_(prev_fwd_grad_mode)
+    prevFwdGradMode_(prev_fwd_grad_mode),
+    prevLocalDispatchKeySet_(c10::impl::tls_local_dispatch_key_set())
 {
   if (key_ == DispatchKey::Autograd) {
     TORCH_INTERNAL_ASSERT(prev_grad_mode.has_value() || prev_fwd_grad_mode.has_value());
@@ -90,6 +77,10 @@ optional<bool> DynamicLayer::prevGradMode() const {
 
 optional<bool> DynamicLayer::prevFwdGradMode() const {
   return prevFwdGradMode_;
+}
+
+c10::impl::LocalDispatchKeySet DynamicLayer::prevLocalDispatchKeySet() const {
+  return prevLocalDispatchKeySet_;
 }
 
 using DynmetaData = std::unordered_map<int64_t, std::shared_ptr<bool>>;
@@ -123,9 +114,7 @@ class FuncTorchTLS : public FuncTorchTLSBase {
     // Does nothing
   }
 
-  // Initial autograd layer, because autograd is always "on"
-  // TODO: Get rid of this, it is bad for composability
-  std::vector<DynamicLayer> dynamicLayerStack = { DynamicLayer(DispatchKey::Autograd, 1, nullopt, nullopt, true) };
+  std::vector<DynamicLayer> dynamicLayerStack;
 };
 
 static FuncTorchTLS* getRawFunctorchTLS() {
@@ -151,8 +140,7 @@ std::shared_ptr<bool> getLifeHandleForLevel(int64_t level) {
 
 optional<DynamicLayer> maybeCurrentDynamicLayer() {
   auto& dynamicLayerStack = dynamicLayerStackAccessor();
-  // NB: Exception for regular autograd, maybe tweak this
-  if (dynamicLayerStack.size() <= 1) {
+  if (dynamicLayerStack.size() == 0) {
     return {};
   }
   return dynamicLayerStack.back();
@@ -178,7 +166,7 @@ static DynamicLayer popDynamicLayer() {
   TORCH_INTERNAL_ASSERT(result.key() != DispatchKey::Undefined);
   dynamicLayerStack.pop_back();
 
-  if (dynamicLayerStack.size() == 1) {
+  if (dynamicLayerStack.size() == 0) {
 #ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
     if (c10::show_dispatch_trace_enabled()) {
       std::cout << "DynamicLayer off" << std::endl;
@@ -196,7 +184,7 @@ static int64_t pushDynamicLayer(DynamicLayer&& dynamic_layer) {
   TORCH_INTERNAL_ASSERT(layerId == dynamic_layer.layerId());
   dynamicLayerStack.emplace_back(dynamic_layer);
 
-  if (layerId == 2) {
+  if (layerId == 1) {
     setDynamicLayerFrontBackKeysIncluded(true);
   }
 
@@ -249,11 +237,6 @@ DynamicLayer popDynamicLayerAndDeleteMetadata() {
 
 static Tensor materializeGradWrappers(const Tensor& tensor, const std::vector<DynamicLayer>& dynlayerStack) {
   if (!tensor.defined()) {
-    return tensor;
-  }
-  // TODO: First entry in the stack is a default autograd key.
-  // We should clean up the logic
-  if (dynlayerStack.size() <= 1) {
     return tensor;
   }
   if (dynlayerStack.back().key() != DispatchKey::Autograd) {
@@ -382,11 +365,6 @@ static void checkForInvalidMutationOnCaptures(
   if (dynamicLayerStack.back().key() != DispatchKey::Autograd) {
     return;
   }
-  // TODO: First entry in the stack is a default autograd key.
-  // We should clean up the logic
-  if (dynamicLayerStack.size() <= 1) {
-    return;
-  }
   if (!isInplaceOp(op.schema())) {
     return;
   }
@@ -418,35 +396,54 @@ static DispatchKeySet keysForEnteringDynamicLayer(DispatchKey key) {
   }
 }
 
-#ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
 static void dump_local_tls() {
   auto tls = c10::impl::tls_local_dispatch_key_set();
   std::cout << "[Local Include] " << tls.included_ << std::endl;
   std::cout << "[Local Exclude] " << tls.excluded_ << std::endl;
 }
-#endif
 
-static DispatchKeySet keysToExcludeWhenEnteringDynamicLayer(DispatchKey key) {
-  DispatchKeySet exclude = all_dynlayer_keyset;
-  exclude = exclude.remove(kDynamicLayerBackModeKey);
-  exclude = exclude - keysForEnteringDynamicLayer(key);
-  return exclude;
+static void dump_tls(c10::impl::LocalDispatchKeySet tls) {
+  std::cout << "[LocalDispatchKeySet]" << std::endl;
+  std::cout << "[Local Include] " << tls.included_ << std::endl;
+  std::cout << "[Local Exclude] " << tls.excluded_ << std::endl;
+}
+
+// The local dispatch keyset with all keys in all_dynlayer_keyset
+// in the exclude set and not in the include set
+static c10::impl::LocalDispatchKeySet zeroedOutDynamicLayerKeyset() {
+  auto keyset = c10::impl::tls_local_dispatch_key_set();
+  keyset.excluded_ = keyset.excluded_ | all_dynlayer_keyset;
+  keyset.included_ = keyset.included_ - all_dynlayer_keyset;
+  return keyset;
+}
+
+// Enable a set of keys by removing it from the exclude.
+// Also, enable DynamicLayerBackMode so we can catch the subsystem on exit.
+static c10::impl::LocalDispatchKeySet keysetToTurnOnSubsystem(DispatchKey key) {
+  auto keyset = zeroedOutDynamicLayerKeyset();
+  keyset.excluded_ = keyset.excluded_ - keysForEnteringDynamicLayer(key);
+  keyset.excluded_ = keyset.excluded_.remove(kDynamicLayerBackModeKey);
+  keyset.included_ = keyset.included_.add(kDynamicLayerBackModeKey);
+  return keyset;
+}
+
+// Enable a set of keys such that on any dispatcher call we immediately
+// get to the DynamicLayerFrontMode
+static c10::impl::LocalDispatchKeySet keysetToReturnToDynamicLayerFront() {
+  auto keyset = c10::impl::tls_local_dispatch_key_set();
+  keyset.excluded_ = keyset.excluded_.remove(kDynamicLayerFrontModeKey);
+  keyset.included_ = keyset.included_.add(kDynamicLayerFrontModeKey);
+  return keyset;
 }
 
 void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
-  auto& dynamicLayerStack = dynamicLayerStackAccessor();
+  const auto& dynamicLayerStack = dynamicLayerStackAccessor();
 #ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
   if (c10::show_dispatch_trace_enabled()) {
     std::cout << dynamicLayerStack << std::endl;
-    dump_local_tls();
   }
 #endif
-  if (dynamicLayerStack.size() == 0) {
-    sanityCheckStack(op, stack);
-    c10::impl::ExcludeDispatchKeyGuard guard(all_dynlayer_keyset);
-    op.callBoxed(stack);
-    return;
-  }
+  TORCH_INTERNAL_ASSERT(dynamicLayerStack.size() > 0);
 
   // if is a grad transform, and the operation is in-place, and the mutated
   // argument is not currently wrapped in a TensorWrapper, then we need to
@@ -459,26 +456,17 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
     return materializeGradWrappers(result, getDynamicLayerStack());
   };
   auto num_args = op.schema().arguments().size();
-  foreachTensorInplace(*stack, stack->size() - num_args, stack->size(), maybeTransformGradWrappers);
+  foreachTensorInplace(*stack, stack->size() - num_args,
+      stack->size(), maybeTransformGradWrappers);
 
-  auto layer = dynamicLayerStack.back();
-
-  DispatchKeySet exclude = keysToExcludeWhenEnteringDynamicLayer(layer.key());
-  DispatchKeySet hacky_include;
-  // hack
+  // dispatch key selection
+  const auto& layer = dynamicLayerStack.back();
+  auto selected_keyset = keysetToTurnOnSubsystem(layer.key());
+  // hack. TODO: figure out how modes factor into this system...
   if (layer.key() == kBatchedKey) {
-    hacky_include = hacky_include.add(kVmapModeKey);
+    selected_keyset.included_ = selected_keyset.included_.add(kVmapModeKey);
   }
-  auto local_keyset = c10::impl::tls_local_dispatch_key_set();
-  local_keyset.excluded_ = local_keyset.excluded_ | exclude;
-  local_keyset.included_ = local_keyset.included_ | hacky_include;
-  ForceLocalDispatchKeySet guard(local_keyset);
-
-#ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
-  if (c10::show_dispatch_trace_enabled()) {
-    dump_local_tls();
-  }
-#endif
+  c10::impl::ForceDispatchKeyGuard guard(selected_keyset);
 
   // Re-dispatch
   op.callBoxed(stack);
@@ -509,6 +497,7 @@ struct SaveLocalDispatchKeySet {
 void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   auto cur_level = getDynamicLayerStack().back().layerId();
   auto cur_key = getDynamicLayerStack().back().key();
+  auto tls_before_entering_functorch = getDynamicLayerStack().back().prevLocalDispatchKeySet();
 
   optional<bool> prev_grad_mode = getDynamicLayerStack().back().prevGradMode();
   optional<bool> prev_fwd_grad_mode = getDynamicLayerStack().back().prevFwdGradMode();
@@ -535,9 +524,9 @@ void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* 
     if (!tensor.defined()) {
       return tensor;
     }
-    if (cur_level == 1) {
-      return tensor;
-    }
+    // if (cur_level == 1) {
+    //   return tensor;
+    // }
     // if (c10::show_dispatch_trace_enabled()) {
     //   std::cout << "wrap " << cur_level << std::endl;
     // }
@@ -569,33 +558,39 @@ void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* 
   // pop the top layer. Put it back on dtor.
   WithoutTop guard;
 
-  // "reset exclude set"
-  // TODO: Still a problem with composabiilty and AutoNonVariableTypeGuard.
-  // Users cannot do torch.no_grad otherwise there will be problems.
-  SaveLocalDispatchKeySet save_guard;
-  auto keyset = c10::impl::PODLocalDispatchKeySet();
-  c10::impl::_force_tls_local_dispatch_key_set(keyset);
-  setDynamicLayerFrontBackKeysIncluded(true);
+  optional<c10::AutoGradMode> grad_guard;
+  if (cur_key == DispatchKey::Autograd && prev_grad_mode.has_value() &&
+      *prev_grad_mode == false) {
+    grad_guard.emplace(*prev_grad_mode);
+  }
 
+  optional<c10::AutoFwGradMode> fw_grad_guard;
+  if (cur_key == DispatchKey::Autograd &&
+      prev_fwd_grad_mode.has_value() && prev_fwd_grad_mode.value() == false) {
+    fw_grad_guard.emplace(*prev_fwd_grad_mode);
+  }
+
+  // If there are no more layers in the DynamicLayerStack, then we want to
+  // turn off functorch and do a dispatcher call. Otherwise, we're going to hop
+  // to DynamicLayerFrontMode so that functorch can process the next layer.
+  optional<c10::impl::ForceDispatchKeyGuard> tls_guard;
+  if (getDynamicLayerStack().size() == 0) {
+		tls_guard.emplace(tls_before_entering_functorch);
+  } else {
+    auto local_keyset = keysetToReturnToDynamicLayerFront();
+    c10::impl::_force_tls_local_dispatch_key_set(local_keyset);
+  }
 #ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
-  if (c10::show_dispatch_trace_enabled()) {
-    dump_local_tls();
+  if (c10::show_dispatch_trace_enabled() && tls_guard.has_value()) {
+    std::cout << "[Exiting DynamicLayer]" << std::endl;
   }
 #endif
-
-  // Re-dispatch
-  if (cur_key == DispatchKey::Autograd && prev_grad_mode.has_value() && *prev_grad_mode == false) {
-    // See NOTE [grad and vjp interaction with no_grad]
-    c10::AutoGradMode guard(*prev_grad_mode);
-    op.callBoxed(stack);
+	op.callBoxed(stack);
+#ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
+  if (c10::show_dispatch_trace_enabled() && tls_guard.has_value()) {
+    std::cout << "[Re-entering DynamicLayer]" << std::endl;
   }
-  else if (cur_key == DispatchKey::Autograd &&
-           prev_fwd_grad_mode.has_value() && prev_fwd_grad_mode.value() == false) {
-    c10::AutoFwGradMode guard(*prev_fwd_grad_mode);
-    op.callBoxed(stack);
-  } else {
-    op.callBoxed(stack);
-  }
+#endif
 
   // Step 4, 5, 6
   if (cur_key == DispatchKey::Autograd) {
