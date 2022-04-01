@@ -23,6 +23,7 @@ from .._src.compilers import (
 )
 from .._src.partitioners import (
     min_cut_rematerialization_partition,
+    min_cut_rematerialization_partition_old,
     default_partition,
     draw_graph,
     draw_joint_graph,
