@@ -432,7 +432,7 @@ def min_cut_rematerialization_partition(
         mem_sz = _size_of(node.meta['tensor_meta'])
 
         # Heuristic to bias towards nodes closer to the backwards pass
-        mem_sz = int(mem_sz * (1.01 ** node.dist_from_fw))
+        mem_sz = int(mem_sz + node.dist_from_fw)
 
         if is_materialized(node):
             return mem_sz
