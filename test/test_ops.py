@@ -660,9 +660,6 @@ class TestOperators(TestCase):
         xfail('nanquantile'),
         xfail('quantile'),
 
-        # RuntimeError: vmap: inplace arithmetic(self, *extra_args)
-        xfail('nn.functional.gelu'),
-
         # Not implemented
         xfail('scatter'),
 
@@ -735,7 +732,6 @@ class TestOperators(TestCase):
         xfail('maximum'),
         xfail('linalg.householder_product'),
         xfail('tensor_split'),
-        xfail('nn.functional.gelu'),
         xfail('quantile'),
         xfail('var_mean'),
         xfail('as_strided'),
