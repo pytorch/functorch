@@ -2,6 +2,8 @@ import torch
 from torch import Tensor
 from typing import Optional, List, Tuple
 from enum import Enum
+from collections import defaultdict
+from torch.utils._pytree import tree_map
 
 aten = torch.ops.aten
 aten.__origin__ = None
@@ -14,14 +16,34 @@ def register_decomposition(aten_op, registry=None):
         nonlocal registry
         if registry is None:
             registry = decomposition_table
-        # Converts aten.foo to aten.foo.default
-        # Done so I can be lazy and not write default on all of these ops
-        nonlocal aten_op
-        if not isinstance(aten_op, torch._ops.OpOverload):
-            aten_op = aten_op.default
-        registry[aten_op] = f
+
+        def add_op_to_table(aten_op):
+            # Converts aten.foo to aten.foo.default
+            # Done so I can be lazy and not write default on all of these ops
+            if not isinstance(aten_op, torch._ops.OpOverload):
+                op_overload = aten_op.default
+            else:
+                op_overload = aten_op
+            registry[op_overload] = f
+        # To handle allowing multiple aten_ops at once
+        tree_map(add_op_to_table, aten_op)
         return f
     return decomposition_decorator
+
+
+def get_decompositions(aten_ops: List[torch._ops.OpOverload]):
+    packets_to_overloads = defaultdict(list)
+    for op in decomposition_table:
+        packets_to_overloads[op.overloadpacket].append(op)
+    decompositions = {}
+    for op in aten_ops:
+        if op in packets_to_overloads:
+            if len(packets_to_overloads[op]) == 1:
+                op_overload = packets_to_overloads[op][0]
+                decompositions[op_overload] = decomposition_table[op_overload]
+            else:
+                raise RuntimeError(f"Multiple decompositions for overloads found for {op}: {packets_to_overloads[op]}, please specify")
+    return decompositions
 
 
 class Reduction(Enum):
@@ -359,7 +381,7 @@ def native_layer_norm(input: Tensor, normalized_shape: List[int], weight: Option
     if M > 0:
         input_reshaped = input.view(1, M, -1)
     else:
-        return (input, aten.new_empty(input, (0,)), aten.new_empty(input, (0,)))
+        return (input, aten.new_zeros(input, (0,)), aten.new_zeros(input, (0,)))
 
     # Unlike Batch Normalization, which applies scalar scale and bias for each
     # entire channel/plane with the affine option, Layer Normalization applies
@@ -416,6 +438,73 @@ def addmm(self: Tensor, mat1: Tensor, mat2: Tensor, beta: int = 1, alpha: int = 
     if beta == 0:
         return out
     return beta * self + out
+
+
+@register_decomposition(aten.native_layer_norm_backward)
+def native_layer_norm_backward(grad_out: Tensor, input: Tensor, normalized_shape: List[int], mean: Tensor, rstd: Tensor, weight: Optional[Tensor], bias: Optional[Tensor], output_mask: List[bool]) -> Tuple[Tensor, Tensor, Tensor]:
+    input_shape = input.shape
+    input_ndim = input.dim()
+
+    axis = input_ndim - len(normalized_shape)
+    inner_dims = input_shape[axis:]
+    outer_dims = input_shape[:axis]
+    inner_dim_indices: List[int] = []
+    outer_dim_indices: List[int] = []
+    for i in range(input_ndim):
+        if(i >= axis):
+            inner_dim_indices.append(i)
+        else:
+            outer_dim_indices.append(i)
+
+    N = prod(inner_dims)
+    M = prod(outer_dims)
+    if M <= 0 or N <= 0:
+        return (aten.new_zeros(input, input_shape), aten.new_zeros(input, input_shape[axis:]), aten.new_zeros(input, input_shape[axis:]))
+
+    x_hat = aten.mul(aten.sub(input, mean), rstd)
+    if weight is not None:
+        grad_x_hat = aten.mul(grad_out, weight)
+    else:
+        grad_x_hat = grad_out
+    a = aten.mul(grad_x_hat, N)
+    b = aten.sum(grad_x_hat, inner_dim_indices, True)
+    c1 = aten.mul(grad_x_hat, x_hat)
+    c2 = aten.sum(c1, inner_dim_indices, True)
+    c3 = aten.mul(x_hat, c2)
+
+    inner = aten.sub(aten.sub(a, b), c3)
+
+    if output_mask[0]:
+        d_input = aten.mul(aten.div(rstd, N), inner)
+    else:
+        d_input = None
+
+    if output_mask[1] and weight is not None:
+        if len(outer_dim_indices) > 0:
+            d_weight = aten.sum(aten.mul(grad_out, x_hat), outer_dim_indices, False)
+        else:
+            d_weight = aten.mul(grad_out, x_hat)
+    else:
+        d_weight = None
+
+    if output_mask[2] and bias is not None:
+        if len(outer_dim_indices) > 0:
+            d_bias = aten.sum(grad_out, outer_dim_indices, False)
+        else:
+            d_bias = grad_out
+    else:
+        d_bias = None
+    return (d_input, d_weight, d_bias)
+
+# @register_decomposition(aten.addmm)
+# def addmm(self: Tensor, mat1: Tensor, mat2: Tensor, beta=1, alpha=1):
+#     if not self.is_floating_point():
+#         beta = int(beta)
+#         alpha = int(alpha)
+#     out = alpha * aten.mm(mat1, mat2)
+#     if beta == 0:
+#         return out
+#     return beta * self + out
 
 
 @register_decomposition(aten.clamp_min)

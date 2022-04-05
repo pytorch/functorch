@@ -5,12 +5,13 @@
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree.
 
-#include <functorch/csrc/BatchRulesHelper.h>
 #include <ATen/Operators.h>
 #include <ATen/FunctionalTensorWrapper.h>
-#include <functorch/csrc/PlumbingHelper.h>
-#include <functorch/csrc/BatchedFallback.h>
 #include <ATen/core/dispatch/Dispatcher.h>
+#include <functorch/csrc/BatchRulesHelper.h>
+#include <functorch/csrc/BatchedFallback.h>
+#include <functorch/csrc/DynamicLayer.h>
+#include <functorch/csrc/PlumbingHelper.h>
 
 namespace at { namespace functorch {
 
@@ -52,8 +53,13 @@ void decompose_functional(const c10::OperatorHandle& op, torch::jit::Stack* stac
   }
 
   // Step 2: set up TLS such that we hit the functionalization kernels before the batching rules.
-  // Note: this relies on the fact that Functionalization > BatchMode in DispatchKey.h
-  c10::impl::IncludeDispatchKeyGuard include_guard(c10::DispatchKeySet{c10::DispatchKey::Functionalize});
+  // Note: this relies on the fact that Functionalize > FuncTorchBatched in DispatchKey.h.
+  // Also, adding Functionalize to the include set isn't enough: we also need to remove it from the exclude set.
+  // That's because functorch DynamicLayer logic may have added Functionalize to the exclude set beforehand.
+  auto local_keyset = c10::impl::tls_local_dispatch_key_set();
+  local_keyset.excluded_ = local_keyset.excluded_.remove(c10::DispatchKey::Functionalize);
+  local_keyset.included_ = local_keyset.included_.add(c10::DispatchKey::Functionalize);
+  c10::impl::ForceDispatchKeyGuard guard(local_keyset);
 
   // Step 3: redispatch to native kernel
   // TODO: this is technically kind of sketchy, since we're relying on the fact
@@ -157,7 +163,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(det);
   OP_DECOMPOSE(diag_backward);
   OP_DECOMPOSE(diff);
-  OP_DECOMPOSE2(divide, Tensor );
   OP_DECOMPOSE(dstack);
   OP_DECOMPOSE(einsum);
   OP_DECOMPOSE(embedding_backward);
@@ -228,7 +233,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE2(movedim, int);
   OP_DECOMPOSE(msort);
   OP_DECOMPOSE(mT);
-  OP_DECOMPOSE2(multiply, Tensor );
   OP_DECOMPOSE(narrow);
   OP_DECOMPOSE(negative);
   OP_DECOMPOSE(nll_loss_nd);
@@ -284,7 +288,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE2(trapezoid, dx);
   OP_DECOMPOSE2(trapz, x);
   OP_DECOMPOSE2(trapz, dx);
-  OP_DECOMPOSE2(true_divide, Tensor);
   OP_DECOMPOSE(var);
   OP_DECOMPOSE2(var, dim);
   OP_DECOMPOSE(var_mean);
@@ -310,6 +313,27 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
 
   DECOMPOSE_FUNCTIONAL(diag_embed);
   DECOMPOSE_FUNCTIONAL(block_diag);
+
+  // divide, alias for div
+  OP_DECOMPOSE2(divide, Tensor);
+  OP_DECOMPOSE2(divide_, Tensor);
+  OP_DECOMPOSE2(divide, Scalar);
+  OP_DECOMPOSE2(divide, Tensor_mode);
+  OP_DECOMPOSE2(divide_, Tensor_mode);
+  OP_DECOMPOSE2(divide, Scalar_mode);
+  OP_DECOMPOSE2(divide_, Scalar_mode);
+
+  // divide, alias for div
+  OP_DECOMPOSE2(true_divide, Tensor);
+  OP_DECOMPOSE2(true_divide_, Tensor);
+  OP_DECOMPOSE2(true_divide, Scalar);
+  OP_DECOMPOSE2(true_divide_, Scalar);
+
+  // multiply, alias for mul
+  OP_DECOMPOSE2(multiply, Tensor)
+  OP_DECOMPOSE2(multiply_, Tensor)
+  OP_DECOMPOSE2(multiply, Scalar)
+  OP_DECOMPOSE2(multiply_, Scalar)
 }
 
 }}

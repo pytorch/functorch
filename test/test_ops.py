@@ -971,6 +971,7 @@ class TestOperators(TestCase):
         xfail('double', 'channels_last'),
         xfail('masked_select'),
         skip('nn.functional.fractional_max_pool3d'),  # generator works on cpu, fails on cuda
+        xfail('__rpow__'),  # https://github.com/pytorch/functorch/issues/617
         xfail('nn.functional.glu'),
         xfail('as_strided'),
         skip('nn.functional.fractional_max_pool2d'),  # generator works on cpu, fails on cuda
@@ -1109,6 +1110,7 @@ class TestDecompositionOpInfo(TestCase):
             tol_table = {
                 # Due to strange epsilon behaviors, see https://github.com/pytorch/pytorch/issues/73161
                 (torch.float32, aten.native_layer_norm.default): (1e-3, 1e-3),
+                (torch.float32, aten.native_layer_norm_backward.default): (1e-3, 1e-3),
             }
             if (b.dtype, op) in tol_table:
                 rtol, atol = tol_table[(b.dtype, op)]
@@ -1230,6 +1232,9 @@ class TestDecompositionOpInfo(TestCase):
                     real_out = call_op(func, unwrap_tensor, *args, **kwargs)
                     assert(len(real_out) == len(decomp_out))
                     for orig, decomp, ref in zip(real_out, decomp_out, real_out_double):
+                        if orig is None:
+                            assert(decomp is None)
+                            continue
                         orig = orig.to(dtype=TEST_DTYPE)
                         decomp = decomp.to(dtype=TEST_DTYPE)
                         if DO_RELATIVE_CHECK and ref.dtype.is_floating_point:
@@ -1308,7 +1313,7 @@ class TestDecompositionOpInfo(TestCase):
                 f.write(f'{op}\n')
 
     def test_decompositions_torchscriptable(self, device):
-        skip_list = []
+        skip_list = [torch.ops.aten.native_layer_norm_backward.default]
         for op, decomposition in decomposition_table.items():
             if op in skip_list:
                 continue

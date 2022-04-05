@@ -3106,7 +3106,7 @@ at::Tensor convolution_generated_plumbing(const at::Tensor & input, const at::Te
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-::std::tuple<at::Tensor,at::Tensor,at::Tensor> convolution_backward_generated_plumbing(const at::Tensor & grad_output, const at::Tensor & input, const at::Tensor & weight, c10::optional<at::IntArrayRef> bias_sizes, at::IntArrayRef stride, at::IntArrayRef padding, at::IntArrayRef dilation, bool transposed, at::IntArrayRef output_padding, int64_t groups, ::std::array<bool,3> output_mask) {
+::std::tuple<at::Tensor,at::Tensor,at::Tensor> convolution_backward_generated_plumbing(const at::Tensor & grad_output, const at::Tensor & input, const at::Tensor & weight, c10::OptionalArrayRef<int64_t> bias_sizes, at::IntArrayRef stride, at::IntArrayRef padding, at::IntArrayRef dilation, bool transposed, at::IntArrayRef output_padding, int64_t groups, ::std::array<bool,3> output_mask) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -11012,7 +11012,7 @@ at::Tensor std_dim_generated_plumbing(const at::Tensor & self, at::IntArrayRef d
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor std_correction_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> dim, c10::optional<int64_t> correction, bool keepdim) {
+at::Tensor std_correction_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> dim, c10::optional<int64_t> correction, bool keepdim) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -11057,7 +11057,7 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-::std::tuple<at::Tensor,at::Tensor> std_mean_correction_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> dim, c10::optional<int64_t> correction, bool keepdim) {
+::std::tuple<at::Tensor,at::Tensor> std_mean_correction_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> dim, c10::optional<int64_t> correction, bool keepdim) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -11819,7 +11819,7 @@ at::Tensor var_dim_generated_plumbing(const at::Tensor & self, at::IntArrayRef d
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor var_correction_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> dim, c10::optional<int64_t> correction, bool keepdim) {
+at::Tensor var_correction_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> dim, c10::optional<int64_t> correction, bool keepdim) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -11894,7 +11894,7 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   return std::make_tuple(makeBatched(std::get<0>(results), std::get<1>(results), cur_level), makeBatched(std::get<2>(results), std::get<3>(results), cur_level));
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-::std::tuple<at::Tensor,at::Tensor> var_mean_correction_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> dim, c10::optional<int64_t> correction, bool keepdim) {
+::std::tuple<at::Tensor,at::Tensor> var_mean_correction_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> dim, c10::optional<int64_t> correction, bool keepdim) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -15692,24 +15692,6 @@ at::Tensor scatter_add_dimname_generated_plumbing(const at::Tensor & self, at::D
   optional<int64_t> src_bdim;
   std::tie(src_value, src_bdim) = unwrapTensorAtLevel(src, cur_level);
   auto results = batch_rule(self_value, self_bdim, dim, index_value, index_bdim, src_value, src_bdim);
-  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
-}
-template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor scatter_reduce_two_generated_plumbing(const at::Tensor & self, int64_t dim, const at::Tensor & index, c10::string_view reduce, c10::optional<int64_t> output_size) {
-  c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-  auto maybe_layer = maybeCurrentDynamicLayer();
-  TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
-  int64_t cur_level = maybe_layer->layerId();
-  if (!isBatchedAtLevel(self, cur_level) && !isBatchedAtLevel(index, cur_level)) {
-    return at::_ops::scatter_reduce_two::call(self, dim, index, reduce, output_size);
-  }
-  Tensor self_value;
-  optional<int64_t> self_bdim;
-  std::tie(self_value, self_bdim) = unwrapTensorAtLevel(self, cur_level);
-  Tensor index_value;
-  optional<int64_t> index_bdim;
-  std::tie(index_value, index_bdim) = unwrapTensorAtLevel(index, cur_level);
-  auto results = batch_rule(self_value, self_bdim, dim, index_value, index_bdim, reduce, output_size);
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
@@ -21963,7 +21945,7 @@ at::Tensor replication_pad3d_backward_generated_plumbing(const at::Tensor & grad
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor upsample_linear1d_vec_generated_plumbing(const at::Tensor & input, c10::optional<at::IntArrayRef> output_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor upsample_linear1d_vec_generated_plumbing(const at::Tensor & input, c10::OptionalArrayRef<int64_t> output_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -21978,7 +21960,7 @@ at::Tensor upsample_linear1d_vec_generated_plumbing(const at::Tensor & input, c1
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor upsample_linear1d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::optional<at::IntArrayRef> output_size, at::IntArrayRef input_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor upsample_linear1d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::OptionalArrayRef<int64_t> output_size, at::IntArrayRef input_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -21993,7 +21975,7 @@ at::Tensor upsample_linear1d_backward_vec_generated_plumbing(const at::Tensor & 
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor upsample_bilinear2d_vec_generated_plumbing(const at::Tensor & input, c10::optional<at::IntArrayRef> output_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor upsample_bilinear2d_vec_generated_plumbing(const at::Tensor & input, c10::OptionalArrayRef<int64_t> output_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22008,7 +21990,7 @@ at::Tensor upsample_bilinear2d_vec_generated_plumbing(const at::Tensor & input, 
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor upsample_bilinear2d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::optional<at::IntArrayRef> output_size, at::IntArrayRef input_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor upsample_bilinear2d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::OptionalArrayRef<int64_t> output_size, at::IntArrayRef input_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22023,7 +22005,7 @@ at::Tensor upsample_bilinear2d_backward_vec_generated_plumbing(const at::Tensor 
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor _upsample_bilinear2d_aa_vec_generated_plumbing(const at::Tensor & input, c10::optional<at::IntArrayRef> output_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor _upsample_bilinear2d_aa_vec_generated_plumbing(const at::Tensor & input, c10::OptionalArrayRef<int64_t> output_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22038,7 +22020,7 @@ at::Tensor _upsample_bilinear2d_aa_vec_generated_plumbing(const at::Tensor & inp
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor _upsample_bilinear2d_aa_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::optional<at::IntArrayRef> output_size, at::IntArrayRef input_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor _upsample_bilinear2d_aa_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::OptionalArrayRef<int64_t> output_size, at::IntArrayRef input_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22053,7 +22035,7 @@ at::Tensor _upsample_bilinear2d_aa_backward_vec_generated_plumbing(const at::Ten
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor upsample_trilinear3d_vec_generated_plumbing(const at::Tensor & input, c10::optional<at::IntArrayRef> output_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor upsample_trilinear3d_vec_generated_plumbing(const at::Tensor & input, c10::OptionalArrayRef<int64_t> output_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22068,7 +22050,7 @@ at::Tensor upsample_trilinear3d_vec_generated_plumbing(const at::Tensor & input,
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor upsample_trilinear3d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::optional<at::IntArrayRef> output_size, at::IntArrayRef input_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor upsample_trilinear3d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::OptionalArrayRef<int64_t> output_size, at::IntArrayRef input_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22083,7 +22065,7 @@ at::Tensor upsample_trilinear3d_backward_vec_generated_plumbing(const at::Tensor
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor upsample_bicubic2d_vec_generated_plumbing(const at::Tensor & input, c10::optional<at::IntArrayRef> output_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor upsample_bicubic2d_vec_generated_plumbing(const at::Tensor & input, c10::OptionalArrayRef<int64_t> output_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22098,7 +22080,7 @@ at::Tensor upsample_bicubic2d_vec_generated_plumbing(const at::Tensor & input, c
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor upsample_bicubic2d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::optional<at::IntArrayRef> output_size, at::IntArrayRef input_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor upsample_bicubic2d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::OptionalArrayRef<int64_t> output_size, at::IntArrayRef input_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22113,7 +22095,7 @@ at::Tensor upsample_bicubic2d_backward_vec_generated_plumbing(const at::Tensor &
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor _upsample_bicubic2d_aa_vec_generated_plumbing(const at::Tensor & input, c10::optional<at::IntArrayRef> output_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor _upsample_bicubic2d_aa_vec_generated_plumbing(const at::Tensor & input, c10::OptionalArrayRef<int64_t> output_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22128,7 +22110,7 @@ at::Tensor _upsample_bicubic2d_aa_vec_generated_plumbing(const at::Tensor & inpu
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor _upsample_bicubic2d_aa_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::optional<at::IntArrayRef> output_size, at::IntArrayRef input_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor _upsample_bicubic2d_aa_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::OptionalArrayRef<int64_t> output_size, at::IntArrayRef input_size, bool align_corners, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22143,7 +22125,7 @@ at::Tensor _upsample_bicubic2d_aa_backward_vec_generated_plumbing(const at::Tens
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor upsample_nearest1d_vec_generated_plumbing(const at::Tensor & input, c10::optional<at::IntArrayRef> output_size, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor upsample_nearest1d_vec_generated_plumbing(const at::Tensor & input, c10::OptionalArrayRef<int64_t> output_size, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22158,7 +22140,7 @@ at::Tensor upsample_nearest1d_vec_generated_plumbing(const at::Tensor & input, c
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor _upsample_nearest_exact1d_vec_generated_plumbing(const at::Tensor & input, c10::optional<at::IntArrayRef> output_size, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor _upsample_nearest_exact1d_vec_generated_plumbing(const at::Tensor & input, c10::OptionalArrayRef<int64_t> output_size, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22173,7 +22155,7 @@ at::Tensor _upsample_nearest_exact1d_vec_generated_plumbing(const at::Tensor & i
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor upsample_nearest1d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::optional<at::IntArrayRef> output_size, at::IntArrayRef input_size, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor upsample_nearest1d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::OptionalArrayRef<int64_t> output_size, at::IntArrayRef input_size, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22188,7 +22170,7 @@ at::Tensor upsample_nearest1d_backward_vec_generated_plumbing(const at::Tensor &
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor _upsample_nearest_exact1d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::optional<at::IntArrayRef> output_size, at::IntArrayRef input_size, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor _upsample_nearest_exact1d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::OptionalArrayRef<int64_t> output_size, at::IntArrayRef input_size, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22203,7 +22185,7 @@ at::Tensor _upsample_nearest_exact1d_backward_vec_generated_plumbing(const at::T
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor upsample_nearest2d_vec_generated_plumbing(const at::Tensor & input, c10::optional<at::IntArrayRef> output_size, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor upsample_nearest2d_vec_generated_plumbing(const at::Tensor & input, c10::OptionalArrayRef<int64_t> output_size, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22218,7 +22200,7 @@ at::Tensor upsample_nearest2d_vec_generated_plumbing(const at::Tensor & input, c
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor _upsample_nearest_exact2d_vec_generated_plumbing(const at::Tensor & input, c10::optional<at::IntArrayRef> output_size, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor _upsample_nearest_exact2d_vec_generated_plumbing(const at::Tensor & input, c10::OptionalArrayRef<int64_t> output_size, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22233,7 +22215,7 @@ at::Tensor _upsample_nearest_exact2d_vec_generated_plumbing(const at::Tensor & i
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor upsample_nearest2d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::optional<at::IntArrayRef> output_size, at::IntArrayRef input_size, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor upsample_nearest2d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::OptionalArrayRef<int64_t> output_size, at::IntArrayRef input_size, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22248,7 +22230,7 @@ at::Tensor upsample_nearest2d_backward_vec_generated_plumbing(const at::Tensor &
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor _upsample_nearest_exact2d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::optional<at::IntArrayRef> output_size, at::IntArrayRef input_size, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor _upsample_nearest_exact2d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::OptionalArrayRef<int64_t> output_size, at::IntArrayRef input_size, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22263,7 +22245,7 @@ at::Tensor _upsample_nearest_exact2d_backward_vec_generated_plumbing(const at::T
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor upsample_nearest3d_vec_generated_plumbing(const at::Tensor & input, c10::optional<at::IntArrayRef> output_size, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor upsample_nearest3d_vec_generated_plumbing(const at::Tensor & input, c10::OptionalArrayRef<int64_t> output_size, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22278,7 +22260,7 @@ at::Tensor upsample_nearest3d_vec_generated_plumbing(const at::Tensor & input, c
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor _upsample_nearest_exact3d_vec_generated_plumbing(const at::Tensor & input, c10::optional<at::IntArrayRef> output_size, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor _upsample_nearest_exact3d_vec_generated_plumbing(const at::Tensor & input, c10::OptionalArrayRef<int64_t> output_size, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22293,7 +22275,7 @@ at::Tensor _upsample_nearest_exact3d_vec_generated_plumbing(const at::Tensor & i
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor upsample_nearest3d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::optional<at::IntArrayRef> output_size, at::IntArrayRef input_size, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor upsample_nearest3d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::OptionalArrayRef<int64_t> output_size, at::IntArrayRef input_size, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -22308,7 +22290,7 @@ at::Tensor upsample_nearest3d_backward_vec_generated_plumbing(const at::Tensor &
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor _upsample_nearest_exact3d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::optional<at::IntArrayRef> output_size, at::IntArrayRef input_size, c10::optional<at::ArrayRef<double>> scale_factors) {
+at::Tensor _upsample_nearest_exact3d_backward_vec_generated_plumbing(const at::Tensor & grad_output, c10::OptionalArrayRef<int64_t> output_size, at::IntArrayRef input_size, c10::optional<at::ArrayRef<double>> scale_factors) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -23811,7 +23793,7 @@ at::Tensor fft_ihfft_generated_plumbing(const at::Tensor & self, c10::optional<i
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor fft_fft2_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> s, at::IntArrayRef dim, c10::optional<c10::string_view> norm) {
+at::Tensor fft_fft2_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> s, at::IntArrayRef dim, c10::optional<c10::string_view> norm) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -23826,7 +23808,7 @@ at::Tensor fft_fft2_generated_plumbing(const at::Tensor & self, c10::optional<at
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor fft_ifft2_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> s, at::IntArrayRef dim, c10::optional<c10::string_view> norm) {
+at::Tensor fft_ifft2_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> s, at::IntArrayRef dim, c10::optional<c10::string_view> norm) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -23841,7 +23823,7 @@ at::Tensor fft_ifft2_generated_plumbing(const at::Tensor & self, c10::optional<a
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor fft_rfft2_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> s, at::IntArrayRef dim, c10::optional<c10::string_view> norm) {
+at::Tensor fft_rfft2_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> s, at::IntArrayRef dim, c10::optional<c10::string_view> norm) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -23856,7 +23838,7 @@ at::Tensor fft_rfft2_generated_plumbing(const at::Tensor & self, c10::optional<a
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor fft_irfft2_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> s, at::IntArrayRef dim, c10::optional<c10::string_view> norm) {
+at::Tensor fft_irfft2_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> s, at::IntArrayRef dim, c10::optional<c10::string_view> norm) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -23871,7 +23853,7 @@ at::Tensor fft_irfft2_generated_plumbing(const at::Tensor & self, c10::optional<
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor fft_hfft2_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> s, at::IntArrayRef dim, c10::optional<c10::string_view> norm) {
+at::Tensor fft_hfft2_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> s, at::IntArrayRef dim, c10::optional<c10::string_view> norm) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -23886,7 +23868,7 @@ at::Tensor fft_hfft2_generated_plumbing(const at::Tensor & self, c10::optional<a
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor fft_ihfft2_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> s, at::IntArrayRef dim, c10::optional<c10::string_view> norm) {
+at::Tensor fft_ihfft2_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> s, at::IntArrayRef dim, c10::optional<c10::string_view> norm) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -23901,7 +23883,7 @@ at::Tensor fft_ihfft2_generated_plumbing(const at::Tensor & self, c10::optional<
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor fft_fftn_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> s, c10::optional<at::IntArrayRef> dim, c10::optional<c10::string_view> norm) {
+at::Tensor fft_fftn_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> s, c10::OptionalArrayRef<int64_t> dim, c10::optional<c10::string_view> norm) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -23916,7 +23898,7 @@ at::Tensor fft_fftn_generated_plumbing(const at::Tensor & self, c10::optional<at
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor fft_ifftn_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> s, c10::optional<at::IntArrayRef> dim, c10::optional<c10::string_view> norm) {
+at::Tensor fft_ifftn_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> s, c10::OptionalArrayRef<int64_t> dim, c10::optional<c10::string_view> norm) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -23931,7 +23913,7 @@ at::Tensor fft_ifftn_generated_plumbing(const at::Tensor & self, c10::optional<a
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor fft_rfftn_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> s, c10::optional<at::IntArrayRef> dim, c10::optional<c10::string_view> norm) {
+at::Tensor fft_rfftn_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> s, c10::OptionalArrayRef<int64_t> dim, c10::optional<c10::string_view> norm) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -23946,7 +23928,7 @@ at::Tensor fft_rfftn_generated_plumbing(const at::Tensor & self, c10::optional<a
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor fft_irfftn_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> s, c10::optional<at::IntArrayRef> dim, c10::optional<c10::string_view> norm) {
+at::Tensor fft_irfftn_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> s, c10::OptionalArrayRef<int64_t> dim, c10::optional<c10::string_view> norm) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -23961,7 +23943,7 @@ at::Tensor fft_irfftn_generated_plumbing(const at::Tensor & self, c10::optional<
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor fft_hfftn_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> s, c10::optional<at::IntArrayRef> dim, c10::optional<c10::string_view> norm) {
+at::Tensor fft_hfftn_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> s, c10::OptionalArrayRef<int64_t> dim, c10::optional<c10::string_view> norm) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -23976,7 +23958,7 @@ at::Tensor fft_hfftn_generated_plumbing(const at::Tensor & self, c10::optional<a
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor fft_ihfftn_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> s, c10::optional<at::IntArrayRef> dim, c10::optional<c10::string_view> norm) {
+at::Tensor fft_ihfftn_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> s, c10::OptionalArrayRef<int64_t> dim, c10::optional<c10::string_view> norm) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -23991,7 +23973,7 @@ at::Tensor fft_ihfftn_generated_plumbing(const at::Tensor & self, c10::optional<
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor fft_fftshift_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> dim) {
+at::Tensor fft_fftshift_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> dim) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -24006,7 +23988,7 @@ at::Tensor fft_fftshift_generated_plumbing(const at::Tensor & self, c10::optiona
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor fft_ifftshift_generated_plumbing(const at::Tensor & self, c10::optional<at::IntArrayRef> dim) {
+at::Tensor fft_ifftshift_generated_plumbing(const at::Tensor & self, c10::OptionalArrayRef<int64_t> dim) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -24399,7 +24381,7 @@ at::Tensor ger_generated_plumbing(const at::Tensor & self, const at::Tensor & ve
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor linalg_norm_generated_plumbing(const at::Tensor & self, const c10::optional<at::Scalar> & ord, c10::optional<at::IntArrayRef> dim, bool keepdim, c10::optional<at::ScalarType> dtype) {
+at::Tensor linalg_norm_generated_plumbing(const at::Tensor & self, const c10::optional<at::Scalar> & ord, c10::OptionalArrayRef<int64_t> dim, bool keepdim, c10::optional<at::ScalarType> dtype) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -24414,7 +24396,7 @@ at::Tensor linalg_norm_generated_plumbing(const at::Tensor & self, const c10::op
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor linalg_norm_ord_str_generated_plumbing(const at::Tensor & self, c10::string_view ord, c10::optional<at::IntArrayRef> dim, bool keepdim, c10::optional<at::ScalarType> dtype) {
+at::Tensor linalg_norm_ord_str_generated_plumbing(const at::Tensor & self, c10::string_view ord, c10::OptionalArrayRef<int64_t> dim, bool keepdim, c10::optional<at::ScalarType> dtype) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -24429,7 +24411,7 @@ at::Tensor linalg_norm_ord_str_generated_plumbing(const at::Tensor & self, c10::
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor linalg_vector_norm_generated_plumbing(const at::Tensor & self, const at::Scalar & ord, c10::optional<at::IntArrayRef> dim, bool keepdim, c10::optional<at::ScalarType> dtype) {
+at::Tensor linalg_vector_norm_generated_plumbing(const at::Tensor & self, const at::Scalar & ord, c10::OptionalArrayRef<int64_t> dim, bool keepdim, c10::optional<at::ScalarType> dtype) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -24655,7 +24637,7 @@ at::Tensor linalg_tensorinv_generated_plumbing(const at::Tensor & self, int64_t 
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor linalg_tensorsolve_generated_plumbing(const at::Tensor & self, const at::Tensor & other, c10::optional<at::IntArrayRef> dims) {
+at::Tensor linalg_tensorsolve_generated_plumbing(const at::Tensor & self, const at::Tensor & other, c10::OptionalArrayRef<int64_t> dims) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -24822,7 +24804,7 @@ at::Tensor _test_serialization_subcmul_generated_plumbing(const at::Tensor & sel
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor _test_optional_intlist_generated_plumbing(const at::Tensor & values, c10::optional<at::IntArrayRef> addends) {
+at::Tensor _test_optional_intlist_generated_plumbing(const at::Tensor & values, c10::OptionalArrayRef<int64_t> addends) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -24837,7 +24819,7 @@ at::Tensor _test_optional_intlist_generated_plumbing(const at::Tensor & values, 
   return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 template <typename batch_rule_t, batch_rule_t batch_rule>
-at::Tensor _test_optional_filled_intlist_generated_plumbing(const at::Tensor & values, c10::optional<at::IntArrayRef> addends) {
+at::Tensor _test_optional_filled_intlist_generated_plumbing(const at::Tensor & values, c10::OptionalArrayRef<int64_t> addends) {
   c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
@@ -25017,6 +24999,20 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
   std::tie(flat_value, flat_bdim) = unwrapTensorAtLevel(flat, cur_level);
   auto results = batch_rule(flat_value, flat_bdim, tensors);
   return makeBatchedVector(std::get<0>(results), std::get<1>(results), cur_level);
+}
+
+template <typename batch_rule_t, batch_rule_t batch_rule>
+at::Tensor nested_tensor_generated_plumbing(at::TensorList list, c10::optional<at::ScalarType> dtype, c10::optional<at::Layout> layout, c10::optional<at::Device> device, c10::optional<bool> pin_memory) {
+  c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
+  auto maybe_layer = maybeCurrentDynamicLayer();
+  TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
+  int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(list, cur_level)) {
+    return at::_ops::nested_tensor::call(list, dtype, layout, device, pin_memory);
+  }
+
+  auto results = batch_rule(list, dtype, layout, device, pin_memory);
+  return makeBatched(std::get<0>(results), std::get<1>(results), cur_level);
 }
 
 }} // namespace at::functorch
