@@ -3911,8 +3911,7 @@ class TestRandomness(TestCase):
         kwargs = {'generator': generator} if use_generator else {}
         ops = [
             lambda t, o, _: torch.normal(t, o, **kwargs),
-            # TODO(samdow): fix binomial
-            # lambda t, o, _: torch.binomial(t, (o - 0.5), **kwargs),
+            lambda t, o, _: torch.binomial(t, (o - 0.5), **kwargs),
         ]
 
         B0 = 4
