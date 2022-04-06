@@ -585,8 +585,8 @@ def cudnn_batch_norm(input: Tensor, weight: Tensor, bias: Optional[Tensor], runn
     a, b, c = aten.native_batch_norm(input, weight, bias, running_mean, running_var, training, exponential_average_factor, epsilon)
     # Cudnn return running mean and variance when training is True
     if training:
-        return (a, b, c, aten.new_empty(input, (1,)))
-    return (a, aten.new_empty(input, (1,)), aten.new_empty(input, (1,)), aten.new_empty(input, (1,)))
+        return (a, b, c, input.new_zeros(()))
+    return (a, input.new_zeros(()), input.new_zeros(()), input.new_zeros(()))
 
 
 @register_decomposition(aten.cudnn_batch_norm_backward)
