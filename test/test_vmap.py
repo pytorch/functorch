@@ -3550,8 +3550,11 @@ class TestVmapOperatorsOpInfo(TestCase):
                 assert torch.allclose(vmap_result[i], expected)
 
     def _get_image(self, batched_input, batch_size, device):
-        if batched_input:
+        if batched_input == "first" or batched_input is True:
             return torch.ones([batch_size, 3, 3, 14, 14], device=device)
+        if batched_input == "last":
+            return torch.ones([3, 3, 14, 14, batch_size], device=device)
+        assert batched_input == "none" or batched_input is False
         return torch.ones([3, 3, 14, 14], device=device)
 
     def _assert_all_slices_equal(self, tensor):
@@ -3564,6 +3567,31 @@ class TestVmapOperatorsOpInfo(TestCase):
         assert slices_equal.shape == (B0, B0)
         slices_equal.diagonal().zero_()
         self.assertEqual(slices_equal, torch.zeros_like(slices_equal))
+
+    def _reset_random(self, generator, orig_state, use_generator, seed):
+        return generator.set_state(orig_state) if use_generator else torch.manual_seed(seed)
+
+    def _assert_throws_in_error_mode(self, fn, args, in_dims):
+        with self.assertRaisesRegex(RuntimeError, r"called random operation while in randomness error mode"):
+            vmap(fn, in_dims=in_dims, randomness="error")(*args)
+
+    def _assert_throws_in_same_mode_batched(self, fn, args, in_dims):
+        with self.assertRaisesRegex(RuntimeError,
+                                    r"Vmap does not currently support same randomness with a batched tensor input"):
+            vmap(fn, in_dims=in_dims, randomness="same")(*args)
+
+    def _in_dims(self, *batched_strings):
+
+        def get_in_dim(batched_string):
+            if batched_string == "first":
+                return 0
+            if batched_string == "last":
+                return -1
+            assert batched_string == "none"
+            return None
+
+        batched_strings = batched_strings + ("first",)  # for the always batched as first dim dummy argument
+        return tuple(get_in_dim(batched_string) for batched_string in batched_strings)
 
     @parametrize('randomness', ['error', 'same', 'different'])
     @parametrize('batched_input', [True, False])
