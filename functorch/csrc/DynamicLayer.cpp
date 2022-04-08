@@ -81,6 +81,23 @@ optional<bool> DynamicLayer::prevFwdGradMode() const {
   return prevFwdGradMode_;
 }
 
+void DynamicLayer::saveLocalDispatchKeySet(c10::impl::LocalDispatchKeySet keyset) {
+  TORCH_INTERNAL_ASSERT(!savedLocalDispatchKeySet_.has_value());
+  savedLocalDispatchKeySet_ = std::move(keyset);
+}
+
+void DynamicLayer::clearSavedLocalDispatchKeySet() {
+  TORCH_INTERNAL_ASSERT(savedLocalDispatchKeySet_.has_value());
+  savedLocalDispatchKeySet_ = c10::nullopt;
+}
+
+c10::impl::LocalDispatchKeySet DynamicLayer::getSavedLocalDispatchKeySet() const {
+  TORCH_INTERNAL_ASSERT(savedLocalDispatchKeySet_.has_value());
+  return *savedLocalDispatchKeySet_;
+}
+
+constexpr DispatchKeySet kFrontBackKeys({kDynamicLayerBackModeKey, kDynamicLayerFrontModeKey});
+
 using DynmetaData = std::unordered_map<int64_t, std::shared_ptr<bool>>;
 DynmetaData kDynMetaDataSingleton;
 
@@ -147,6 +164,33 @@ optional<DynamicLayer> maybeCurrentDynamicLayer() {
   return dynamicLayerStack.back();
 }
 
+struct SaveLocalDispatchKeySet {
+ public:
+  SaveLocalDispatchKeySet() {
+    auto& dynamicLayerStack = dynamicLayerStackAccessor();
+    TORCH_INTERNAL_ASSERT(dynamicLayerStack.size() > 0);
+    auto& layer = dynamicLayerStack.back();
+    auto tmp = c10::impl::tls_local_dispatch_key_set();
+    layer.saveLocalDispatchKeySet(tmp);
+  }
+  ~SaveLocalDispatchKeySet() {
+    auto& dynamicLayerStack = dynamicLayerStackAccessor();
+    TORCH_INTERNAL_ASSERT(dynamicLayerStack.size() > 0);
+    auto& layer = dynamicLayerStack.back();
+    auto tmp = layer.getSavedLocalDispatchKeySet();
+    layer.clearSavedLocalDispatchKeySet();
+    c10::impl::_force_tls_local_dispatch_key_set(tmp);
+  }
+  SaveLocalDispatchKeySet(const SaveLocalDispatchKeySet&) = delete;
+  SaveLocalDispatchKeySet& operator=(const SaveLocalDispatchKeySet&) = delete;
+};
+
+static c10::impl::ForceDispatchKeyGuard
+restoreLocalDispatchKeySetRAII(const DynamicLayer& layer) {
+  auto tmp = layer.getSavedLocalDispatchKeySet();
+  return c10::impl::ForceDispatchKeyGuard(tmp);
+}
+
 const std::vector<DynamicLayer>& getDynamicLayerStack() {
   return dynamicLayerStackAccessor();
 }
@@ -187,6 +231,11 @@ static int64_t pushDynamicLayer(DynamicLayer&& dynamic_layer) {
 
   if (layerId == 2) {
     setDynamicLayerFrontBackKeysIncluded(true);
+#ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
+    if (c10::show_dispatch_trace_enabled()) {
+      std::cout << "DynamicLayer on" << std::endl;
+    }
+#endif
   }
 
   return layerId;
@@ -493,15 +542,13 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
     dump_local_tls();
   }
 #endif
-  if (dynamicLayerStack.size() == 0) {
-    sanityCheckStack(op, stack);
-    c10::impl::ExcludeDispatchKeyGuard guard(all_dynlayer_keyset);
-    auto local_keyset = c10::impl::tls_local_dispatch_key_set();
-    local_keyset.excluded_ = local_keyset.excluded_.remove(DispatchKey::PythonTLSSnapshot);
-    c10::impl::ForceDispatchKeyGuard guard2(local_keyset);
-    op.callBoxed(stack);
-    return;
-  }
+
+  // Save the current LocalDispatchKeySet (to the current DynamicLayer).
+  // Upon exiting the current scope, that LocalDispatchKeySet gets restored.
+  // When the current DynamicLayer dispatches to the next (inner) DynamicLayer,
+  // it will also temporarily restore the saved LocalDispatchKeySet.
+  TORCH_INTERNAL_ASSERT(dynamicLayerStack.size() > 0);
+  SaveLocalDispatchKeySet guard;
 
   // if is a grad transform, and the operation is in-place, and the mutated
   // argument is not currently wrapped in a TensorWrapper, then we need to
@@ -516,7 +563,7 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
   auto num_args = op.schema().arguments().size();
   foreachTensorInplace(*stack, stack->size() - num_args, stack->size(), maybeTransformGradWrappers);
 
-  auto layer = dynamicLayerStack.back();
+  auto& layer = dynamicLayerStack.back();
   bool called_functionalize_kernel = false;
 
   DispatchKeySet exclude = keysToExcludeWhenEnteringDynamicLayer(layer.key());
@@ -541,7 +588,7 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
   auto local_keyset = c10::impl::tls_local_dispatch_key_set();
   local_keyset.excluded_ = local_keyset.excluded_ | exclude;
   local_keyset.included_ = local_keyset.included_ | hacky_include;
-  c10::impl::ForceDispatchKeyGuard guard(local_keyset);
+  c10::impl::_force_tls_local_dispatch_key_set(local_keyset);
 
 #ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
   if (c10::show_dispatch_trace_enabled()) {
@@ -576,18 +623,6 @@ struct WithoutTop {
   }
 
   DynamicLayer layer_;
-};
-
-struct SaveLocalDispatchKeySet {
- public:
-  SaveLocalDispatchKeySet() :
-    saved_keyset_(c10::impl::tls_local_dispatch_key_set()) {}
-  ~SaveLocalDispatchKeySet() {
-    c10::impl::_force_tls_local_dispatch_key_set(saved_keyset_);
-  }
-
- private:
-  c10::impl::LocalDispatchKeySet saved_keyset_;
 };
 
 void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
@@ -657,16 +692,10 @@ void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* 
     sanityCheckNotFunctional(op, stack, args_size);
   }
 
+  auto restore_guard = restoreLocalDispatchKeySetRAII(getDynamicLayerStack().back());
+
   // pop the top layer. Put it back on dtor.
   WithoutTop guard;
-
-  // "reset exclude set"
-  // TODO: Still a problem with composabiilty and AutoNonVariableTypeGuard.
-  // Users cannot do torch.no_grad otherwise there will be problems.
-  SaveLocalDispatchKeySet save_guard;
-  auto keyset = c10::impl::PODLocalDispatchKeySet();
-  c10::impl::_force_tls_local_dispatch_key_set(keyset);
-  setDynamicLayerFrontBackKeysIncluded(true);
 
 #ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
   if (c10::show_dispatch_trace_enabled()) {
@@ -686,6 +715,9 @@ void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* 
   }
 
   // Re-dispatch
+  if (dynamicLayerStackAccessor().size() == 0) {
+    sanityCheckStack(op, stack);
+  }
   op.callBoxed(stack);
 
   // Step 4, 5, 6
