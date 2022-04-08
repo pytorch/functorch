@@ -144,10 +144,15 @@ Tensor _remove_batch_dim(const Tensor& self, int64_t level, int64_t batch_size, 
 }
 
 Tensor _unwrap_functional_tensor(const Tensor& self) {
-  auto* functional = dynamic_cast<FunctionalTensorWrapper*>(self.unsafeGetTensorImpl());
   // We only ever call that after popping out of a functionalize() call, in which case the current tensors
   // should always be wrapped in a FunctionalTensorWrapper.
-  TORCH_INTERNAL_ASSERT(functional != nullptr);
+  TORCH_INTERNAL_ASSERT(at::functionalization::impl::isFunctionalTensor(self));
+  auto functional = at::functionalization::impl::unsafeGetFunctionalWrapper(self);
+  functional->apply_updates();
+  // when regenerating the (potentially mutated) input tensors, the functionalization pass
+  // regenerates them through a series of view_copy() op calls.
+  // Functorch wants to turn those back into view ops though.
+  c10::impl::IncludeDispatchKeyGuard(c10::DispatchKey::FunctionalizeAddBackViews);
   // Ensure that the input is up to date by committing any pending updates to the alias.
   functional->apply_updates();
   functional->regenerate_from_base();

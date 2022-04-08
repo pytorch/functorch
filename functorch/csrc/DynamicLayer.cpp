@@ -24,6 +24,7 @@ constexpr DispatchKeySet all_dynlayer_keyset = DispatchKeySet({
   kDynamicLayerBackModeKey,
   kGradWrapperKey,
   DispatchKey::Functionalize,
+  DispatchKey::FunctionalizeAddBackViews,
   // DispatchKey::Batched,
   kBatchedKey,
   DispatchKey::PythonTLSSnapshot,
@@ -488,7 +489,7 @@ static DispatchKeySet keysForEnteringDynamicLayer(DispatchKey key) {
   } else if (key == DispatchKey::Autograd) {
     return autograd_dispatch_keyset.add(DispatchKey::ADInplaceOrView);
   } else if (key == DispatchKey::Functionalize) {
-    return DispatchKeySet({DispatchKey::Functionalize});
+    return DispatchKeySet({DispatchKey::Functionalize, DispatchKey::FunctionalizeAddBackViews});
   } else {
     TORCH_INTERNAL_ASSERT(false, "Unsupported key: ", key);
   }
@@ -550,8 +551,7 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
   auto num_args = op.schema().arguments().size();
   foreachTensorInplace(*stack, stack->size() - num_args, stack->size(), maybeTransformGradWrappers);
 
-  auto& layer = dynamicLayerStack.back();
-  bool called_functionalize_kernel = false;
+  auto layer& = dynamicLayerStack.back();
 
   DispatchKeySet exclude = keysToExcludeWhenEnteringDynamicLayer(layer.key());
   DispatchKeySet hacky_include;
@@ -559,18 +559,15 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
   if (layer.key() == kBatchedKey) {
     hacky_include = hacky_include.add(kVmapModeKey);
   } else if (layer.key() == DispatchKey::Functionalize) {
-    const auto args = torch::jit::last(stack, op.schema().arguments().size());
-    bool any_tensor_args = anyTensors(args, [&](const Tensor& tensor) { return true; });
-    bool any_functional_args = anyTensors(args, isFunctionalTensorAtCurrentLevel);
-    // Only enable dispatch on Functionalize if either:
-    // - there are any functional tensors at the current level
-    // - we hit a factory op
-    if (!any_functional_args && any_tensor_args) {
-      exclude = exclude.add(DispatchKey::Functionalize);
-    } else {
-      called_functionalize_kernel = true;
-    }
-    hacky_include = hacky_include.add(DispatchKey::Functionalize);
+    // We always want to call the functionalization kernels if functionalize() is on the layer stack.
+    // It's the responsibility of the functionalization kernel to no-op and redispatch
+    // if none of the input tensors are functional.
+    hacky_include = hacky_include | DispatchKeySet({DispatchKey::Functionalize, DispatchKey::FunctionalizeAddBackViews});
+    // The reason we need FunctionalizeAddBackViews in the include set, and can't rely on
+    // it being on the tensors args, is because our dispatch chain goes:
+    // FrontMode (wrapped) -> Functionalize (wrapped) -> AddBackViews (unwrapped) -> BackMode (unwrapped)
+    // The functionalization kernels unwrap the functional wrappers, and we don't want to rely on
+    // the inner tensor having the FunctionalizeAddBackViews key, so we just put it in TLS.
   }
   auto local_keyset = c10::impl::tls_local_dispatch_key_set();
   local_keyset.excluded_ = local_keyset.excluded_ | exclude;
@@ -585,21 +582,20 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
 
   // Re-dispatch
   op.callBoxed(stack);
-  if (called_functionalize_kernel) {
-    auto ret_size = op.schema().returns().size();
-    foreachTensorInplace(*stack, stack->size() - ret_size, stack->size(),
-      [&](const Tensor& tensor) {
-        TORCH_INTERNAL_ASSERT(at::functionalization::impl::isFunctionalTensor(tensor));
+  auto ret_size = op.schema().returns().size();
+  foreachTensorInplace(*stack, stack->size() - ret_size, stack->size(),
+    [&](const Tensor& tensor) {
+      if (at::functionalization::impl::isFunctionalTensor(tensor)) {
         auto wrapper = at::functionalization::impl::unsafeGetFunctionalWrapper(tensor);
         // Functorch is responsible for setting the level on the wrapper, since we don't
         // have that info available in core (for now).
         // We could just "propagate" the level from the input tensors inside of the functionalize kernels,
         // but unfortunately we can't do that for factory operators.
         wrapper->set_level(layer.layerId());
-        return tensor;
       }
-    );
-  }
+      return tensor;
+    }
+  );
 }
 
 struct WithoutTop {
