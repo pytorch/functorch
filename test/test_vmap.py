@@ -3960,6 +3960,30 @@ class TestVmapOperatorsOpInfo(TestCase):
                 for i in range(B0):
                     assert torch.allclose(vmap_result[i], expected)
 
+    def test_binomial(self, device):
+        # from some test updates on main, binomial test case was failing. This just ports a failing cases so we
+        # can check that we've fixed it on the release
+        B0 = 4
+        seed = 1234567
+        generator = torch.Generator(device=device)
+        orig_state = generator.get_state()
+
+        def op(t, p, _):
+            return torch.binomial(t, p, generator=generator)
+
+        t = self._get_image("none", B0, device)
+        p = self._get_image("last", B0, device) - 0.5  # probability of 1 can cause problems
+        always_batched = torch.randn(B0)
+        generator = self._reset_random(generator, orig_state, True, seed)
+        vmap_result = vmap(op, in_dims=(None, -1, 0), randomness="different")(t, p, always_batched)
+
+        t = t.expand(B0, *t.shape)
+        p = p.movedim(-1, 0)
+        generator = self._reset_random(generator, orig_state, True, seed)
+        expected = op(t, p, always_batched)
+        self._assert_all_slices_unique(vmap_result)
+        self.assertEqual(vmap_result, expected)
+
 
 class TestTransformFailure(TestCase):
     @parametrize('transform', ['vmap', 'grad', 'grad_and_value', 'vjp', 'jvp', 'jacrev', 'jacfwd'])
