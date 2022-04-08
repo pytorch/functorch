@@ -604,7 +604,6 @@ class TestOperators(TestCase):
         skip('qr'),  # Nondetermistic
         xfail('_masked.prod'),  # calls aten::item
         xfail('stft'),
-        xfail('nn.functional.glu'),
         xfail('nn.functional.fractional_max_pool3d'),
         xfail('as_strided'),
         xfail('nn.functional.fractional_max_pool2d'),
@@ -885,7 +884,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.huber_loss'),
         xfail('nn.functional.poisson_nll_loss'),
         xfail('nn.functional.bilinear'),
-        xfail('nn.functional.glu'),
         xfail('nn.functional.fractional_max_pool3d'),
         xfail('as_strided'),
         xfail('linalg.solve_triangular'),
@@ -940,7 +938,6 @@ class TestOperators(TestCase):
         xfail('double', 'channels_last'),
         xfail('masked_select'),
         skip('nn.functional.fractional_max_pool3d'),  # generator works on cpu, fails on cuda
-        xfail('nn.functional.glu'),
         xfail('as_strided'),
         skip('nn.functional.fractional_max_pool2d'),  # generator works on cpu, fails on cuda
         skip('solve'),
