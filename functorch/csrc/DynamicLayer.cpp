@@ -116,7 +116,7 @@ class FuncTorchTLS : public FuncTorchTLSBase {
   }
 
   int64_t checkSupportsAutogradFunction() const override {
-    TORCH_CHECK(dynamicLayerStack.size() <= 1, // we're inside a transform if the stack has more than the inital layer
+    TORCH_CHECK(dynamicLayerStack.size() == 0,
         "functorch functions (vmap, grad, vjp, etc.) currently do not support the use of autograd.Function. ",
         "Please rewrite your function to not use autograd.Function while we work on fixing this");
     return 0;
@@ -129,9 +129,7 @@ class FuncTorchTLS : public FuncTorchTLSBase {
     // Does nothing
   }
 
-  // Initial autograd layer, because autograd is always "on"
-  // TODO: Get rid of this, it is bad for composability
-  std::vector<DynamicLayer> dynamicLayerStack = { DynamicLayer(DispatchKey::Autograd, 1, nullopt, nullopt, true) };
+  std::vector<DynamicLayer> dynamicLayerStack;
 };
 
 static FuncTorchTLS* getRawFunctorchTLS() {
@@ -157,8 +155,7 @@ std::shared_ptr<bool> getLifeHandleForLevel(int64_t level) {
 
 optional<DynamicLayer> maybeCurrentDynamicLayer() {
   auto& dynamicLayerStack = dynamicLayerStackAccessor();
-  // NB: Exception for regular autograd, maybe tweak this
-  if (dynamicLayerStack.size() <= 1) {
+  if (dynamicLayerStack.size() == 0) {
     return {};
   }
   return dynamicLayerStack.back();
@@ -211,7 +208,7 @@ static DynamicLayer popDynamicLayer() {
   TORCH_INTERNAL_ASSERT(result.key() != DispatchKey::Undefined);
   dynamicLayerStack.pop_back();
 
-  if (dynamicLayerStack.size() == 1) {
+  if (dynamicLayerStack.size() == 0) {
 #ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
     if (c10::show_dispatch_trace_enabled()) {
       std::cout << "DynamicLayer off" << std::endl;
@@ -229,7 +226,7 @@ static int64_t pushDynamicLayer(DynamicLayer&& dynamic_layer) {
   TORCH_INTERNAL_ASSERT(layerId == dynamic_layer.layerId());
   dynamicLayerStack.emplace_back(dynamic_layer);
 
-  if (layerId == 2) {
+  if (layerId == 1) {
     setDynamicLayerFrontBackKeysIncluded(true);
 #ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
     if (c10::show_dispatch_trace_enabled()) {
@@ -289,11 +286,6 @@ DynamicLayer popDynamicLayerAndDeleteMetadata() {
 
 static Tensor materializeGradWrappers(const Tensor& tensor, const std::vector<DynamicLayer>& dynlayerStack) {
   if (!tensor.defined()) {
-    return tensor;
-  }
-  // TODO: First entry in the stack is a default autograd key.
-  // We should clean up the logic
-  if (dynlayerStack.size() <= 1) {
     return tensor;
   }
   if (dynlayerStack.back().key() != DispatchKey::Autograd) {
@@ -467,11 +459,6 @@ static void checkForInvalidMutationOnCaptures(
     torch::jit::Stack* stack,
     const std::vector<DynamicLayer>& dynamicLayerStack) {
   if (dynamicLayerStack.back().key() != DispatchKey::Autograd) {
-    return;
-  }
-  // TODO: First entry in the stack is a default autograd key.
-  // We should clean up the logic
-  if (dynamicLayerStack.size() <= 1) {
     return;
   }
   if (!isInplaceOp(op.schema())) {
@@ -652,9 +639,6 @@ void dynamicLayerBackFallback(const c10::OperatorHandle& op, torch::jit::Stack* 
   };
   auto wrap = [&](const Tensor& tensor) {
     if (!tensor.defined()) {
-      return tensor;
-    }
-    if (cur_level == 1) {
       return tensor;
     }
     // if (c10::show_dispatch_trace_enabled()) {
