@@ -710,6 +710,7 @@ class TestOperators(TestCase):
         skip('nn.functional.dropout2d', ''),
         skip('nn.functional.feature_alpha_dropout', 'without_train'),
         skip('svd_lowrank', ''),
+        xfail('stft'),  # something weird is happening with shapes
     })
     def test_vmapjvp(self, device, dtype, op):
         if is_inplace(op, op.get_op()):
@@ -783,6 +784,12 @@ class TestOperators(TestCase):
         skip('pca_lowrank', ''),
         skip('svd_lowrank', ''),
         skip('nn.functional.feature_alpha_dropout', 'with_train'),
+
+        xfail('fft.ihfftt2'),  # conj_physical fallback
+        xfail('fft.ihfftn'),  # conj_physical fallback
+        xfail('istft'),  # col2im fallback
+        xfail('polar'),  # complex fallback
+        xfail('stft'),  # transpose_ fallback
     }
 
     @ops(functorch_lagging_op_db, allowed_dtypes=(torch.float,))
@@ -1078,7 +1085,6 @@ class TestOperators(TestCase):
         skip('nn.functional.fractional_max_pool2d'),  # Random
         skip('nn.functional.fractional_max_pool3d'),  # Random
 
-        xfail('__rsub__', ''),
         xfail('_masked.amax', ''),
         xfail('_masked.amin', ''),
         xfail('_masked.log_softmax', ''),
@@ -1093,24 +1099,6 @@ class TestOperators(TestCase):
         xfail('cholesky', ''),
         xfail('dist', ''),
         xfail('eig', ''),
-        xfail('fft.fft', ''),
-        xfail('fft.fft2', ''),
-        xfail('fft.fftn', ''),
-        xfail('fft.hfft', ''),
-        xfail('fft.hfft2', ''),
-        xfail('fft.hfftn', ''),
-        xfail('fft.ifft', ''),
-        xfail('fft.ifft2', ''),
-        xfail('fft.ifftn', ''),
-        xfail('fft.ihfft', ''),
-        xfail('fft.ihfft2', ''),
-        xfail('fft.ihfftn', ''),
-        xfail('fft.irfft', ''),
-        xfail('fft.irfft2', ''),
-        xfail('fft.irfftn', ''),
-        xfail('fft.rfft', ''),
-        xfail('fft.rfft2', ''),
-        xfail('fft.rfftn', ''),
         xfail('istft', ''),
         xfail('linalg.det', ''),
         xfail('linalg.eigh', ''),
@@ -1160,14 +1148,12 @@ class TestOperators(TestCase):
         xfail('norm', ''),
         xfail('norm', 'fro'),
         xfail('norm', 'inf'),
-        xfail('polar', ''),
         xfail('put', ''),
         xfail('renorm', ''),
         xfail('softmax', ''),
         xfail('softmax', 'with_dtype'),
         xfail('solve', ''),
         xfail('std_mean', ''),
-        xfail('stft', ''),
         xfail('symeig', ''),
         xfail('take', ''),
         xfail('var_mean', ''),
@@ -1178,7 +1164,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.dropout2d', ''),
         xfail('nn.functional.feature_alpha_dropout', 'without_train'),
         xfail('svd_lowrank', ''),
-        xfail('rsub', ''),
         xfail('linalg.lu_factor_ex', ''),
     }))
     def test_jvpvjp(self, device, dtype, op):
