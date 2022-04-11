@@ -785,7 +785,7 @@ class TestOperators(TestCase):
         skip('svd_lowrank', ''),
         skip('nn.functional.feature_alpha_dropout', 'with_train'),
 
-        xfail('fft.ihfftt2'),  # conj_physical fallback
+        xfail('fft.ihfft2'),  # conj_physical fallback
         xfail('fft.ihfftn'),  # conj_physical fallback
         xfail('istft'),  # col2im fallback
         xfail('polar'),  # complex fallback
