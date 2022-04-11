@@ -785,10 +785,6 @@ class TestOperators(TestCase):
         skip('svd_lowrank', ''),
         skip('nn.functional.feature_alpha_dropout', 'with_train'),
 
-        xfail('fft.ihfft2'),  # conj_physical fallback
-        xfail('fft.ihfftn'),  # conj_physical fallback
-        xfail('istft'),  # col2im fallback
-        xfail('polar'),  # complex fallback
         xfail('stft'),  # transpose_ fallback
     }
 
@@ -861,6 +857,10 @@ class TestOperators(TestCase):
         xfail('linalg.lu_factor_ex', ''),
         xfail('nn.functional.feature_alpha_dropout', 'with_train'),
         xfail('special.log_ndtr', ''),
+        xfail('fft.ihfft2'),  # conj_physical fallback
+        xfail('fft.ihfftn'),  # conj_physical fallback
+        xfail('istft'),  # col2im fallback
+        xfail('polar'),  # complex fallback
     }))
     @toleranceOverride({torch.float32: tol(atol=1e-04, rtol=1e-04)})
     def test_vmapjvpall_has_batch_rule(self, device, dtype, op):
@@ -1099,7 +1099,6 @@ class TestOperators(TestCase):
         xfail('cholesky', ''),
         xfail('dist', ''),
         xfail('eig', ''),
-        xfail('istft', ''),
         xfail('linalg.det', ''),
         xfail('linalg.eigh', ''),
         xfail('linalg.eigvalsh', ''),
