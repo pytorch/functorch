@@ -125,7 +125,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.2.0a0+6161d6d) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.2.0a0+386a541) &#x25BC</a>
                 </div>
               
             
@@ -171,6 +171,7 @@
 <li class="toctree-l1"><a class="reference internal" href="notebooks/per_sample_grads.html">Per-sample-gradients</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/neural_tangent_kernels.html">Neural Tangent Kernels</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/aot_autograd_optimizations.html">AOT Autograd - How to use and optimize?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/minifier.html">Using the Minifier</a></li>
 </ul>
 
             
@@ -251,16 +252,27 @@
   <div class="section" id="functorch">
 <h1>functorch<a class="headerlink" href="#functorch" title="Permalink to this headline">¶</a></h1>
 <p>functorch is <a class="reference external" href="https://github.com/google/jax">JAX-like</a> composable function transforms for PyTorch.</p>
-<p>It aims to provide composable vmap and grad transforms that work with PyTorch modules
-and PyTorch autograd with good eager-mode performance.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>This library is currently in [beta](<a class="reference external" href="https://pytorch.org/blog/pytorch-feature-classification-changes/#beta">https://pytorch.org/blog/pytorch-feature-classification-changes/#beta</a>).
+<p>This library is currently in <a class="reference external" href="https://pytorch.org/blog/pytorch-feature-classification-changes/#beta">beta</a>.
 What this means is that the features generally work (unless otherwise documented)
 and we (the PyTorch team) are committed to bringing this library forward. However, the APIs
 may change under user feedback and we don’t have full coverage over PyTorch operations.</p>
 <p>If you have suggestions on the API or use-cases you’d like to be covered, please
 open an github issue or reach out. We’d love to hear about how you’re using the library.</p>
+</div>
+<div class="section" id="what-are-composable-function-transforms">
+<h2>What are composable function transforms?<a class="headerlink" href="#what-are-composable-function-transforms" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>A “function transform” is a higher-order function that accepts a numerical function
+and returns a new function that computes a different quantity.</p></li>
+<li><p>functorch has auto-differentiation transforms (<code class="docutils literal notranslate"><span class="pre">grad(f)</span></code> returns a function that
+computes the gradient of <code class="docutils literal notranslate"><span class="pre">f</span></code>), a vectorization/batching transform (<code class="docutils literal notranslate"><span class="pre">vmap(f)</span></code>
+returns a function that computes <code class="docutils literal notranslate"><span class="pre">f</span></code> over batches of inputs), and others.</p></li>
+<li><p>These function transforms can compose with each other arbitrarily. For example,
+composing <code class="docutils literal notranslate"><span class="pre">vmap(grad(f))</span></code> computes a quantity called per-sample-gradients that
+stock PyTorch cannot efficiently compute today.</p></li>
+</ul>
 </div>
 <div class="section" id="why-composable-function-transforms">
 <h2>Why composable function transforms?<a class="headerlink" href="#why-composable-function-transforms" title="Permalink to this headline">¶</a></h2>
@@ -277,7 +289,7 @@ This idea of composable function transforms comes from the <a class="reference e
 </div>
 <div class="section" id="read-more">
 <h2>Read More<a class="headerlink" href="#read-more" title="Permalink to this headline">¶</a></h2>
-<p>For a whirlwind tour of how to use the transforms, please check out <a class="reference external" href="https://github.com/pytorch/functorch/blob/main/README.md#what-are-the-transforms">this section in our README</a>. For installation instructions or the API reference, please check below.</p>
+<p>Check out our <a class="reference external" href="whirlwind_tour">whirlwind tour</a> or some of our tutorials mentioned below.</p>
 <div class="toctree-wrapper compound">
 <p class="caption"><span class="caption-text">Getting Started</span></p>
 <ul>
@@ -288,6 +300,7 @@ This idea of composable function transforms comes from the <a class="reference e
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/whirlwind_tour.html">Whirlwind Tour</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="notebooks/whirlwind_tour.html#what-is-functorch">What is functorch?</a></li>
 <li class="toctree-l2"><a class="reference internal" href="notebooks/whirlwind_tour.html#why-composable-function-transforms">Why composable function transforms?</a></li>
 <li class="toctree-l2"><a class="reference internal" href="notebooks/whirlwind_tour.html#what-are-the-transforms">What are the transforms?</a></li>
 <li class="toctree-l2"><a class="reference internal" href="notebooks/whirlwind_tour.html#conclusion">Conclusion</a></li>
@@ -296,6 +309,7 @@ This idea of composable function transforms comes from the <a class="reference e
 <li class="toctree-l1"><a class="reference internal" href="ux_limitations.html">UX Limitations</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="ux_limitations.html#general-limitations">General limitations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ux_limitations.html#vmap-limitations">vmap limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ux_limitations.html#randomness">Randomness</a></li>
 </ul>
 </li>
 </ul>
@@ -324,6 +338,7 @@ This idea of composable function transforms comes from the <a class="reference e
 <li class="toctree-l1"><a class="reference internal" href="notebooks/per_sample_grads.html">Per-sample-gradients</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/neural_tangent_kernels.html">Neural Tangent Kernels</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/aot_autograd_optimizations.html">AOT Autograd - How to use and optimize?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/minifier.html">Using the Minifier</a></li>
 </ul>
 </div>
 </div>
@@ -371,6 +386,7 @@ This idea of composable function transforms comes from the <a class="reference e
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
 <li><a class="reference internal" href="#">functorch</a><ul>
+<li><a class="reference internal" href="#what-are-composable-function-transforms">What are composable function transforms?</a></li>
 <li><a class="reference internal" href="#why-composable-function-transforms">Why composable function transforms?</a></li>
 <li><a class="reference internal" href="#read-more">Read More</a><ul>
 </ul>

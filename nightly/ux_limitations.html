@@ -126,7 +126,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.2.0a0+6161d6d) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.2.0a0+386a541) &#x25BC</a>
                 </div>
               
             
@@ -172,6 +172,7 @@
 <li class="toctree-l1"><a class="reference internal" href="notebooks/per_sample_grads.html">Per-sample-gradients</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/neural_tangent_kernels.html">Neural Tangent Kernels</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/aot_autograd_optimizations.html">AOT Autograd - How to use and optimize?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/minifier.html">Using the Minifier</a></li>
 </ul>
 
             
@@ -333,8 +334,8 @@ behavior for each PyTorch operator.</p>
 <h3>Mutation: in-place PyTorch Operations<a class="headerlink" href="#mutation-in-place-pytorch-operations" title="Permalink to this headline">¶</a></h3>
 <p><a class="reference internal" href="generated/functorch.vmap.html#functorch.vmap" title="functorch.vmap"><code class="xref py py-func docutils literal notranslate"><span class="pre">vmap()</span></code></a> will raise an error if it encounters an unsupported PyTorch
 in-place operation and it will succeed otherwise. Unsupported operations
-are those that would cause a Tensor with more memory to be written to a
-Tensor with less memory. Here’s an example of how this can occur:</p>
+are those that would cause a Tensor with more elements to be written to a
+Tensor with fewer elements. Here’s an example of how this can occur:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
   <span class="n">x</span><span class="o">.</span><span class="n">add_</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
 <span class="k">return</span> <span class="n">x</span>
@@ -342,16 +343,16 @@ Tensor with less memory. Here’s an example of how this can occur:</p>
 <span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
 <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
 
-<span class="c1"># Raises an error</span>
+<span class="c1"># Raises an error because `y` has fewer elements than `x`.</span>
 <span class="n">vmap</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">in_dims</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">))(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">x</span></code> is a Tensor with one element, <code class="docutils literal notranslate"><span class="pre">y</span></code> is a Tensor with three elements.
 <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">+</span> <span class="pre">y</span></code> has three elements (due to broadcasting), but attempting to write
 three elements back into <code class="docutils literal notranslate"><span class="pre">x</span></code>, which only has one element, raises an error
-due to there not being enough memory to hold three elements.</p>
-<p>There is no problem if there is sufficient memory for the in-place operations
-to occur:</p>
+due to attempting to write three elements into a Tensor with a single element.</p>
+<p>There is no problem if the Tensor being written to has the same number of
+elements (or more):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
   <span class="n">x</span><span class="o">.</span><span class="n">add_</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
   <span class="k">return</span> <span class="n">x</span>
@@ -360,7 +361,7 @@ to occur:</p>
 <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
 <span class="n">expected</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
 
-<span class="c1"># Raises an error</span>
+<span class="c1"># Does not raise an error because x and y have the same number of elements.</span>
 <span class="n">vmap</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">in_dims</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
 <span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">expected</span><span class="p">)</span>
 </pre></div>
@@ -397,6 +398,51 @@ tensors will work:</p>
 using special control flow operators (e.g. <code class="docutils literal notranslate"><span class="pre">jax.lax.cond</span></code>, <code class="docutils literal notranslate"><span class="pre">jax.lax.while_loop</span></code>).
 We’re investigating adding equivalents of those to functorch
 (open an issue on <a class="reference external" href="https://github.com/pytorch/functorch">GitHub</a> to voice your support!).</p>
+</div>
+</div>
+<div class="section" id="randomness">
+<h2>Randomness<a class="headerlink" href="#randomness" title="Permalink to this headline">¶</a></h2>
+<p>The user’s intention when calling a random operation can be unclear. Specifically, some users may want
+the random behavior to be the same across batches while others may want it to differ across batches.
+To address this, <code class="docutils literal notranslate"><span class="pre">vmap</span></code> takes a randomness flag.</p>
+<p>The flag can only be passed to vmap and can take on 3 values, “error,” “different,” or “same,” defaulting
+to error. Under “error” mode, any call to a random function will produce an error asking the user to use
+one of the other two flags based on their use case.</p>
+<p>Under “different” randomness, elements in a batch produce different random values. For instance,</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">add_noise</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+  <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(())</span>  <span class="c1"># y will be different across the batch</span>
+  <span class="k">return</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">vmap</span><span class="p">(</span><span class="n">add_noise</span><span class="p">,</span> <span class="n">randomness</span><span class="o">=</span><span class="s2">&quot;different&quot;</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>  <span class="c1"># we get 3 different values</span>
+</pre></div>
+</div>
+<p>Under “same” randomness, elements in a batch produce same random values. For instance,</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">add_noise</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+  <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(())</span>  <span class="c1"># y will be the same across the batch</span>
+  <span class="k">return</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">vmap</span><span class="p">(</span><span class="n">add_noise</span><span class="p">,</span> <span class="n">randomness</span><span class="o">=</span><span class="s2">&quot;same&quot;</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>  <span class="c1"># we get the same value, repeated 3 times</span>
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Our system only determine the randomness behavior of PyTorch operators and cannot control the
+behavior of other libraries, like numpy. This is similar to JAX’s limitations with their solutions</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Multiple vmap calls using either type of supported randomness will not produce
+the same results. Like with standard PyTorch, a user can get randomness reproducibility through
+either using <code class="docutils literal notranslate"><span class="pre">torch.manual_seed()</span></code> outside of vmap or by using generators.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Finally, our randomness differs from JAX because we aren’t using a stateless PRNG, in part because PyTorch
+doesn’t have full support for a stateless PRNG. Instead, we’ve introduced a flag system to allow for the
+most common forms of randmoness that we see. If your use case does not fit these forms of randomness, please
+file an issue.</p>
 </div>
 </div>
 </div>
@@ -452,6 +498,7 @@ We’re investigating adding equivalents of those to functorch
 <li><a class="reference internal" href="#data-dependent-python-control-flow">Data-dependent Python control flow</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#randomness">Randomness</a></li>
 </ul>
 </li>
 </ul>

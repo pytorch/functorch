@@ -126,7 +126,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.2.0a0+6161d6d) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.2.0a0+386a541) &#x25BC</a>
                 </div>
               
             
@@ -172,6 +172,7 @@
 <li class="toctree-l1"><a class="reference internal" href="per_sample_grads.html">Per-sample-gradients</a></li>
 <li class="toctree-l1"><a class="reference internal" href="neural_tangent_kernels.html">Neural Tangent Kernels</a></li>
 <li class="toctree-l1"><a class="reference internal" href="aot_autograd_optimizations.html">AOT Autograd - How to use and optimize?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="minifier.html">Using the Minifier</a></li>
 </ul>
 
             
@@ -246,7 +247,16 @@
               
   <div class="tex2jax_ignore mathjax_ignore section" id="whirlwind-tour">
 <h1>Whirlwind Tour<a class="headerlink" href="#whirlwind-tour" title="Permalink to this headline">¶</a></h1>
-<p>functorch is <a class="reference external" href="https://github.com/google/jax">JAX</a>-like composable function transforms for PyTorch. In this whirlwind tour, we’ll introduce all the functorch transforms.</p>
+<div class="section" id="what-is-functorch">
+<h2>What is functorch?<a class="headerlink" href="#what-is-functorch" title="Permalink to this headline">¶</a></h2>
+<p>functorch is a library for <a class="reference external" href="https://github.com/google/jax">JAX</a>-like composable function transforms in PyTorch.</p>
+<ul class="simple">
+<li><p>A “function transform” is a higher-order function that accepts a numerical function and returns a new function that computes a different quantity.</p></li>
+<li><p>functorch has auto-differentiation transforms (<code class="docutils literal notranslate"><span class="pre">grad(f)</span></code> returns a function that computes the gradient of <code class="docutils literal notranslate"><span class="pre">f</span></code>), a vectorization/batching transform (<code class="docutils literal notranslate"><span class="pre">vmap(f)</span></code> returns a function that computes <code class="docutils literal notranslate"><span class="pre">f</span></code> over batches of inputs), and others.</p></li>
+<li><p>These function transforms can compose with each other arbitrarily. For example, composing <code class="docutils literal notranslate"><span class="pre">vmap(grad(f))</span></code> computes a quantity called per-sample-gradients that stock PyTorch cannot efficiently compute today.</p></li>
+</ul>
+<p>Furthermore, we also provide an experimental compilation transform in the <code class="docutils literal notranslate"><span class="pre">functorch.compile</span></code> namespace. Our compilation transform, named AOT (ahead-of-time) Autograd, returns to you an <a class="reference external" href="https://pytorch.org/docs/stable/fx.html">FX graph</a> (that optionally contains a backward pass), of which compilation via various backends is one path you can take.</p>
+</div>
 <div class="section" id="why-composable-function-transforms">
 <h2>Why composable function transforms?<a class="headerlink" href="#why-composable-function-transforms" title="Permalink to this headline">¶</a></h2>
 <p>There are a number of use cases that are tricky to do in PyTorch today:</p>
@@ -257,23 +267,30 @@
 <li><p>efficiently computing Jacobians and Hessians</p></li>
 <li><p>efficiently computing batched Jacobians and Hessians</p></li>
 </ul>
-<p>Composing <code class="docutils literal notranslate"><span class="pre">vmap</span></code>, <code class="docutils literal notranslate"><span class="pre">grad</span></code>, <code class="docutils literal notranslate"><span class="pre">vjp</span></code>, and <code class="docutils literal notranslate"><span class="pre">jvp</span></code> transforms allows us to express the above without designing a separate subsystem for each. This idea of composable function transforms comes from the <a class="reference external" href="https://github.com/google/jax">JAX framework</a>.</p>
+<p>Composing <code class="docutils literal notranslate"><span class="pre">vmap</span></code>, <code class="docutils literal notranslate"><span class="pre">grad</span></code>, <code class="docutils literal notranslate"><span class="pre">vjp</span></code>, and <code class="docutils literal notranslate"><span class="pre">jvp</span></code> transforms allows us to express the above without designing a separate subsystem for each.</p>
 </div>
 <div class="section" id="what-are-the-transforms">
 <h2>What are the transforms?<a class="headerlink" href="#what-are-the-transforms" title="Permalink to this headline">¶</a></h2>
-<p>Right now, we support the following transforms:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">grad</span></code>, <code class="docutils literal notranslate"><span class="pre">vjp</span></code>, <code class="docutils literal notranslate"><span class="pre">jvp</span></code>,</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">jacrev</span></code>, <code class="docutils literal notranslate"><span class="pre">jacfwd</span></code>, <code class="docutils literal notranslate"><span class="pre">hessian</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">vmap</span></code></p></li>
-</ul>
-<p>Furthermore, we have some utilities for working with PyTorch modules.</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">make_functional(model)</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">make_functional_with_buffers(model)</span></code></p></li>
-</ul>
-<div class="section" id="vmap">
-<h3>vmap<a class="headerlink" href="#vmap" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="grad-gradient-computation">
+<h3>grad (gradient computation)<a class="headerlink" href="#grad-gradient-computation" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">grad(func)</span></code> is our gradient computation transform. It returns a new function that computes the gradients of <code class="docutils literal notranslate"><span class="pre">func</span></code>. It assumes <code class="docutils literal notranslate"><span class="pre">func</span></code> returns a single-element Tensor and by default it computes the gradients of the output of <code class="docutils literal notranslate"><span class="pre">func</span></code> w.r.t. to the first input.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">grad</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">([])</span>
+<span class="n">cos_x</span> <span class="o">=</span> <span class="n">grad</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">x</span><span class="p">))(</span><span class="n">x</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">cos_x</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">cos</span><span class="p">())</span>
+
+<span class="c1"># Second-order gradients</span>
+<span class="n">neg_sin_x</span> <span class="o">=</span> <span class="n">grad</span><span class="p">(</span><span class="n">grad</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">x</span><span class="p">)))(</span><span class="n">x</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">neg_sin_x</span><span class="p">,</span> <span class="o">-</span><span class="n">x</span><span class="o">.</span><span class="n">sin</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="vmap-auto-vectorization">
+<h3>vmap (auto-vectorization)<a class="headerlink" href="#vmap-auto-vectorization" title="Permalink to this headline">¶</a></h3>
 <p>Note: vmap imposes restrictions on the code that it can be used on. For more details, please read its docstring.</p>
 <p><code class="docutils literal notranslate"><span class="pre">vmap(func)(*inputs)</span></code> is a transform that adds a dimension to all Tensor operations in <code class="docutils literal notranslate"><span class="pre">func</span></code>. <code class="docutils literal notranslate"><span class="pre">vmap(func)</span></code> returns a new function that maps <code class="docutils literal notranslate"><span class="pre">func</span></code> over some dimension (default: 0) of each Tensor in inputs.</p>
 <p>vmap is useful for hiding batch dimensions: one can write a function func that runs on examples and then lift it to a function that can take batches of examples with <code class="docutils literal notranslate"><span class="pre">vmap(func)</span></code>, leading to a simpler modeling experience:</p>
@@ -295,25 +312,7 @@
 </div>
 </div>
 </div>
-</div>
-<div class="section" id="grad">
-<h3>grad<a class="headerlink" href="#grad" title="Permalink to this headline">¶</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">grad(func)(*inputs)</span></code> assumes <code class="docutils literal notranslate"><span class="pre">func</span></code> returns a single-element Tensor. By default, it computes the gradients of the output of <code class="docutils literal notranslate"><span class="pre">func</span></code> w.r.t. to <code class="docutils literal notranslate"><span class="pre">inputs[0]</span></code>.</p>
-<div class="cell docutils container">
-<div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">grad</span>
-<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">([])</span>
-<span class="n">cos_x</span> <span class="o">=</span> <span class="n">grad</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">x</span><span class="p">))(</span><span class="n">x</span><span class="p">)</span>
-<span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">cos_x</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">cos</span><span class="p">())</span>
-
-<span class="c1"># Second-order gradients</span>
-<span class="n">neg_sin_x</span> <span class="o">=</span> <span class="n">grad</span><span class="p">(</span><span class="n">grad</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">x</span><span class="p">)))(</span><span class="n">x</span><span class="p">)</span>
-<span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">neg_sin_x</span><span class="p">,</span> <span class="o">-</span><span class="n">x</span><span class="o">.</span><span class="n">sin</span><span class="p">())</span>
-</pre></div>
-</div>
-</div>
-</div>
-<p>When composed with vmap, grad can be used to compute per-sample-gradients:</p>
+<p>When composed with <code class="docutils literal notranslate"><span class="pre">grad</span></code>, <code class="docutils literal notranslate"><span class="pre">vmap</span></code> can be used to compute per-sample-gradients:</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">vmap</span>
@@ -338,9 +337,9 @@
 </div>
 </div>
 </div>
-<div class="section" id="vjp">
-<h3>vjp<a class="headerlink" href="#vjp" title="Permalink to this headline">¶</a></h3>
-<p>The <code class="docutils literal notranslate"><span class="pre">vjp</span></code> transform applies <code class="docutils literal notranslate"><span class="pre">func</span></code> to <code class="docutils literal notranslate"><span class="pre">inputs</span></code> and returns a new function that computes vjps given some <code class="docutils literal notranslate"><span class="pre">cotangents</span></code> Tensors.</p>
+<div class="section" id="vjp-vector-jacobian-product">
+<h3>vjp (vector-Jacobian product)<a class="headerlink" href="#vjp-vector-jacobian-product" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">vjp</span></code> transform applies <code class="docutils literal notranslate"><span class="pre">func</span></code> to <code class="docutils literal notranslate"><span class="pre">inputs</span></code> and returns a new function that computes the vector-Jacobian product (vjp) given some <code class="docutils literal notranslate"><span class="pre">cotangents</span></code> Tensors.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">vjp</span>
@@ -355,8 +354,8 @@
 </div>
 </div>
 </div>
-<div class="section" id="jvp">
-<h3>jvp<a class="headerlink" href="#jvp" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="jvp-jacobian-vector-product">
+<h3>jvp (Jacobian-vector product)<a class="headerlink" href="#jvp-jacobian-vector-product" title="Permalink to this headline">¶</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">jvp</span></code> transforms computes Jacobian-vector-products and is also known as “forward-mode AD”. It is not a higher-order function unlike most other transforms, but it returns the outputs of <code class="docutils literal notranslate"><span class="pre">func(inputs)</span></code> as well as the jvps.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
@@ -487,12 +486,13 @@ with respect to <code class="docutils literal notranslate"><span class="pre">x</
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
 <li><a class="reference internal" href="#">Whirlwind Tour</a><ul>
+<li><a class="reference internal" href="#what-is-functorch">What is functorch?</a></li>
 <li><a class="reference internal" href="#why-composable-function-transforms">Why composable function transforms?</a></li>
 <li><a class="reference internal" href="#what-are-the-transforms">What are the transforms?</a><ul>
-<li><a class="reference internal" href="#vmap">vmap</a></li>
-<li><a class="reference internal" href="#grad">grad</a></li>
-<li><a class="reference internal" href="#vjp">vjp</a></li>
-<li><a class="reference internal" href="#jvp">jvp</a></li>
+<li><a class="reference internal" href="#grad-gradient-computation">grad (gradient computation)</a></li>
+<li><a class="reference internal" href="#vmap-auto-vectorization">vmap (auto-vectorization)</a></li>
+<li><a class="reference internal" href="#vjp-vector-jacobian-product">vjp (vector-Jacobian product)</a></li>
+<li><a class="reference internal" href="#jvp-jacobian-vector-product">jvp (Jacobian-vector product)</a></li>
 <li><a class="reference internal" href="#jacrev-jacfwd-and-hessian">jacrev, jacfwd, and hessian</a></li>
 </ul>
 </li>
