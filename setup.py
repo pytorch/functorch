@@ -27,10 +27,10 @@ except Exception:
 package_name = 'functorch'
 
 # TODO: comment the following right before release
-if os.getenv('BUILD_VERSION'):
-    version = os.getenv('BUILD_VERSION')
-elif sha != 'Unknown':
-    version += '+' + sha[:7]
+# if os.getenv('BUILD_VERSION'):
+#     version = os.getenv('BUILD_VERSION')
+# elif sha != 'Unknown':
+#     version += '+' + sha[:7]
 
 
 def write_version_file():
