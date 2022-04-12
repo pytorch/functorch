@@ -13,24 +13,31 @@ jobs:
     container: pytorch/manylinux-cpu
     strategy:
       matrix:
-        python_abi: [ "cp37-cp37m", "cp38-cp38", "cp39-cp39", "cp310-cp310" ]
+        python_version: [["3.7", "cp37-cp37m"], ["3.8", "cp38-cp38"], ["3.9", "cp39-cp39"], ["3.10", "cp310-cp310"]]
     steps:
       - name: Checkout functorch
         uses: actions/checkout@v2
       - name: Install PyTorch 1.11 RC
         run: |
-          export PATH="/opt/python/${{ matrix.python_abi }}/bin:$PATH"
+          export PATH="/opt/python/${{ matrix.python_version[1] }}/bin:$PATH"
           python3 -mpip install torch==1.11.0
       - name: Build wheel
         run: |
-          export PATH="/opt/python/${{ matrix.python_abi }}/bin:$PATH"
+          export PATH="/opt/python/${{ matrix.python_version[1] }}/bin:$PATH"
           python3 -mpip install wheel
           python3 setup.py bdist_wheel
-          # NB: wheels have the linux_x86_64 prefix, need to be manually renamed
+          # NB: wheels have the linux_x86_64 tag so we rename to manylinux1
+          find . -name 'dist/*whl' -exec bash -c ' mv $0 ${0/linux/manylinux1}' {} \;
+      # pytorch/pytorch binaries are also manylinux_2_17 compliant but they
+      # pretend that they're manylinux1 compliant so we do the same.
+      - name: Show auditwheel output; confirm 2-17
+        run: |
+          python3 -mpip install auditwheel
+          auditwheel show dist/*
       - name: Upload wheel as GHA artifact
         uses: actions/upload-artifact@v2
         with:
-          name: functorch-linux.whl
+          name: functorch-linux-${{ matrix.python_version[0] }}.whl
           path: dist/*.whl
 
   build-wheel-mac:
@@ -57,5 +64,93 @@ jobs:
       - name: Upload wheel as GHA artifact
         uses: actions/upload-artifact@v2
         with:
-          name: functorch-mac.whl
+          name: functorch-mac-${{ matrix.python_version }}.whl
           path: dist/*.whl
+
+  test-wheel-mac:
+    runs-on: macos-latest
+    needs: [build-wheel-mac]
+    strategy:
+      matrix:
+        python_version: [ "3.7", "3.8", "3.9", "3.10" ]
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python_version }}
+          architecture: x64
+      - name: Checkout functorch
+        uses: actions/checkout@v2
+      - name: Install PyTorch 1.11
+        run: |
+          python3 -mpip install torch==1.11.0 torchvision
+      - name: Install test dependencies
+        run: |
+          python3 -mpip install numpy pytest pytest-cov codecov xmlrunner pillow>=4.1.1 scipy av networkx expecttest
+      - name: Download built wheels
+        uses: actions/download-artifact@v2
+        with:
+          name: functorch-mac-${{ matrix.python_version }}.whl
+          path: /tmp/wheels
+      - name: Install built wheels
+        run: |
+          python3 -mpip install /tmp/wheels/*
+      - name: Log version string
+        run: |
+          # Avoid ambiguity of "import functorch" by deleting the source files.
+          rm -rf functorch/
+          python -c "import functorch; print(functorch.__version__)"
+      - name: Run tests
+        run: |
+          set -e
+          export IN_CI=1
+          mkdir test-reports
+          python -m torch.utils.collect_env
+          python -c "import functorch; print(functorch.__version__)"
+          EXIT_STATUS=0
+          find . \( -name test\*.py ! -name test_functorch_lagging_op_db.py \) | xargs -I {} -n 1 python {} -v || EXIT_STATUS=$?
+          exit $EXIT_STATUS
+
+  test-wheel-linux:
+    runs-on: ubuntu-18.04
+    needs: [build-wheel-linux]
+    strategy:
+      matrix:
+        python_version: [ "3.7", "3.8", "3.9", "3.10" ]
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python_version }}
+          architecture: x64
+      - name: Checkout functorch
+        uses: actions/checkout@v2
+      - name: Install PyTorch 1.11
+        run: |
+          python3 -mpip install torch==1.11.0 torchvision
+      - name: Install test dependencies
+        run: |
+          python3 -mpip install numpy pytest pytest-cov codecov xmlrunner pillow>=4.1.1 scipy av networkx expecttest
+      - name: Download built wheels
+        uses: actions/download-artifact@v2
+        with:
+          name: functorch-linux-${{ matrix.python_version }}.whl
+          path: /tmp/wheels
+      - name: Install built wheels
+        run: |
+          python3 -mpip install /tmp/wheels/*
+      - name: Log version string
+        run: |
+          # Avoid ambiguity of "import functorch" by deleting the source files.
+          rm -rf functorch/
+          python -c "import functorch; print(functorch.__version__)"
+      - name: Run tests
+        run: |
+          set -e
+          export IN_CI=1
+          mkdir test-reports
+          python -m torch.utils.collect_env
+          python -c "import functorch; print(functorch.__version__)"
+          EXIT_STATUS=0
+          find test \( -name test\*.py ! -name test_functorch_lagging_op_db.py \) | xargs -I {} -n 1 python {} -v || EXIT_STATUS=$?
+          exit $EXIT_STATUS
