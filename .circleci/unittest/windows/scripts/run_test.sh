@@ -2,6 +2,9 @@
 
 set -e
 
+export IN_CI=1
+mkdir test-reports
+
 eval "$(./conda/Scripts/conda.exe 'shell.bash' 'hook')"
 conda activate ./env
 
