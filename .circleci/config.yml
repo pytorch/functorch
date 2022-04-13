@@ -249,6 +249,28 @@ jobs:
       - store_test_results:
           path: test-reports
 
+  binary_win_wheel:
+    <<: *binary_common
+    executor: windows-cpu
+    steps:
+      - checkout_merge
+      - designate_upload_channel
+      - run:
+          name: Build wheel packages
+          command: |
+            set -ex
+            source packaging/windows/internal/vc_install_helper.sh
+            packaging/windows/internal/cuda_install.bat
+            packaging/build_wheel.sh
+      - store_artifacts:
+          path: dist
+      - persist_to_workspace:
+          root: dist
+          paths:
+            - "*"
+      - store_test_results:
+          path: build_results/
+
 workflows:
   unittest:
     jobs:
@@ -278,9 +300,17 @@ workflows:
             parameters:
               python_version: ["3.9"]
               cu_version: ["cpu"]
+
       - unittest_windows_gpu:
           name: unittest_windows_<< matrix.cu_version >>_py<< matrix.python_version >>
           matrix:
             parameters:
               python_version: ["3.10"]
               cu_version: ["cu113"]
+
+      - binary_win_wheel:
+          name: binary_win_wheel_<< matrix.cu_version >>_py<< matrix.python_version >>
+          matrix:
+            parameters:
+              python_version: ["3.7", "3.8", "3.9", "3.10"]
+              cu_version: ["cpu"]
