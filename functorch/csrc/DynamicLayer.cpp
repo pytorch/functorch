@@ -42,14 +42,16 @@ DynamicLayer::DynamicLayer(
     optional<int64_t> batchSize,
     optional<RandomnessType> randomness,
     optional<bool> prev_grad_mode,
-    optional<bool> prev_fwd_grad_mode)
+    optional<bool> prev_fwd_grad_mode,
+    optional<bool> functionalize_add_back_views)
   :
     key_(key),
     layerId_(layerId),
     batchSize_(batchSize),
     randomness_(randomness),
     prevGradMode_(prev_grad_mode),
-    prevFwdGradMode_(prev_fwd_grad_mode)
+    prevFwdGradMode_(prev_fwd_grad_mode),
+    functionalizeAddBackViews_(functionalize_add_back_views)
 {
   if (key_ == DispatchKey::Autograd) {
     TORCH_INTERNAL_ASSERT(prev_grad_mode.has_value() || prev_fwd_grad_mode.has_value());
@@ -98,6 +100,10 @@ c10::impl::LocalDispatchKeySet DynamicLayer::getSavedLocalDispatchKeySet() const
 }
 
 constexpr DispatchKeySet kFrontBackKeys({kDynamicLayerBackModeKey, kDynamicLayerFrontModeKey});
+
+optional<bool> DynamicLayer::functionalizeAddBackViews() const {
+  return functionalizeAddBackViews_;
+}
 
 using DynmetaData = std::unordered_map<int64_t, std::shared_ptr<bool>>;
 DynmetaData kDynMetaDataSingleton;
@@ -244,13 +250,14 @@ int64_t initAndPushDynamicLayer(
     optional<int64_t> batch_size,
     optional<RandomnessType> randomness,
     optional<bool> prev_grad_mode,
-    optional<bool> prev_fwd_grad_mode) {
+    optional<bool> prev_fwd_grad_mode,
+    optional<bool> functionalize_add_back_views) {
   TORCH_INTERNAL_ASSERT(key == DispatchKey::Autograd
                      || key == kBatchedKey
                      || key == DispatchKey::Functionalize);
   const auto& dynamicLayerStack = dynamicLayerStackAccessor();
   const auto layerId = 1 + dynamicLayerStack.size();
-  DynamicLayer new_layer(key, layerId, batch_size, randomness, prev_grad_mode, prev_fwd_grad_mode);
+  DynamicLayer new_layer(key, layerId, batch_size, randomness, prev_grad_mode, prev_fwd_grad_mode, functionalize_add_back_views);
   pushDynamicLayer(std::move(new_layer));
 
   auto& data = getGlobalDynmetaData();
@@ -489,7 +496,7 @@ static DispatchKeySet keysForEnteringDynamicLayer(DispatchKey key) {
   } else if (key == DispatchKey::Autograd) {
     return autograd_dispatch_keyset.add(DispatchKey::ADInplaceOrView);
   } else if (key == DispatchKey::Functionalize) {
-    return DispatchKeySet({DispatchKey::Functionalize, DispatchKey::FunctionalizeAddBackViews});
+    return DispatchKeySet(DispatchKey::Functionalize);
   } else {
     TORCH_INTERNAL_ASSERT(false, "Unsupported key: ", key);
   }
@@ -562,12 +569,17 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
     // We always want to call the functionalization kernels if functionalize() is on the layer stack.
     // It's the responsibility of the functionalization kernel to no-op and redispatch
     // if none of the input tensors are functional.
-    hacky_include = hacky_include | DispatchKeySet({DispatchKey::Functionalize, DispatchKey::FunctionalizeAddBackViews});
-    // The reason we need FunctionalizeAddBackViews in the include set, and can't rely on
-    // it being on the tensors args, is because our dispatch chain goes:
-    // FrontMode (wrapped) -> Functionalize (wrapped) -> AddBackViews (unwrapped) -> BackMode (unwrapped)
-    // The functionalization kernels unwrap the functional wrappers, and we don't want to rely on
-    // the inner tensor having the FunctionalizeAddBackViews key, so we just put it in TLS.
+    hacky_include = hacky_include | DispatchKeySet({DispatchKey::Functionalize});
+    auto add_back_views = layer.functionalizeAddBackViews().has_value() && *(layer.functionalizeAddBackViews());
+    if (add_back_views) {
+      // The reason we need FunctionalizeAddBackViews in the include set, and can't rely on
+      // it being on the tensors args, is because our dispatch chain goes:
+      // FrontMode (wrapped) -> Functionalize (wrapped) -> AddBackViews (unwrapped) -> BackMode (unwrapped)
+      // The functionalization kernels unwrap the functional wrappers, and we don't want to rely on
+      // the inner tensor having the FunctionalizeAddBackViews key, so we just put it in TLS.
+      hacky_include = hacky_include.add(DispatchKey::FunctionalizeAddBackViews);
+      exclude = exclude.remove(DispatchKey::FunctionalizeAddBackViews);
+    }
   }
   auto local_keyset = c10::impl::tls_local_dispatch_key_set();
   local_keyset.excluded_ = local_keyset.excluded_ | exclude;

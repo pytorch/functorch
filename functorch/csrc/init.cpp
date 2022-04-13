@@ -30,14 +30,6 @@ static bool has_level(const Tensor& self, int64_t level) {
   return batched->level() >= level;
 }
 
-static bool has_functional_level(const Tensor& self, int64_t level) {
-  if (!at::functionalization::impl::isFunctionalTensor(self)) {
-    return false;
-  }
-  const auto* functional = at::functionalization::impl::unsafeGetFunctionalWrapper(self);
-  return functional->level() >= level;
-}
-
 Tensor _add_batch_dim(const Tensor& self, int64_t batch_dim, int64_t level) {
   return addBatchDim(self, batch_dim, level);
 }
@@ -249,8 +241,8 @@ int64_t _vmap_decrement_nesting() {
   return layer.layerId();
 }
 
-int64_t _func_increment_nesting() {
-  return initAndPushDynamicLayer(DispatchKey::Functionalize);
+int64_t _func_increment_nesting(bool reapply_views) {
+  return initAndPushDynamicLayer(DispatchKey::Functionalize, c10::nullopt, c10::nullopt, c10::nullopt, c10::nullopt, /*functionalize_add_back_views=*/reapply_views);
 }
 
 int64_t _func_decrement_nesting() {

@@ -1216,11 +1216,11 @@ def _unwrap_all_tensors_from_functional(tensor_pytree):
     return tree_map(_maybe_unwrap_functional_tensor, tensor_pytree)
 
 
-def functionalize(func: Callable) -> Callable:
+def functionalize(func: Callable, *, reapply_views: bool = False) -> Callable:
     @wraps(func)
     def wrapped(*args, **kwargs):
         try:
-            func_level = _func_increment_nesting()
+            func_level = _func_increment_nesting(reapply_views)
             func_args = _wrap_all_tensors_to_functional(args, func_level)
             func_kwargs = _wrap_all_tensors_to_functional(kwargs, func_level)
 
