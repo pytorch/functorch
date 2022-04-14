@@ -137,19 +137,26 @@ Tensor _remove_batch_dim(const Tensor& self, int64_t level, int64_t batch_size, 
   return result;
 }
 
-Tensor _unwrap_functional_tensor(const Tensor& self) {
+Tensor _unwrap_functional_tensor(const Tensor& self, bool add_back_views) {
   // We only ever call that after popping out of a functionalize() call, in which case the current tensors
   // should always be wrapped in a FunctionalTensorWrapper.
   TORCH_INTERNAL_ASSERT(at::functionalization::impl::isFunctionalTensor(self));
   auto functional = at::functionalization::impl::unsafeGetFunctionalWrapper(self);
-  // when regenerating the (potentially mutated) input tensors, the functionalization pass
-  // regenerates them through a series of view_copy() op calls.
-  // Functorch wants to turn those back into view ops though.
-  c10::impl::IncludeDispatchKeyGuard(c10::DispatchKey::FunctionalizeAddBackViews);
-  // Ensure that the input is up to date by committing any pending updates to the alias.
-  auto any_updates = functional->apply_updates();
-  if (any_updates) {
-    functional->regenerate_from_base();
+  if (add_back_views) {
+    // when regenerating the (potentially mutated) input tensors, the functionalization pass
+    // regenerates them through a series of view_copy() op calls.
+    // Functorch wants to turn those back into view ops though.
+    c10::impl::IncludeDispatchKeyGuard(c10::DispatchKey::FunctionalizeAddBackViews);
+    // Ensure that the input is up to date by committing any pending updates to the alias.
+    auto any_updates = functional->apply_updates();
+    if (any_updates) {
+      functional->regenerate_from_base();
+    }
+  } else {
+    auto any_updates = functional->apply_updates();
+    if (any_updates) {
+      functional->regenerate_from_base();
+    }
   }
   return functional->value();
 }

@@ -1206,14 +1206,14 @@ def _wrap_all_tensors_to_functional(tensor_pytree, level):
     return tree_map(partial(_maybe_wrap_functional_tensor, level=level), tensor_pytree)
 
 
-def _maybe_unwrap_functional_tensor(maybe_tensor):
+def _maybe_unwrap_functional_tensor(maybe_tensor, *, reapply_views: bool):
     if not isinstance(maybe_tensor, torch.Tensor):
         return maybe_tensor
-    return _unwrap_functional_tensor(maybe_tensor)
+    return _unwrap_functional_tensor(maybe_tensor, reapply_views)
 
 
-def _unwrap_all_tensors_from_functional(tensor_pytree):
-    return tree_map(_maybe_unwrap_functional_tensor, tensor_pytree)
+def _unwrap_all_tensors_from_functional(tensor_pytree, *, reapply_views: bool):
+    return tree_map(lambda t: _maybe_unwrap_functional_tensor(t, reapply_views=reapply_views), tensor_pytree)
 
 
 def functionalize(func: Callable, *, reapply_views: bool = False) -> Callable:
@@ -1230,7 +1230,7 @@ def functionalize(func: Callable, *, reapply_views: bool = False) -> Callable:
             flattened_wrapped_kwargs, _ = tree_flatten(func_kwargs)
 
             func_outputs = func(*func_args, **func_kwargs)
-            outputs = _unwrap_all_tensors_from_functional(func_outputs)
+            outputs = _unwrap_all_tensors_from_functional(func_outputs, reapply_views=reapply_views)
             flat_outputs, func_out_spec = tree_flatten(outputs)
 
             for a in flattened_wrapped_args + flattened_wrapped_kwargs:
