@@ -2846,9 +2846,10 @@ class TestFunctionalize(TestCase):
             y = x.view(4, 2)
             y.add_(tmp)
             return x
+        # There's a copy_ in the graph, because the input (x) was mutated.
+        # To preserve semantics, functionalize() needs to propagate the mutation.
         out = make_fx(functionalize(f))(torch.zeros(4, 2, device=device))
-        self.assertExpectedInline(str(out), """\
-f()
+        self.assertExpectedInline((out.code), """\
 
 
 
@@ -2861,6 +2862,66 @@ def forward(self, x_1) -> torch.Tensor:
     return view_copy_1
     """)
 
+    def test_functionalize_fx_transpose_simple(self):
+        device = 'cpu'
+
+        def f(x: torch.Tensor) -> torch.Tensor:
+            return x.transpose(1, 0)
+        out = make_fx(functionalize(f))(torch.zeros(4, 2, device=device))
+        self.assertExpectedInline(out.code, """\
+
+
+
+def forward(self, x_1) -> torch.Tensor:
+    transpose_copy = torch.ops.aten.transpose_copy(x_1, 1, 0);  x_1 = None
+    return transpose_copy
+    """)
+
+    def test_functionalize_fx_out_op(self):
+        device = 'cpu'
+
+        def f(inpt: torch.Tensor) -> torch.Tensor:
+            out = torch.empty(2, 2, dtype=torch.float32)
+            out_view = out.view(4)
+            torch.add(inpt, inpt, out=out_view)
+            return out
+
+        out = make_fx(functionalize(f))(torch.arange(4, device=device, dtype=torch.float32))
+        self.assertExpectedInline(out.code, """\
+
+
+
+def forward(self, inpt_1) -> torch.Tensor:
+    add = torch.ops.aten.add(inpt_1, inpt_1);  inpt_1 = None
+    view_copy = torch.ops.aten.view_copy(add, [2, 2]);  add = None
+    return view_copy
+    """)
+
+    def test_functionalize_fx_multi_out_op(self):
+        device = 'cpu'
+
+        def f(inpt: torch.Tensor) -> torch.Tensor:
+            mins = torch.empty(4, dtype=torch.float32)
+            maxs = torch.empty(2, 2, dtype=torch.float32)
+            maxs_view = maxs.view(4)
+            inpt_view = inpt.view(2, 4)
+            torch.aminmax(inpt_view, dim=0, out=(mins, maxs_view))
+            return (maxs, mins)
+
+        out = make_fx(functionalize(f))(torch.arange(8, device=device, dtype=torch.float32))
+        self.assertExpectedInline(out.code, """\
+
+
+
+def forward(self, inpt_1) -> torch.Tensor:
+    view_copy = torch.ops.aten.view_copy(inpt_1, [2, 4]);  inpt_1 = None
+    aminmax = torch.ops.aten.aminmax(view_copy, dim = 0);  view_copy = None
+    getitem = aminmax[0]
+    getitem_1 = aminmax[1];  aminmax = None
+    view_copy_1 = torch.ops.aten.view_copy(getitem_1, [2, 2]);  getitem_1 = None
+    return (view_copy_1, getitem)
+    """)
+
     def test_functionalize_fx_reapply_views_simple(self):
         device = 'cpu'
 
@@ -2870,8 +2931,7 @@ def forward(self, x_1) -> torch.Tensor:
             y.add_(tmp)
             return x
         out = make_fx(functionalize(f, reapply_views=True))(torch.zeros(4, 2, device=device))
-        self.assertExpectedInline(str(out), """\
-f()
+        self.assertExpectedInline(out.code, """\
 
 
 

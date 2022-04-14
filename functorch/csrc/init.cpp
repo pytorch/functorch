@@ -53,8 +53,10 @@ void _propagate_functional_input_mutation(const Tensor& unwrapped, const Tensor&
   TORCH_INTERNAL_ASSERT(!at::functionalization::impl::isFunctionalTensor(unwrapped));
   auto wrapped_impl = at::functionalization::impl::unsafeGetFunctionalWrapper(wrapped);
   // Ensure that the input is up to date by committing any pending updates to the alias.
-  wrapped_impl->apply_updates();
-  wrapped_impl->regenerate_from_base();
+  auto any_updates = wrapped_impl->apply_updates();
+  if (any_updates) {
+    wrapped_impl->regenerate_from_base();
+  }
   auto& wrapped_inner = wrapped_impl->value();
   // It would probably be more reasonable to check that the two tensors are aliased,
   // but we can't do that unless we give BatchedTensorImpl a notion of storage.
@@ -140,14 +142,15 @@ Tensor _unwrap_functional_tensor(const Tensor& self) {
   // should always be wrapped in a FunctionalTensorWrapper.
   TORCH_INTERNAL_ASSERT(at::functionalization::impl::isFunctionalTensor(self));
   auto functional = at::functionalization::impl::unsafeGetFunctionalWrapper(self);
-  functional->apply_updates();
   // when regenerating the (potentially mutated) input tensors, the functionalization pass
   // regenerates them through a series of view_copy() op calls.
   // Functorch wants to turn those back into view ops though.
   c10::impl::IncludeDispatchKeyGuard(c10::DispatchKey::FunctionalizeAddBackViews);
   // Ensure that the input is up to date by committing any pending updates to the alias.
-  functional->apply_updates();
-  functional->regenerate_from_base();
+  auto any_updates = functional->apply_updates();
+  if (any_updates) {
+    functional->regenerate_from_base();
+  }
   return functional->value();
 }
 
