@@ -257,11 +257,14 @@ class FunctionalModuleWithBuffers(nn.Module):
         self.all_names_map.update(buffer_names_map)
 
     @staticmethod
-    def _create_from(model):
+    def _create_from(model, params_require_grad=True):
         # TODO: We don't need to copy the model to create a stateless copy
         model_copy = copy.deepcopy(model)
         params, param_names, param_names_map = extract_weights(model_copy)
         buffers, buffer_names, buffer_names_map = extract_buffers(model_copy)
+        if not params_require_grad:
+            for param in params:
+                param.requires_grad_(False)
         return (
             FunctionalModuleWithBuffers(model_copy, param_names, buffer_names,
                                         param_names_map, buffer_names_map),
@@ -294,10 +297,13 @@ class FunctionalModule(nn.Module):
         self.names_map = names_map
 
     @staticmethod
-    def _create_from(model):
+    def _create_from(model, params_require_grad=True):
         # TODO: We don't need to copy the model to create a stateless copy
         model_copy = copy.deepcopy(model)
         params, param_names, names_map = extract_weights(model_copy)
+        if not params_require_grad:
+            for param in params:
+                param.requires_grad_(False)
         return FunctionalModule(model_copy, param_names, names_map), params
 
     def forward(self, params, *args, **kwargs):
@@ -310,7 +316,7 @@ class FunctionalModule(nn.Module):
             _swap_state(self.stateless_model, self.names_map, old_state)
 
 
-def make_functional(model: nn.Module):
+def make_functional(model: nn.Module, params_require_grad: bool = True):
     """make_functional(model) -> func, params
 
     Given a ``torch.nn.Module``, :func:`make_functional` extracts the state
@@ -353,15 +359,21 @@ def make_functional(model: nn.Module):
 
     If the model has any buffers, please use :func:`make_functional_with_buffers` instead.
 
+    Args:
+        model (torch.nn.Module): Input model.
+        params_require_grad (bool): If True, output parameters will have require gradient.
+            It could be helpful to set this flag to False if computions do not need higher order gradients.
+            Default: True.
+
     """
     buffers = list(model.buffers())
     if len(buffers) > 0:
         raise RuntimeError('make_functional(model): `model` has buffers. Please use '
                            'make_functional_with_buffers(model) instead.')
-    return FunctionalModule._create_from(model)
+    return FunctionalModule._create_from(model, params_require_grad=params_require_grad)
 
 
-def make_functional_with_buffers(model: nn.Module):
+def make_functional_with_buffers(model: nn.Module, params_require_grad: bool = True):
     """make_functional_with_buffers(model) -> func, params, buffers
 
     Given a ``torch.nn.Module``, make_functional_with_buffers extracts the
@@ -401,8 +413,14 @@ def make_functional_with_buffers(model: nn.Module):
 
         grad_weights = grad(compute_loss)(params, buffers, x, t)
 
+    Args:
+        model (torch.nn.Module): Input model.
+        params_require_grad (bool): If True, output parameters will have require gradient.
+            It could be helpful to set this flag to False if computions do not need higher order gradients.
+            Default: True.
+
     """
-    return FunctionalModuleWithBuffers._create_from(model)
+    return FunctionalModuleWithBuffers._create_from(model, params_require_grad=params_require_grad)
 
 
 def transpose_stack(tuple_of_tuple_of_tensors):

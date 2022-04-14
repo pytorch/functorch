@@ -6,7 +6,7 @@
 
 import copy
 from torch.testing._internal.common_utils import (
-    TestCase, run_tests, parametrize, subtest
+    TestCase, run_tests, parametrize, subtest, instantiate_parametrized_tests
 )
 import torch
 import torch.nn as nn
@@ -2147,6 +2147,23 @@ class TestComposability(TestCase):
 
 
 class TestMakeFunctional(TestCase):
+    @parametrize('params_require_grad', [True, False])
+    def test_params_require_grad(self, params_require_grad):
+        class Foo(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear = nn.Linear(3, 3)
+
+            def forward(self, x):
+                x = self.linear(x)
+                return x
+
+        mod = Foo()
+        _, params = make_functional(mod, params_require_grad=params_require_grad)
+        self.assertEqual(len(params), 2)
+        for param in params:
+            self.assertEqual(param.requires_grad, params_require_grad)
+
     def test_parameter_tying(self):
         class Foo(nn.Module):
             def __init__(self):
@@ -2206,6 +2223,26 @@ class TestMakeFunctional(TestCase):
         result = func(params, buffers, x)
         expected = mod(x)
         self.assertEqual(result, expected)
+
+    @parametrize('params_require_grad', [True, False])
+    def test_with_buffers_params_require_grad(self, params_require_grad):
+        class Foo(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear = nn.Linear(3, 3)
+                self.register_buffer('buffer', torch.randn(3))
+
+            def forward(self, x):
+                x = self.linear(x)
+                x = x + self.buffer
+                return x
+
+        mod = Foo()
+        _, params, buffers = make_functional_with_buffers(mod, params_require_grad=params_require_grad)
+        self.assertEqual(len(params), 2)
+        self.assertEqual(len(buffers), 1)
+        for param in params:
+            self.assertEqual(param.requires_grad, params_require_grad)
 
     def test_parameter_tying_grad(self):
         class Foo(nn.Module):
@@ -3007,6 +3044,9 @@ instantiate_device_type_tests(
     TestFunctionalize,
     globals(),
     only_for=only_for,
+)
+instantiate_parametrized_tests(
+    TestMakeFunctional,
 )
 
 if __name__ == '__main__':
