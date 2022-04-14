@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-from functorch import make_fx
+from functorch import make_fx, vjp
+from functorch.experimental import functionalize
 from torch.fx import immutable_collections
 import torch.utils._pytree as pytree
 import torch.utils.dlpack
@@ -55,38 +56,134 @@ def create_joint_forward_backward(fn):
     def joint_forward_backward(
         primals: List[Any], tangents: List[Any]
     ) -> Tuple[List[Any], List[Any]]:
-        # Call the forward pass
-        outs = fn(*primals)
-        # Get the inputs that need gradients
-        grad_primals = []
-        inputs_needs_grads = []
-        for p in primals:
-            is_grad_tensor = isinstance(p, Tensor) and p.requires_grad
-            inputs_needs_grads.append(is_grad_tensor)
-            if is_grad_tensor:
-                grad_primals.append(p)
+        use_new_impl = True
+        use_vjp = True
 
-        # Get the outputs that need gradients
-        assert len(tangents) == len(outs)
-        needed_outs = []
-        needed_tangents = []
-        for out, tangent in zip(outs, tangents):
-            if isinstance(out, Tensor) and out.requires_grad:
-                needed_outs.append(out)
-                needed_tangents.append(tangent)
-        backward_out = []
-        # Call the backwards pass
-        if grad_primals:
-            backward_out = torch.autograd.grad(
-                needed_outs,
-                grad_primals,
-                grad_outputs=needed_tangents,
-                allow_unused=True,
-            )
-        backward_out_iter = iter(backward_out)
-        return outs, [
-            next(backward_out_iter) if i else None for i in inputs_needs_grads
-        ]
+
+        if use_new_impl:
+            if use_vjp:
+                # Functionalize is called on the forward and backward functions
+                # separately. This is because the requires_grad information is lost here
+                # in primals if we call functionalize on top of make_fx.
+
+                # Check which primals require gradients 
+                primals_with_requires_grad = []
+                has_primal_require_grad = []
+                all_argnames = []
+                argnames = []
+                closure_eng = {}
+                for idx, p in enumerate(primals):
+                    is_grad_tensor = isinstance(p, Tensor) and p.requires_grad
+                    has_primal_require_grad.append(is_grad_tensor)
+                    name = None
+                    if is_grad_tensor:
+                        primals_with_requires_grad.append(p)
+                        name = f"inpgrad{idx}"
+                        argnames.append(name)
+                    else:
+                        name = f"inp_nograd{idx}"
+                        closure_eng[name] = p
+                    all_argnames.append(name)
+        
+                # Create a lambda that accepts only primals with requires_grad True. And
+                # the primals with requires_grad False are in the closure_eng.
+                closure_eng["fn"] = fn
+                args_string = ",".join(argnames)
+                all_args_string = ",".join(all_argnames)
+                fn_string = f"lambda {args_string}: fn({all_args_string})"
+                f_to_vjp = eval(fn_string, closure_eng)
+
+                # Functionalize and trace the forward
+                outs = functionalize(fn)(*primals)
+
+                for out in outs:
+                    if not isinstance(out, Tensor):
+                        assert False, "vjp expects all outputs to be Tensors"
+
+                # FIXME - vjp expects fn(*primals) to return only tensors. Is that a
+                # problem? So, the following code assumes that all outputs are tensors
+                # and requires_grad, and thus will have valid tangents.
+
+                # Get the backward functions using vjp. Using functionalize(fn) as an
+                # arg to vjp causes seg faults. Therefore, we had to directly call
+                # functionalize earlier.
+                _, backward_fn = vjp(f_to_vjp, *primals_with_requires_grad)
+
+                backward_outs = []
+                if len(primals_with_requires_grad):
+                    backward_outs = functionalize(backward_fn)(tangents)
+                backward_out_iter = iter(backward_outs)
+                return outs, [
+                    next(backward_out_iter) if i else None for i in has_primal_require_grad
+                ]
+            else: # Use new impl and torch.autograd.grad
+                # Call the forward pass
+                outs = functionalize(fn)(*primals)
+                # Get the inputs that need gradients
+                grad_primals = []
+                inputs_needs_grads = []
+                for p in primals:
+                    is_grad_tensor = isinstance(p, Tensor) and p.requires_grad
+                    inputs_needs_grads.append(is_grad_tensor)
+                    if is_grad_tensor:
+                        grad_primals.append(p)
+
+                # Get the outputs that need gradients
+                assert len(tangents) == len(outs)
+                needed_outs = []
+                needed_tangents = []
+                for out, tangent in zip(outs, tangents):
+                    if isinstance(out, Tensor) and out.requires_grad:
+                        needed_outs.append(out)
+                        needed_tangents.append(tangent)
+                backward_out = []
+                # Call the backwards pass
+                if grad_primals:
+                    grad_fn = lambda a, b, c: torch.autograd.grad(
+                        a, b, grad_outputs=c,
+                        allow_unused=True,
+                    )
+                    backward_out = functionalize(grad_fn)(
+                        needed_outs,
+                        grad_primals,
+                        needed_tangents)
+                backward_out_iter = iter(backward_out)
+                return outs, [
+                    next(backward_out_iter) if i else None for i in inputs_needs_grads
+                ]
+        else:
+            # Call the forward pass
+            outs = fn(*primals)
+            # Get the inputs that need gradients
+            grad_primals = []
+            inputs_needs_grads = []
+            for p in primals:
+                is_grad_tensor = isinstance(p, Tensor) and p.requires_grad
+                inputs_needs_grads.append(is_grad_tensor)
+                if is_grad_tensor:
+                    grad_primals.append(p)
+
+            # Get the outputs that need gradients
+            assert len(tangents) == len(outs)
+            needed_outs = []
+            needed_tangents = []
+            for out, tangent in zip(outs, tangents):
+                if isinstance(out, Tensor) and out.requires_grad:
+                    needed_outs.append(out)
+                    needed_tangents.append(tangent)
+            backward_out = []
+            # Call the backwards pass
+            if grad_primals:
+                backward_out = torch.autograd.grad(
+                    needed_outs,
+                    grad_primals,
+                    grad_outputs=needed_tangents,
+                    allow_unused=True,
+                )
+            backward_out_iter = iter(backward_out)
+            return outs, [
+                next(backward_out_iter) if i else None for i in inputs_needs_grads
+            ]
 
     return joint_forward_backward
 
@@ -127,6 +224,7 @@ def create_aot_autograd_function(
     The resulting compiled forward and backward graphs are then wrapped up in a
     ``torch.autograd.Function`` object.
     """
+
     joint_forward_backward = create_joint_forward_backward(flat_fn)
 
     compiled_fw = None
@@ -153,11 +251,15 @@ def create_aot_autograd_function(
                 joint_inputs = (flat_tensor_args, out)
                 aot_decompositions = {**aot_autograd_decompositions, **decompositions}
                 with torch.set_grad_enabled(grad_state):
+                    # fx_g = make_fx(joint_forward_backward, aot_decompositions)(
+                    #     *joint_inputs
+                    # )
                     fx_g = make_fx(joint_forward_backward, aot_decompositions)(
                         *joint_inputs
                     )
                 fw_module, bw_module = partition_fn(fx_g, joint_inputs)
-                # print(fw_module.code, bw_module.code)
+                print(fw_module.code)
+                print(bw_module.code)
 
                 compiled_fw = fw_compiler(fw_module, flat_tensor_args)
                 fw_outs = normalize_as_list(compiled_fw(*flat_tensor_args))
