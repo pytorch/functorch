@@ -16,6 +16,7 @@ import warnings
 import math
 from torch.testing._internal.common_device_type import instantiate_device_type_tests, onlyCPU
 from torch.testing._internal.common_dtype import get_all_fp_dtypes
+from torch.testing._internal.common_utils import IS_WINDOWS
 from functools import partial
 from functorch.experimental import replace_all_batch_norm_modules_
 
@@ -30,7 +31,9 @@ from functorch._src.make_functional import (
 )
 from functorch._src.eager_transforms import _argnums_partial, enable_fwd_grad
 from functorch.experimental import functionalize
-from functorch._src.custom_function import custom_vjp
+
+if not IS_WINDOWS:
+    from functorch._src.custom_function import custom_vjp
 
 # NB: numpy is a testing dependency!
 import numpy as np
@@ -849,7 +852,7 @@ class TestGradTransform(TestCase):
                         fn = op(fn)
 
                 expected = f"{repr(x)}"
-                level = 1
+                level = 0
                 for op in op_list:
                     level += 1
                     if op == grad:
@@ -1097,7 +1100,7 @@ class TestVmapOfGrad(TestCase):
         result = vmap(partial(grad(compute_loss), weights))(data, targets)
         for r, e in zip(result, expected):
             # TODO: Check if the rtol is a problem
-            self.assertEqual(r, e, atol=0, rtol=1e-4)
+            self.assertEqual(r, e, atol=0, rtol=1e-3)
 
     def test_log_softmax(self, device):
         x = torch.randn(3, 5, device=device)
@@ -1998,6 +2001,7 @@ class TestJvp(TestCase):
 
 
 class TestCustomFunction(TestCase):
+    @unittest.skipIf(IS_WINDOWS, "Prototype of custom_vjp doesn't link on windows")
     @onlyCPU
     def test_basic(self, device):
         called_impl = False
@@ -2775,6 +2779,9 @@ class TestFunctionalize(TestCase):
         actual_outputs = vmap(functionalize(f))(inpt2.unsqueeze(0))[0].squeeze()
         # Check that outputs are the same
         self.assertEqual(actual_outputs, expected_outputs)
+
+        # Inputs might have been mutated by f: check that they were mutated properly
+        self.assertEqual(inpt1, inpt2)
 
     def test_simple_view(self, device):
         def f(x: torch.Tensor) -> torch.Tensor:

@@ -1420,6 +1420,18 @@ class TestVmapOperators(Namespace.TestVmapBase):
         with self.assertRaisesRegex(RuntimeError, 'inplace'):
             vmap(Tensor.copy_, in_dims=(None, 0))(x, y)
 
+    def test_silu_backward(self):
+        test = self._vmap_test
+        device = 'cpu'
+        getter = TensorFactory.randp1
+        B0 = 7
+        op = torch.ops.aten.silu_backward
+
+        # Single vmap: op(Tensor, Tensor)
+        test(op, (getter([B0, 3], device), getter([B0, 3], device)))
+        test(op, (getter([], device), getter([B0], device)), in_dims=(None, 0))
+        test(op, (getter([2, B0], device), getter([2], device)), in_dims=(1, None))
+
     @parametrize('case', [
         subtest(_make_case(torch.add), name='add'),
         subtest(_make_case(lambda x, y: x + y), name='add_dunder'),
@@ -3103,9 +3115,17 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('nn.functional.fractional_max_pool2d'),
         xfail('nn.functional.embedding_bag'),
         xfail('nonzero'),
-        xfail('nn.functional.glu'),
         xfail('nn.functional.rrelu'),  # random?
         xfail('__rpow__'),  # https://github.com/pytorch/functorch/issues/617
+        xfail('bernoulli', ''),
+        xfail('nn.functional.feature_alpha_dropout', 'with_train'),
+        xfail('multinomial', ''),
+        xfail('column_stack', ''),
+        xfail('pca_lowrank', ''),
+        xfail('normal', ''),
+        xfail('nn.functional.dropout2d', ''),
+        xfail('normal', 'number_mean'),
+        xfail('svd_lowrank', ''),
     }
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
@@ -3230,13 +3250,25 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('nn.functional.fractional_max_pool2d'),
         xfail('stft'),
         xfail('linalg.solve_triangular'),
-        xfail('nn.functional.glu'),
-        xfail('nn.functional.prelu'),
         xfail('isclose'),
         xfail('nn.functional.fractional_max_pool3d'),
         xfail('nn.functional.bilinear'),
         xfail('nn.functional.embedding_bag'),
         xfail('linalg.tensorsolve'),
+        xfail('bernoulli', ''),
+        xfail('linalg.lu_factor', ''),
+        xfail('nn.functional.feature_alpha_dropout', 'with_train'),
+        xfail('nn.functional.kl_div', ''),
+        xfail('multinomial', ''),
+        xfail('column_stack', ''),
+        xfail('pca_lowrank', ''),
+        xfail('normal', ''),
+        xfail('nn.functional.dropout2d', ''),
+        xfail('normal', 'number_mean'),
+        xfail('svd_lowrank', ''),
+        xfail('linalg.lu_factor_ex', ''),
+        xfail('diagflat', ''),
+        xfail('special.log_ndtr'),
     }))
     def test_op_has_batch_rule(self, device, dtype, op):
         def test():
@@ -3473,8 +3505,11 @@ class TestRandomness(TestCase):
         return generator.set_state(orig_state) if use_generator else torch.manual_seed(seed)
 
     def _get_image(self, batched_input, batch_size, device):
-        if batched_input:
+        if batched_input == "first":
             return torch.ones([batch_size, 3, 3, 14, 14], device=device)
+        if batched_input == "last":
+            return torch.ones([3, 3, 14, 14, batch_size], device=device)
+        assert batched_input == "none"
         return torch.ones([3, 3, 14, 14], device=device)
 
     def _assert_all_slices_equal(self, tensor):
@@ -3488,22 +3523,31 @@ class TestRandomness(TestCase):
         slices_equal.diagonal().zero_()
         self.assertEqual(slices_equal, torch.zeros_like(slices_equal))
 
-    def _assert_throws_in_error_mode(self, fn, args, in_dims=0):
+    def _assert_throws_in_error_mode(self, fn, args, in_dims):
         with self.assertRaisesRegex(RuntimeError, r"called random operation while in randomness error mode"):
             vmap(fn, in_dims=in_dims, randomness="error")(*args)
 
-    def _assert_throws_in_different_mode_inplace(self, fn, args, in_dims=(None, 0)):
+    def _assert_throws_in_different_mode_inplace(self, fn, args, in_dims):
         with self.assertRaisesRegex(RuntimeError, r"different inplace randomness on an unbatched tensor"):
             vmap(fn, in_dims=in_dims, randomness="different")(*args)
 
-    def _assert_throws_in_same_mode_batched(self, fn, args, in_dims=0):
+    def _assert_throws_in_same_mode_batched(self, fn, args, in_dims):
         with self.assertRaisesRegex(RuntimeError,
                                     r"Vmap does not currently support same randomness with a batched tensor input"):
             vmap(fn, in_dims=in_dims, randomness="same")(*args)
 
-    def _in_dims(self, *batched):
-        batched = batched + (True,)  # for the always batched dummy argument
-        return tuple(0 if is_batched else None for is_batched in batched)
+    def _in_dims(self, *batched_strings):
+
+        def get_in_dim(batched_string):
+            if batched_string == "first":
+                return 0
+            if batched_string == "last":
+                return -1
+            assert batched_string == "none"
+            return None
+
+        batched_strings = batched_strings + ("first",)  # for the always batched as first dim dummy argument
+        return tuple(get_in_dim(batched_string) for batched_string in batched_strings)
 
     @parametrize('randomness', ['same', 'different', 'error'])
     @parametrize('use_generator', [True, False])
@@ -3574,7 +3618,7 @@ class TestRandomness(TestCase):
                 self.assertEqual(vmap_result[i], expected)
 
     @parametrize('randomness', ['error', 'same', 'different'])
-    @parametrize('batched_input', [True, False])
+    @parametrize('batched_input', ["first", "last", "none"])
     def test_dropout(self, device, randomness, batched_input):
         def op(t, ignored):
             return torch.nn.functional.dropout(torch.ones_like(t), training=True)
@@ -3605,7 +3649,7 @@ class TestRandomness(TestCase):
         self._assert_all_slices_equal(vmap_result)
 
     @parametrize('randomness', ['error', 'same', 'different'])
-    @parametrize('batched_input', [True, False])
+    @parametrize('batched_input', ["first", "last", "none"])
     def test_alpha_dropout(self, device, randomness, batched_input):
         def op(t, ignored):
             return torch.nn.functional.alpha_dropout(torch.ones_like(t), training=True)
@@ -3631,7 +3675,7 @@ class TestRandomness(TestCase):
         self._assert_all_slices_equal(vmap_result)
 
     @parametrize('randomness', ['error', 'same', 'different'])
-    @parametrize('batched_input', [True, False])
+    @parametrize('batched_input', ["first", "last", "none"])
     @parametrize('dim', [2, 3])
     def test_feature_dropout(self, device, randomness, batched_input, dim):
         def op(t, ignored):
@@ -3642,7 +3686,8 @@ class TestRandomness(TestCase):
         always_batched = torch.randn((B0,))
         passed = self._get_image(batched_input, B0, device)
         if dim == 3:
-            passed = passed.unsqueeze(-1)
+            unsqueeze_dim = -2 if batched_input == "last" else -1
+            passed = passed.unsqueeze(unsqueeze_dim)
         in_dims = self._in_dims(batched_input)
 
         if randomness == 'error':
@@ -3673,7 +3718,7 @@ class TestRandomness(TestCase):
         self._assert_all_slices_equal(vmap_result)
 
     @parametrize('randomness', ['error', 'same', 'different'])
-    @parametrize('batched_input', [True, False])
+    @parametrize('batched_input', ["first", "last", "none"])
     def test_feature_alpha_dropout(self, device, randomness, batched_input):
         def op(t, ignored):
             return torch.nn.functional.feature_alpha_dropout(torch.ones_like(t), training=True)
@@ -3681,7 +3726,8 @@ class TestRandomness(TestCase):
         B0 = 4
         always_batched = torch.randn((B0,))
         passed = self._get_image(batched_input, B0, device)
-        passed = passed.unsqueeze(-1)
+        unsqueeze_dim = -2 if batched_input == "last" else -1
+        passed = passed.unsqueeze(unsqueeze_dim)
         in_dims = self._in_dims(batched_input)
 
         if randomness == 'error':
@@ -3710,7 +3756,7 @@ class TestRandomness(TestCase):
         self._assert_all_slices_equal(vmap_result)
 
     @parametrize('randomness', ['error', 'same', 'different'])
-    @parametrize('batched_input', [True, False])
+    @parametrize('batched_input', ["first", "last", "none"])
     def test_like_functions(self, device, randomness, batched_input):
         seed = 1234567
         supported_ops = [
@@ -3724,7 +3770,6 @@ class TestRandomness(TestCase):
         for op in supported_ops:
             always_batched = torch.randn(B0)
             passed = self._get_image(batched_input, B0, device)
-            passed = passed.unsqueeze(-1)
             in_dims = self._in_dims(batched_input)
 
             if randomness == 'error':
@@ -3736,8 +3781,11 @@ class TestRandomness(TestCase):
             vmap_result = vmap(op, randomness=randomness, in_dims=in_dims)(passed, always_batched)
 
             torch.manual_seed(seed)
+
+            if batched_input == "last":
+                passed = passed.movedim(-1, 0)
             if randomness == 'different':
-                if not batched_input:
+                if batched_input == "none":
                     passed = passed.expand(B0, *passed.shape)
                 expected = op(passed, 0)
 
@@ -3746,7 +3794,8 @@ class TestRandomness(TestCase):
                 return
 
             assert randomness == 'same'
-            passed = passed if not batched_input else passed[0]
+            if batched_input != "none":
+                passed = passed[0]
             expected = op(passed, 0)
             self._assert_all_slices_equal(vmap_result)
             for i in range(B0):
@@ -3754,7 +3803,7 @@ class TestRandomness(TestCase):
 
     @parametrize('use_generator', [True, False])
     @parametrize('randomness', ['error', 'same', 'different'])
-    @parametrize('batched_input', [True, False])
+    @parametrize('batched_input', ["first", "last", "none"])
     def test_random_unary_inplace(self, device, use_generator, randomness, batched_input):
         generator = torch.Generator(device=device)
         orig_state = generator.get_state()
@@ -3784,21 +3833,23 @@ class TestRandomness(TestCase):
             if randomness == 'error':
                 self._assert_throws_in_error_mode(op, (passed, always_batched), in_dims=in_dims)
                 return
-            if randomness == 'different' and not batched_input:
-                self._assert_throws_in_different_mode_inplace(op, (passed, always_batched))
+            if randomness == 'different' and batched_input == "none":
+                self._assert_throws_in_different_mode_inplace(op, (passed, always_batched), in_dims=in_dims)
                 return
 
             generator = self._reset_random(generator, orig_state, use_generator, seed)
             vmap_result = vmap(op, in_dims=in_dims, randomness=randomness)(passed, always_batched)
 
+            if batched_input == "last":
+                passed_expected = passed_expected.movedim(-1, 0)
             generator = self._reset_random(generator, orig_state, use_generator, seed)
             if randomness == "different":
                 expected = op(passed_expected, always_batched)
                 self._assert_all_slices_unique(vmap_result)
                 self.assertEqual(vmap_result, expected)
             else:
-                if batched_input:
-                    passed_expected = passed_expected[0]
+                if batched_input != "none":
+                    passed_expected = passed_expected[0].clone()  # bug in pytorch, normal_ on views doesn't work
                 expected = op(passed_expected, always_batched)
                 self._assert_all_slices_equal(vmap_result)
                 for i in range(B0):
@@ -3806,8 +3857,8 @@ class TestRandomness(TestCase):
 
     @parametrize('use_generator', [True, False])
     @parametrize('randomness', ['error', 'same', 'different'])
-    @parametrize('batched_input', [True, False])
-    @parametrize('batched_probability', [True, False])
+    @parametrize('batched_input', ["first", "last", "none"])
+    @parametrize('batched_probability', ["first", "last", "none"])
     def test_bernoulli_in_place(self, device, use_generator, randomness, batched_input, batched_probability):
         B0 = 4
         seed = 1234567
@@ -3828,15 +3879,15 @@ class TestRandomness(TestCase):
         if randomness == 'error':
             self._assert_throws_in_error_mode(op, (input, probability, always_batched), in_dims=in_dims)
             return
-        if randomness == 'same' and batched_probability:
+        if randomness == 'same' and batched_probability != "none":
             self._assert_throws_in_same_mode_batched(op, (input, probability, always_batched), in_dims=in_dims)
             return
-        if not batched_input and batched_probability:
+        if batched_input == "none" and batched_probability != "none":
             regex = r"there exists a Tensor `other` in extra_args that has more elements than `self`"
             with self.assertRaisesRegex(RuntimeError, regex):
                 vmap(op, in_dims=in_dims, randomness=randomness)(input, probability, always_batched)
             return
-        if randomness == 'different' and not batched_input:
+        if randomness == 'different' and batched_input == "none":
             self._assert_throws_in_different_mode_inplace(op, (input, probability, always_batched), in_dims=in_dims)
             return
 
@@ -3844,12 +3895,16 @@ class TestRandomness(TestCase):
         vmap_result = vmap(op, in_dims=in_dims, randomness=randomness)(input, probability, always_batched)
 
         self._reset_random(generator, orig_state, use_generator, seed)
+        if batched_input == "last":
+            input_expected = input_expected.movedim(-1, 0)
+        if batched_probability == "last":
+            probability = probability.movedim(-1, 0)
         if randomness == "different":
             expected = op(input_expected, probability, always_batched)
             self._assert_all_slices_unique(vmap_result)
             self.assertEqual(vmap_result, expected)
         else:
-            if batched_input:
+            if batched_input != "none":
                 input_expected = input_expected[0]
             expected = op(input_expected, probability, always_batched)
             self._assert_all_slices_equal(vmap_result)
@@ -3858,8 +3913,8 @@ class TestRandomness(TestCase):
 
     @parametrize('use_generator', [True, False])
     @parametrize('randomness', ['error', 'same', 'different'])
-    @parametrize('batched_input', [True, False])
-    @parametrize('batched_other', [True, False])
+    @parametrize('batched_input', ["first", "last", "none"])
+    @parametrize('batched_other', ["first", "last", "none"])
     def test_random_binary_out_of_place(self, device, use_generator, randomness, batched_input, batched_other):
         generator = torch.Generator(device=device)
         orig_state = generator.get_state()
@@ -3881,23 +3936,27 @@ class TestRandomness(TestCase):
             if randomness == 'error':
                 self._assert_throws_in_error_mode(op, (input, other, always_batched), in_dims=in_dims)
                 return
-            if randomness == 'same' and (batched_input or batched_other):
+            if randomness == 'same' and (batched_input != "none" or batched_other != "none"):
                 self._assert_throws_in_same_mode_batched(op, (input, other, always_batched), in_dims=in_dims)
                 return
 
             generator = self._reset_random(generator, orig_state, use_generator, seed)
             vmap_result = vmap(op, in_dims=in_dims, randomness=randomness)(input, other, always_batched)
 
+            if batched_input == "last":
+                input = input.movedim(-1, 0)
+            if batched_other == "last":
+                other = other.movedim(-1, 0)
+
             generator = self._reset_random(generator, orig_state, use_generator, seed)
             if randomness == "different":
-                if not batched_input:
+                if batched_input == "none":
                     input = input.expand(B0, *input.shape)
                 expected = op(input, other, always_batched)
                 self._assert_all_slices_unique(vmap_result)
                 self.assertEqual(vmap_result, expected)
             else:
-                if batched_input:
-                    input = input[0]
+                assert batched_input == "none" and batched_other == "none"
                 expected = op(input, other, always_batched)
                 self._assert_all_slices_equal(vmap_result)
                 for i in range(B0):
@@ -3905,7 +3964,7 @@ class TestRandomness(TestCase):
 
     @parametrize('use_generator', [True, False])
     @parametrize('randomness', ['error', 'same', 'different'])
-    @parametrize('batched_input', [True, False])
+    @parametrize('batched_input', ["first", "last", "none"])
     def test_random_unary_out_of_place(self, device, use_generator, randomness, batched_input):
         generator = torch.Generator(device=device)
         orig_state = generator.get_state()
@@ -3920,25 +3979,18 @@ class TestRandomness(TestCase):
             lambda t, _: torch.poisson(t, **kwargs),
         ]
 
-        # TODO(samdow): fix multinomial and readd
-        def flatten_op(t, ignored):
-            return torch.multinomial(t, 10, **kwargs)
-
         B0 = 4
         seed = 1234567
-        in_dims = 0 if batched_input else (None, 0)
+        in_dims = self._in_dims(batched_input)
 
         for op in ops:
             always_batched = torch.randn(B0, device=device)
             passed = self._get_image(batched_input, B0, device)
-            if op == flatten_op:
-                passed = passed.flatten(1, -1)
-
             if randomness == 'error':
                 self._assert_throws_in_error_mode(op, (passed, always_batched), in_dims=in_dims)
                 return
-            if randomness == 'same' and batched_input:
-                self._assert_throws_in_same_mode_batched(op, (passed, always_batched))
+            if randomness == 'same' and batched_input != "none":
+                self._assert_throws_in_same_mode_batched(op, (passed, always_batched), in_dims=in_dims)
                 return
 
             generator = self._reset_random(generator, orig_state, use_generator, seed)
@@ -3946,8 +3998,10 @@ class TestRandomness(TestCase):
 
             generator = self._reset_random(generator, orig_state, use_generator, seed)
             if randomness == "different":
-                if not batched_input:
+                if batched_input == "none":
                     passed = passed.expand(B0, *passed.shape)
+                if batched_input == "last":
+                    passed = passed.movedim(-1, 0)
                 expected = op(passed, always_batched)
                 self._assert_all_slices_unique(vmap_result)
                 self.assertEqual(vmap_result, expected)
@@ -3956,6 +4010,72 @@ class TestRandomness(TestCase):
                 self._assert_all_slices_equal(vmap_result)
                 for i in range(B0):
                     self.assertEqual(vmap_result[i], expected)
+
+    @parametrize('use_generator', [True, False])
+    @parametrize('randomness', ['error', 'same', 'different'])
+    @parametrize('batched_call', [True, False])
+    @parametrize('batched_input', ["first", "last", "none"])
+    def test_multinomial(self, device, use_generator, randomness, batched_call, batched_input):
+        def flatten_input(input, batch_call, batch_location):
+            if batch_call and batch_location != "none":
+                final_size = 3  # [B0, B, N]
+            elif not batch_call and batch_location == "none":
+                final_size = 1  # [N]
+            else:
+                final_size = 2  # [B0, N] or [B, N]
+
+            start_idx = final_size - 1
+            end_idx = -1
+            if batch_location == "last":
+                start_idx -= 1
+                end_idx -= 1   # gets to correct final size because using negative indices
+
+            ret = input.flatten(start_idx, end_idx)
+            assert ret.dim() == final_size
+            return ret
+
+        def op(input, _):
+            return torch.multinomial(input, 10, **kwargs)
+
+        generator = torch.Generator(device=device)
+        orig_state = generator.get_state()
+        kwargs = {'generator': generator} if use_generator else {}
+
+        B0 = 4
+        seed = 1234567
+        in_dims = self._in_dims(batched_input)
+
+        always_batched = torch.randn(B0, device=device)
+        passed = self._get_image(batched_input, B0, device)
+        passed = flatten_input(passed, batched_call, batched_input)
+        if randomness == 'error':
+            self._assert_throws_in_error_mode(op, (passed, always_batched), in_dims=in_dims)
+            return
+        if randomness == 'same' and batched_input != "none":
+            self._assert_throws_in_same_mode_batched(op, (passed, always_batched), in_dims=in_dims)
+            return
+
+        generator = self._reset_random(generator, orig_state, use_generator, seed)
+        vmap_result = vmap(op, in_dims=in_dims, randomness=randomness)(passed, always_batched)
+
+        generator = self._reset_random(generator, orig_state, use_generator, seed)
+
+        if randomness == "different":
+            if batched_input == "none":
+                passed = passed.expand(B0, *passed.shape)
+            if batched_input == "last":
+                passed = passed.movedim(-1, 0)
+            orig_passed_size = passed.shape[:2] if batched_call else passed.shape[:1]
+            passed = passed.flatten(0, 1) if batched_call else passed
+            expected = op(passed, always_batched)
+            expected.reshape(*orig_passed_size, 10)
+            self._assert_all_slices_unique(vmap_result)
+            self.assertEqual(vmap_result, expected)
+        else:
+            expected = op(passed, always_batched)
+            self._assert_all_slices_equal(vmap_result)
+            for i in range(B0):
+                self.assertEqual(vmap_result[i], expected)
 
     def test_unsupported_random(self, device):
         x = torch.randn(3, device=device)

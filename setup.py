@@ -71,12 +71,12 @@ class clean(distutils.command.clean.clean):
 def get_extensions():
     extension = CppExtension
 
-    define_macros = []
+    # See functorch/csrc/Macros.h
+    define_macros = [('FUNCTORCH_BUILD_MAIN_LIB', None)]
 
     extra_link_args = []
     extra_compile_args = {"cxx": [
         "-O3",
-        "-g",
         "-std=c++14",
         "-fdiagnostics-color=always",
     ]}
@@ -118,8 +118,10 @@ def get_extensions():
 
 class BuildExtension_(BuildExtension):
     def build_extensions(self, *args, **kwargs):
-        if '-Wstrict-prototypes' in self.compiler.compiler_so:
-            self.compiler.compiler_so.remove('-Wstrict-prototypes')
+        # It turns out for windows this isn't populated?
+        if hasattr(self.compiler, 'compiler_so'):
+            if '-Wstrict-prototypes' in self.compiler.compiler_so:
+                self.compiler.compiler_so.remove('-Wstrict-prototypes')
         super().build_extensions(*args, **kwargs)
 
 
