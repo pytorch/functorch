@@ -2876,19 +2876,25 @@ def forward(self, x_1) -> torch.Tensor:
 
         def f(inpt: torch.Tensor) -> torch.Tensor:
             out = torch.empty((), dtype=torch.float32)
+            torch.add(inpt, inpt, out=out)
             out_view = out.view(4)
-            torch.add(inpt, inpt, out=out_view)
+            out_view.add_(1)
             return out
 
-        out = make_fx(functionalize(f, remove='mutations_and_views'))(torch.arange(4, device=device, dtype=torch.float32))
+        fn = make_fx(functionalize(f, remove='mutations_and_views'))
+        out = fn(torch.arange(4, device=device, dtype=torch.float32))
         self.assertExpectedInline(out.code, """\
 
 
 
 def forward(self, inpt_1) -> torch.Tensor:
     add = torch.ops.aten.add(inpt_1, inpt_1);  inpt_1 = None
-    view_copy = torch.ops.aten.view_copy(add, [2, 2]);  add = None
-    return view_copy
+    view_copy = torch.ops.aten.view_copy(add, [4])
+    view_copy_1 = torch.ops.aten.view_copy(add, [4]);  add = None
+    _tensor_constant0 = self._tensor_constant0
+    add_1 = torch.ops.aten.add(view_copy_1, _tensor_constant0);  view_copy_1 = _tensor_constant0 = None
+    view_copy_2 = torch.ops.aten.view_copy(add_1, [4]);  add_1 = None
+    return view_copy_2
     """)
 
     def test_functionalize_fx_multi_out_op(self, device):
@@ -2901,7 +2907,8 @@ def forward(self, inpt_1) -> torch.Tensor:
             torch.aminmax(inpt_view, dim=0, out=(mins, maxs_view))
             return (maxs, mins)
 
-        out = make_fx(functionalize(f, remove='mutations_and_views'))(torch.arange(8, device=device, dtype=torch.float32))
+        fn = make_fx(functionalize(f, remove='mutations_and_views'))
+        out = fn(torch.arange(8, device=device, dtype=torch.float32))
         self.assertExpectedInline(out.code, """\
 
 
@@ -2922,6 +2929,7 @@ def forward(self, inpt_1) -> torch.Tensor:
             y = x.view(4, 2)
             y.add_(tmp)
             return x
+
         out = make_fx(functionalize(f))(torch.zeros(4, 2, device=device))
         self.assertExpectedInline(out.code, """\
 
@@ -2929,11 +2937,13 @@ def forward(self, inpt_1) -> torch.Tensor:
 
 def forward(self, x_1) -> torch.Tensor:
     view = torch.ops.aten.view(x_1, [4, 2])
+    detach = torch.ops.aten.detach(view);  view = None
     _tensor_constant0 = self._tensor_constant0
-    add = torch.ops.aten.add(view, _tensor_constant0);  view = _tensor_constant0 = None
+    add = torch.ops.aten.add(detach, _tensor_constant0);  detach = _tensor_constant0 = None
     view_1 = torch.ops.aten.view(add, [4, 2]);  add = None
-    copy_ = torch.ops.aten.copy_(x_1, view_1);  x_1 = None
-    return view_1
+    detach_1 = torch.ops.aten.detach(view_1);  view_1 = None
+    copy_ = torch.ops.aten.copy_(x_1, detach_1);  x_1 = None
+    return detach_1
     """)
 
 

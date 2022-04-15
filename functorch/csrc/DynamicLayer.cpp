@@ -557,7 +557,7 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
   auto num_args = op.schema().arguments().size();
   foreachTensorInplace(*stack, stack->size() - num_args, stack->size(), maybeTransformGradWrappers);
 
-  auto layer& = dynamicLayerStack.back();
+  auto& layer = dynamicLayerStack.back();
 
   DispatchKeySet exclude = keysToExcludeWhenEnteringDynamicLayer(layer.key());
   DispatchKeySet hacky_include;

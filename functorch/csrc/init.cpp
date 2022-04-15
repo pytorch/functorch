@@ -53,7 +53,7 @@ void _propagate_functional_input_mutation(const Tensor& unwrapped, const Tensor&
   TORCH_INTERNAL_ASSERT(!at::functionalization::impl::isFunctionalTensor(unwrapped));
   auto wrapped_impl = at::functionalization::impl::unsafeGetFunctionalWrapper(wrapped);
   // Ensure that the input is up to date by committing any pending updates to the alias.
-  auto any_updates = wrapped_impl->apply_updates();
+  bool any_updates = wrapped_impl->apply_updates();
   if (any_updates) {
     wrapped_impl->regenerate_from_base();
   }
@@ -142,21 +142,15 @@ Tensor _unwrap_functional_tensor(const Tensor& self, bool add_back_views) {
   // should always be wrapped in a FunctionalTensorWrapper.
   TORCH_INTERNAL_ASSERT(at::functionalization::impl::isFunctionalTensor(self));
   auto functional = at::functionalization::impl::unsafeGetFunctionalWrapper(self);
-  if (add_back_views) {
-    // when regenerating the (potentially mutated) input tensors, the functionalization pass
-    // regenerates them through a series of view_copy() op calls.
-    // Functorch wants to turn those back into view ops though.
-    at::functionalization::impl::FunctionalizationReapplyViewsGuard guard(functionalization_add_back_views);
-    // Ensure that the input is up to date by committing any pending updates to the alias.
-    auto any_updates = functional->apply_updates();
-    if (any_updates) {
-      functional->regenerate_from_base();
-    }
-  } else {
-    auto any_updates = functional->apply_updates();
-    if (any_updates) {
-      functional->regenerate_from_base();
-    }
+
+  // when regenerating the (potentially mutated) input tensors, the functionalization pass
+  // regenerates them through a series of view_copy() op calls.
+  // Functorch wants to turn those back into view ops though.
+  // Ensure that the input is up to date by committing any pending updates to the alias.
+  at::functionalization::impl::FunctionalizationReapplyViewsGuard guard(add_back_views);
+  bool any_updates = functional->apply_updates();
+  if (any_updates) {
+    functional->regenerate_from_base();
   }
   return functional->value();
 }
