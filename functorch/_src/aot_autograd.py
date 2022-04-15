@@ -58,6 +58,7 @@ def create_joint_forward_backward(fn):
     ) -> Tuple[List[Any], List[Any]]:
         # Call the forward pass
         outs = functionalize(fn)(*primals)
+        # outs = fn(*primals)
         # Get the inputs that need gradients
         grad_primals = []
         inputs_needs_grads = []
@@ -160,11 +161,19 @@ def create_aot_autograd_function(
                     # Functionalize the foward backward graph
                     def f_to_functionalize(primals, tangents):
                         return fx_g(primals, tangents)
-                    fx_g = make_fx(functionalize(f_to_functionalize))(*joint_inputs)
-                    print(fx_g)
+                    try:
+                        fx_g = make_fx(functionalize(f_to_functionalize))(*joint_inputs)
+                    except:
+                        print("primals_size = ", [x.size() for x in joint_inputs[0]])
+                        print("primals_dtype = ", [x.dtype for x in joint_inputs[0]])
+                        print("tangents_size = ", [x.size() for x in joint_inputs[1]])
+                        print("tangents_dtype = ", [x.dtype for x in joint_inputs[1]])
+                        print(fx_g)
+                        fx_g.to_folder("failing_module_bart")
+                        raise
                 fw_module, bw_module = partition_fn(fx_g, joint_inputs)
-                print(fw_module.code)
-                print(bw_module.code)
+                # print(fw_module.code)
+                # print(bw_module.code)
 
                 compiled_fw = fw_compiler(fw_module, flat_tensor_args)
                 fw_outs = normalize_as_list(compiled_fw(*flat_tensor_args))
@@ -600,6 +609,7 @@ def aot_module_simplified(mod: nn.Module, *top_args, **top_kwargs) -> nn.Module:
         return compiled_fn
 
     compiled_f = aot_function_simplified(functional_call, *top_args, **top_kwargs)
+    print("Sending this mod to AOT ", mod)
 
     class AOTModule(nn.Module):
         def __init__(self):
@@ -607,6 +617,8 @@ def aot_module_simplified(mod: nn.Module, *top_args, **top_kwargs) -> nn.Module:
             self.orig_module = mod
 
         def forward(self, *args, **kwargs):
+            print("sizes = ", [x.size() for x in args])
+            print("dtypes = ", [x.dtype for x in args])
             return compiled_f(
                 *params_flat,
                 *args,
