@@ -24,7 +24,6 @@ constexpr DispatchKeySet all_dynlayer_keyset = DispatchKeySet({
   kDynamicLayerBackModeKey,
   kGradWrapperKey,
   DispatchKey::Functionalize,
-  DispatchKey::FunctionalizeAddBackViews,
   // DispatchKey::Batched,
   kBatchedKey,
   DispatchKey::PythonTLSSnapshot,
@@ -562,6 +561,9 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
 
   DispatchKeySet exclude = keysToExcludeWhenEnteringDynamicLayer(layer.key());
   DispatchKeySet hacky_include;
+
+  bool functionalization_add_back_views = false;
+
   // hack
   if (layer.key() == kBatchedKey) {
     hacky_include = hacky_include.add(kVmapModeKey);
@@ -570,21 +572,17 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
     // It's the responsibility of the functionalization kernel to no-op and redispatch
     // if none of the input tensors are functional.
     hacky_include = hacky_include | DispatchKeySet({DispatchKey::Functionalize});
-    auto add_back_views = layer.functionalizeAddBackViews().has_value() && *(layer.functionalizeAddBackViews());
-    if (add_back_views) {
-      // The reason we need FunctionalizeAddBackViews in the include set, and can't rely on
-      // it being on the tensors args, is because our dispatch chain goes:
-      // FrontMode (wrapped) -> Functionalize (wrapped) -> AddBackViews (unwrapped) -> BackMode (unwrapped)
-      // The functionalization kernels unwrap the functional wrappers, and we don't want to rely on
-      // the inner tensor having the FunctionalizeAddBackViews key, so we just put it in TLS.
-      hacky_include = hacky_include.add(DispatchKey::FunctionalizeAddBackViews);
-      exclude = exclude.remove(DispatchKey::FunctionalizeAddBackViews);
-    }
+    functionalization_add_back_views = layer.functionalizeAddBackViews().has_value() && *(layer.functionalizeAddBackViews());
   }
   auto local_keyset = c10::impl::tls_local_dispatch_key_set();
   local_keyset.excluded_ = local_keyset.excluded_ | exclude;
   local_keyset.included_ = local_keyset.included_ | hacky_include;
   c10::impl::_force_tls_local_dispatch_key_set(local_keyset);
+  // Only matters for functionalization.
+  // We have some side-car TLS that we can set to toggle the functionaliation behavior.
+  // If set, then we functionalization will only remove mutations, instead of
+  // removing both mutations AND view operators.
+  at::functionalization::impl::FunctionalizationReapplyViewsGuard functional_guard(functionalization_add_back_views);
 
 #ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
   if (c10::show_dispatch_trace_enabled()) {

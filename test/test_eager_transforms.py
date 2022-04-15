@@ -2777,11 +2777,12 @@ class TestFunctionalize(TestCase):
         inpt3 = inpt.clone()
 
         expected_outputs = f(inpt1)
-        actual_outputs = vmap(functionalize(f, reapply_views=True))(inpt2.unsqueeze(0))[0].squeeze()
-        # Right now the vanilla functionalize test isn't being used with vmap
+        actual_outputs = vmap(functionalize(f))(inpt2.unsqueeze(0))[0].squeeze()
+        # Right now the flavor of functionalize that also removes view ops
+        # isn't being used with vmap
         # That's because {view}_copy ops don't have batching rules yet
         # (although we should probably fix that)
-        actual_outputs_view_copy = functionalize(f)(inpt3)
+        actual_outputs_view_copy = functionalize(f, remove='mutations_and_views')(inpt3)
         # Check that outputs are the same
         self.assertEqual(actual_outputs, expected_outputs)
         self.assertEqual(actual_outputs_view_copy, expected_outputs)
@@ -2790,8 +2791,7 @@ class TestFunctionalize(TestCase):
         self.assertEqual(inpt1, inpt2)
         self.assertEqual(inpt1, inpt3)
 
-    def test_simple_view(self):
-        device = 'cpu'
+    def test_simple_view(self, device):
 
         def f(x: torch.Tensor) -> torch.Tensor:
             tmp = torch.ones(2, device=device)
@@ -2800,8 +2800,7 @@ class TestFunctionalize(TestCase):
             return x
         self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
 
-    def test_multioutput_view(self):
-        device = 'cpu'
+    def test_multioutput_view(self, device):
 
         def f(x: torch.Tensor) -> torch.Tensor:
             tmp = torch.ones(2, device=device)
@@ -2811,8 +2810,7 @@ class TestFunctionalize(TestCase):
             return x
         self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
 
-    def test_inplace_view(self):
-        device = 'cpu'
+    def test_inplace_view(self, device):
 
         def f(x: torch.Tensor) -> torch.Tensor:
             tmp = torch.ones(4, device=device)
@@ -2823,8 +2821,7 @@ class TestFunctionalize(TestCase):
             return y
         self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
 
-    def test_multioutput_inplace_slice_view(self):
-        device = 'cpu'
+    def test_multioutput_inplace_slice_view(self, device):
 
         def f(x: torch.Tensor) -> torch.Tensor:
             tmp = torch.ones(2, 2, device=device)
@@ -2838,8 +2835,7 @@ class TestFunctionalize(TestCase):
             return x
         self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
 
-    def test_functionalize_fx_simple(self):
-        device = 'cpu'
+    def test_functionalize_fx_simple(self, device):
 
         def f(x: torch.Tensor) -> torch.Tensor:
             tmp = torch.ones(2, device=device)
@@ -2848,7 +2844,7 @@ class TestFunctionalize(TestCase):
             return x
         # There's a copy_ in the graph, because the input (x) was mutated.
         # To preserve semantics, functionalize() needs to propagate the mutation.
-        out = make_fx(functionalize(f))(torch.zeros(4, 2, device=device))
+        out = make_fx(functionalize(f, remove='mutations_and_views'))(torch.zeros(4, 2, device=device))
         self.assertExpectedInline((out.code), """\
 
 
@@ -2862,12 +2858,11 @@ def forward(self, x_1) -> torch.Tensor:
     return view_copy_1
     """)
 
-    def test_functionalize_fx_transpose_simple(self):
-        device = 'cpu'
+    def test_functionalize_fx_transpose_simple(self, device):
 
         def f(x: torch.Tensor) -> torch.Tensor:
             return x.transpose(1, 0)
-        out = make_fx(functionalize(f))(torch.zeros(4, 2, device=device))
+        out = make_fx(functionalize(f, remove='mutations_and_views'))(torch.zeros(4, 2, device=device))
         self.assertExpectedInline(out.code, """\
 
 
@@ -2877,16 +2872,15 @@ def forward(self, x_1) -> torch.Tensor:
     return transpose_copy
     """)
 
-    def test_functionalize_fx_out_op(self):
-        device = 'cpu'
+    def test_functionalize_fx_out_op(self, device):
 
         def f(inpt: torch.Tensor) -> torch.Tensor:
-            out = torch.empty(2, 2, dtype=torch.float32)
+            out = torch.empty((), dtype=torch.float32)
             out_view = out.view(4)
             torch.add(inpt, inpt, out=out_view)
             return out
 
-        out = make_fx(functionalize(f))(torch.arange(4, device=device, dtype=torch.float32))
+        out = make_fx(functionalize(f, remove='mutations_and_views'))(torch.arange(4, device=device, dtype=torch.float32))
         self.assertExpectedInline(out.code, """\
 
 
@@ -2897,8 +2891,7 @@ def forward(self, inpt_1) -> torch.Tensor:
     return view_copy
     """)
 
-    def test_functionalize_fx_multi_out_op(self):
-        device = 'cpu'
+    def test_functionalize_fx_multi_out_op(self, device):
 
         def f(inpt: torch.Tensor) -> torch.Tensor:
             mins = torch.empty(4, dtype=torch.float32)
@@ -2908,7 +2901,7 @@ def forward(self, inpt_1) -> torch.Tensor:
             torch.aminmax(inpt_view, dim=0, out=(mins, maxs_view))
             return (maxs, mins)
 
-        out = make_fx(functionalize(f))(torch.arange(8, device=device, dtype=torch.float32))
+        out = make_fx(functionalize(f, remove='mutations_and_views'))(torch.arange(8, device=device, dtype=torch.float32))
         self.assertExpectedInline(out.code, """\
 
 
@@ -2922,15 +2915,14 @@ def forward(self, inpt_1) -> torch.Tensor:
     return (view_copy_1, getitem)
     """)
 
-    def test_functionalize_fx_reapply_views_simple(self):
-        device = 'cpu'
+    def test_functionalize_fx_reapply_views_simple(self, device):
 
         def f(x: torch.Tensor) -> torch.Tensor:
             tmp = torch.ones(2, device=device)
             y = x.view(4, 2)
             y.add_(tmp)
             return x
-        out = make_fx(functionalize(f, reapply_views=True))(torch.zeros(4, 2, device=device))
+        out = make_fx(functionalize(f))(torch.zeros(4, 2, device=device))
         self.assertExpectedInline(out.code, """\
 
 
@@ -2983,6 +2975,11 @@ instantiate_device_type_tests(
 )
 instantiate_device_type_tests(
     TestCustomFunction,
+    globals(),
+    only_for=only_for,
+)
+instantiate_device_type_tests(
+    TestFunctionalize,
     globals(),
     only_for=only_for,
 )

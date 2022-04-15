@@ -1216,7 +1216,21 @@ def _unwrap_all_tensors_from_functional(tensor_pytree, *, reapply_views: bool):
     return tree_map(lambda t: _maybe_unwrap_functional_tensor(t, reapply_views=reapply_views), tensor_pytree)
 
 
-def functionalize(func: Callable, *, reapply_views: bool = False) -> Callable:
+def functionalize(func: Callable, *, remove: str = 'mutations') -> Callable:
+    if remove == 'mutations':
+        reapply_views = True
+    elif remove == 'mutations_and_views':
+        reapply_views = False
+    else:
+        raise RuntimeError(
+            f"functionalize(f, remove='mutations'): received invalid argument for remove={remove}."
+            " Valid options are:\n"
+            "     remove='mutations': all inplace and out= operators will be removed from the program, and replaced"
+            " with their out-of-place equivalents.\n"
+            "     remove='mutations_and_views': In addition to the above, all aliasing operators {view} will be"
+            " replaced with their non-aliasing counterparts, {view}_copy.\n"
+        )
+
     @wraps(func)
     def wrapped(*args, **kwargs):
         try:
