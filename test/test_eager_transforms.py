@@ -16,6 +16,7 @@ import warnings
 import math
 from torch.testing._internal.common_device_type import instantiate_device_type_tests, onlyCPU
 from torch.testing._internal.common_dtype import get_all_fp_dtypes
+from torch.testing._internal.common_utils import IS_WINDOWS
 from functools import partial
 from functorch.experimental import replace_all_batch_norm_modules_
 
@@ -23,13 +24,16 @@ import functorch
 from functorch import (
     grad, vjp, vmap, jacrev, jacfwd, grad_and_value, hessian,
     jvp, make_functional, make_functional_with_buffers,
-    combine_state_for_ensemble,
+    combine_state_for_ensemble, make_fx
 )
 from functorch._src.make_functional import (
     functional_init, functional_init_with_buffers,
 )
-from functorch._src.eager_transforms import _argnums_partial
-from functorch._src.custom_function import custom_vjp
+from functorch._src.eager_transforms import _argnums_partial, enable_fwd_grad
+from functorch.experimental import functionalize
+
+if not IS_WINDOWS:
+    from functorch._src.custom_function import custom_vjp
 
 # NB: numpy is a testing dependency!
 import numpy as np
@@ -848,7 +852,7 @@ class TestGradTransform(TestCase):
                         fn = op(fn)
 
                 expected = f"{repr(x)}"
-                level = 1
+                level = 0
                 for op in op_list:
                     level += 1
                     if op == grad:
@@ -1096,7 +1100,7 @@ class TestVmapOfGrad(TestCase):
         result = vmap(partial(grad(compute_loss), weights))(data, targets)
         for r, e in zip(result, expected):
             # TODO: Check if the rtol is a problem
-            self.assertEqual(r, e, atol=0, rtol=1e-4)
+            self.assertEqual(r, e, atol=0, rtol=1e-3)
 
     def test_log_softmax(self, device):
         x = torch.randn(3, 5, device=device)
@@ -1891,8 +1895,113 @@ class TestJvp(TestCase):
             with self.assertRaisesRegex(RuntimeError, r"Expected tensors, got unsupported type"):
                 _ = jvp(lambda x: (x, [x, aux]), (x, ), (t, ), has_aux=True)
 
+    def test_fwd_grad_enabled(self, device):
+        # Tests some private helper functions to enable/disable fwd grad mode
+        enabled = functorch._C.get_fwd_grad_enabled()
+        self.assertTrue(enabled)
+
+        try:
+            functorch._C.set_fwd_grad_enabled(False)
+            enabled = functorch._C.get_fwd_grad_enabled()
+            self.assertFalse(enabled)
+        finally:
+            functorch._C.set_fwd_grad_enabled(True)
+
+        enabled = functorch._C.get_fwd_grad_enabled()
+        self.assertTrue(enabled)
+
+    def test_autograd_function_disables_fwd_grad(self, device):
+        # Sanity check. We don't really assume this anywhere so
+        # it's fine if this breaks one day.
+        class MySquare(torch.autograd.Function):
+            @staticmethod
+            def forward(ctx, x):
+                enabled = functorch._C.get_fwd_grad_enabled()
+                self.assertFalse(enabled)
+                return x * x
+
+            @staticmethod
+            def backward(ctx, gx):
+                return gx
+
+        x = torch.randn(3, requires_grad=True)
+        MySquare.apply(x)
+
+    def test_enable_fwd_grad(self, device):
+        # Tests a private helper function
+        try:
+            functorch._C.set_fwd_grad_enabled(False)
+            enabled = functorch._C.get_fwd_grad_enabled()
+            self.assertFalse(enabled)
+
+            with enable_fwd_grad():
+                enabled = functorch._C.get_fwd_grad_enabled()
+                self.assertTrue(enabled)
+
+            enabled = functorch._C.get_fwd_grad_enabled()
+            self.assertFalse(enabled)
+        finally:
+            functorch._C.set_fwd_grad_enabled(True)
+
+    def test_disable_fwd_grad_outside(self, device):
+        x = torch.randn([], device=device)
+        t = torch.ones_like(x)
+        with enable_fwd_grad(False):
+            _, y = jvp(torch.sin, (x,), (t,))
+        self.assertEqual(y, x.cos())
+
+    def test_disable_fwd_grad_inside(self, device):
+        def f(x):
+            with enable_fwd_grad(False):
+                shift = x ** 2
+            return x ** 2 - shift
+
+        x = torch.randn([], device=device)
+        t = torch.ones_like(x)
+        _, y = jvp(f, (x,), (t,))
+        self.assertEqual(y, 2 * x)
+        _, y = jvp(lambda x: jvp(f, (x,), (t,))[1], (x,), (t,))
+        self.assertEqual(y, 2)
+
+    def test_disable_fwd_grad_mixed(self, device):
+        def f(x):
+            with enable_fwd_grad(False):
+                shift = x ** 2
+            return x ** 2 - shift
+
+        x = torch.randn([], device=device)
+        t = torch.ones_like(x)
+        with enable_fwd_grad():
+            _, y = jvp(f, (x,), (t,))
+
+        self.assertEqual(y, 2 * x)
+
+    def test_jvp_inside_autograd_function(self, device):
+        class MySin(torch.autograd.Function):
+            @staticmethod
+            def forward(ctx, x):
+                t = torch.ones_like(x)
+                _, neg_sin_x = jvp(torch.cos, (x,), (t,))
+                ctx.save_for_backward(x)
+                return -neg_sin_x
+
+            @staticmethod
+            def backward(ctx, gx):
+                x, = ctx.saved_tensors
+                t = torch.ones_like(x)
+                _, cos_x = jvp(torch.sin, (x,), (t,))
+                return gx * cos_x
+
+        x = torch.randn([], device=device, requires_grad=True)
+        y = MySin.apply(x)
+        self.assertEqual(y, x.sin())
+
+        gx, = torch.autograd.grad(y, x)
+        self.assertEqual(gx, x.cos())
+
 
 class TestCustomFunction(TestCase):
+    @unittest.skipIf(IS_WINDOWS, "Prototype of custom_vjp doesn't link on windows")
     @onlyCPU
     def test_basic(self, device):
         called_impl = False
@@ -2007,6 +2116,35 @@ class TestComposability(TestCase):
         y = vjp_fn(x)[0]
         # Honestly IDK what the result here is... but at least it runs
 
+    def test_make_fx_vmap(self, device):
+        def f(x):
+            return torch.sin(x)
+        inp = torch.randn(5, 3)
+        f = vmap(f)
+        fx_f = make_fx(f)(inp)
+        new_inp = torch.randn(5, 3)
+        self.assertEqual(fx_f(new_inp), f(new_inp))
+
+    def test_make_fx_jacrev(self, device):
+        def f(x):
+            return x.sin().sum()
+        inp = torch.randn(3)
+        f = jacrev(jacrev(f))
+        fx_f = make_fx(f)(inp)
+        new_inp = torch.randn(3)
+        self.assertEqual(fx_f(new_inp), f(new_inp))
+
+    def test_make_fx_vjp(self, device):
+        def f(x):
+            return torch.sin(x).sum()
+
+        primals = torch.randn(3)
+        _, vjp_fn = vjp(f, primals)
+        cotangent = torch.randn(())
+        fx_f = make_fx(vjp_fn)(cotangent, True, True)
+        new_cotangent = torch.randn(())
+        self.assertEqual(fx_f(new_cotangent, True, True), vjp_fn(new_cotangent))
+
 
 class TestMakeFunctional(TestCase):
     def test_parameter_tying(self):
@@ -2018,9 +2156,25 @@ class TestMakeFunctional(TestCase):
                 self.linear.bias = self.bias
                 self.linear_tied = self.linear
 
+            def forward(self, x):
+                x = self.linear(x)
+                x = self.linear_tied(x)
+                x = x + self.bias
+                return x
+
+        torch.manual_seed(1)
         mod = Foo()
-        with self.assertRaisesRegex(RuntimeError, "parameter tying"):
-            func, params = make_functional(mod)
+        func, _ = make_functional(mod)
+
+        torch.manual_seed(0)
+        mod = Foo()
+        _, params = make_functional(mod)
+        self.assertEqual(len(params), 2)
+
+        x = torch.randn(2, 3)
+        result = func(params, x)
+        expected = mod(x)
+        self.assertEqual(result, expected)
 
     def test_buffer_tying(self):
         class Foo(nn.Module):
@@ -2031,9 +2185,125 @@ class TestMakeFunctional(TestCase):
                 self.register_buffer('buffer', torch.randn(3))
                 self.register_buffer('buffer_tied', self.buffer)
 
+            def forward(self, x):
+                x = self.linear(x)
+                x = x + self.bias
+                x = x + self.buffer
+                x = x + self.buffer_tied
+                return x
+
+        torch.manual_seed(1)
         mod = Foo()
-        with self.assertRaisesRegex(RuntimeError, "parameter tying"):
-            func, params, buffers = make_functional_with_buffers(mod)
+        func, _, _ = make_functional_with_buffers(mod)
+
+        torch.manual_seed(0)
+        mod = Foo()
+        _, params, buffers = make_functional_with_buffers(mod)
+        self.assertEqual(len(params), 3)
+        self.assertEqual(len(buffers), 1)
+
+        x = torch.randn(2, 3)
+        result = func(params, buffers, x)
+        expected = mod(x)
+        self.assertEqual(result, expected)
+
+    def test_parameter_tying_grad(self):
+        class Foo(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear = nn.Linear(3, 3)
+                self.weight = self.linear.weight
+                self.bias = self.linear.bias
+
+            def forward(self, x):
+                x = self.linear(x)
+                x = F.linear(x, self.weight, self.bias)
+                return x
+
+        x = torch.randn(2, 3)
+        torch.manual_seed(0)
+        mod = Foo()
+        loss = mod(x).sum()
+        expected = torch.autograd.grad(loss, mod.parameters())
+
+        mod = Foo()
+        fmod, _, _ = make_functional_with_buffers(mod)
+        torch.manual_seed(0)
+        mod = Foo()
+        _, params, buffers = make_functional_with_buffers(mod)
+
+        def compute_loss(params, buffers, x):
+            return fmod(params, buffers, x).sum()
+
+        result = grad(compute_loss)(params, buffers, x)
+
+        self.assertEqual(result, expected)
+
+    def test_parameter_tying_ensemble(self):
+        class Foo(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear = nn.Linear(3, 3)
+                self.weight = self.linear.weight
+                self.bias = self.linear.bias
+                self.register_buffer('buffer', torch.randn(3))
+                self.register_buffer('buffer_tied', self.buffer)
+
+            def forward(self, x):
+                x = self.linear(x)
+                x = F.linear(x, self.weight, self.bias)
+                x = x + self.buffer
+                x = x + self.buffer_tied
+                return x
+
+        num_models = 2
+        xs = torch.randn(num_models, 64, 3)
+        models = [Foo() for _ in range(num_models)]
+        fmodel, _, _ = combine_state_for_ensemble(models)
+
+        torch.manual_seed(0)
+        models = [Foo() for _ in range(num_models)]
+        _, params, buffers = combine_state_for_ensemble(models)
+        result = vmap(fmodel)(params, buffers, xs)
+
+        torch.manual_seed(0)
+        models = [Foo() for _ in range(num_models)]
+        expected = torch.stack([model(x) for model, x in zip(models, xs)])
+
+        self.assertEqual(result, expected)
+
+    def test_correctness_mnist(self):
+        class Net(nn.Module):
+            def __init__(self):
+                super(Net, self).__init__()
+                self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
+                self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+                self.conv2_drop = nn.Dropout2d()
+                self.fc1 = nn.Linear(320, 50)
+                self.fc2 = nn.Linear(50, 10)
+
+            def forward(self, x):
+                x = F.relu(F.max_pool2d(self.conv1(x), 2))
+                x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
+                x = x.view(-1, 320)
+                x = F.relu(self.fc1(x))
+                x = F.dropout(x, training=self.training)
+                x = self.fc2(x)
+                return F.log_softmax(x)
+
+        x = torch.randn(64, 1, 32, 32)
+        torch.manual_seed(301)
+        fnet, _ = make_functional(Net())
+
+        torch.manual_seed(0)
+        _, params = make_functional(Net())
+        result = fnet(params, x)
+
+        torch.manual_seed(0)
+        net = Net()
+        expected = net(x)
+
+        self.assertEqual(result, expected)
 
     def test_combine_state_for_ensemble_error(self):
         in_features = 2
@@ -2500,6 +2770,60 @@ class TestExamplesCorrectness(TestCase):
         self.assertEqual(result_grads, expected_grads, atol=1e-3, rtol=1.)
 
 
+class TestFunctionalize(TestCase):
+    def _check_functionalize_correctness(self, f, inpt):
+        inpt1 = inpt.clone()
+        inpt2 = inpt.clone()
+
+        expected_outputs = f(inpt1)
+        actual_outputs = vmap(functionalize(f))(inpt2.unsqueeze(0))[0].squeeze()
+        # Check that outputs are the same
+        self.assertEqual(actual_outputs, expected_outputs)
+
+        # Inputs might have been mutated by f: check that they were mutated properly
+        self.assertEqual(inpt1, inpt2)
+
+    def test_simple_view(self, device):
+        def f(x: torch.Tensor) -> torch.Tensor:
+            tmp = torch.ones(2, device=device)
+            y = x.view(4, 2)
+            y.add_(tmp)
+            return x
+        self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
+
+    def test_multioutput_view(self, device):
+        def f(x: torch.Tensor) -> torch.Tensor:
+            tmp = torch.ones(2, device=device)
+            y1, y2 = x.split(2)
+            y1_view = y1.diagonal()
+            y1_view.add_(tmp)
+            return x
+        self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
+
+    def test_inplace_view(self, device):
+        def f(x: torch.Tensor) -> torch.Tensor:
+            tmp = torch.ones(4, device=device)
+            y = x + x
+            y2 = y.transpose(1, 0)
+            z = y2[0]
+            z.add_(tmp)
+            return y
+        self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
+
+    def test_multioutput_inplace_slice_view(self, device):
+        def f(x: torch.Tensor) -> torch.Tensor:
+            tmp = torch.ones(2, 2, device=device)
+            y = x.view(8)
+            z0 = y.reshape(2, 4)
+            z1 = z0.transpose(1, 0)
+            z1.unsqueeze_(0)
+            z1.squeeze_()
+            z2, z3 = z1.split(2)
+            z2.add_(tmp)
+            return x
+        self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
+
+
 only_for = ("cpu", "cuda")
 instantiate_device_type_tests(
     TestGradTransform,
@@ -2533,6 +2857,11 @@ instantiate_device_type_tests(
 )
 instantiate_device_type_tests(
     TestExamplesCorrectness,
+    globals(),
+    only_for=only_for,
+)
+instantiate_device_type_tests(
+    TestFunctionalize,
     globals(),
     only_for=only_for,
 )

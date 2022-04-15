@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Any, Callable, Union, Tuple, List
+from typing import Callable, Union, Tuple, List, Any
 import torch
 from functools import partial, wraps
 import contextlib
@@ -19,6 +19,16 @@ from functorch._C import (
     _unwrap_for_grad,
     _grad_increment_nesting,
     _grad_decrement_nesting,
+    _jvp_increment_nesting,
+    _jvp_decrement_nesting,
+    set_fwd_grad_enabled,
+    get_fwd_grad_enabled,
+    _wrap_functional_tensor,
+    _unwrap_functional_tensor,
+    _func_decrement_nesting,
+    _func_increment_nesting,
+    _assert_wrapped_functional,
+    _propagate_functional_input_mutation,
 )
 
 argnums_t = Union[int, Tuple[int, ...]]
@@ -134,8 +144,9 @@ def _autograd_grad(outputs, inputs, grad_outputs=None, retain_graph=False, creat
 # NB: vjp has some interesting behavior because the vjp's callable can be called
 # under a different grad_mode than the forward computation...
 #
-# TODO: forward-mode AD: does it also respect no_grad? What does that mean
-# for our jvp transform?
+# NB: forward-mode AD: forward-mode AD doesn't respect torch.no_grad, but
+# it respects c10::AutoFwGradMode. We've implemented the same logic for
+# our jvp transform (it will have special handling if FwGradMode is disabled).
 
 
 # How do we increment and decrement the nesting? I don't think we can.
@@ -608,6 +619,16 @@ def noop():
     yield
 
 
+@contextlib.contextmanager
+def enable_fwd_grad(enabled=True):
+    prev_state = get_fwd_grad_enabled()
+    set_fwd_grad_enabled(enabled)
+    try:
+        yield
+    finally:
+        set_fwd_grad_enabled(prev_state)
+
+
 def assert_flat_tuple_of_tensors(elts: Any, api: str, argname: str) -> None:
     if not isinstance(elts, tuple):
         raise RuntimeError(
@@ -754,47 +775,44 @@ def jvp(func: Callable, primals: Any, tangents: Any, *, strict: bool = False, ha
     assert_non_empty_list_of_tensors(flat_primals, jvp_str, 'primals')
     assert_non_empty_list_of_tensors(flat_tangents, jvp_str, 'tangents')
 
-    level = _grad_increment_nesting()
+    level = _jvp_increment_nesting()
     try:
-        # Some interesting notes:
-        # 1. Can't nested jvp of jvp due to forwardAD restrictions
-        # 2. Seems like we can indeed vmap over this, given some more batch rules
-        # 3. PyTorch doesn't have a lot of jvp rules implemented right now.
         global JVP_NESTING
         JVP_NESTING += 1
-        ctx = fwAD.dual_level if JVP_NESTING == 1 else noop
-        with ctx():
-            flat_duals = tuple(fwAD.make_dual(p, t)
-                               for p, t in zip(flat_primals, flat_tangents))
-            duals = tree_unflatten(flat_duals, primals_spec)
-            result_duals = func(*duals)
-            if has_aux:
-                if not (isinstance(result_duals, tuple) and len(result_duals) == 2):
-                    raise RuntimeError(
-                        f"{jvp_str}: output of function f should be a tuple: (output, aux) "
-                        "if has_aux is True"
-                    )
-                result_duals, aux = result_duals
-                aux = _undo_create_differentiable(aux, level)
+        with enable_fwd_grad():
+            ctx = fwAD.dual_level if JVP_NESTING == 1 else noop
+            with ctx():
+                flat_duals = tuple(fwAD.make_dual(p, t)
+                                   for p, t in zip(flat_primals, flat_tangents))
+                duals = tree_unflatten(flat_duals, primals_spec)
+                result_duals = func(*duals)
+                if has_aux:
+                    if not (isinstance(result_duals, tuple) and len(result_duals) == 2):
+                        raise RuntimeError(
+                            f"{jvp_str}: output of function f should be a tuple: (output, aux) "
+                            "if has_aux is True"
+                        )
+                    result_duals, aux = result_duals
+                    aux = _undo_create_differentiable(aux, level)
 
-            result_duals, spec = tree_flatten(result_duals)
-            assert_non_empty_tensor_output(result_duals, jvp_str)
+                result_duals, spec = tree_flatten(result_duals)
+                assert_non_empty_tensor_output(result_duals, jvp_str)
 
-            primals_out, tangents_out = \
-                zip(*[safe_unpack_dual(dual, strict) for dual in result_duals])
-            primals_out = tree_map(
-                partial(_undo_create_differentiable, level=level), primals_out)
-            tangents_out = tree_map(
-                partial(_undo_create_differentiable, level=level), tangents_out)
+                primals_out, tangents_out = \
+                    zip(*[safe_unpack_dual(dual, strict) for dual in result_duals])
+                primals_out = tree_map(
+                    partial(_undo_create_differentiable, level=level), primals_out)
+                tangents_out = tree_map(
+                    partial(_undo_create_differentiable, level=level), tangents_out)
 
-            primals_out_unflatten = tree_unflatten(primals_out, spec)
-            tangents_out_unflatten = tree_unflatten(tangents_out, spec)
-            if has_aux:
-                return primals_out_unflatten, tangents_out_unflatten, aux
+                primals_out_unflatten = tree_unflatten(primals_out, spec)
+                tangents_out_unflatten = tree_unflatten(tangents_out, spec)
+                if has_aux:
+                    return primals_out_unflatten, tangents_out_unflatten, aux
 
-            return primals_out_unflatten, tangents_out_unflatten
+                return primals_out_unflatten, tangents_out_unflatten
     finally:
-        _grad_decrement_nesting()
+        _jvp_decrement_nesting()
         JVP_NESTING -= 1
 
 
@@ -1174,3 +1192,61 @@ def grad(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Calla
         grad, _ = results
         return grad
     return wrapper
+
+
+def _maybe_wrap_functional_tensor(maybe_tensor, level):
+    if not isinstance(maybe_tensor, torch.Tensor):
+        return maybe_tensor
+    wrapped = _wrap_functional_tensor(maybe_tensor, level)
+    _assert_wrapped_functional(maybe_tensor, wrapped)
+    return wrapped
+
+
+def _wrap_all_tensors_to_functional(tensor_pytree, level):
+    return tree_map(partial(_maybe_wrap_functional_tensor, level=level), tensor_pytree)
+
+
+def _maybe_unwrap_functional_tensor(maybe_tensor):
+    if not isinstance(maybe_tensor, torch.Tensor):
+        return maybe_tensor
+    return _unwrap_functional_tensor(maybe_tensor)
+
+
+def _unwrap_all_tensors_from_functional(tensor_pytree):
+    return tree_map(_maybe_unwrap_functional_tensor, tensor_pytree)
+
+
+def functionalize(func: Callable) -> Callable:
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        try:
+            func_level = _func_increment_nesting()
+            func_args = _wrap_all_tensors_to_functional(args, func_level)
+            func_kwargs = _wrap_all_tensors_to_functional(kwargs, func_level)
+
+            flattened_unwrapped_args, _ = tree_flatten(args)
+            flattened_wrapped_args, _ = tree_flatten(func_args)
+            flattened_unwrapped_kwargs, _ = tree_flatten(kwargs)
+            flattened_wrapped_kwargs, _ = tree_flatten(func_kwargs)
+
+            func_outputs = func(*func_args, **func_kwargs)
+            outputs = _unwrap_all_tensors_from_functional(func_outputs)
+            flat_outputs, func_out_spec = tree_flatten(outputs)
+
+            for a in flattened_wrapped_args + flattened_wrapped_kwargs:
+                if isinstance(a, torch.Tensor):
+                    # Call sync_() on the inputs, to ensure that any pending mutations have been applied.
+                    torch._sync(a)
+
+            # And if any mutations were applied to the inputs, we need to propagate them back to the user.
+            for unwrapped, wrapped in zip(flattened_unwrapped_args, flattened_wrapped_args):
+                if isinstance(unwrapped, torch.Tensor) and isinstance(wrapped, torch.Tensor):
+                    _propagate_functional_input_mutation(unwrapped, wrapped)
+            for unwrapped, wrapped in zip(flattened_unwrapped_kwargs, flattened_wrapped_kwargs):
+                if isinstance(unwrapped, torch.Tensor) and isinstance(wrapped, torch.Tensor):
+                    _propagate_functional_input_mutation(unwrapped, wrapped)
+
+            return outputs
+        finally:
+            _func_decrement_nesting()
+    return wrapped

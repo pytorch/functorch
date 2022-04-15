@@ -11,11 +11,13 @@ import torch.utils._pytree as pytree
 import unittest
 import warnings
 import itertools
+from functools import partial
 from torch.testing._internal.common_device_type import instantiate_device_type_tests
 from functorch import (
     grad, vjp, vmap, jacrev,
     make_fx
 )
+from functorch._src.aot_autograd import aot_module_simplified
 from functorch.compile import (
     nnc_jit, compiled_function, compiled_module,
     min_cut_rematerialization_partition, aot_function, aot_module, decomposition_table, nop,
@@ -188,7 +190,6 @@ class TestPythonKey(TestCase):
 
 
 make_fx_failures = {
-    xfail('to_sparse'),
     xfail('allclose'),
     xfail('nn.functional.dropout'),
     xfail('linalg.eigvals'),
@@ -199,6 +200,12 @@ make_fx_failures = {
     skip('new_empty'),  # nondeterministic
     skip('empty_like'),  # nondeterministic
     skip('linalg.lstsq', 'grad_oriented'),  # flaky
+    xfail('normal', '', device_type='cpu'),
+    xfail('normal', 'number_mean', device_type='cpu'),
+    xfail('multinomial', device_type='cpu'),
+    xfail('nn.functional.feature_alpha_dropout', 'with_train', device_type='cpu'),
+    xfail('bernoulli', device_type='cpu'),
+    xfail('nn.functional.dropout2d', device_type='cpu'),
 }
 
 
@@ -357,7 +364,6 @@ class TestEagerFusionOpInfo(TestCase):
         skip('msort'),
         xfail('nn.functional.dropout'),
         xfail('polar'),
-        xfail('special.zeta', 'grad'),
         xfail('to_sparse'),
         xfail('addcdiv'),
         xfail('cholesky'),
@@ -425,6 +431,32 @@ class TestEagerFusionOpInfo(TestCase):
             self.assertEqual(orig_grad, compiled_grad)
 
 
+def extract_graph(fx_g, _, graph_cell):
+    graph_cell[0] = fx_g
+    return fx_g
+
+
+def get_num_ins_outs(fx_g):
+    num_inps = 0
+    num_outs = 0
+    for n in fx_g.graph.nodes:
+        if n.op == 'placeholder':
+            num_inps += 1
+        elif n.op == 'output':
+            num_outs = len(n.args[0])
+    return num_inps, num_outs
+
+
+def get_fw_bw_graph(f, inps):
+    fw_graph_cell = [None]
+    bw_graph_cell = [None]
+    aot_function(f,
+                 fw_compiler=partial(extract_graph, graph_cell=fw_graph_cell),
+                 bw_compiler=partial(extract_graph, graph_cell=bw_graph_cell),
+                 partition_fn=min_cut_rematerialization_partition)(*inps)
+    return (fw_graph_cell[0], bw_graph_cell[0])
+
+
 class TestPartitioning(TestCase):
     @unittest.skipIf(not USE_NETWORKX, "networkx not available")
     def test_recompute_partitioning(self):
@@ -476,6 +508,67 @@ class TestPartitioning(TestCase):
         mod = MockModule().to(device="cpu")
         aot_mod = aot_module(mod, fw_compiler=check_meta_tensor)
         aot_mod(*inputs)
+
+    @unittest.skipIf(not USE_NETWORKX, "networkx not available")
+    def test_min_cut_partitioner(self):
+        def f(x):
+            return x.cos().cos().cos()
+
+        fw_graph, bw_graph = get_fw_bw_graph(f, [torch.randn(3, requires_grad=True)])
+        self.assertEqual(get_num_ins_outs(fw_graph), (1, 2))
+        self.assertEqual(get_num_ins_outs(bw_graph), (2, 1))
+
+        def f(a, b, c, d):
+            x = a + b + c + d
+            return x.cos().cos()
+
+        fw_graph, bw_graph = get_fw_bw_graph(f, [torch.randn(3, requires_grad=True) for _ in range(4)])
+        self.assertEqual(get_num_ins_outs(fw_graph), (4, 2))
+        self.assertEqual(get_num_ins_outs(bw_graph), (2, 4))
+
+
+class TestContiguous(TestCase):
+    def test_contiguous(self):
+        # The test simulates the condition where transpose followed by view
+        # happens in the backward pass.
+        # https://discuss.pytorch.org/t/error-on-transpose-and-view/434
+        def f(x):
+            return x.view(2, 3).t()
+
+        inp = torch.randn(6, requires_grad=True)
+        out = aot_function(f, nop)(inp)
+        torch.autograd.grad(out, inp, torch.randn(3, 2))
+
+
+class TestAOTModuleSimplified(TestCase):
+    def test_aot_module_simplified(self):
+        class MockModule(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear = torch.nn.Linear(20, 30)
+
+            def forward(self, x, y):
+                return (self.linear(x) + y, )
+
+        mod = MockModule()
+        mod.zero_grad()
+
+        x = torch.randn(128, 20, requires_grad=True)
+        y = torch.randn(128, 30, requires_grad=True)
+        inputs = [x, y]
+        cloned_inputs = [x.detach().clone().requires_grad_(True) for x in inputs]
+
+        ref = mod(*inputs)
+        ref[0].sum().backward()
+
+        aot_mod = aot_module_simplified(mod, nop)
+        aot_mod.zero_grad()
+        res = aot_mod(*cloned_inputs)
+        res[0].sum().backward()
+
+        assert torch.allclose(ref[0], res[0])
+        assert torch.allclose(inputs[0].grad, cloned_inputs[0].grad)
+        assert torch.allclose(inputs[1].grad, cloned_inputs[1].grad)
 
 
 only_for = ("cpu")

@@ -7,10 +7,8 @@
 from torch.testing._internal.common_utils import TestCase, run_tests, is_iterable_of_tensors
 import torch
 from torch import Tensor
-import torch.nn.functional as F
 import functools
 import unittest
-import itertools
 from contextlib import contextmanager
 from torch.testing._internal.common_device_type import instantiate_device_type_tests
 from torch.testing._internal.common_device_type import ops
@@ -29,7 +27,6 @@ from common_utils import (
     # tol2,
     opsToleranceOverride,
     check_vmap_fallback,
-    loop,
     IS_FBCODE,
 )
 from torch.utils._pytree import tree_flatten, tree_unflatten, tree_map
@@ -198,6 +195,35 @@ def get_vjp_fn_and_args_with_cotangents(f, sample, cotangents):
     return wrapped, tuple(flat_args + flat_cotangents)
 
 
+# returns a new function g(*args, *cotangents)
+# that computes vjps and (*args, cotangents) using torch.autograd.grad
+def get_autograd_fn_and_args_with_cotangents(f, sample, cotangents):
+    args = tuple([sample.input] + list(sample.args))
+    kwargs = sample.kwargs
+    flat_args, args_spec = tree_flatten(args)
+    flat_cotangents, cotangents_spec = tree_flatten(cotangents)
+
+    @functools.wraps(f)
+    def wrapped(*args):
+        assert len(args) == len(flat_args) + len(flat_cotangents)
+        actual_args = args[:len(flat_args)]
+        cotangents = args[len(flat_args):]
+        actual_args = tree_unflatten(actual_args, args_spec)
+        cotangents = tree_unflatten(cotangents, cotangents_spec)
+
+        fn, primals = normalize_op_input_output3(f, actual_args, kwargs,
+                                                 flat_args,
+                                                 sample.output_process_fn_grad)
+        out = fn(*primals)
+        diff_wrt = tuple(primal for primal in primals if (primal.requires_grad or primal.grad_fn is not None))
+        if diff_wrt:
+            return torch.autograd.grad(out, diff_wrt, grad_outputs=cotangents)
+        else:
+            return (torch.ones(()),)  # uuugh hack...this will need to be more generic
+
+    return wrapped, tuple(flat_args + flat_cotangents)
+
+
 # Returns a new function g(*args, *cotangents) that computes vjps and
 # sample (*args, *cotangents)
 def get_vjpfull_variant(f, sample):
@@ -278,6 +304,11 @@ vjp_fail = {
     xfail('tensor_split'),
     xfail('to_sparse'),
     xfail('nn.functional.ctc_loss'),
+    skip('nn.functional.feature_alpha_dropout', 'with_train'),  # fails on cuda, runs okay on cpu
+    skip('nn.functional.feature_alpha_dropout', 'without_train'),  # fails on cuda, runs okay on cpu
+    skip('pca_lowrank', ''),  # fails on cuda, runs okay on cpu
+    skip('svd_lowrank', ''),  # fails on cuda, runs okay on cpu
+    skip('nn.functional.dropout2d', ''),  # fails on cuda, runs okay on cpu
 }
 
 
@@ -338,13 +369,11 @@ class TestOperators(TestCase):
         skip('nn.functional.fractional_max_pool2d'),  # fails on cuda, runs okay on cpu
         skip('nn.functional.fractional_max_pool3d'),  # fails on cuda, runs okay on cpu
         skip('nn.functional.max_pool1d'),  # fails on cpu, runs okay on cuda
-
-        # See https://github.com/pytorch/pytorch/issues/69034
-        # RuntimeError: expected scalar type double but found float
-        xfail('minimum'),
-        xfail('min', 'binary'),
-        xfail('maximum'),
-        xfail('max', 'binary'),
+        skip('nn.functional.feature_alpha_dropout', 'with_train'),  # fails on cuda, runs okay on cpu
+        skip('nn.functional.feature_alpha_dropout', 'without_train'),  # fails on cuda, runs okay on cpu
+        skip('pca_lowrank', ''),  # fails on cuda, runs okay on cpu
+        skip('svd_lowrank', ''),  # fails on cuda, runs okay on cpu
+        skip('nn.functional.dropout2d', ''),  # fails on cuda, runs okay on cpu
 
         # The following don't have a forward-mode AD formula in PyTorch core
         # (check derivatives.yaml).
@@ -352,8 +381,6 @@ class TestOperators(TestCase):
         xfail('std_mean'),
         # https://gist.github.com/zou3519/f62a167fb46cda01d7f238f61dd9ccf9
         xfail('linalg.eigvalsh'),
-        # https://gist.github.com/zou3519/b86616d01ca375a4bd17403277f49225
-        xfail('nn.functional.dropout', device_type='cuda'),
 
         # =============================================
         # NB: The above failures also fail using PyTorch core's
@@ -368,8 +395,6 @@ class TestOperators(TestCase):
         # Some kind of issue with unsymmetric tangent type
         # Runtime Error: The tangent part of the matrix A should also be symmetric.
         xfail('linalg.eigh'),
-
-
     }))
     @opsToleranceOverride('TestOperators', 'test_jvp', (
         tol1('nn.functional.conv_transpose3d',
@@ -404,6 +429,11 @@ class TestOperators(TestCase):
     @skipOps('TestOperators', 'test_vjp', vjp_fail.union({
         skip('nn.functional.fractional_max_pool2d'),  # fails on cpu, runs okay on cuda
         skip('nn.functional.fractional_max_pool3d'),  # fails on cpu, runs okay on cuda
+        xfail('nn.functional.feature_alpha_dropout', 'with_train'),
+        xfail('pca_lowrank', ''),
+        xfail('nn.functional.dropout2d', ''),
+        xfail('nn.functional.feature_alpha_dropout', 'without_train'),
+        xfail('svd_lowrank', ''),
     }))
     @opsToleranceOverride('TestOperators', 'test_vjp', (
         tol1('nn.functional.conv_transpose3d',
@@ -578,7 +608,6 @@ class TestOperators(TestCase):
         skip('qr'),  # Nondetermistic
         xfail('_masked.prod'),  # calls aten::item
         xfail('stft'),
-        xfail('nn.functional.glu'),
         xfail('nn.functional.fractional_max_pool3d'),
         xfail('as_strided'),
         xfail('nn.functional.fractional_max_pool2d'),
@@ -586,7 +615,7 @@ class TestOperators(TestCase):
         xfail('index_put', ''),
         xfail('lu_solve'),
         xfail('index_copy'),
-        xfail('nn.functional.gelu', device_type='cpu'),
+        xfail('linalg.lu_factor', ''),
     })
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
@@ -636,14 +665,6 @@ class TestOperators(TestCase):
         # https://gist.github.com/zou3519/c42d032c0111c6b65235583d391bf7a3
         xfail('nn.functional.linear'),
 
-        # These are issues that should be fixed in core. See repro in core:
-        # https://github.com/pytorch/functorch/pull/232#discussion_r751405155
-        # RuntimeError: expected scalar type double but found float
-        xfail('minimum'),
-        xfail('min', 'binary'),
-        xfail('maximum'),
-        xfail('max', 'binary'),
-
         # Apprently these support forward AD, but we get "Trying to use forward AD..."
         # These are cases where OpInfo has supports_forward_ad=True, but disables
         # the test
@@ -661,9 +682,6 @@ class TestOperators(TestCase):
         # equal to the number of dimensions in the tensor (2)
         xfail('nanquantile'),
         xfail('quantile'),
-
-        # RuntimeError: vmap: inplace arithmetic(self, *extra_args)
-        xfail('nn.functional.gelu', device_type='cpu'),
 
         # Not implemented
         xfail('scatter'),
@@ -684,6 +702,13 @@ class TestOperators(TestCase):
         # Some kind of issue with unsymmetric tangent type
         # Runtime Error: The tangent part of the matrix A should also be symmetric.
         xfail('linalg.eigh'),
+
+        skip('nn.functional.feature_alpha_dropout', 'with_train'),
+        skip('pca_lowrank', ''),
+        skip('nn.functional.dropout2d', ''),
+        skip('nn.functional.feature_alpha_dropout', 'without_train'),
+        skip('svd_lowrank', ''),
+        xfail('stft'),  # something weird is happening with shapes
     })
     def test_vmapjvp(self, device, dtype, op):
         if is_inplace(op, op.get_op()):
@@ -728,23 +753,18 @@ class TestOperators(TestCase):
         xfail('linalg.inv'),
         xfail('linalg.tensorinv'),
         xfail('linalg.matrix_power'),
-        xfail('maximum'),
         xfail('linalg.householder_product'),
         xfail('tensor_split'),
-        xfail('nn.functional.gelu', device_type='cpu'),
         xfail('quantile'),
         xfail('var_mean'),
         xfail('as_strided'),
         xfail('linalg.eigvalsh'),
         xfail('fill_'),
         xfail('linalg.cholesky'),
-        xfail('max', 'binary'),
         xfail('nn.functional.gaussian_nll_loss'),
-        xfail('min', 'binary'),
         xfail('std_mean'),
         xfail('double', 'channels_last'),
         xfail('block_diag'),
-        xfail('minimum'),
         xfail('scatter'),
         xfail('matrix_exp'),
         xfail('nanquantile'),
@@ -755,6 +775,15 @@ class TestOperators(TestCase):
         # Some kind of issue with unsymmetric tangent type
         # Runtime Error: The tangent part of the matrix A should also be symmetric.
         xfail('linalg.eigh'),
+
+        xfail('linalg.lu_factor', ''),
+        skip('nn.functional.dropout2d', ''),
+        skip('nn.functional.feature_alpha_dropout', 'without_train'),
+        skip('pca_lowrank', ''),
+        skip('svd_lowrank', ''),
+        skip('nn.functional.feature_alpha_dropout', 'with_train'),
+
+        xfail('stft'),  # transpose_ fallback
     }
 
     @ops(functorch_lagging_op_db, allowed_dtypes=(torch.float,))
@@ -817,6 +846,19 @@ class TestOperators(TestCase):
         xfail('nn.functional.max_pool3d'),
         xfail('vdot'),
         xfail('linalg.cross'),
+        xfail('nn.functional.feature_alpha_dropout', 'without_train'),
+        xfail('linalg.lu_factor', ''),
+        xfail('nn.functional.dropout2d', ''),
+        xfail('nn.functional.kl_div', ''),
+        xfail('pca_lowrank', ''),
+        xfail('svd_lowrank', ''),
+        xfail('linalg.lu_factor_ex', ''),
+        xfail('nn.functional.feature_alpha_dropout', 'with_train'),
+        xfail('special.log_ndtr', ''),
+        xfail('fft.ihfft2'),  # conj_physical fallback
+        xfail('fft.ihfftn'),  # conj_physical fallback
+        xfail('istft'),  # col2im fallback
+        xfail('polar'),  # complex fallback
     }))
     @toleranceOverride({torch.float32: tol(atol=1e-04, rtol=1e-04)})
     def test_vmapjvpall_has_batch_rule(self, device, dtype, op):
@@ -858,6 +900,7 @@ class TestOperators(TestCase):
         xfail('fmax'),
         xfail('fft.ihfft'),
         xfail('fft.rfft'),
+        xfail('special.log_ndtr'),
         xfail('fft.rfftn'),
         xfail('fill_'),
         xfail('index_copy'),
@@ -915,8 +958,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.huber_loss'),
         xfail('nn.functional.poisson_nll_loss'),
         xfail('nn.functional.bilinear'),
-        xfail('nn.functional.prelu'),
-        xfail('nn.functional.glu'),
         xfail('nn.functional.fractional_max_pool3d'),
         xfail('as_strided'),
         xfail('linalg.solve_triangular'),
@@ -927,6 +968,14 @@ class TestOperators(TestCase):
         xfail('istft'),
         xfail('nn.functional.fractional_max_pool2d'),
         xfail('linalg.tensorsolve'),
+        xfail('linalg.lu_factor', ''),
+        xfail('nn.functional.feature_alpha_dropout', 'with_train'),
+        xfail('nn.functional.kl_div', ''),
+        xfail('pca_lowrank', ''),
+        xfail('nn.functional.dropout2d', ''),
+        xfail('nn.functional.feature_alpha_dropout', 'without_train'),
+        xfail('svd_lowrank', ''),
+        xfail('linalg.lu_factor_ex', ''),
     }))
     def test_vmapvjp_has_batch_rule(self, device, dtype, op):
         if not op.supports_autograd:
@@ -971,10 +1020,16 @@ class TestOperators(TestCase):
         xfail('double', 'channels_last'),
         xfail('masked_select'),
         skip('nn.functional.fractional_max_pool3d'),  # generator works on cpu, fails on cuda
-        xfail('nn.functional.glu'),
+        xfail('__rpow__'),  # https://github.com/pytorch/functorch/issues/617
         xfail('as_strided'),
         skip('nn.functional.fractional_max_pool2d'),  # generator works on cpu, fails on cuda
         skip('solve'),
+        xfail('column_stack', ''),
+        xfail('nn.functional.dropout2d', ''),
+        xfail('svd_lowrank', ''),
+        xfail('pca_lowrank', ''),
+        xfail('nn.functional.feature_alpha_dropout', 'without_train'),
+        xfail('nn.functional.feature_alpha_dropout', 'with_train'),
     }))
     def test_vjpvmap(self, device, dtype, op):
         # NB: there is no vjpvmap_has_batch_rule test because that is almost
@@ -1017,6 +1072,148 @@ class TestOperators(TestCase):
                 expected_vjps = vjp_fn(cotangents)
 
                 self.assertEqual(result_vjps, expected_vjps)
+
+    @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
+    @skipOps('TestOperators', 'test_jvpvjp', vjp_fail.union({
+        # These are weirdly non-deterministic
+        skip('nn.functional.conv2d', '', device_type='cpu'),
+        skip('nn.functional.conv2d', 'no_bias', device_type='cpu'),
+        skip('nn.functional.conv2d', 'stride_no_bias', device_type='cpu'),
+        skip('nn.functional.conv2d', 'stride_padding_no_bias', device_type='cpu'),
+        skip('nn.functional.fractional_max_pool2d'),  # Random
+        skip('nn.functional.fractional_max_pool3d'),  # Random
+
+        xfail('_masked.amax', ''),
+        xfail('_masked.amin', ''),
+        xfail('_masked.log_softmax', ''),
+        xfail('_masked.norm', ''),
+        xfail('_masked.normalize', ''),
+        xfail('_masked.softmax', ''),
+        xfail('_masked.softmin', ''),
+        xfail('amax', ''),
+        xfail('amin', ''),
+        xfail('block_diag', ''),
+        xfail('cdist', ''),
+        xfail('cholesky', ''),
+        xfail('dist', ''),
+        xfail('eig', ''),
+        xfail('linalg.det', ''),
+        xfail('linalg.eigh', ''),
+        xfail('linalg.eigvalsh', ''),
+        xfail('linalg.matrix_norm', ''),
+        xfail('linalg.norm', ''),
+        xfail('linalg.slogdet', ''),
+        xfail('linalg.vector_norm', ''),
+        xfail('log_softmax', ''),
+        xfail('log_softmax', 'dtype'),
+        xfail('logcumsumexp', ''),
+        xfail('logdet', ''),
+        xfail('lu', ''),
+        xfail('lu_solve', ''),
+        xfail('lu_unpack', ''),
+        xfail('nanmean', ''),
+        xfail('nansum', ''),
+        xfail('nn.functional.batch_norm', ''),
+        xfail('nn.functional.batch_norm', 'without_cudnn', device_type='cuda'),
+        xfail('nn.functional.bilinear', ''),
+        xfail('nn.functional.binary_cross_entropy', ''),
+        xfail('nn.functional.binary_cross_entropy_with_logits', ''),
+        xfail('nn.functional.cross_entropy', ''),
+        xfail('nn.functional.cross_entropy', 'mean'),
+        xfail('nn.functional.cross_entropy', 'none'),
+        xfail('nn.functional.cross_entropy', 'sum'),
+        xfail('nn.functional.embedding', ''),
+        xfail('nn.functional.embedding', 'functorch'),
+        xfail('nn.functional.embedding_bag', ''),
+        xfail('nn.functional.glu', ''),
+        xfail('nn.functional.grid_sample', ''),
+        xfail('nn.functional.hardsigmoid', ''),
+        xfail('nn.functional.hardswish', ''),
+        xfail('nn.functional.huber_loss', ''),
+        xfail('nn.functional.instance_norm', ''),
+        xfail('nn.functional.layer_norm', ''),
+        xfail('nn.functional.logsigmoid', ''),
+        xfail('nn.functional.mse_loss', ''),
+        xfail('nn.functional.nll_loss', ''),
+        xfail('nn.functional.normalize', ''),
+        xfail('nn.functional.pad', 'circular'),
+        xfail('nn.functional.pairwise_distance', ''),
+        xfail('nn.functional.prelu', ''),
+        xfail('nn.functional.softmin', ''),
+        xfail('nn.functional.softmin', 'with_dtype'),
+        xfail('nn.functional.softplus', ''),
+        xfail('norm', ''),
+        xfail('norm', 'fro'),
+        xfail('norm', 'inf'),
+        xfail('put', ''),
+        xfail('renorm', ''),
+        xfail('softmax', ''),
+        xfail('softmax', 'with_dtype'),
+        xfail('solve', ''),
+        xfail('std_mean', ''),
+        xfail('symeig', ''),
+        xfail('take', ''),
+        xfail('var_mean', ''),
+        xfail('linalg.lu_factor', ''),
+        xfail('nn.functional.feature_alpha_dropout', 'with_train'),
+        xfail('nn.functional.kl_div', ''),
+        xfail('pca_lowrank', ''),
+        xfail('nn.functional.dropout2d', ''),
+        xfail('nn.functional.feature_alpha_dropout', 'without_train'),
+        xfail('svd_lowrank', ''),
+        xfail('linalg.lu_factor_ex', ''),
+    }))
+    def test_jvpvjp(self, device, dtype, op):
+        if not op.supports_autograd:
+            self.skipTest("Skipped! Autograd not supported.")
+            return
+
+        samples = op.sample_inputs(device, dtype, requires_grad=True)
+
+        # TODO: test in-place
+        if is_inplace(op, op.get_op()):
+            self.skipTest("Skipped! NYI: inplace-testing not supported.")
+            return
+
+        for sample in samples:
+            fn, primals = normalize_op_input_output(op, sample)
+            result = fn(*primals)
+            cotangents = tree_map(lambda x: torch.randn_like(x), result)
+
+            primals_tangents = tree_map(lambda x: torch.randn_like(x), primals)
+            cotangents_tangents = tree_map(lambda x: torch.randn_like(x), cotangents)
+
+            def push_vjp(primals, cotangents):
+                _, vjp_fn = vjp(fn, *primals)
+                return vjp_fn(cotangents)
+
+            result = jvp(push_vjp, (primals, cotangents), (primals_tangents, cotangents_tangents))
+            self.assertEqual(len(result), 2)
+
+            def tree_map2(fn, first, second):
+                flat_first, spec_first = tree_flatten(first)
+                flat_second, spec_second = tree_flatten(second)
+                assert spec_first == spec_second
+                flat_result = [fn(f, s) for f, s in zip(flat_first, flat_second)]
+                return tree_unflatten(flat_result, spec_first)
+
+            def reference(primals, cotangents, primals_tangents, cotangents_tangents):
+                with fwAD.dual_level():
+                    primal_duals = tree_map2(fwAD.make_dual, primals, primals_tangents)
+                    _, vjp_fn = ref_vjp(fn, *primal_duals)
+
+                    cotangent_duals = tree_map2(fwAD.make_dual, cotangents, cotangents_tangents)
+                    result = vjp_fn(cotangent_duals)
+
+                    flat_result, spec = tree_flatten(result)
+                    primals_out, tangents_out = zip(*[fwAD.unpack_dual(r) for r in flat_result])
+                    tangents_out = [t if t is not None else torch.zeros_like(p)
+                                    for p, t in zip(primals_out, tangents_out)]
+                    expected = (tree_unflatten(primals_out, spec), tree_unflatten(tangents_out, spec))
+                return expected
+
+            expected = reference(primals, cotangents, primals_tangents, cotangents_tangents)
+            self.assertEqual(result, expected)
 
 
 class InplaceError(Exception):
@@ -1063,6 +1260,7 @@ class TestDecompositionOpInfo(TestCase):
         skip('stft'),
         skip('_masked.softmax'),
         skip('_masked.normalize'),
+        xfail('linalg.lu_factor', ''),
         # Some weird matmul stuff with int64 matmuls
         # inplace op
         skip('resize_'),
@@ -1109,6 +1307,7 @@ class TestDecompositionOpInfo(TestCase):
             tol_table = {
                 # Due to strange epsilon behaviors, see https://github.com/pytorch/pytorch/issues/73161
                 (torch.float32, aten.native_layer_norm.default): (1e-3, 1e-3),
+                (torch.float32, aten.native_layer_norm_backward.default): (1e-3, 1e-3),
             }
             if (b.dtype, op) in tol_table:
                 rtol, atol = tol_table[(b.dtype, op)]
@@ -1230,6 +1429,9 @@ class TestDecompositionOpInfo(TestCase):
                     real_out = call_op(func, unwrap_tensor, *args, **kwargs)
                     assert(len(real_out) == len(decomp_out))
                     for orig, decomp, ref in zip(real_out, decomp_out, real_out_double):
+                        if orig is None:
+                            assert(decomp is None)
+                            continue
                         orig = orig.to(dtype=TEST_DTYPE)
                         decomp = decomp.to(dtype=TEST_DTYPE)
                         if DO_RELATIVE_CHECK and ref.dtype.is_floating_point:
@@ -1314,28 +1516,22 @@ class TestDecompositionOpInfo(TestCase):
                 continue
             torch.jit.script(decomposition)
 
-    def test_group_norm_backward(self, device):
-        # group norm will hit the decomposable ``infinitely_differentiable_group_norm_backward`` when
-        # GradMode is on, which happens by default in the grad transform. This avoids that
-        def f(x, weight, bias, grad_out):
-            output = F.group_norm(x, 6, weight, bias)
-            inputs = []
-            for input in (x, weight, bias):
-                if input.requires_grad:
-                    inputs.append(input)
-            return torch.autograd.grad(outputs=output, inputs=inputs, grad_outputs=grad_out)
+    @ops(filter(lambda op: op.name == "nn.functional.group_norm", functorch_lagging_op_db + additional_op_db),
+         allowed_dtypes=(torch.float32, torch.double))  # TODO: generalize
+    def test_group_norm_backward(self, device, dtype, op):
+        # hacky, only works since no group norm inputs can be scalars
+        def was_skipped_from_batched_tensors(batched_out, batch_size):
+            return batched_out.shape == (batch_size,) and all(tuple(e == 1 for e in batched_out))
 
-        B, N, C, H, W = 2, 3, 24, 5, 7
-        for (input_grad, weight_grad, bias_grad) in itertools.product((True, False), (True, False), (True, False)):
-            if not input_grad and not weight_grad and not bias_grad:
-                continue
-            x = torch.randn(N, C, H, W, device=device, requires_grad=input_grad)
-            weight = torch.randn(C, device=device, requires_grad=weight_grad)
-            bias = torch.randn(C, device=device, requires_grad=bias_grad)
-            grad_out = torch.randn(B, N, C, H, W, device=device)
-            loop_out = loop(f, (None, None, None, 0), 0, 2, x, weight, bias, grad_out)
-            batched_out = vmap(f, (None, None, None, 0), 0)(x, weight, bias, grad_out)
-            self.assertEqual(loop_out, batched_out)
+        sample_inputs = op.sample_inputs(device, dtype, requires_grad=True)
+
+        for sample_input in sample_inputs:
+            cotangents = get_sample_cotangents(op, sample_input)
+            f, args = get_autograd_fn_and_args_with_cotangents(op, sample_input, cotangents)
+            for loop_out, batched_out in get_fallback_and_vmap_exhaustive(f, args, {}, opinfo=op):
+                if all(was_skipped_from_batched_tensors(bo, lo.shape[0]) for (bo, lo) in zip(batched_out, loop_out)):
+                    continue  # we weren't able to use the batched tensor in autograd.grad
+                self.assertEqual(loop_out, batched_out)
 
 
 only_for = ("cpu", "cuda")
