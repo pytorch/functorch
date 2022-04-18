@@ -2716,14 +2716,20 @@ class TestVmapOperators(Namespace.TestVmapBase):
 
         self.assertTrue(torch.randn(()).dim() == 0)
 
-    @parametrize('op', [torch.cos, torch.sinh], name_fn=lambda f: f.__name__)
-    def test_foobar_parametrize(self, op):
-        pass
+    @parametrize('in_dim', [0, 1, 2])
+    @parametrize('out_dim', [0, 1, 2])
+    def test_vmap_chunks(self, in_dim, out_dim):
+        x = torch.randn(16, 16, 16)
 
-    @parametrize('op2', [torch.cos, torch.sinh], name_fn=lambda f: f.__name__)
-    @parametrize('op1', [torch.abs, torch.acos], name_fn=lambda f: f.__name__)
-    def test_parametrize_multiple(self, op1, op2):
-        pass
+        def f(x):
+            y = x.sin()
+            return y
+
+        expected = vmap(f, in_dims=in_dim, out_dims=out_dim)(x)
+
+        for chunks in [1, 2, 3, 4, 7, 10, 16]:
+            output = vmap(f, in_dims=in_dim, out_dims=out_dim, chunks=chunks)(x)
+            self.assertEqual(output, expected)
 
 
 instantiate_parametrized_tests(TestVmapOperators)
@@ -2902,10 +2908,6 @@ class TestVmapBatchedGradient(Namespace.TestVmapBase):
         x = _get_rand_no_zeros(2, 3, device=device, requires_grad=True)
         self._batched_grad_test(torch.log1p, (x,))
         self._batched_grad_grad_test(torch.log1p, (x,))
-
-    @parametrize('param', ['foo', 'bar'])
-    def test_param_device(self, device, param):
-        pass
 
     @allowVmapFallbackUsage
     def test_max(self, device):

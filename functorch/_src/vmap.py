@@ -205,7 +205,8 @@ def vmap(
         func: Callable,
         in_dims: in_dims_t = 0,
         out_dims: out_dims_t = 0,
-        randomness: str = 'error') -> Callable:
+        randomness: str = 'error',
+        chunks=1) -> Callable:
     """
     vmap is the vectorizing map; ``vmap(func)`` returns a new function that
     maps :attr:`func` over some dimension of the inputs. Semantically, vmap
@@ -235,6 +236,7 @@ def vmap(
             random functions will error. Default: 'error'. WARNING: this flag
             only applies to random PyTorch operations and does not apply to
             Python's random module or numpy randomness.
+        chunks (int): TODO
 
     Returns:
         Returns a new "batched" function. It takes the same inputs as
@@ -355,10 +357,22 @@ def vmap(
     if randomness not in ['error', 'different', 'same']:
         raise RuntimeError(f"Only allowed values for randomness are 'error', 'different', or 'same'. Got {randomness}")
 
-    @functools.wraps(func)
-    def wrapped(*args, **kwargs):
-        _check_out_dims_is_int_or_int_pytree(out_dims, func)
-        batch_size, flat_in_dims, flat_args, args_spec = _process_batched_inputs(in_dims, args, func)
+    if chunks == 1:
+        @functools.wraps(func)
+        def wrapped(*args, **kwargs):
+            _check_out_dims_is_int_or_int_pytree(out_dims, func)
+            batch_size, flat_in_dims, flat_args, args_spec = _process_batched_inputs(in_dims, args, func)
+            vmap_level = _vmap_increment_nesting(batch_size, randomness)
+            try:
+                batched_inputs = _create_batched_inputs(flat_in_dims, flat_args, vmap_level, args_spec)
+                batched_outputs = func(*batched_inputs, **kwargs)
+                return _unwrap_batched(batched_outputs, out_dims, vmap_level, batch_size, func)
+            finally:
+                _vmap_decrement_nesting()
+
+        return wrapped
+
+    def _flat_vmap(batch_size, flat_in_dims, flat_args, args_spec, **kwargs):
         vmap_level = _vmap_increment_nesting(batch_size, randomness)
         try:
             batched_inputs = _create_batched_inputs(flat_in_dims, flat_args, vmap_level, args_spec)
@@ -366,4 +380,63 @@ def vmap(
             return _unwrap_batched(batched_outputs, out_dims, vmap_level, batch_size, func)
         finally:
             _vmap_decrement_nesting()
-    return wrapped
+
+    def _get_chunk_flat_args(flat_args_, flat_in_dims_, chunks_):
+        flat_args_chunks = tuple(
+            t.chunk(chunks_, dim=in_dim) if in_dim is not None else [t, ] * chunks_
+            for t, in_dim in zip(flat_args_, flat_in_dims_)
+        )
+        # transpose chunk dim and flatten structure
+        # chunks_flat_args is a list of flatten args
+        chunks_flat_args = zip(*flat_args_chunks)
+        return chunks_flat_args
+
+    def _flatten_chunks_output(chunks_output_):
+        # chunks_output is a list of chunked outputs
+        # flatten chunked outputs:
+        flat_chunks_output = []
+        arg_spec_list = []
+        for output in chunks_output_:
+            flat_output, arg_specs = tree_flatten(output)
+            flat_chunks_output.append(flat_output)
+            arg_spec_list.append(arg_specs)
+
+        arg_spec = arg_spec_list[0]  # all specs should be the same
+        # transpose chunk dim and flatten structure
+        # flat_output_chunks is flat list of chunks
+        flat_output_chunks = list(zip(*flat_chunks_output))
+        return flat_output_chunks, arg_spec
+
+    @functools.wraps(func)
+    def wrapped_with_chunks(*args, **kwargs):
+        _check_out_dims_is_int_or_int_pytree(out_dims, func)
+        _, flat_in_dims, flat_args, args_spec = _process_batched_inputs(in_dims, args, func)
+        # Chunk flat arguments
+        chunks_flat_args = _get_chunk_flat_args(flat_args, flat_in_dims, chunks)
+
+        # Apply vmap on chunks
+        chunks_output = []
+        for flat_args in chunks_flat_args:
+            batch_size = _validate_and_get_batch_size(flat_in_dims, flat_args)
+            chunks_output.append(
+                _flat_vmap(batch_size, flat_in_dims, flat_args, args_spec, **kwargs)
+            )
+
+        flat_output_chunks, arg_spec = _flatten_chunks_output(chunks_output)
+        # Removing temporary variables helps to reduce memory usage on device like CUDA
+        del chunks_output
+
+        # concat chunks on out_dim
+        flat_out_dims = _broadcast_to_and_flatten(out_dims, arg_spec)
+        assert len(flat_out_dims) == len(flat_output_chunks)
+        flat_output = []
+        for out_dim in flat_out_dims:
+            flat_output.append(torch.cat(flat_output_chunks[0], dim=out_dim))
+            # release source data
+            del flat_output_chunks[0]
+        del flat_output_chunks
+
+        # finally unflatten the output
+        return tree_unflatten(flat_output, arg_spec)
+
+    return wrapped_with_chunks
