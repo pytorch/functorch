@@ -352,6 +352,33 @@ static void dump_local_tls() {
   std::cout << "[Local Exclude] " << tls.excluded_ << std::endl;
 }
 
+static std::tuple<std::string,int64_t> top_layer() {
+  auto result = maybeCurrentDynamicLayer();
+  if (!result.has_value()) {
+    return std::make_tuple("", 0);
+  }
+  auto level = result->layerId();
+  auto key = result->key();
+  if (key == DispatchKey::FuncTorchBatched) {
+    return std::make_tuple("vmap", level);
+  } else if (key == DispatchKey::Autograd) {
+    return std::make_tuple("grad", level);
+  }
+  TORCH_INTERNAL_ASSERT(false, "NYI");
+}
+
+static DynamicLayer popTop() {
+  return popDynamicLayer();
+}
+
+static int64_t pushTop(DynamicLayer dl) {
+  return pushDynamicLayer(std::move(dl));
+}
+
+static std::tuple<Tensor,optional<int64_t>> unpackBatched(const Tensor& t, int64_t level) {
+  return unwrapTensorAtLevel(t, level);
+}
+
 } // namespace functorch
 }
 
@@ -359,6 +386,13 @@ static void dump_local_tls() {
 namespace at { namespace functorch {
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+  py::class_<DynamicLayer>(m, "DynamicLayer");
+
+  m.def("top_layer", &at::functorch::top_layer);
+  m.def("popTop", &at::functorch::popTop);
+  m.def("pushTop", &at::functorch::pushTop);
+  m.def("unpackBatched", &at::functorch::unpackBatched);
+
   m.def("_add_batch_dim", &at::functorch::_add_batch_dim, "add batch dim");
   m.def("_remove_batch_dim", &at::functorch::_remove_batch_dim, "remove batch dim");
   m.def("_wrap_functional_tensor", &at::functorch::_wrap_functional_tensor, "add functional tensor");

@@ -103,5 +103,9 @@ void foreachTensorInplace(std::vector<IValue>& args, int64_t begin, int64_t end,
 std::ostream& operator<<(std::ostream& os, const DynamicLayer& layer);
 std::ostream& operator<<(std::ostream& os, const std::vector<DynamicLayer>& dynamicLayerStack);
 
+FUNCTORCH_API std::vector<DynamicLayer>& dynamicLayerStackAccessor();
+DynamicLayer popDynamicLayer();
+int64_t pushDynamicLayer(DynamicLayer&& dynamic_layer);
+
 }
 } // namespace at

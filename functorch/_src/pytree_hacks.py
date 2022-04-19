@@ -22,3 +22,11 @@ def treespec_pprint(spec):
     leafs = [PlaceHolder() for _ in range(spec.num_leaves)]
     result = tree_unflatten(leafs, spec)
     return repr(result)
+
+
+def tree_map2(fn, first, second):
+    flat_first, spec_first = tree_flatten(first)
+    flat_second, spec_second = tree_flatten(second)
+    assert spec_first == spec_second
+    flat_result = [fn(f, s) for f, s in zip(flat_first, flat_second)]
+    return tree_unflatten(flat_result, spec_first)

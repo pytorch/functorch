@@ -116,9 +116,9 @@ class FuncTorchTLS : public FuncTorchTLSBase {
   }
 
   int64_t checkSupportsAutogradFunction() const override {
-    TORCH_CHECK(dynamicLayerStack.size() == 0,
-        "functorch functions (vmap, grad, vjp, etc.) currently do not support the use of autograd.Function. ",
-        "Please rewrite your function to not use autograd.Function while we work on fixing this");
+    // TORCH_CHECK(dynamicLayerStack.size() == 0,
+    //     "functorch functions (vmap, grad, vjp, etc.) currently do not support the use of autograd.Function. ",
+    //     "Please rewrite your function to not use autograd.Function while we work on fixing this");
     return 0;
   }
 
@@ -143,7 +143,7 @@ static FuncTorchTLS* getRawFunctorchTLS() {
   return result;
 }
 
-static std::vector<DynamicLayer>& dynamicLayerStackAccessor() {
+std::vector<DynamicLayer>& dynamicLayerStackAccessor() {
   return getRawFunctorchTLS()->dynamicLayerStack;
 }
 
@@ -201,7 +201,7 @@ bool areTransformsActive() {
   return !data.empty();
 }
 
-static DynamicLayer popDynamicLayer() {
+DynamicLayer popDynamicLayer() {
   auto& dynamicLayerStack = dynamicLayerStackAccessor();
   TORCH_INTERNAL_ASSERT(dynamicLayerStack.size() > 0);
   auto result = dynamicLayerStack.back();
@@ -220,7 +220,7 @@ static DynamicLayer popDynamicLayer() {
   return result;
 }
 
-static int64_t pushDynamicLayer(DynamicLayer&& dynamic_layer) {
+int64_t pushDynamicLayer(DynamicLayer&& dynamic_layer) {
   auto& dynamicLayerStack = dynamicLayerStackAccessor();
   int64_t layerId = 1 + dynamicLayerStack.size();
   TORCH_INTERNAL_ASSERT(layerId == dynamic_layer.layerId());
