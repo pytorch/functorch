@@ -5,6 +5,7 @@ from functorch import grad, grad_and_value, vmap
 import functorch._C as _C
 from functools import partial
 from functorch._src.pytree_hacks import tree_map2
+import contextlib
 
 
 def get_topmost_layer():
@@ -26,8 +27,28 @@ class TransformableOperator:
 
     def __call__(self, *args, **kwargs):
         dynamic_layer = get_topmost_layer()
+        if dynamic_layer not in self.rules_map:
+            raise RuntimeError(f'{self.name} has no rule for {dynamic_layer}')
         fn = self.rules_map[dynamic_layer]
         return fn(*args, **kwargs)
+
+
+@contextlib.contextmanager
+def pop_stack():
+    dl = _C.popTop()
+    try:
+        yield dl
+    finally:
+        _C.pushTop(dl)
+
+
+@contextlib.contextmanager
+def push_stack(dl):
+    level = _C.pushTop(dl)
+    try:
+        yield level
+    finally:
+        _C.popTop()
 
 
 def generate_autograd_function(level, fwd_fn, bwd_fn):
@@ -59,12 +80,9 @@ def generate_autograd_function(level, fwd_fn, bwd_fn):
 
             unwrapped_args = tree_map(unwrap, args)
 
-            dl = _C.popTop()
-            try:
+            with pop_stack():
                 with torch.enable_grad():
                     result, saved = custom_vjp(fwd_fn, bwd_fn, *unwrapped_args)
-            finally:
-                _C.pushTop(dl)
 
             result, saved = tree_map(wrap, (result, saved))
 
@@ -96,51 +114,41 @@ def custom_vjp_vmap(fwd_fn, bwd_fn, *args):
     assert len(args) == 1
     assert isinstance(args[0], torch.Tensor)
     x, bdim = _C.unpackBatched(args[0], level)
-    dl = _C.popTop()
 
-    side_channel = None
+    with pop_stack() as dl:
+        side_channel = None
 
-    def batch_fwd(f):
-        def inner(x):
-            new_level = _C.pushTop(dl)
-            try:
-                x = _C._add_batch_dim(x, bdim, new_level)
-                results = f(x)
-                flat_results, results_spec = tree_flatten(results)
-                flat_results_and_bdims = [_C.unpackBatched(r, new_level) for r in flat_results]
-                flat_tensors, flat_bdims = zip(*flat_results_and_bdims)
-                nonlocal side_channel
-                side_channel = flat_bdims
-                return tree_unflatten(flat_tensors, results_spec)
-            finally:
-                _C.popTop()
+        def batch_fwd(f):
+            def inner(x):
+                with push_stack(dl) as new_level:
+                    x = _C._add_batch_dim(x, bdim, new_level)
+                    results = f(x)
+                    flat_results, results_spec = tree_flatten(results)
+                    flat_results_and_bdims = [_C.unpackBatched(r, new_level) for r in flat_results]
+                    flat_tensors, flat_bdims = zip(*flat_results_and_bdims)
+                    nonlocal side_channel
+                    side_channel = flat_bdims
+                    return tree_unflatten(flat_tensors, results_spec)
 
-        return inner
+            return inner
 
-    def wrap(tensor, bdim):
-        return _C._add_batch_dim(tensor, bdim, level)
+        def wrap(tensor, bdim):
+            return _C._add_batch_dim(tensor, bdim, level)
 
-    def batch_bwd(f):
-        def inner(gO, gx, x):
-            new_level = _C.pushTop(dl)
-            try:
-                x = _C._add_batch_dim(x, bdim, new_level)
-                grads = gO, gx
-                grads = tree_map2(wrap, grads, side_channel)
-                gO, gx = grads
-                gx_new = f(gO, gx, x)
-                gx_new, gx_bdim = _C.unpackBatched(gx_new, new_level)
-                gx_new = gx_new.movedim(gx_bdim, bdim)
-                return gx_new
-            finally:
-                _C.popTop()
-        return inner
+        def batch_bwd(f):
+            def inner(gO, gx, x):
+                with push_stack(dl) as new_level:
+                    x = _C._add_batch_dim(x, bdim, new_level)
+                    grads = gO, gx
+                    grads = tree_map2(wrap, grads, side_channel)
+                    gO, gx = grads
+                    gx_new = f(gO, gx, x)
+                    gx_new, gx_bdim = _C.unpackBatched(gx_new, new_level)
+                    gx_new = gx_new.movedim(gx_bdim, bdim)
+                    return gx_new
+            return inner
 
-    try:
         results = custom_vjp(batch_fwd(fwd_fn), batch_bwd(bwd_fn), x)
-    finally:
-        _C.pushTop(dl)
-
     return tree_map2(wrap, results, side_channel)
 
 
@@ -157,6 +165,10 @@ custom_vjp = TransformableOperator('custom_vjp')
 custom_vjp.impl('torch', custom_vjp_torch)
 custom_vjp.impl('vmap', custom_vjp_vmap)
 custom_vjp.impl('grad', custom_vjp_grad)
+
+# dispatcher object?
+# access the current level
+# access a context manager to pop me off the stack
 
 
 def f_fwd(x):
