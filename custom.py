@@ -7,6 +7,29 @@ from functools import partial
 from functorch._src.pytree_hacks import tree_map2
 
 
+def get_topmost_layer():
+    if not _C.are_transforms_active():
+        return 'torch'
+    layer, _ = _C.top_layer()
+    if layer == '':
+        return 'torch'
+    return layer
+
+
+class TransformableOperator:
+    def __init__(self, name):
+        self.name = name
+        self.rules_map = {}
+
+    def impl(self, transform, rule):
+        self.rules_map[transform] = rule
+
+    def __call__(self, *args, **kwargs):
+        dynamic_layer = get_topmost_layer()
+        fn = self.rules_map[dynamic_layer]
+        return fn(*args, **kwargs)
+
+
 def generate_autograd_function(level, fwd_fn, bwd_fn):
     if level == 0:
         class CustomFuncA(torch.autograd.Function):
@@ -60,74 +83,80 @@ def generate_autograd_function(level, fwd_fn, bwd_fn):
     return CustomFuncB
 
 
-def custom_vjp(fwd_fn, bwd_fn, *args):
-    if not _C.are_transforms_active():
-        print('[torch] custom_vjp')
-        CustomFunc = generate_autograd_function(0, fwd_fn, bwd_fn)
-        return CustomFunc.apply(*args)
+def custom_vjp_torch(fwd_fn, bwd_fn, *args):
+    print('[torch] custom_vjp')
+    CustomFunc = generate_autograd_function(0, fwd_fn, bwd_fn)
+    return CustomFunc.apply(*args)
 
-    layer, level = _C.top_layer()
-    if layer == '':
-        print('[torch] custom_vjp')
-        CustomFunc = generate_autograd_function(0, fwd_fn, bwd_fn)
-        return CustomFunc.apply(*args)
-    elif layer == 'vmap':
-        assert len(args) == 1
-        assert isinstance(args[0], torch.Tensor)
-        x, bdim = _C.unpackBatched(args[0], level)
-        dl = _C.popTop()
 
-        side_channel = None
+def custom_vjp_vmap(fwd_fn, bwd_fn, *args):
+    print('[vmap] custom_vjp')
+    _, level = _C.top_layer()
 
-        def batch_fwd(f):
-            def inner(x):
-                new_level = _C.pushTop(dl)
-                try:
-                    x = _C._add_batch_dim(x, bdim, new_level)
-                    results = f(x)
-                    flat_results, results_spec = tree_flatten(results)
-                    flat_results_and_bdims = [_C.unpackBatched(r, new_level) for r in flat_results]
-                    flat_tensors, flat_bdims = zip(*flat_results_and_bdims)
-                    nonlocal side_channel
-                    side_channel = flat_bdims
-                    return tree_unflatten(flat_tensors, results_spec)
-                finally:
-                    _C.popTop()
+    assert len(args) == 1
+    assert isinstance(args[0], torch.Tensor)
+    x, bdim = _C.unpackBatched(args[0], level)
+    dl = _C.popTop()
 
-            return inner
+    side_channel = None
 
-        def wrap(tensor, bdim):
-            return _C._add_batch_dim(tensor, bdim, level)
+    def batch_fwd(f):
+        def inner(x):
+            new_level = _C.pushTop(dl)
+            try:
+                x = _C._add_batch_dim(x, bdim, new_level)
+                results = f(x)
+                flat_results, results_spec = tree_flatten(results)
+                flat_results_and_bdims = [_C.unpackBatched(r, new_level) for r in flat_results]
+                flat_tensors, flat_bdims = zip(*flat_results_and_bdims)
+                nonlocal side_channel
+                side_channel = flat_bdims
+                return tree_unflatten(flat_tensors, results_spec)
+            finally:
+                _C.popTop()
 
-        def batch_bwd(f):
-            def inner(gO, gx, x):
-                new_level = _C.pushTop(dl)
-                try:
-                    x = _C._add_batch_dim(x, bdim, new_level)
-                    grads = gO, gx
-                    grads = tree_map2(wrap, grads, side_channel)
-                    gO, gx = grads
-                    gx_new = f(gO, gx, x)
-                    gx_new, gx_bdim = _C.unpackBatched(gx_new, new_level)
-                    gx_new = gx_new.movedim(gx_bdim, bdim)
-                    return gx_new
-                finally:
-                    _C.popTop()
-            return inner
+        return inner
 
-        try:
-            results = custom_vjp(batch_fwd(fwd_fn), batch_bwd(bwd_fn), x)
-        finally:
-            _C.pushTop(dl)
+    def wrap(tensor, bdim):
+        return _C._add_batch_dim(tensor, bdim, level)
 
-        return tree_map2(wrap, results, side_channel)
-    elif layer == 'grad':
-        print('[grad] custom_vjp')
-        CustomFunc = generate_autograd_function(level, fwd_fn, bwd_fn)
-        result = CustomFunc.apply(*args)
-        return result
-    else:
-        raise NotImplementedError('nyi')
+    def batch_bwd(f):
+        def inner(gO, gx, x):
+            new_level = _C.pushTop(dl)
+            try:
+                x = _C._add_batch_dim(x, bdim, new_level)
+                grads = gO, gx
+                grads = tree_map2(wrap, grads, side_channel)
+                gO, gx = grads
+                gx_new = f(gO, gx, x)
+                gx_new, gx_bdim = _C.unpackBatched(gx_new, new_level)
+                gx_new = gx_new.movedim(gx_bdim, bdim)
+                return gx_new
+            finally:
+                _C.popTop()
+        return inner
+
+    try:
+        results = custom_vjp(batch_fwd(fwd_fn), batch_bwd(bwd_fn), x)
+    finally:
+        _C.pushTop(dl)
+
+    return tree_map2(wrap, results, side_channel)
+
+
+def custom_vjp_grad(fwd_fn, bwd_fn, *args):
+    _, level = _C.top_layer()
+
+    print('[grad] custom_vjp')
+    CustomFunc = generate_autograd_function(level, fwd_fn, bwd_fn)
+    result = CustomFunc.apply(*args)
+    return result
+
+
+custom_vjp = TransformableOperator('custom_vjp')
+custom_vjp.impl('torch', custom_vjp_torch)
+custom_vjp.impl('vmap', custom_vjp_vmap)
+custom_vjp.impl('grad', custom_vjp_grad)
 
 
 def f_fwd(x):
@@ -208,10 +237,11 @@ gx, = torch.autograd.grad(L, x)
 print(gx)
 assert torch.allclose(gx, 2 * x)
 
-print('*' * 80)
-
-def g(x):
-    return vmap(MySin)(x).sum()
-
-gx = grad(g)(x)
-assert torch.allclose(gx, 2 * x)
+# TODO: requires non-automatic level indices
+# print('*' * 80)
+# 
+# def g(x):
+#     return vmap(MySin)(x).sum()
+# 
+# gx = grad(g)(x)
+# assert torch.allclose(gx, 2 * x)
