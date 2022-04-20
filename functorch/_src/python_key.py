@@ -12,11 +12,12 @@ from torch.fx import Tracer, GraphModule
 import torch.fx as fx
 from torch.fx.passes.shape_prop import _extract_tensor_metadata
 from contextlib import contextmanager
+from torch.utils._python_dispatch import enable_python_mode
 
 aten = torch.ops.aten
 
 CURRENT_DECOMPOSITION_TABLE = {}
-
+CURRENT_TRACER = None
 
 @contextmanager
 def no_dispatch():
@@ -83,10 +84,17 @@ class PythonTensor(torch.Tensor):
         def unwrap_proxy(e):
             return e.proxy if isinstance(e, PythonTensor) else e
 
-        proxy_args = pytree.tree_map(unwrap_proxy, args)
-        proxy_kwargs = pytree.tree_map(unwrap_proxy, kwargs)
+        with no_dispatch():
+            proxy_args = pytree.tree_map(unwrap_proxy, args)
+            proxy_kwargs = pytree.tree_map(unwrap_proxy, kwargs)
 
-        proxy_out = func(*proxy_args, **proxy_kwargs)
+        if any((isinstance(arg, PythonTensor) for arg in args)):
+            with no_dispatch():
+                proxy_out = func(*proxy_args, **proxy_kwargs)
+        else:
+            global CURRENT_TRACER
+            tracer = CURRENT_TRACER
+            proxy_out = tracer.create_proxy('call_function', func, args, kwargs, name=tracer.graph._target_to_str(func.__name__))
 
         # Kind of a hacky way to test if an op is in-place or not
         if func.__name__[-1] == "_" and func.__name__[0] != "_":
@@ -107,14 +115,15 @@ class PythonTensor(torch.Tensor):
                 return PythonTensor(e, proxy)
             else:
                 return e
-        if isinstance(real_out, tuple):
-            return tuple([wrap_with_proxy(e, proxy_out[idx]) for idx, e in enumerate(real_out)])
-        elif isinstance(real_out, list):
-            return list([wrap_with_proxy(e, proxy_out[idx]) for idx, e in enumerate(real_out)])
-        elif isinstance(real_out, torch.Tensor):
-            return wrap_with_proxy(real_out, proxy_out)
-        else:
-            return real_out
+        with no_dispatch():
+            if isinstance(real_out, tuple):
+                return tuple([wrap_with_proxy(e, proxy_out[idx]) for idx, e in enumerate(real_out)])
+            elif isinstance(real_out, list):
+                return list([wrap_with_proxy(e, proxy_out[idx]) for idx, e in enumerate(real_out)])
+            elif isinstance(real_out, torch.Tensor):
+                return wrap_with_proxy(real_out, proxy_out)
+            else:
+                return real_out
 
 
 class PythonKeyTracer(Tracer):
@@ -159,11 +168,16 @@ class PythonKeyTracer(Tracer):
             return self.create_node('get_attr', qualname, (), {})
         return super().create_arg(a)
 
+    def trace(self, root, concrete_args):
+        with enable_python_mode(PythonTensor):
+            return super().trace(root, concrete_args)
 
 def pythonkey_trace(
     root: Union[torch.nn.Module, Callable], concrete_args: Optional[Dict[str, Any]] = None
 ) -> GraphModule:
+    global CURRENT_TRACER
     tracer = PythonKeyTracer()
+    CURRENT_TRACER = tracer
     graph = tracer.trace(root, concrete_args)
     name = root.__class__.__name__ if isinstance(root, torch.nn.Module) else root.__name__
     return GraphModule(tracer.root, graph, name)
@@ -178,7 +192,8 @@ def wrap_key(f, inps):
         assert(len(flat_args) == len(flat_inps))
         for idx, arg in enumerate(flat_args):
             if isinstance(flat_inps[idx], torch.Tensor):
-                flat_args[idx] = PythonTensor(flat_inps[idx], arg)
+                with no_dispatch():
+                    flat_args[idx] = PythonTensor(flat_inps[idx], arg)
             else:
                 flat_args[idx] = flat_inps[idx]
 

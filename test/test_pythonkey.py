@@ -188,6 +188,14 @@ class TestPythonKey(TestCase):
         grads2 = [a.grad for a in mod.parameters()]
         self.assertEqual(grads, grads2)
 
+    def test_factory_functions(self, device):
+        def f(x):
+            return x * torch.randn(5)
+
+        fx_f = make_fx(f)(torch.randn(5))
+        ops = set([i.target for i in fx_f.graph.nodes])
+
+        self.assertEqual(torch.ops.aten.randn in ops, True)
 
 make_fx_failures = {
     xfail('allclose'),
