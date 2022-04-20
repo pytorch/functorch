@@ -866,6 +866,38 @@ class TestGradTransform(TestCase):
                 expected = expected.replace("\n", "").replace("  ", "")
                 self.assertEqual(expected, buf)
 
+    @parametrize("op_list_data", [
+        subtest(([vmap, ], [(4, 2), (64, 3, 32, 32)]), name='vmap'),
+        subtest(([vmap, vmap], [(4, 3, 2), (64, 3, 32, 32)]), name='vmap_vmap'),
+        subtest(([grad, ], [(0, ), [], (4, 2), (64, 3, 32, 32)]), name='grad'),
+        subtest(([grad, grad], [[], ]), name='grad_grad'),
+        subtest(([vmap, grad], [(4, 2)]), name='vmap_grad'),
+    ])
+    def test_tensor_numpy(self, device, op_list_data):
+
+        op_list, shapes = op_list_data
+
+        for dt in [torch.float32, torch.float64]:
+            data = [torch.randn(s, dtype=dt, device=device) for s in shapes]
+
+            for x in data:
+
+                def foo(t):
+                    n = t.detach().cpu().numpy()
+                    assert n.shape == x.shape
+                    return t.mean()
+
+                fn = foo
+                bdim = 0
+                for op in reversed(op_list):
+                    if op == vmap:
+                        fn = op(fn, in_dims=bdim)
+                        bdim += 1
+                    else:
+                        fn = op(fn)
+
+                fn(x)
+
     def test_no_grad_outside(self, device):
         x = torch.randn([], device=device, requires_grad=True)
         with torch.no_grad():
