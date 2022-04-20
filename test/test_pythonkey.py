@@ -192,7 +192,7 @@ class TestPythonKey(TestCase):
         def f(x):
             return x * torch.randn(5)
 
-        fx_f = make_fx(f)(torch.randn(5))
+        fx_f = make_fx(f, trace_factory_fns=True)(torch.randn(5))
         ops = set([i.target for i in fx_f.graph.nodes])
 
         self.assertEqual(torch.ops.aten.randn in ops, True)

@@ -11,13 +11,14 @@ import torch.utils._pytree as pytree
 from torch.fx import Tracer, GraphModule
 import torch.fx as fx
 from torch.fx.passes.shape_prop import _extract_tensor_metadata
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from torch.utils._python_dispatch import enable_python_mode
 
 aten = torch.ops.aten
 
 CURRENT_DECOMPOSITION_TABLE = {}
 CURRENT_TRACER = None
+TRACE_FACTORY_FNS = False
 
 @contextmanager
 def no_dispatch():
@@ -73,6 +74,9 @@ class PythonTensor(torch.Tensor):
 
     @classmethod
     def __torch_dispatch__(cls, func_overload, types, args=(), kwargs=None):
+        global TRACE_FACTORY_FNS
+        trace_factory_fns = TRACE_FACTORY_FNS
+        context_manager = no_dispatch if TRACE_FACTORY_FNS else suppress
         func = func_overload.overloadpacket
         if func_overload in CURRENT_DECOMPOSITION_TABLE:
             return CURRENT_DECOMPOSITION_TABLE[func_overload](*args, **kwargs)
@@ -84,17 +88,18 @@ class PythonTensor(torch.Tensor):
         def unwrap_proxy(e):
             return e.proxy if isinstance(e, PythonTensor) else e
 
-        with no_dispatch():
+        with context_manager():
             proxy_args = pytree.tree_map(unwrap_proxy, args)
             proxy_kwargs = pytree.tree_map(unwrap_proxy, kwargs)
 
-        if any((isinstance(arg, PythonTensor) for arg in args)):
-            with no_dispatch():
+        if any((isinstance(arg, PythonTensor) for arg in args)) or not trace_factory_fns:
+            with context_manager():
                 proxy_out = func(*proxy_args, **proxy_kwargs)
         else:
             global CURRENT_TRACER
             tracer = CURRENT_TRACER
-            proxy_out = tracer.create_proxy('call_function', func, args, kwargs, name=tracer.graph._target_to_str(func.__name__))
+            proxy_out = tracer.create_proxy('call_function', func, args, kwargs,
+                                            name=tracer.graph._target_to_str(func.__name__))
 
         # Kind of a hacky way to test if an op is in-place or not
         if func.__name__[-1] == "_" and func.__name__[0] != "_":
@@ -115,7 +120,7 @@ class PythonTensor(torch.Tensor):
                 return PythonTensor(e, proxy)
             else:
                 return e
-        with no_dispatch():
+        with context_manager():
             if isinstance(real_out, tuple):
                 return tuple([wrap_with_proxy(e, proxy_out[idx]) for idx, e in enumerate(real_out)])
             elif isinstance(real_out, list):
@@ -127,7 +132,8 @@ class PythonTensor(torch.Tensor):
 
 
 class PythonKeyTracer(Tracer):
-    def __init__(self):
+    def __init__(self, trace_factory_fns):
+        self.trace_factory_fns = trace_factory_fns
         super().__init__()
 
     def call_module(
@@ -169,21 +175,25 @@ class PythonKeyTracer(Tracer):
         return super().create_arg(a)
 
     def trace(self, root, concrete_args):
-        with enable_python_mode(PythonTensor):
+        context_manager = enable_python_mode if self.trace_factory_fns else suppress
+        with context_manager(PythonTensor):
             return super().trace(root, concrete_args)
 
 def pythonkey_trace(
-    root: Union[torch.nn.Module, Callable], concrete_args: Optional[Dict[str, Any]] = None
+    root: Union[torch.nn.Module, Callable], trace_factory_fns, concrete_args: Optional[Dict[str, Any]] = None
 ) -> GraphModule:
     global CURRENT_TRACER
-    tracer = PythonKeyTracer()
+    global TRACE_FACTORY_FNS
+    tracer = PythonKeyTracer(trace_factory_fns)
     CURRENT_TRACER = tracer
+    TRACE_FACTORY_FNS = trace_factory_fns
     graph = tracer.trace(root, concrete_args)
     name = root.__class__.__name__ if isinstance(root, torch.nn.Module) else root.__name__
     return GraphModule(tracer.root, graph, name)
 
 
-def wrap_key(f, inps):
+def wrap_key(f, inps, trace_factory_fns):
+    context_manager = no_dispatch if trace_factory_fns else suppress
     flat_inps, inp_spec = pytree.tree_flatten(inps)
 
     @functools.wraps(f)
@@ -192,7 +202,7 @@ def wrap_key(f, inps):
         assert(len(flat_args) == len(flat_inps))
         for idx, arg in enumerate(flat_args):
             if isinstance(flat_inps[idx], torch.Tensor):
-                with no_dispatch():
+                with context_manager():
                     flat_args[idx] = PythonTensor(flat_inps[idx], arg)
             else:
                 flat_args[idx] = flat_inps[idx]
@@ -208,12 +218,12 @@ def wrap_key(f, inps):
     return wrapped
 
 
-def make_fx(f, decomposition_table={}):
+def make_fx(f, decomposition_table={}, trace_factory_fns=False):
     @functools.wraps(f)
     def wrapped(*args):
         phs = pytree.tree_map(lambda x: fx.PH, args)
         with pythonkey_decompose(decomposition_table):
-            t = pythonkey_trace(wrap_key(f, args), concrete_args=tuple(phs))
+            t = pythonkey_trace(wrap_key(f, args, trace_factory_fns), trace_factory_fns, concrete_args=tuple(phs))
         return t
 
     return wrapped
