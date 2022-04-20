@@ -75,9 +75,10 @@ def create_joint_forward_backward(fn):
             if isinstance(out, Tensor) and out.requires_grad:
                 needed_outs.append(out)
                 needed_tangents.append(tangent)
-        backward_out = []
+        backward_out = [None] * len(grad_primals)
+
         # Call the backwards pass
-        if grad_primals:
+        if torch.is_grad_enabled() and grad_primals:
             backward_out = torch.autograd.grad(
                 needed_outs,
                 grad_primals,
