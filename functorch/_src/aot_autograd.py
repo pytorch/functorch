@@ -102,14 +102,30 @@ def normalize_as_list(x):
 aot_autograd_decompositions = {}
 
 
-@register_decomposition([aten.rsub.Scalar, aten.rsub.Tensor], aot_autograd_decompositions)
-def rsub(a, b, alpha=1):
-    return -aten.sub(a, b)
-
-
 @register_decomposition(aten._reshape_alias, aot_autograd_decompositions)
 def _reshape_alias(x, shape, strides):
     return aten.view(x, shape)
+
+
+@register_decomposition(aten.new_zeros, aot_autograd_decompositions)
+def new_zeros(inp, size, dtype=None, layout=None, device=None, pin_memory=None):
+    return torch.zeros(size, dtype=inp.dtype, device=inp.device)
+
+
+@register_decomposition(aten.new_full, aot_autograd_decompositions)
+def new_full(inp, size, value, dtype=None, layout=None, device=None, pin_memory=None):
+    return torch.full(size, value, dtype=inp.dtype, device=inp.device)
+
+
+@register_decomposition(aten.clone, aot_autograd_decompositions)
+def clone(self: Tensor, memory_format: int = None) -> Tensor:
+    if memory_format == 0:
+        if self.is_contiguous():
+            print("skipping")
+            return self + 0
+        return self.contiguous()
+    else:
+        return self + 0
 
 
 def create_aot_autograd_function(

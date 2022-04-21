@@ -189,6 +189,17 @@ def _size_of(metadata):
 
     return numel * sizes[dtype]
 
+
+# Used for some investigative purposes
+def _count_ops(graph):
+    from collections import defaultdict
+    cnt = defaultdict(int)
+    for node in graph.nodes:
+        if node.op == 'call_function':
+            cnt[node.target.__name__] += 1
+    print(sorted(list(cnt.items()), key=lambda x: x[1], reverse=True))
+
+
 def min_cut_rematerialization_partition(
     joint_module: fx.GraphModule, _joint_inputs
 ) -> Tuple[fx.GraphModule, fx.GraphModule]:
@@ -233,12 +244,15 @@ def min_cut_rematerialization_partition(
         primal_inputs = list(filter(_is_primal, joint_module.graph.nodes))
         fwd_outputs, _ = _extract_fwd_bwd_outputs(joint_module)
         forward_only_graph = _extract_graph_with_inputs_outputs(joint_module.graph, primal_inputs, fwd_outputs)
-        required_fw_nodes = set([name_to_node[node.name] for node in forward_only_graph.nodes if node.op != 'output'])
-        unclaimed_nodes = set([node for node in joint_module.graph.nodes if node not in required_fw_nodes and node not in required_bw_nodes])
+        required_fw_nodes = set([name_to_node[node.name] for node in forward_only_graph.nodes
+                                 if node.op != 'output'])
+        unclaimed_nodes = set([node for node in joint_module.graph.nodes
+                               if node not in required_fw_nodes and node not in required_bw_nodes])
         return required_fw_nodes, required_bw_nodes, unclaimed_nodes
 
     required_fw_nodes, required_bw_nodes, unclaimed_nodes = classify_nodes(joint_module)
     cache = {}
+
     def dist_from_fw(node):
         if node in cache:
             return cache[node]
@@ -269,7 +283,7 @@ def min_cut_rematerialization_partition(
     # These are the view ops that NVFuser can fuse
     view_ops = [aten.squeeze, aten.unsqueeze]
     random_ops = [aten.native_dropout, aten.rand_like, aten.randn_like]
-    compute_intensive_ops = [aten.mm, aten.convolution, aten.convolution_backward, aten.bmm, aten.addmm, aten.upsample_bilinear2d]
+    compute_intensive_ops = [aten.mm, aten.convolution, aten.convolution_backward, aten.bmm, aten.addmm, aten.upsample_bilinear2d]  # noqa: E501
     unrecomputable_ops = random_ops + compute_intensive_ops
 
     recomputable_ops = set(
@@ -360,6 +374,7 @@ def min_cut_rematerialization_partition(
     saved_values = [name_to_node[node] for node in cut_nodes]
 
     return _extract_fwd_bwd_modules(joint_module, saved_values)
+
 
 def draw_graph(traced: torch.fx.GraphModule, fname: str, figname: str = "fx_graph", clear_meta=True):
     if clear_meta:
