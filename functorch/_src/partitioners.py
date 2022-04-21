@@ -265,14 +265,18 @@ def min_cut_rematerialization_partition(
 
     # Not used by default since NVFuser can't fuse view ops
     # view_ops = [aten.expand, aten.clone, aten.transpose, aten.t, aten.view, aten._unsafe_view, aten.permute, aten.transpose, aten.t, aten._reshape_alias, aten.squeeze, aten.unsqueeze, aten.reshape, aten.cat, aten.slice, aten.split, aten.select, aten.repeat]  # noqa: E501
+
+    # These are the view ops that NVFuser can fuse
+    view_ops = [aten.squeeze, aten.unsqueeze]
     random_ops = [aten.native_dropout, aten.rand_like, aten.randn_like]
-    compute_intensive_ops = [aten.mm, aten.convolution, aten.convolution_backward, aten.bmm, aten.addmm, aten.upsample_bilinear2d]  # noqa: E501
-    unrecomputable_ops = random_ops + compute_intensive_ops  # noqa: E501
+    compute_intensive_ops = [aten.mm, aten.convolution, aten.convolution_backward, aten.bmm, aten.addmm, aten.upsample_bilinear2d]
+    unrecomputable_ops = random_ops + compute_intensive_ops
 
     recomputable_ops = set(
         pointwise_ops
         + misc_ops
         + reduction_ops
+        + view_ops
     )
     fusible_ops = recomputable_ops | set(random_ops)
 
