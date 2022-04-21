@@ -101,6 +101,11 @@ def get_extensions():
         for p in glob.glob(os.path.join(extensions_dir, "*.cpp"))
     )
     sources = list(extension_sources)
+    compile_dir = os.path.join(this_dir, "functorch", "compile", "csrc")
+    compile_sources = list(set(
+        os.path.join(compile_dir, p)
+        for p in glob.glob(os.path.join(compile_dir, "*.cpp"))
+    ))
 
     ext_modules = [
         extension(
@@ -110,7 +115,15 @@ def get_extensions():
             define_macros=define_macros,
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
-        )
+        ),
+        extension(
+            "functorch._compile_C",
+            compile_sources,
+            include_dirs=[this_dir],
+            define_macros=define_macros,
+            extra_compile_args=extra_compile_args,
+            extra_link_args=extra_link_args,
+        ),
     ]
 
     return ext_modules

@@ -6,7 +6,7 @@ from torch.fx import immutable_collections
 import torch.utils._pytree as pytree
 import torch.utils.dlpack
 from torch.nn.utils import _stateless
-from functorch._C import CompileCache
+from functorch._compile_C import CompileCache
 from .decompositions import register_decomposition
 from .partitioners import default_partition
 from .named_members_polyfill import _named_parameters, _named_buffers
