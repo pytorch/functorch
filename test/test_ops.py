@@ -867,14 +867,6 @@ class TestOperators(TestCase):
         xfail('fft.ihfftn'),  # conj_physical fallback
         xfail('istft'),  # col2im fallback
         xfail('polar'),  # complex fallback
-
-        # aten::expand_copy hit the vmap fallback which is currently disabled
-        xfail('diag_embed'),
-        xfail('linalg.cond'),
-        xfail('linalg.svd'),
-        xfail('linalg.svdvals'),
-        xfail('norm', 'nuc'),
-        xfail('svd'),
     }))
     @toleranceOverride({torch.float32: tol(atol=1e-04, rtol=1e-04)})
     def test_vmapjvpall_has_batch_rule(self, device, dtype, op):
@@ -992,11 +984,6 @@ class TestOperators(TestCase):
         xfail('svd_lowrank', ''),
         xfail('linalg.lu_factor_ex', ''),
         xfail('combinations'),  # aten::masked_select_backward hit the vmap fallback which is currently disabled
-
-        # aten::expand_copy hit the vmap fallback which is currently disabled
-        xfail('diag_embed'),
-        xfail('linalg.svd'),
-        xfail('svd'),
     }))
     def test_vmapvjp_has_batch_rule(self, device, dtype, op):
         if not op.supports_autograd:

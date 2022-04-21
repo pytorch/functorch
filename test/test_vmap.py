@@ -3261,10 +3261,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('linalg.lu_factor_ex', ''),
         xfail('diagflat', ''),
         xfail('special.log_ndtr'),
-
-        # aten::expand_copy hit the vmap fallback which is currently disabled
-        xfail('block_diag'),
-        xfail('diag_embed'),
+        xfail('block_diag'),  # aten::slice_copy.Tensor hit the vmap fallback which is currently disabled
     }))
     def test_op_has_batch_rule(self, device, dtype, op):
         def test():
