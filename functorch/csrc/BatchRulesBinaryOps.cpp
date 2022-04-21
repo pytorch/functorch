@@ -203,6 +203,23 @@ std::tuple<Tensor,optional<int64_t>> where_self_batch_rule(
   return std::make_tuple(at::where(condition_, self_, other_), 0);
 }
 
+std::tuple<Tensor, optional<int64_t>> gelu_backward_batch_rule(
+    const Tensor& grad_out, optional<int64_t> grad_out_bdim, const Tensor& input, optional<int64_t> input_bdim,
+    c10::string_view approximate) {
+
+  // repeat the preprocessing from _binary_pointwise_batch_rule
+  const auto tensor_other = _binary_pointwise_helper(grad_out, grad_out_bdim, input, input_bdim);
+  auto grad_out_ = std::get<0>(tensor_other);
+  auto input_ = std::get<1>(tensor_other);
+
+  // gelu_backward doesn't broadcast well so we need to insist all inputs have a bdim
+  const auto batch_size = get_bdim_size2(grad_out, grad_out_bdim, input, input_bdim);
+  grad_out_ = ensure_has_bdim(grad_out_, grad_out_bdim.has_value(), batch_size);
+  input_ = ensure_has_bdim(input_, input_bdim.has_value(), batch_size);
+
+  return std::make_tuple(at::gelu_backward(grad_out_, input_, approximate), 0);
+}
+
 std::tuple<Tensor,optional<int64_t>> masked_select_batch_rule(
     const Tensor& self, optional<int64_t> self_bdim,
     const Tensor& mask, optional<int64_t> mask_bdim) {
@@ -275,14 +292,18 @@ std::tuple<Tensor,optional<int64_t>> cdist_backward_batch_rule(
   return std::make_tuple(out, out_bdim);
 }
 
+Tensor binomial_wrapper(const Tensor& count, const Tensor& prob, c10::optional<Generator> gen) {
+  return at::binomial(count, prob.contiguous(), gen); // Bug in PyTorch, prob shouldn't need to be contiguous
+}
+
 TORCH_LIBRARY_IMPL(aten, FuncTorchVmapMode, m) {
   #define BINARY_RANDOM_POINTWISE(op) \
-  m.impl(#op, BINARY_RANDOM_POINTWISE_BATCH_RULE(ATEN_FN(op)));
-#define BINARY_RANDOM_POINTWISE2(op, overload) \
-  m.impl(#op"."#overload, BINARY_RANDOM_POINTWISE_BATCH_RULE(ATEN_FN2(op, overload)));
+    m.impl(#op, BINARY_RANDOM_POINTWISE_BATCH_RULE(ATEN_FN(op)));
+  #define BINARY_RANDOM_POINTWISE2(op, overload) \
+    m.impl(#op"."#overload, BINARY_RANDOM_POINTWISE_BATCH_RULE(ATEN_FN2(op, overload)));
 
   BINARY_RANDOM_POINTWISE2(normal, Tensor_Tensor);
-  BINARY_RANDOM_POINTWISE(binomial);
+  m.impl("binomial", BINARY_RANDOM_POINTWISE_BATCH_RULE(at::functorch::binomial_wrapper));
 }
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
@@ -375,6 +396,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   BINARY_SCALAR_2(mul, Tensor, Scalar);
   BINARY_POINTWISE(nextafter);
   BINARY_SCALAR_3(pow, Tensor_Tensor, Tensor_Scalar, Scalar);
+  POINTWISE_BOXED2(pow_, Scalar);
   BINARY_POINTWISE(polar);
   POINTWISE_BOXED(polygamma);
   BINARY_SCALAR_2(sub, Tensor, Scalar);
@@ -399,12 +421,13 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   BINARY_POINTWISE(leaky_relu_backward);
   BINARY_POINTWISE(logit_backward);
   POINTWISE_BOXED(log_sigmoid_backward);
-  BINARY_POINTWISE(gelu_backward);
+  VMAP_SUPPORT(gelu_backward, gelu_backward_batch_rule);
   BINARY_POINTWISE(sigmoid_backward);
   POINTWISE_BOXED(softplus_backward);
   BINARY_POINTWISE(softshrink_backward);
   BINARY_POINTWISE(tanh_backward);
   BINARY_POINTWISE(threshold_backward);
+  BINARY_POINTWISE(silu_backward);
 
   using TensorScalarInplaceT = Tensor& (Tensor::*)(const Tensor&, const Scalar&) const;
   using ScalarScalarInplaceT = Tensor& (Tensor::*)(const Scalar&, const Scalar&) const;
