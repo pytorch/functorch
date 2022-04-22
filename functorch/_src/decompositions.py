@@ -592,3 +592,13 @@ def cudnn_batch_norm(input: Tensor, weight: Tensor, bias: Optional[Tensor], runn
 @register_decomposition(aten.cudnn_batch_norm_backward)
 def cudnn_batch_norm_backward(input: Tensor, grad_output: Tensor, weight: Tensor, running_mean: Optional[Tensor], running_var: Optional[Tensor], save_mean: Optional[Tensor], save_var: Optional[Tensor], epsilon: float, reserveSpace: Tensor):
     return aten.native_batch_norm_backward(grad_output, input, weight, running_mean, running_var, save_mean, save_var, True, epsilon, [True, True, True])
+
+
+@register_decomposition([aten.rsub.Scalar, aten.rsub.Tensor])
+def rsub(a, b, alpha=1):
+    return torch.sub(b, a, alpha=alpha)
+
+
+@register_decomposition(aten._reshape_alias)
+def _reshape_alias(x, shape, strides):
+    return aten.view(x, shape)

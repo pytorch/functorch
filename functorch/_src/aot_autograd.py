@@ -99,19 +99,6 @@ def normalize_as_list(x):
     return [x]
 
 
-aot_autograd_decompositions = {}
-
-
-@register_decomposition([aten.rsub.Scalar, aten.rsub.Tensor], aot_autograd_decompositions)
-def rsub(a, b, alpha=1):
-    return -aten.sub(a, b)
-
-
-@register_decomposition(aten._reshape_alias, aot_autograd_decompositions)
-def _reshape_alias(x, shape, strides):
-    return aten.view(x, shape)
-
-
 def create_aot_autograd_function(
     flat_fn, fw_compiler, bw_compiler, partition_fn, decompositions, grad_state
 ):
@@ -151,7 +138,7 @@ def create_aot_autograd_function(
                     num_outs = 1
 
                 joint_inputs = (flat_tensor_args, out)
-                aot_decompositions = {**aot_autograd_decompositions, **decompositions}
+                aot_decompositions = decompositions
                 with torch.set_grad_enabled(grad_state):
                     fx_g = make_fx(joint_forward_backward, aot_decompositions)(
                         *joint_inputs
