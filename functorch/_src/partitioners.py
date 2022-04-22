@@ -318,6 +318,7 @@ def min_cut_rematerialization_partition(
     def is_materialized(node):
         if node.op == 'placeholder':
             return True
+
         return not all([is_fusible(node, user) for user in node.users])
 
     def get_node_weight(node):
