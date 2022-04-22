@@ -2147,8 +2147,8 @@ class TestComposability(TestCase):
 
 
 class TestMakeFunctional(TestCase):
-    @parametrize('disable_params_grad', [True, False])
-    def test_disable_params_grad(self, disable_params_grad):
+    @parametrize('disable_autograd_tracking', [True, False])
+    def test_disable_autograd_tracking(self, disable_autograd_tracking):
         class Foo(nn.Module):
             def __init__(self):
                 super().__init__()
@@ -2159,10 +2159,10 @@ class TestMakeFunctional(TestCase):
                 return x
 
         mod = Foo()
-        _, params = make_functional(mod, disable_params_grad=disable_params_grad)
+        _, params = make_functional(mod, disable_autograd_tracking=disable_autograd_tracking)
         self.assertEqual(len(params), 2)
         for param in params:
-            self.assertEqual(param.requires_grad, not disable_params_grad)
+            self.assertEqual(param.requires_grad, not disable_autograd_tracking)
 
     def test_parameter_tying(self):
         class Foo(nn.Module):
@@ -2224,8 +2224,8 @@ class TestMakeFunctional(TestCase):
         expected = mod(x)
         self.assertEqual(result, expected)
 
-    @parametrize('disable_params_grad', [True, False])
-    def test_with_buffers_disable_params_grad(self, disable_params_grad):
+    @parametrize('disable_autograd_tracking', [True, False])
+    def test_with_buffers_disable_autograd_tracking(self, disable_autograd_tracking):
         class Foo(nn.Module):
             def __init__(self):
                 super().__init__()
@@ -2238,11 +2238,11 @@ class TestMakeFunctional(TestCase):
                 return x
 
         mod = Foo()
-        _, params, buffers = make_functional_with_buffers(mod, disable_params_grad=disable_params_grad)
+        _, params, buffers = make_functional_with_buffers(mod, disable_autograd_tracking=disable_autograd_tracking)
         self.assertEqual(len(params), 2)
         self.assertEqual(len(buffers), 1)
         for param in params:
-            self.assertEqual(param.requires_grad, not disable_params_grad)
+            self.assertEqual(param.requires_grad, not disable_autograd_tracking)
 
     def test_parameter_tying_grad(self):
         class Foo(nn.Module):
