@@ -45,6 +45,21 @@ from functorch._src.make_functional import functional_init_with_buffers
 FALLBACK_REGEX = 'There is a performance drop'
 
 
+# TODO - find where to put this
+
+# TODO - figure out better way of passing in schema
+@torch.jit.script
+def foo(x):
+    return torch.trace(x)
+
+@torch.jit.script
+def trace_decomp(x):
+    return torch.sum(torch.diagonal(x))
+
+node = foo.graph.findNode("aten::trace")
+torch._C._jit_register_decomposition_for_node(node, trace_decomp.graph)
+
+
 class EnableVmapFallbackWarnings:
     def __enter__(self):
         self.prev_state = torch._C._debug_only_are_vmap_fallback_warnings_enabled()

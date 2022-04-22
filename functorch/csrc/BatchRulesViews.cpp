@@ -10,6 +10,7 @@
 #include <functorch/csrc/PlumbingHelper.h>
 #include <functorch/csrc/BatchedFallback.h>
 #include <ATen/core/dispatch/Dispatcher.h>
+#include <torch/csrc/jit/runtime/decomposition_registry.h>
 #include <c10/util/SmallBuffer.h>
 #include <ATen/InferSize.h>
 
@@ -152,7 +153,10 @@ std::tuple<Tensor,optional<int64_t>> _unsafe_view_batch_rule(
 }
 
 Tensor trace_decomp(const Tensor& self) {
-  return at::sum(at::diagonal(self));
+  static auto * trace_exec = torch::jit::GetDecompositionExecutor("aten::trace(Tensor self) -> Tensor");
+  std::vector<IValue> stack = {self};
+  trace_exec->run(stack);
+  return torch::jit::pop(stack).toTensor();
 }
 
 std::tuple<Tensor,optional<int64_t>> flip_batch_rule(const Tensor& self, optional<int64_t> self_bdim, IntArrayRef dims) {
