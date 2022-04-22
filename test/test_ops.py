@@ -983,7 +983,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.feature_alpha_dropout', 'without_train'),
         xfail('svd_lowrank', ''),
         xfail('linalg.lu_factor_ex', ''),
-        xfail('combinations'),  # aten::masked_select_backward hit the vmap fallback which is currently disabled
     }))
     def test_vmapvjp_has_batch_rule(self, device, dtype, op):
         if not op.supports_autograd:
