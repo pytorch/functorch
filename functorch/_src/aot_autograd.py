@@ -117,17 +117,6 @@ def new_full(inp, size, value, dtype=None, layout=None, device=None, pin_memory=
     return torch.full(size, value, dtype=inp.dtype, device=inp.device)
 
 
-@register_decomposition(aten.clone, aot_autograd_decompositions)
-def clone(self: Tensor, memory_format: int = None) -> Tensor:
-    if memory_format == 0:
-        if self.is_contiguous():
-            print("skipping")
-            return self + 0
-        return self.contiguous()
-    else:
-        return self + 0
-
-
 def create_aot_autograd_function(
     flat_fn, fw_compiler, bw_compiler, partition_fn, decompositions, grad_state
 ):
