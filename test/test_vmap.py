@@ -46,18 +46,11 @@ FALLBACK_REGEX = 'There is a performance drop'
 
 
 # TODO - find where to put this
-
-# TODO - figure out better way of passing in schema
-@torch.jit.script
-def foo(x):
-    return torch.trace(x)
-
 @torch.jit.script
 def trace_decomp(x):
     return torch.sum(torch.diagonal(x))
 
-node = foo.graph.findNode("aten::trace")
-torch._C._jit_register_decomposition_for_node(node, trace_decomp.graph)
+torch.jit._register_decomposition(torch.ops.aten.trace.default, trace_decomp.graph)
 
 
 class EnableVmapFallbackWarnings:
