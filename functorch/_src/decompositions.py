@@ -39,11 +39,10 @@ def get_decompositions(aten_ops: List[torch._ops.OpOverload]):
     decompositions = {}
     for op in aten_ops:
         if op in packets_to_overloads:
-            if len(packets_to_overloads[op]) == 1:
-                op_overload = packets_to_overloads[op][0]
+            for op_overload in packets_to_overloads[op]:
                 decompositions[op_overload] = decomposition_table[op_overload]
-            else:
-                raise RuntimeError(f"Multiple decompositions for overloads found for {op}: {packets_to_overloads[op]}, please specify")
+        elif op in decomposition_table:
+            decompositions[op] = decomposition_table[op]
     return decompositions
 
 
@@ -69,8 +68,16 @@ def softplus_backward_decomposition(out_grad: Tensor, x: Tensor, beta: float, th
     return torch.where((x * beta) > threshold, out_grad, out_grad * z / (z + 1.0))
 
 
+@register_decomposition(aten.elu)
+def elu(self: Tensor, alpha: float = 1, scale: float = 1, input_scale: float = 1) -> Tensor:
+    negcoef = alpha * scale
+    poscoef = scale
+    negiptcoef = input_scale
+    return torch.where(self > 0, self * poscoef, (torch.exp(self * negiptcoef) - 1) * negcoef)
+
+
 @register_decomposition(aten.elu_backward)
-def elu_backward_decomposition(
+def elu_backward(
     grad_output: Tensor, alpha: float, scale: float, input_scale: float, is_result: bool, self_or_result: Tensor
 ):
     negcoef = alpha * scale
@@ -90,9 +97,19 @@ def elu_backward_decomposition(
         )
 
 
+@register_decomposition(aten.hardsigmoid)
+def hardsigmoid(self: Tensor) -> Tensor:
+    return torch.clamp(torch.clamp(self + 3, min=0), max=6) / 6
+
+
 @register_decomposition(aten.hardsigmoid_backward)
 def hardsigmoid_backward_decomposition(grad_output: Tensor, self: Tensor):
     return torch.where((self > -3.0) & (self < 3.0), grad_output * (1.0 / 6.0), grad_output.new_zeros(()))
+
+
+@register_decomposition(aten.hardtanh)
+def hardtanh(self: Tensor, min_val: float = -1, max_val: float = 1) -> Tensor:
+    return torch.clamp(self, min_val, max_val)
 
 
 @register_decomposition(aten.hardtanh_backward)
@@ -105,6 +122,11 @@ def hardshrink_backward(grad_out: Tensor, self: Tensor, lambd: float):
     return torch.where((self >= -lambd) & (self <= lambd), grad_out.new_zeros(()), grad_out)
 
 
+@register_decomposition(aten.hardswish)
+def hardswish(self: Tensor) -> Tensor:
+    return self * torch.clamp(torch.clamp(self + 3, min=0), max=6) / 6
+
+
 @register_decomposition(aten.hardswish_backward)
 def hardswish_backward(grad_output: Tensor, self: Tensor) -> Tensor:
     return torch.where(self < -3, grad_output.new_zeros(()), torch.where(self <= 3, grad_output * ((self / 3) + 0.5), grad_output))
@@ -115,13 +137,18 @@ def threshold_backward_decomposition(grad_output: Tensor, self: Tensor, threshol
     return torch.where(self <= threshold, grad_output.new_zeros((1,)), grad_output)
 
 
+@register_decomposition(aten.leaky_relu)
+def leaky_relu(self: Tensor, negative_slope: float = 0.01) -> Tensor:
+    return torch.where(self > 0, self, self * negative_slope)
+
+
 @register_decomposition(aten.leaky_relu_backward)
 def leaky_relu_backward(grad_output: Tensor, self: Tensor, negative_slope: float, self_is_result: bool):
     return torch.where(self > 0, grad_output, grad_output * negative_slope)
 
 
 @register_decomposition(aten.gelu_backward)
-def gelu_backward_decomposition(grad: Tensor, self: Tensor, approximate: str = 'none'):
+def gelu_backward(grad: Tensor, self: Tensor, approximate: str = 'none'):
     M_SQRT2 = 1.41421356237309504880
     M_SQRT1_2 = 0.70710678118654752440
     M_2_SQRTPI = 1.12837916709551257390
@@ -239,6 +266,18 @@ def binary_cross_entropy_backward(grad_output: Tensor, self: Tensor, target: Ten
     return result * grad_output
 
 
+@register_decomposition(aten._euclidean_dist)
+def _euclidean_dist(x1: Tensor, x2: Tensor) -> Tensor:
+    x1_norm = x1.pow(2).sum(-1, True)
+    x1_pad = torch.ones_like(x1_norm, memory_format=torch.contiguous_format)
+    x2_norm = x2.pow(2).sum(-1, True)
+    x2_pad = torch.ones_like(x2_norm, memory_format=torch.contiguous_format)
+    x1_ = torch.cat([x1.mul(-2), x1_norm, x1_pad], -1)
+    x2_ = torch.cat([x2, x2_pad, x2_norm], -1)
+    result = x1_.matmul(x2_.mT)
+    return result.clamp_min(0).sqrt()
+
+
 @register_decomposition(aten.slice_backward)
 def slice_backward(grad_output: Tensor, input_sizes: List[int], dim: int, start: int, end: int, step: int):
     grad_input = grad_output.new_zeros(input_sizes)
@@ -283,6 +322,16 @@ def col2im_backward(
     dilation: List[int], padding: List[int], stride: List[int]
 ) -> Tensor:
     return F.unfold(grad_output, kernel_size, dilation, padding, stride)
+
+
+@register_decomposition(aten.masked_fill.Scalar)
+def masked_fill_Scalar(self: Tensor, mask: Tensor, value: float) -> Tensor:
+    return torch.where(mask, self.new_full((), value), self)
+
+
+@register_decomposition(aten.masked_fill.Tensor)
+def masked_fill_Tensor(self: Tensor, mask: Tensor, value: Tensor) -> Tensor:
+    return torch.where(mask, value, self)
 
 
 @register_decomposition(aten.native_dropout_backward)
@@ -508,7 +557,7 @@ def clamp_max(self: Tensor, max: float):
 
 
 @register_decomposition(aten._fused_dropout)
-def _fused_dropout_decomposition(input, p, generator=None):
+def _fused_dropout(input, p, generator=None):
     mask = (torch.rand_like(input) < p).to(dtype=torch.uint8)
     res = mask.type_as(input) * input * (1./p)
     return [res, mask]
@@ -544,12 +593,11 @@ def logical_not(self: Tensor) -> Tensor:
 #                                  self * aten.log(other)))
 
 
-@register_decomposition(aten.var)
-def var_decomposition(x: Tensor, dims: List[int], correction: int = 0, keepdim: bool = False):
+@register_decomposition(aten.var.correction)
+def var_decomposition(x: Tensor, dims: Optional[List[int]], correction: int = 0, keepdim: bool = False):
     if dims is None:
         dims = []
-
-    if isinstance(dims, (tuple, list)) and len(dims) == 0:
+    if len(dims) == 0:
         n = x.numel()
     else:
         n = 1

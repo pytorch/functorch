@@ -477,8 +477,11 @@ class TestOperators(TestCase):
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vjpvjp', vjp_fail.union({
         skip('nn.functional.fractional_max_pool2d'),  # fails on cuda, runs okay on cpu
+        skip('nn.functional.max_unpool2d'),  # Flaky
         xfail('nn.functional.fractional_max_pool3d'),
         xfail('nn.functional.binary_cross_entropy'),  # testing problem
+        xfail('nn.functional.max_unpool1d', '', device_type='cpu'),
+        xfail('nn.functional.max_unpool2d', ''),
     }))
     @opsToleranceOverride('TestOperators', 'test_vjpvjp', (
         tol1('nn.functional.conv_transpose3d',
@@ -619,6 +622,7 @@ class TestOperators(TestCase):
         xfail('lu_solve'),
         xfail('index_copy'),
         xfail('linalg.lu_factor', ''),
+        xfail('linalg.norm', 'subgradients_at_zero'),
 
         # required rank 4 tensor to use channels_last format
         xfail('bfloat16'),
@@ -712,6 +716,7 @@ class TestOperators(TestCase):
         skip('nn.functional.dropout2d', ''),
         skip('nn.functional.feature_alpha_dropout', 'without_train'),
         skip('svd_lowrank', ''),
+        xfail('nn.functional.soft_margin_loss', ''),
         xfail('stft'),  # something weird is happening with shapes
 
         xfail('double'),  # required rank 4 tensor to use channels_last format
@@ -756,6 +761,9 @@ class TestOperators(TestCase):
         xfail('nn.functional.hinge_embedding_loss', device_type='cpu'),
 
         # xfail list
+        xfail('nn.functional.soft_margin_loss', ''),
+        xfail('linalg.norm', 'subgradients_at_zero'),
+        xfail('nn.functional.binary_cross_entropy_with_logits', ''),
         xfail('linalg.inv'),
         xfail('linalg.tensorinv'),
         xfail('linalg.matrix_power'),
@@ -867,6 +875,14 @@ class TestOperators(TestCase):
         xfail('fft.ihfftn'),  # conj_physical fallback
         xfail('istft'),  # col2im fallback
         xfail('polar'),  # complex fallback
+        xfail('nn.functional.l1_loss', ''),
+        xfail('nn.functional.max_unpool3d', 'grad'),
+        xfail('nn.functional.smooth_l1_loss', ''),
+        xfail('nn.functional.max_unpool2d', 'grad'),
+        xfail('nn.functional.soft_margin_loss', ''),
+        xfail('nn.functional.binary_cross_entropy_with_logits', ''),
+        xfail('linalg.norm', 'subgradients_at_zero'),
+        xfail('nn.functional.max_unpool1d', 'grad'),
     }))
     @toleranceOverride({torch.float32: tol(atol=1e-04, rtol=1e-04)})
     def test_vmapjvpall_has_batch_rule(self, device, dtype, op):
@@ -983,6 +999,24 @@ class TestOperators(TestCase):
         xfail('nn.functional.feature_alpha_dropout', 'without_train'),
         xfail('svd_lowrank', ''),
         xfail('linalg.lu_factor_ex', ''),
+
+        xfail('nn.functional.max_unpool2d', ''),
+        xfail('nn.functional.multi_margin_loss', ''),
+        xfail('nn.functional.multilabel_margin_loss', ''),
+        xfail('nn.functional.pdist', ''),
+        xfail('nn.functional.smooth_l1_loss', ''),
+        xfail('scatter_reduce', 'prod'),
+        xfail('scatter_reduce', 'amax'),
+        xfail('nn.functional.max_unpool1d', ''),
+        xfail('nn.functional.max_unpool3d', ''),
+        xfail('scatter_reduce', 'sum'),
+        xfail('scatter_reduce', 'mean'),
+        xfail('nn.functional.max_unpool3d', 'grad'),
+        xfail('nn.functional.soft_margin_loss', ''),
+        xfail('scatter_reduce', 'amin'),
+        xfail('nn.functional.max_unpool1d', 'grad'),
+        xfail('nn.functional.l1_loss', ''),
+        xfail('nn.functional.max_unpool2d', 'grad'),
     }))
     def test_vmapvjp_has_batch_rule(self, device, dtype, op):
         if not op.supports_autograd:
@@ -1167,6 +1201,25 @@ class TestOperators(TestCase):
         xfail('nn.functional.feature_alpha_dropout', 'without_train'),
         xfail('svd_lowrank', ''),
         xfail('linalg.lu_factor_ex', ''),
+        xfail('nn.functional.max_unpool2d', 'grad'),
+        xfail('nn.functional.multilabel_margin_loss', ''),
+        xfail('nn.functional.multilabel_soft_margin_loss', ''),
+        xfail('scatter_reduce', 'amax'),
+        xfail('scatter_reduce', 'amin'),
+        xfail('nn.functional.max_unpool1d', 'grad'),
+        xfail('nn.functional.max_unpool1d', ''),
+        xfail('nn.functional.soft_margin_loss', ''),
+        xfail('nn.functional.pdist', ''),
+        xfail('scatter_reduce', 'sum'),
+        xfail('nn.functional.multi_margin_loss', ''),
+        xfail('nn.functional.l1_loss', ''),
+        xfail('nn.functional.max_unpool3d', 'grad'),
+        xfail('nn.functional.smooth_l1_loss', ''),
+        xfail('nn.functional.max_unpool2d', ''),
+        xfail('scatter_reduce', 'mean'),
+        xfail('scatter_reduce', 'prod'),
+        xfail('nn.functional.max_unpool3d', ''),
+        skip('linalg.householder_product', '', device_type='cuda'),  # flaky, I'm not sure why
     }))
     def test_jvpvjp(self, device, dtype, op):
         if not op.supports_autograd:
@@ -1275,6 +1328,9 @@ class TestDecompositionOpInfo(TestCase):
         xfail('fft.hfft2', dtypes=(torch.float32, torch.float64)),
         xfail('fft.hfft', dtypes=(torch.float32, torch.float64)),
         xfail('fft.hfftn', dtypes=(torch.float32, torch.float64)),
+        skip('nn.functional.binary_cross_entropy', ''),
+        skip('nn.functional.binary_cross_entropy_with_logits', '',),
+        skip('nn.functional.huber_loss'),
     })
     def test_decomposition(self, device, dtype, op):
         # dtype is too confusing of a name for how we're using it
