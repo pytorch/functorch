@@ -317,7 +317,7 @@ class FunctionalModule(nn.Module):
 
 
 def make_functional(model: nn.Module, disable_autograd_tracking: bool = False):
-    """make_functional(model) -> func, params
+    """make_functional(model, disable_autograd_tracking=False) -> func, params
 
     Given a ``torch.nn.Module``, :func:`make_functional` extracts the state
     (params) and returns a functional version of the model, ``func``. This
@@ -381,7 +381,7 @@ def make_functional(model: nn.Module, disable_autograd_tracking: bool = False):
 
 
 def make_functional_with_buffers(model: nn.Module, disable_autograd_tracking: bool = False):
-    """make_functional_with_buffers(model) -> func, params, buffers
+    """make_functional_with_buffers(model, disable_autograd_tracking=False) -> func, params, buffers
 
     Given a ``torch.nn.Module``, make_functional_with_buffers extracts the
     state (params and buffers) and returns a functional version of the model
