@@ -39,7 +39,7 @@ _register_pytree_node(OrderedDict, _odict_flatten, _odict_unflatten)
 
 def register_jit_decomposition(decomp):
     assert decomp in decomposition_table, f"could not find {decomp}"
-    decomp_fn = decomposition_table[torch.ops.aten.trace.default]
+    decomp_fn = decomposition_table[decomp]
     scripted_decomp_fn = torch.jit.script(decomp_fn)
     torch.jit._register_decomposition(decomp, scripted_decomp_fn.graph)
 
