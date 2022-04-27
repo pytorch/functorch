@@ -12,6 +12,7 @@ from typing import Any, Callable, Optional, Tuple, Union, List
 from torch.utils._pytree import tree_flatten, tree_unflatten, _broadcast_to_and_flatten, TreeSpec, _register_pytree_node
 from .pytree_hacks import tree_map_
 from functools import partial
+from .decompositions import decomposition_table
 
 from functorch._C import (
     _add_batch_dim,
@@ -35,6 +36,14 @@ def _odict_unflatten(values, context):
 
 _register_pytree_node(OrderedDict, _odict_flatten, _odict_unflatten)
 
+
+def register_jit_decomposition(decomp):
+    assert decomp in decomposition_table, f"could not find {decomp}"
+    decomp_fn = decomposition_table[torch.ops.aten.trace.default]
+    scripted_decomp_fn = torch.jit.script(decomp_fn)
+    torch.jit._register_decomposition(decomp, scripted_decomp_fn.graph)
+
+register_jit_decomposition(torch.ops.aten.trace.default)
 
 # Checks that all args-to-be-batched have the same batch dim size
 
