@@ -198,7 +198,7 @@ def silu_backward(grad_output: Tensor, self: Tensor) -> Tensor:
 
 
 @register_decomposition(aten.trace)
-def trace_decomp(x):
+def trace(x):
     return torch.sum(torch.diagonal(x))
 
 
