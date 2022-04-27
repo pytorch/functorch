@@ -43,7 +43,9 @@ def register_jit_decomposition(decomp):
     scripted_decomp_fn = torch.jit.script(decomp_fn)
     torch.jit._register_decomposition(decomp, scripted_decomp_fn.graph)
 
+
 register_jit_decomposition(torch.ops.aten.trace.default)
+
 
 # Checks that all args-to-be-batched have the same batch dim size
 
