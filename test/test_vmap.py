@@ -3192,6 +3192,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('linalg.householder_product'),
         xfail('linalg.inv'),
         xfail('linalg.lstsq'),
+        xfail('linalg.lstsq', 'grad_oriented'),
         xfail('linalg.matrix_norm'),
         xfail('linalg.matrix_power'),
         xfail('linalg.matrix_rank'),
@@ -3268,10 +3269,27 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('linalg.lu_factor_ex', ''),
         xfail('diagflat', ''),
         xfail('special.log_ndtr'),
-
-        # aten::expand_copy hit the vmap fallback which is currently disabled
-        xfail('block_diag'),
-        xfail('diag_embed'),
+        xfail('block_diag'),  # aten::slice_copy.Tensor hit the vmap fallback which is currently disabled
+        xfail('nn.functional.triplet_margin_loss', ''),
+        xfail('nn.functional.pdist', ''),
+        xfail('scatter_reduce', 'sum'),
+        xfail('nn.functional.l1_loss', ''),
+        xfail('nn.functional.smooth_l1_loss', ''),
+        xfail('scatter_reduce', 'amax'),
+        xfail('nn.functional.max_unpool1d', 'grad'),
+        xfail('nn.functional.multi_margin_loss', ''),
+        xfail('linalg.norm', 'subgradients_at_zero'),
+        xfail('scatter_reduce', 'prod'),
+        xfail('nn.functional.multilabel_margin_loss', ''),
+        xfail('scatter_reduce', 'amin'),
+        xfail('nn.functional.max_unpool3d', 'grad'),
+        xfail('nn.functional.max_unpool2d', ''),
+        xfail('nn.functional.max_unpool2d', 'grad'),
+        xfail('nn.functional.margin_ranking_loss', ''),
+        xfail('nn.functional.max_unpool1d', ''),
+        xfail('nn.functional.soft_margin_loss', ''),
+        xfail('scatter_reduce', 'mean'),
+        xfail('nn.functional.max_unpool3d', ''),
     }))
     def test_op_has_batch_rule(self, device, dtype, op):
         def test():

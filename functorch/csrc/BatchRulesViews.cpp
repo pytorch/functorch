@@ -443,6 +443,7 @@ std::tuple<Tensor, optional<int64_t>> view_batching_rule(
   return std::make_tuple(self_.view(size_), 0);
 }
 
+template <typename F, F Func>
 std::tuple<Tensor, optional<int64_t>> expand_batch_rule(
     const Tensor &self, optional<int64_t> self_bdim, IntArrayRef size, bool implicit)
 {
@@ -474,7 +475,7 @@ std::tuple<Tensor, optional<int64_t>> expand_batch_rule(
   std::copy(self_sizes.cbegin() + 1, self_sizes.cend(),
             view_shape.begin() + 1 + extra_dims);
 
-  return std::make_tuple(self_.view(view_shape).expand(size_, implicit), 0);
+  return std::make_tuple(Func(self_.view(view_shape), size_, implicit), 0);
 }
 
 std::tuple<Tensor, optional<int64_t>> unfold_batch_rule(
@@ -501,6 +502,14 @@ std::tuple<Tensor, optional<int64_t>> movedim_batch_rule(const Tensor& self, opt
   return std::make_tuple(self_.movedim(source_, destination_), 0);
 }
 
+std::tuple<Tensor, optional<int64_t>> diag_embed_batch_rule(const Tensor& self, optional<int64_t> self_bdim, int64_t offset, int64_t dim1, int64_t dim2) {
+  auto logical_rank = rankWithoutBatchDim(self, self_bdim);
+  auto self_ = moveBatchDimToFront(self, self_bdim);
+  dim1 = maybe_wrap_dim(dim1, logical_rank + 1) + 1;
+  dim2 = maybe_wrap_dim(dim2, logical_rank + 1) + 1;
+  return std::make_tuple(at::diag_embed(self_, offset, dim1, dim2), 0);
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT(diag, diag_batch_rule);
   VMAP_SUPPORT(chunk, chunk_batching_rule);
@@ -524,11 +533,13 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT(select_backward, select_backward_batch_rule);
   VMAP_SUPPORT(slice_backward, slice_backward_batch_rule);
   VMAP_SUPPORT(view, view_batching_rule);
-  VMAP_SUPPORT(expand, expand_batch_rule);
+  VMAP_SUPPORT(expand, SINGLE_ARG(expand_batch_rule<decltype(&ATEN_FN(expand)), &ATEN_FN(expand)>));
+  VMAP_SUPPORT(expand_copy, SINGLE_ARG(expand_batch_rule<decltype(&ATEN_FN(expand_copy)), &ATEN_FN(expand_copy)>));
   VMAP_SUPPORT(unfold, unfold_batch_rule);
   VMAP_SUPPORT2(movedim, intlist, movedim_batch_rule);
   VMAP_SUPPORT2(slice, Tensor, slice_batch_rule);
   VMAP_SUPPORT2(transpose, int, transpose_int_batch_rule);
+  VMAP_SUPPORT(diag_embed, diag_embed_batch_rule);
 }
 
 }}
