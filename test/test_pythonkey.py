@@ -21,7 +21,7 @@ from functorch._src.aot_autograd import aot_module_simplified
 from functorch.compile import (
     nnc_jit, compiled_function, compiled_module,
     min_cut_rematerialization_partition, aot_function, aot_module, decomposition_table, nop,
-    num_of_recompilations, default_partition
+    num_of_recompilations, default_partition, default_decompositions
 )
 
 from torch.testing._internal.common_device_type import ops
@@ -193,7 +193,7 @@ make_fx_failures = {
     xfail('allclose'),
     xfail('nn.functional.dropout'),
     xfail('linalg.eigvals'),
-    xfail('nn.functional.fractional_max_pool3d', device_type='cpu'),
+    xfail('nn.functional.max_pool1d', device_type='cpu'),  # precision problems?
     xfail('randn_like'),  # randomness
     xfail('rand_like'),  # randomness
     xfail('randint_like'),  # randomness
@@ -206,6 +206,10 @@ make_fx_failures = {
     xfail('nn.functional.feature_alpha_dropout', 'with_train', device_type='cpu'),
     xfail('bernoulli', device_type='cpu'),
     xfail('nn.functional.dropout2d', device_type='cpu'),
+    xfail('nn.functional.max_unpool1d', '', device_type='cpu'),
+    xfail('nn.functional.max_unpool2d', '', device_type='cpu'),
+    xfail('nn.functional.max_unpool3d', '', device_type='cpu'),
+    skip('linalg.lstsq'),  # flaky, probably just a precision issue
 }
 
 
@@ -222,10 +226,6 @@ class TestPythonKeyOperatorsOpInfo(TestCase):
         for sample_input in sample_inputs_itr:
             args = [sample_input.input] + list(sample_input.args)
             kwargs = sample_input.kwargs
-            t = f(args, kwargs)
-            # just since pytrees with torch.return_types doesn't work
-            if isinstance(t, tuple):
-                self.skipTest("output is a tuple that pytree doesn't work with")
 
             new_f = make_fx(f)(args, kwargs)
             for arg in args:
@@ -376,6 +376,7 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('trapezoid'),
         xfail('trapz'),
         skip('nn.functional.binary_cross_entropy_with_logits'),  # seems to fail sometimes?
+        skip('nn.functional.margin_ranking_loss'),  # seems flaky
     })
     def test_aot_autograd_exhaustive(self, device, dtype, op):
         def f(args, kwargs):
@@ -435,15 +436,19 @@ def extract_graph(fx_g, _, graph_cell):
     return fx_g
 
 
-def get_num_ins_outs(fx_g):
-    num_inps = 0
-    num_outs = 0
+def get_ins_outs(fx_g):
+    ins = []
+    outs = []
     for n in fx_g.graph.nodes:
         if n.op == 'placeholder':
-            num_inps += 1
+            ins.append(n)
         elif n.op == 'output':
-            num_outs = len(n.args[0])
-    return num_inps, num_outs
+            outs = tuple(n.args[0])
+    return ins, outs
+
+
+def get_num_ins_outs(fx_g):
+    return tuple(len(i) for i in get_ins_outs(fx_g))
 
 
 def get_fw_bw_graph(f, inps, partitioner=min_cut_rematerialization_partition):
@@ -452,7 +457,8 @@ def get_fw_bw_graph(f, inps, partitioner=min_cut_rematerialization_partition):
     aot_function(f,
                  fw_compiler=partial(extract_graph, graph_cell=fw_graph_cell),
                  bw_compiler=partial(extract_graph, graph_cell=bw_graph_cell),
-                 partition_fn=partitioner)(*inps)
+                 partition_fn=partitioner,
+                 decompositions=default_decompositions)(*inps)
     return (fw_graph_cell[0], bw_graph_cell[0])
 
 
@@ -535,6 +541,14 @@ class TestPartitioning(TestCase):
         fw_graph, bw_graph = get_fw_bw_graph(f, [torch.randn(3, requires_grad=True) for _ in range(4)])
         self.assertEqual(get_num_ins_outs(fw_graph), (4, 2))
         self.assertEqual(get_num_ins_outs(bw_graph), (2, 4))
+
+        def f(x):
+            return torch.mm(x, torch.ones(x.shape)).tanh().tanh()
+        fw_graph, bw_graph = get_fw_bw_graph(f, [torch.randn(5, 5, requires_grad=True)])
+        self.assertEqual(get_num_ins_outs(fw_graph), (1, 2))
+
+        ins, outs = get_ins_outs(fw_graph)
+        self.assertEqual(outs[1].target, torch.ops.aten.mm)
 
 
 class TestContiguous(TestCase):

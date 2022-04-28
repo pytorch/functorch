@@ -61,6 +61,8 @@ void decompose_functional(const c10::OperatorHandle& op, torch::jit::Stack* stac
   local_keyset.included_ = local_keyset.included_.add(c10::DispatchKey::Functionalize);
   c10::impl::ForceDispatchKeyGuard guard(local_keyset);
 
+  at::functionalization::impl::FunctionalizationReapplyViewsGuard functional_guard(true);
+
   // Step 3: redispatch to native kernel
   // TODO: this is technically kind of sketchy, since we're relying on the fact
   // that the composite kernel is registered to a particular dispatch key.
@@ -310,8 +312,9 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(frobenius_norm);
   OP_DECOMPOSE(type_as);
   OP_DECOMPOSE(linalg_diagonal);
+  OP_DECOMPOSE(pad);
+  OP_DECOMPOSE(_pad_circular);
 
-  DECOMPOSE_FUNCTIONAL(diag_embed);
   DECOMPOSE_FUNCTIONAL(block_diag);
 
   // divide, alias for div

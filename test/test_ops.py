@@ -164,9 +164,6 @@ def ref_jvp(f, primals, tangents):
 def get_sample_cotangents(f, sample):
     fn, primals = normalize_op_input_output(f, sample)
     output = fn(*primals)
-    if isinstance(output, tuple):
-        # TODO: Remove the following hack for torch.return_types
-        output = tuple(output)
     return tree_map(torch.randn_like, output)
 
 
@@ -382,8 +379,6 @@ class TestOperators(TestCase):
         # (check derivatives.yaml).
         xfail('var_mean'),
         xfail('std_mean'),
-        # https://gist.github.com/zou3519/f62a167fb46cda01d7f238f61dd9ccf9
-        xfail('linalg.eigvalsh'),
 
         # =============================================
         # NB: The above failures also fail using PyTorch core's
@@ -394,10 +389,6 @@ class TestOperators(TestCase):
         # Composite ops that do bad things. Need to be fixed in PyTorch core.
         # RuntimeError: Cannot access data pointer of Tensor that doesn't have storage
         xfail('tensor_split'),
-
-        # Some kind of issue with unsymmetric tangent type
-        # Runtime Error: The tangent part of the matrix A should also be symmetric.
-        xfail('linalg.eigh'),
 
         skip('bernoulli'),  # cuda set seed randomness issues
     }))
@@ -480,8 +471,11 @@ class TestOperators(TestCase):
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vjpvjp', vjp_fail.union({
         skip('nn.functional.fractional_max_pool2d'),  # fails on cuda, runs okay on cpu
+        skip('nn.functional.max_unpool2d'),  # Flaky
         xfail('nn.functional.fractional_max_pool3d'),
         xfail('nn.functional.binary_cross_entropy'),  # testing problem
+        xfail('nn.functional.max_unpool1d', '', device_type='cpu'),
+        xfail('nn.functional.max_unpool2d', ''),
     }))
     @opsToleranceOverride('TestOperators', 'test_vjpvjp', (
         tol1('nn.functional.conv_transpose3d',
@@ -622,6 +616,7 @@ class TestOperators(TestCase):
         xfail('lu_solve'),
         xfail('index_copy'),
         xfail('linalg.lu_factor', ''),
+        xfail('linalg.norm', 'subgradients_at_zero'),
 
         # required rank 4 tensor to use channels_last format
         xfail('bfloat16'),
@@ -683,7 +678,6 @@ class TestOperators(TestCase):
         # the test
         xfail('var_mean'),
         xfail('std_mean'),
-        xfail('linalg.eigvalsh'),
 
         # RuntimeError: expand: the number of sizes provided (1) must be greater or
         # equal to the number of dimensions in the tensor (2)
@@ -706,15 +700,12 @@ class TestOperators(TestCase):
         xfail('nn.functional.batch_norm'),
         xfail('nn.functional.batch_norm', 'without_cudnn', device_type='cuda'),
 
-        # Some kind of issue with unsymmetric tangent type
-        # Runtime Error: The tangent part of the matrix A should also be symmetric.
-        xfail('linalg.eigh'),
-
         skip('nn.functional.feature_alpha_dropout', 'with_train'),
         skip('pca_lowrank', ''),
         skip('nn.functional.dropout2d', ''),
         skip('nn.functional.feature_alpha_dropout', 'without_train'),
         skip('svd_lowrank', ''),
+        xfail('nn.functional.soft_margin_loss', ''),
         xfail('stft'),  # something weird is happening with shapes
 
         xfail('double'),  # required rank 4 tensor to use channels_last format
@@ -759,6 +750,9 @@ class TestOperators(TestCase):
         xfail('nn.functional.hinge_embedding_loss', device_type='cpu'),
 
         # xfail list
+        xfail('nn.functional.soft_margin_loss', ''),
+        xfail('linalg.norm', 'subgradients_at_zero'),
+        xfail('nn.functional.binary_cross_entropy_with_logits', ''),
         xfail('linalg.inv'),
         xfail('linalg.tensorinv'),
         xfail('linalg.matrix_power'),
@@ -768,7 +762,6 @@ class TestOperators(TestCase):
         xfail('quantile'),
         xfail('var_mean'),
         xfail('as_strided'),
-        xfail('linalg.eigvalsh'),
         xfail('fill_'),
         xfail('linalg.cholesky'),
         xfail('nn.functional.gaussian_nll_loss'),
@@ -780,10 +773,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.linear'),
         xfail('view_as_complex'),
         xfail('prod'),
-
-        # Some kind of issue with unsymmetric tangent type
-        # Runtime Error: The tangent part of the matrix A should also be symmetric.
-        xfail('linalg.eigh'),
 
         xfail('linalg.lu_factor', ''),
         skip('nn.functional.dropout2d', ''),
@@ -870,14 +859,14 @@ class TestOperators(TestCase):
         xfail('fft.ihfftn'),  # conj_physical fallback
         xfail('istft'),  # col2im fallback
         xfail('polar'),  # complex fallback
-
-        # aten::expand_copy hit the vmap fallback which is currently disabled
-        xfail('diag_embed'),
-        xfail('linalg.cond'),
-        xfail('linalg.svd'),
-        xfail('linalg.svdvals'),
-        xfail('norm', 'nuc'),
-        xfail('svd'),
+        xfail('nn.functional.l1_loss', ''),
+        xfail('nn.functional.max_unpool3d', 'grad'),
+        xfail('nn.functional.smooth_l1_loss', ''),
+        xfail('nn.functional.max_unpool2d', 'grad'),
+        xfail('nn.functional.soft_margin_loss', ''),
+        xfail('nn.functional.binary_cross_entropy_with_logits', ''),
+        xfail('linalg.norm', 'subgradients_at_zero'),
+        xfail('nn.functional.max_unpool1d', 'grad'),
     }))
     @toleranceOverride({torch.float32: tol(atol=1e-04, rtol=1e-04)})
     def test_vmapjvpall_has_batch_rule(self, device, dtype, op):
@@ -931,7 +920,8 @@ class TestOperators(TestCase):
         xfail('linalg.eigh'),
         xfail('linalg.eigvals'),
         xfail('linalg.householder_product'),
-        xfail('linalg.lstsq'),
+        xfail('linalg.lstsq', ''),
+        xfail('linalg.lstsq', 'grad_oriented'),
         xfail('linalg.inv'),
         xfail('linalg.matrix_norm'),
         xfail('linalg.matrix_power'),
@@ -993,12 +983,24 @@ class TestOperators(TestCase):
         xfail('nn.functional.feature_alpha_dropout', 'without_train'),
         xfail('svd_lowrank', ''),
         xfail('linalg.lu_factor_ex', ''),
-        xfail('combinations'),  # aten::masked_select_backward hit the vmap fallback which is currently disabled
 
-        # aten::expand_copy hit the vmap fallback which is currently disabled
-        xfail('diag_embed'),
-        xfail('linalg.svd'),
-        xfail('svd'),
+        xfail('nn.functional.max_unpool2d', ''),
+        xfail('nn.functional.multi_margin_loss', ''),
+        xfail('nn.functional.multilabel_margin_loss', ''),
+        xfail('nn.functional.pdist', ''),
+        xfail('nn.functional.smooth_l1_loss', ''),
+        xfail('scatter_reduce', 'prod'),
+        xfail('scatter_reduce', 'amax'),
+        xfail('nn.functional.max_unpool1d', ''),
+        xfail('nn.functional.max_unpool3d', ''),
+        xfail('scatter_reduce', 'sum'),
+        xfail('scatter_reduce', 'mean'),
+        xfail('nn.functional.max_unpool3d', 'grad'),
+        xfail('nn.functional.soft_margin_loss', ''),
+        xfail('scatter_reduce', 'amin'),
+        xfail('nn.functional.max_unpool1d', 'grad'),
+        xfail('nn.functional.l1_loss', ''),
+        xfail('nn.functional.max_unpool2d', 'grad'),
     }))
     def test_vmapvjp_has_batch_rule(self, device, dtype, op):
         if not op.supports_autograd:
@@ -1129,8 +1131,6 @@ class TestOperators(TestCase):
         xfail('cholesky', ''),
         xfail('eig', ''),
         xfail('linalg.det', ''),
-        xfail('linalg.eigh', ''),
-        xfail('linalg.eigvalsh', ''),
         xfail('linalg.matrix_norm', ''),
         xfail('linalg.slogdet', ''),
         xfail('log_softmax', ''),
@@ -1183,6 +1183,25 @@ class TestOperators(TestCase):
         xfail('nn.functional.feature_alpha_dropout', 'without_train'),
         xfail('svd_lowrank', ''),
         xfail('linalg.lu_factor_ex', ''),
+        xfail('nn.functional.max_unpool2d', 'grad'),
+        xfail('nn.functional.multilabel_margin_loss', ''),
+        xfail('nn.functional.multilabel_soft_margin_loss', ''),
+        xfail('scatter_reduce', 'amax'),
+        xfail('scatter_reduce', 'amin'),
+        xfail('nn.functional.max_unpool1d', 'grad'),
+        xfail('nn.functional.max_unpool1d', ''),
+        xfail('nn.functional.soft_margin_loss', ''),
+        xfail('nn.functional.pdist', ''),
+        xfail('scatter_reduce', 'sum'),
+        xfail('nn.functional.multi_margin_loss', ''),
+        xfail('nn.functional.l1_loss', ''),
+        xfail('nn.functional.max_unpool3d', 'grad'),
+        xfail('nn.functional.smooth_l1_loss', ''),
+        xfail('nn.functional.max_unpool2d', ''),
+        xfail('scatter_reduce', 'mean'),
+        xfail('scatter_reduce', 'prod'),
+        xfail('nn.functional.max_unpool3d', ''),
+        skip('linalg.householder_product', '', device_type='cuda'),  # flaky, I'm not sure why
     }))
     def test_jvpvjp(self, device, dtype, op):
         if not op.supports_autograd:
@@ -1273,8 +1292,6 @@ class TestDecompositionOpInfo(TestCase):
         xfail('linalg.tensorinv'),
         xfail('to_sparse'),
         skip('tensor_split'),
-        skip('mvlgamma'),
-        skip('eig'),
         skip('nn.functional.dropout'),
         skip('_masked.softmin'),
         skip('_masked.log_softmax'),
@@ -1282,13 +1299,11 @@ class TestDecompositionOpInfo(TestCase):
         skip('_masked.softmax'),
         skip('_masked.normalize'),
         xfail('linalg.lu_factor', ''),
-        # Some weird matmul stuff with int64 matmuls
-        # inplace op
-        skip('resize_'),
         # Weird conj errors
         xfail('fft.hfft2', dtypes=(torch.float32, torch.float64)),
         xfail('fft.hfft', dtypes=(torch.float32, torch.float64)),
         xfail('fft.hfftn', dtypes=(torch.float32, torch.float64)),
+        xfail('nn.functional.binary_cross_entropy', device_type='cuda', dtypes=(torch.bfloat16,)),
     })
     def test_decomposition(self, device, dtype, op):
         # dtype is too confusing of a name for how we're using it
