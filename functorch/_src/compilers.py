@@ -40,12 +40,11 @@ def ts_compile(fx_g: fx.GraphModule, _) -> Callable:
                 args = list(node.args)
                 args[1] = [1]
                 node.args = tuple(args)
-        elif node.target == torch.ops.aten.avg_pool2d_backward:
-            # Handle empty strides
-            if node.args[3] == []:
-                args = list(node.args)
-                args[3] = [1, 1]
-                node.args = tuple(args)
+        elif node.target is torch.ops.aten.masked_fill and node.args[2] == float("-inf"):
+            # Fx graph to torchscript fails for -inf
+            args = list(node.args)
+            args[2] = -3.403 * 10**37
+            node.args = tuple(args)
 
     for node in fx_g.graph.nodes:
         new_kwargs = {}
@@ -271,6 +270,8 @@ default_decompositions = set(
         aten.hardswish_backward,
         aten.tanh_backward,
         aten.silu_backward,
+        aten.cudnn_batch_norm,
+        aten.cudnn_batch_norm_backward,
     ]
 )
 default_decompositions = get_decompositions(default_decompositions)
