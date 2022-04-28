@@ -12,6 +12,12 @@ from .partitioners import default_partition
 from .named_members_polyfill import _named_parameters, _named_buffers
 from typing import Callable, List, Dict, Any, Tuple, Optional
 
+try:
+    from torchdynamo import disable as disable_torchdynamo
+except ImportError:
+    def disable_torchdynamo(x):
+        return x
+
 pytree._register_pytree_node(
     immutable_collections.immutable_list,
     lambda x: (list(x), None),
@@ -96,14 +102,19 @@ def normalize_as_list(x):
 aot_autograd_decompositions = {}
 
 
-@register_decomposition([aten.rsub.Scalar, aten.rsub.Tensor], aot_autograd_decompositions)
-def rsub(a, b, alpha=1):
-    return -aten.sub(a, b)
-
-
 @register_decomposition(aten._reshape_alias, aot_autograd_decompositions)
 def _reshape_alias(x, shape, strides):
     return aten.view(x, shape)
+
+
+@register_decomposition(aten.new_zeros, aot_autograd_decompositions)
+def new_zeros(inp, size, dtype=None, layout=None, device=None, pin_memory=None):
+    return torch.zeros(size, dtype=inp.dtype, device=inp.device)
+
+
+@register_decomposition(aten.new_full, aot_autograd_decompositions)
+def new_full(inp, size, value, dtype=None, layout=None, device=None, pin_memory=None):
+    return torch.full(size, value, dtype=inp.dtype, device=inp.device)
 
 
 def create_aot_autograd_function(
@@ -129,13 +140,14 @@ def create_aot_autograd_function(
 
     class CompiledFunction(torch.autograd.Function):
         @staticmethod
+        @disable_torchdynamo
         def forward(ctx, *flat_tensor_args):
             nonlocal compiled_fw, compiled_bw, num_outs
             if compiled_fw is None:
                 with torch.set_grad_enabled(grad_state):
                     out = flat_fn(*flat_tensor_args)
                 out = pytree.tree_map(
-                    lambda x: x.detach() if isinstance(x, Tensor) else x, out
+                    lambda x: x.detach().contiguous() if isinstance(x, Tensor) else x, out
                 )
 
                 if isinstance(out, (list, tuple)):
@@ -163,10 +175,10 @@ def create_aot_autograd_function(
             return tuple(fw_outs[0:num_outs])
 
         @staticmethod
+        @disable_torchdynamo
         def backward(ctx, *flat_args):
-            # hmm... this doesn't feel right. todo
-            # contiguous_args = [t.contiguous() for t in flat_args]
-            contiguous_args = [t for t in flat_args]
+            contiguous_args = [t.contiguous() for t in flat_args]
+            # contiguous_args = [t for t in flat_args]
             out = normalize_as_list(compiled_bw(*ctx.saved_tensors, *contiguous_args))
             return tuple(out)
 
@@ -521,6 +533,80 @@ def aot_module(mod: nn.Module, *args, **kwargs) -> nn.Module:
             return compiled_f(
                 dict(_named_parameters(mod, remove_duplicate=False)),
                 dict(_named_buffers(mod, remove_duplicate=False)),
+                *args,
+                **kwargs,
+            )
+
+    return AOTModule()
+
+
+def aot_module_simplified(mod: nn.Module, *top_args, **top_kwargs) -> nn.Module:
+    """
+    This is the simplified or low overhead version of aot_module. For frontends
+    like TorchDynamo, the input functions/modules to AOT are static and have
+    unpacked inputs/outputs. This gives us an opportunity to remove the
+        (1) pytree overhead to parse inputs/outputs,
+        (2) AOT Autograd cache,
+        (3) Reading of params/buffers in every forward call
+
+    :func:`aot_module_simplified` removes these overheads.
+    """
+    #########################################################
+
+    params = {
+        **dict(_named_parameters(mod, remove_duplicate=False)),
+        **dict(_named_buffers(mod, remove_duplicate=False)),
+    }
+    params_flat, params_spec = pytree.tree_flatten(params)
+    params_flat = tuple(params_flat)
+    params_len = len(params_flat)
+
+    def functional_call(*args, **kwargs):
+        with _stateless.reparametrize_module(
+            mod, pytree.tree_unflatten(args[:params_len], params_spec)
+        ):
+            out = mod(*args[params_len:], **kwargs)
+        if not isinstance(out, (tuple, list)):
+            raise RuntimeError(
+                "Graph output must be a tuple(). This is so that we can avoid "
+                "pytree processing of the ouputs. Please change the module to "
+                "have tuple outputs or use aot_module instead."
+            )
+        return out
+
+    def aot_function_simplified(
+        fn: Callable,
+        fw_compiler: Callable,
+        bw_compiler: Optional[Callable] = None,
+        partition_fn: Callable = default_partition,
+        decompositions: Dict = {},
+        hasher_type: str = "StaticShapeHasher",
+        static_argnums: Optional[Tuple[int]] = None,
+    ) -> Callable:
+        assert static_argnums is None
+        if bw_compiler is None:
+            bw_compiler = fw_compiler
+        compiled_fn = create_aot_autograd_function(
+            fn,
+            fw_compiler,
+            bw_compiler,
+            partition_fn,
+            decompositions,
+            grad_state=torch.is_grad_enabled(),
+        ).apply
+
+        return compiled_fn
+
+    compiled_f = aot_function_simplified(functional_call, *top_args, **top_kwargs)
+
+    class AOTModule(nn.Module):
+        def __init__(self):
+            super(AOTModule, self).__init__()
+            self.orig_module = mod
+
+        def forward(self, *args, **kwargs):
+            return compiled_f(
+                *params_flat,
                 *args,
                 **kwargs,
             )
