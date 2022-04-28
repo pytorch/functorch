@@ -57,13 +57,15 @@ class PythonTensor(torch.Tensor):
 
         r = torch.Tensor._make_subclass(cls, elem, elem.requires_grad)
         r.proxy = proxy
-        proxy.node.meta['tensor_meta'] = _extract_tensor_metadata(r)
+        if elem.is_sparse:
+            proxy.node.meta['tensor_meta'] = {}
+        else:
+            proxy.node.meta['tensor_meta'] = _extract_tensor_metadata(r)
         return r
 
     def __repr__(self):
-        # This is a bit goofy but whatever.  Should fix up _tensor_str.py to
-        # work on subclasses when it calls tolist
-        return f"PythonTensor({torch.Tensor._make_subclass(torch.Tensor, self)})"
+        with no_dispatch():
+            return f"PythonTensor({self.as_subclass(torch.Tensor)})"
 
     __torch_function__ = _disabled_torch_function_impl
 

@@ -17,10 +17,11 @@ from functorch import (
     grad, vjp, vmap, jacrev,
     make_fx
 )
+from functorch._src.aot_autograd import aot_module_simplified
 from functorch.compile import (
     nnc_jit, compiled_function, compiled_module,
     min_cut_rematerialization_partition, aot_function, aot_module, decomposition_table, nop,
-    num_of_recompilations
+    num_of_recompilations, default_partition, default_decompositions
 )
 
 from torch.testing._internal.common_device_type import ops
@@ -189,17 +190,26 @@ class TestPythonKey(TestCase):
 
 
 make_fx_failures = {
-    xfail('to_sparse'),
     xfail('allclose'),
     xfail('nn.functional.dropout'),
     xfail('linalg.eigvals'),
-    xfail('nn.functional.fractional_max_pool3d', device_type='cpu'),
+    xfail('nn.functional.max_pool1d', device_type='cpu'),  # precision problems?
     xfail('randn_like'),  # randomness
     xfail('rand_like'),  # randomness
     xfail('randint_like'),  # randomness
     skip('new_empty'),  # nondeterministic
     skip('empty_like'),  # nondeterministic
     skip('linalg.lstsq', 'grad_oriented'),  # flaky
+    xfail('normal', '', device_type='cpu'),
+    xfail('normal', 'number_mean', device_type='cpu'),
+    xfail('multinomial', device_type='cpu'),
+    xfail('nn.functional.feature_alpha_dropout', 'with_train', device_type='cpu'),
+    xfail('bernoulli', device_type='cpu'),
+    xfail('nn.functional.dropout2d', device_type='cpu'),
+    xfail('nn.functional.max_unpool1d', '', device_type='cpu'),
+    xfail('nn.functional.max_unpool2d', '', device_type='cpu'),
+    xfail('nn.functional.max_unpool3d', '', device_type='cpu'),
+    skip('linalg.lstsq'),  # flaky, probably just a precision issue
 }
 
 
@@ -216,10 +226,6 @@ class TestPythonKeyOperatorsOpInfo(TestCase):
         for sample_input in sample_inputs_itr:
             args = [sample_input.input] + list(sample_input.args)
             kwargs = sample_input.kwargs
-            t = f(args, kwargs)
-            # just since pytrees with torch.return_types doesn't work
-            if isinstance(t, tuple):
-                self.skipTest("output is a tuple that pytree doesn't work with")
 
             new_f = make_fx(f)(args, kwargs)
             for arg in args:
@@ -370,7 +376,7 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('trapezoid'),
         xfail('trapz'),
         skip('nn.functional.binary_cross_entropy_with_logits'),  # seems to fail sometimes?
-        xfail('block_diag'),
+        skip('nn.functional.margin_ranking_loss'),  # seems flaky
     })
     def test_aot_autograd_exhaustive(self, device, dtype, op):
         def f(args, kwargs):
@@ -430,24 +436,29 @@ def extract_graph(fx_g, _, graph_cell):
     return fx_g
 
 
-def get_num_ins_outs(fx_g):
-    num_inps = 0
-    num_outs = 0
+def get_ins_outs(fx_g):
+    ins = []
+    outs = []
     for n in fx_g.graph.nodes:
         if n.op == 'placeholder':
-            num_inps += 1
+            ins.append(n)
         elif n.op == 'output':
-            num_outs = len(n.args[0])
-    return num_inps, num_outs
+            outs = tuple(n.args[0])
+    return ins, outs
 
 
-def get_fw_bw_graph(f, inps):
+def get_num_ins_outs(fx_g):
+    return tuple(len(i) for i in get_ins_outs(fx_g))
+
+
+def get_fw_bw_graph(f, inps, partitioner=min_cut_rematerialization_partition):
     fw_graph_cell = [None]
     bw_graph_cell = [None]
     aot_function(f,
                  fw_compiler=partial(extract_graph, graph_cell=fw_graph_cell),
                  bw_compiler=partial(extract_graph, graph_cell=bw_graph_cell),
-                 partition_fn=min_cut_rematerialization_partition)(*inps)
+                 partition_fn=partitioner,
+                 decompositions=default_decompositions)(*inps)
     return (fw_graph_cell[0], bw_graph_cell[0])
 
 
@@ -503,6 +514,17 @@ class TestPartitioning(TestCase):
         aot_mod = aot_module(mod, fw_compiler=check_meta_tensor)
         aot_mod(*inputs)
 
+    def test_default_partitioner_getitem(self):
+        mod = nn.LayerNorm([10])
+
+        def f(x, mod_weight, mod_bias):
+            return torch.nn.functional.layer_norm(x, [10], mod_weight, mod_bias, eps=1e-6)
+
+        fw_graph, bw_graph = get_fw_bw_graph(f, [torch.randn(3, 10, requires_grad=True), mod.weight, mod.bias],
+                                             partitioner=default_partition)
+        self.assertEqual(get_num_ins_outs(fw_graph), (3, 6))
+        self.assertEqual(get_num_ins_outs(bw_graph), (6, 3))
+
     @unittest.skipIf(not USE_NETWORKX, "networkx not available")
     def test_min_cut_partitioner(self):
         def f(x):
@@ -519,6 +541,58 @@ class TestPartitioning(TestCase):
         fw_graph, bw_graph = get_fw_bw_graph(f, [torch.randn(3, requires_grad=True) for _ in range(4)])
         self.assertEqual(get_num_ins_outs(fw_graph), (4, 2))
         self.assertEqual(get_num_ins_outs(bw_graph), (2, 4))
+
+        def f(x):
+            return torch.mm(x, torch.ones(x.shape)).tanh().tanh()
+        fw_graph, bw_graph = get_fw_bw_graph(f, [torch.randn(5, 5, requires_grad=True)])
+        self.assertEqual(get_num_ins_outs(fw_graph), (1, 2))
+
+        ins, outs = get_ins_outs(fw_graph)
+        self.assertEqual(outs[1].target, torch.ops.aten.mm)
+
+
+class TestContiguous(TestCase):
+    def test_contiguous(self):
+        # The test simulates the condition where transpose followed by view
+        # happens in the backward pass.
+        # https://discuss.pytorch.org/t/error-on-transpose-and-view/434
+        def f(x):
+            return x.view(2, 3).t()
+
+        inp = torch.randn(6, requires_grad=True)
+        out = aot_function(f, nop)(inp)
+        torch.autograd.grad(out, inp, torch.randn(3, 2))
+
+
+class TestAOTModuleSimplified(TestCase):
+    def test_aot_module_simplified(self):
+        class MockModule(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear = torch.nn.Linear(20, 30)
+
+            def forward(self, x, y):
+                return (self.linear(x) + y, )
+
+        mod = MockModule()
+        mod.zero_grad()
+
+        x = torch.randn(128, 20, requires_grad=True)
+        y = torch.randn(128, 30, requires_grad=True)
+        inputs = [x, y]
+        cloned_inputs = [x.detach().clone().requires_grad_(True) for x in inputs]
+
+        ref = mod(*inputs)
+        ref[0].sum().backward()
+
+        aot_mod = aot_module_simplified(mod, nop)
+        aot_mod.zero_grad()
+        res = aot_mod(*cloned_inputs)
+        res[0].sum().backward()
+
+        assert torch.allclose(ref[0], res[0])
+        assert torch.allclose(inputs[0].grad, cloned_inputs[0].grad)
+        assert torch.allclose(inputs[1].grad, cloned_inputs[1].grad)
 
 
 only_for = ("cpu")
