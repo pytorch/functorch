@@ -507,7 +507,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT(chunk, chunk_batching_rule);
   m.impl("flatten.using_ints", static_cast<decltype(&ATEN_FN2(flatten, using_ints))>(native::flatten));
   VMAP_SUPPORT(flip, flip_batch_rule);
-  RUN_JIT_DECOMPOSITION("trace")
+  RUN_JIT_DECOMPOSITION(trace)
   VMAP_SUPPORT(tril, VARIADIC_BDIMS_BATCH_RULE(ATEN_FN(tril)));
   VMAP_SUPPORT(triu, VARIADIC_BDIMS_BATCH_RULE(ATEN_FN(triu)));
   VMAP_SUPPORT(repeat, repeat_batch_rule);
