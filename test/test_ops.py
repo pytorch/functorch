@@ -1278,6 +1278,8 @@ class TestDecompositionOpInfo(TestCase):
     # Each one of these is a bug (or needs to be investigated)
     @skipOps('TestDecompositionOpInfo', 'test_decomposition', {
         skip('view_as_complex'),
+        skip('var'),
+        skip('std'),
         xfail('linalg.cholesky'),
         xfail('linalg.inv'),
         skip('linalg.det', 'singular', device_type='cuda'),  # this is nasty and seems to stop the test suite
