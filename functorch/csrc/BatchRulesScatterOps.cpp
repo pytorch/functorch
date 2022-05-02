@@ -258,7 +258,7 @@ namespace {
 }  // namespace
 
 void index_put__batch_rule(
-    Tensor& self,
+    const Tensor& self,
     optional<int64_t> self_bdim,
     ArrayRef<optional<Tensor>> indices,
     ArrayRef<optional<int64_t>> indices_bdims,
@@ -296,7 +296,7 @@ Tensor& index_put__plumbing(Tensor & self, const List<optional<Tensor>> & indice
 }
 
 void _index_put_impl__batch_rule(
-    Tensor& self,
+    const Tensor& self,
     optional<int64_t> self_bdim,
     ArrayRef<optional<Tensor>> indices,
     ArrayRef<optional<int64_t>> indices_bdims,
@@ -335,7 +335,7 @@ Tensor &_index_put_impl__plumbing(Tensor &self, const List<optional<Tensor>> &in
 }
 
 std::tuple<Tensor,optional<int64_t>> index_put_batch_rule(
-    Tensor& self,
+    const Tensor& self,
     optional<int64_t> self_bdim,
     ArrayRef<optional<Tensor>> indices,
     ArrayRef<optional<int64_t>> indices_bdims,
