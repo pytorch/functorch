@@ -185,8 +185,8 @@ variable_list GenericPythonBackward::apply(variable_list&& grads) {
   variable_list grad_inputs(num_inputs_);
 
   std::vector<Tensor> args;
-  for (const auto& g : grads) {
-    args.push_back(g);
+  for (auto& g : grads) {
+    args.emplace_back(std::move(g));
   }
   for (const auto& saved : saved_tensors_) {
     args.push_back(saved.unpack(shared_from_this()));
