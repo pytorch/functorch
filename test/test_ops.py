@@ -9,10 +9,10 @@ import torch
 from torch import Tensor
 import functools
 import unittest
+from collections import defaultdict
 from contextlib import contextmanager
 from torch.testing._internal.common_device_type import instantiate_device_type_tests
 from torch.testing._internal.common_device_type import ops
-from torch.testing._internal.common_dtype import integral_types
 from torch.testing._internal.common_device_type import \
      toleranceOverride, tol
 from functorch_lagging_op_db import functorch_lagging_op_db
@@ -30,7 +30,7 @@ from common_utils import (
     IS_FBCODE,
 )
 from torch.utils._pytree import tree_flatten, tree_unflatten, tree_map
-from functorch import grad, vjp, vmap
+from functorch import grad, vjp, vmap, jacrev, jacfwd
 import torch.autograd.forward_ad as fwAD
 from functorch._src.eager_transforms import _as_tuple, jvp
 from functorch.compile import decomposition_table
@@ -567,56 +567,49 @@ class TestOperators(TestCase):
         skip('bernoulli'),  # randomness
         skip('normal', ''),  # randomness
         skip('normal', 'number_mean'),  # randomness
+        xfail('nn.functional.dropout'),  # randomness
+        xfail('as_strided'),  # as_strided is too wild for us to support, wontfix
+        xfail('index_put', ''),  # not possible due to dynamic shapes; we support a subset
+        xfail('masked_scatter'),  # dynamic
+        xfail('nn.functional.fractional_max_pool2d'),  # random
+        xfail('nn.functional.fractional_max_pool3d'),  # random
+        xfail('take'),  # dynamic
 
         # All of the following are bugs and need to be fixed
-        xfail('eig'),
-        xfail('view_as_complex'),
-        xfail('fft.ihfft'),
-        xfail('fft.ihfft'),
-        xfail('fft.rfft'),
-        xfail('fft.rfft'),
-        xfail('fft.rfftn'),
-        xfail('linalg.det', ''),
-        xfail('linalg.cholesky'),
-        xfail('linalg.eig'),  # Uses aten::allclose
-        xfail('linalg.eigh'),
-        xfail('linalg.householder_product'),
-        xfail('linalg.inv'),
-        xfail('linalg.matrix_norm'),
-        xfail('linalg.matrix_power'),
-        xfail('linalg.norm'),
-        xfail('linalg.slogdet'),
-        # really annoying thing where it passes correctness check but not has_batch_rule
-        skip('linalg.svdvals'),
-        xfail('logdet'),
-        xfail('lu_unpack'),
-        xfail('masked_scatter'),
-        xfail('matrix_exp'),
-        xfail('nanquantile'),
-        xfail('prod'),
-        xfail('put'),
-        xfail('quantile'),
-        xfail('symeig'),
-        xfail('take'),
-        xfail('linalg.tensorinv'),
+        skip('linalg.svdvals'),  # # really annoying thing where it passes correctness check but not has_batch_rule
+        xfail('__getitem__', ''),
+        xfail('_masked.prod'),  # calls aten::item
         xfail('block_diag'),
-        xfail('nn.functional.dropout'),
+        xfail('eig'),  # calls aten::item
+        xfail('fft.ihfft'),
+        xfail('fft.ihfft'),
         xfail('fft.ihfft2'),
         xfail('fft.ihfftn'),
-        xfail('nn.functional.gaussian_nll_loss'),
+        xfail('fft.rfft'),
+        xfail('fft.rfft'),
         xfail('fft.rfft2'),
-        skip('qr'),  # Nondetermistic
-        xfail('_masked.prod'),  # calls aten::item
-        xfail('stft'),
-        xfail('nn.functional.fractional_max_pool3d'),
-        xfail('as_strided'),
-        xfail('nn.functional.fractional_max_pool2d'),
-        xfail('__getitem__', ''),
-        xfail('index_put', ''),
-        xfail('lu_solve'),
+        xfail('fft.rfftn'),
         xfail('index_copy'),
-        xfail('linalg.lu_factor', ''),
+        xfail('linalg.det', ''),  # calls .item()
+        xfail('linalg.eig'),  # Uses aten::allclose
+        xfail('linalg.eigh'),  # needs diag_scatter
+        xfail('linalg.householder_product'),  # needs select_scatter
+        xfail('linalg.matrix_norm'),
+        xfail('linalg.norm'),
         xfail('linalg.norm', 'subgradients_at_zero'),
+        xfail('linalg.slogdet'),  # calls .item()
+        xfail('logdet'),  # calls .item()
+        xfail('lu_solve'),  # requires .contiguous() call somewhere rather than fallback
+        xfail('lu_unpack'),  # would benefit from narrow_scatter
+        xfail('matrix_exp'),  # would benefit from narrow_scatter
+        xfail('nanquantile'),  # checks q via a .item() call
+        xfail('nn.functional.gaussian_nll_loss'),  # checks var for if any value < 0
+        xfail('prod'),  # calls nonzero
+        xfail('put'),
+        xfail('quantile'),  # checks q via a .item() call
+        xfail('stft'),
+        xfail('symeig'),  # would benefit from diag_scatter
+        xfail('view_as_complex'),
 
         # required rank 4 tensor to use channels_last format
         xfail('bfloat16'),
@@ -669,9 +662,6 @@ class TestOperators(TestCase):
         xfail('matrix_exp'),
         xfail('fill_'),
         xfail('block_diag'),  # TODO: We expect this to fail in core, but it doesn't
-
-        # https://gist.github.com/zou3519/c42d032c0111c6b65235583d391bf7a3
-        xfail('nn.functional.linear'),
 
         # Apprently these support forward AD, but we get "Trying to use forward AD..."
         # These are cases where OpInfo has supports_forward_ad=True, but disables
@@ -731,11 +721,17 @@ class TestOperators(TestCase):
                 self.assertEqual(loop_out, batched_out)
 
     vmapjvpall_fail = {
+        # The following are expected (not a bug)
         skip('bernoulli', ''),  # randomness
         skip('nn.functional.dropout'),  # randomness
         skip('nn.functional.rrelu'),  # randomness
+        skip('nn.functional.dropout2d', ''),
+        skip('nn.functional.feature_alpha_dropout', 'without_train'),
+        skip('nn.functional.feature_alpha_dropout', 'with_train'),
         xfail('nn.functional.fractional_max_pool2d'),  # Cannot access data pointer of Tensor that doesn't have storage
         xfail('nn.functional.fractional_max_pool3d'),  # Cannot access data pointer of Tensor that doesn't have storage
+
+        # The following are bugs that we should fix
         skip('nn.functional.max_pool1d'),  # fails on cpu, runs on cuda
         xfail('_masked.mean', device_type='cuda'),
         xfail('_masked.prod', device_type='cuda'),
@@ -749,13 +745,9 @@ class TestOperators(TestCase):
         xfail('nn.functional.batch_norm', device_type='cpu'),
         xfail('nn.functional.hinge_embedding_loss', device_type='cpu'),
 
-        # xfail list
         xfail('nn.functional.soft_margin_loss', ''),
         xfail('linalg.norm', 'subgradients_at_zero'),
         xfail('nn.functional.binary_cross_entropy_with_logits', ''),
-        xfail('linalg.inv'),
-        xfail('linalg.tensorinv'),
-        xfail('linalg.matrix_power'),
         xfail('linalg.norm'),
         xfail('linalg.householder_product'),
         xfail('tensor_split'),
@@ -763,23 +755,17 @@ class TestOperators(TestCase):
         xfail('var_mean'),
         xfail('as_strided'),
         xfail('fill_'),
-        xfail('linalg.cholesky'),
         xfail('nn.functional.gaussian_nll_loss'),
         xfail('std_mean'),
         xfail('block_diag'),
         xfail('scatter'),
         xfail('matrix_exp'),
         xfail('nanquantile'),
-        xfail('nn.functional.linear'),
         xfail('view_as_complex'),
         xfail('prod'),
 
-        xfail('linalg.lu_factor', ''),
-        skip('nn.functional.dropout2d', ''),
-        skip('nn.functional.feature_alpha_dropout', 'without_train'),
         skip('pca_lowrank', ''),
         skip('svd_lowrank', ''),
-        skip('nn.functional.feature_alpha_dropout', 'with_train'),
 
         xfail('stft'),  # transpose_ fallback
 
@@ -825,6 +811,8 @@ class TestOperators(TestCase):
         xfail('cumprod'),
         xfail('lu_solve'),
         xfail('linalg.lstsq', 'grad_oriented'),
+        xfail('linalg.cholesky'),
+        xfail('linalg.qr'),
         xfail('cross'),
         xfail('qr'),
         xfail('linalg.pinv'),
@@ -904,6 +892,8 @@ class TestOperators(TestCase):
         xfail('cummin'),
         xfail('cumprod'),
         xfail('eig'),
+        xfail('nansum'),
+        xfail('nanmean'),
         xfail('fmin'),
         xfail('fmax'),
         xfail('fft.ihfft'),
@@ -922,16 +912,13 @@ class TestOperators(TestCase):
         xfail('linalg.householder_product'),
         xfail('linalg.lstsq', ''),
         xfail('linalg.lstsq', 'grad_oriented'),
-        xfail('linalg.inv'),
         xfail('linalg.matrix_norm'),
-        xfail('linalg.matrix_power'),
         xfail('linalg.norm'),
         xfail('linalg.pinv'),
         xfail('linalg.qr'),
         xfail('linalg.pinv', 'hermitian'),
         xfail('linalg.slogdet'),
         xfail('linalg.solve'),
-        xfail('linalg.tensorinv'),
         xfail('logdet'),
         xfail('lu'),
         xfail('lu_solve'),
@@ -1001,6 +988,7 @@ class TestOperators(TestCase):
         xfail('nn.functional.max_unpool1d', 'grad'),
         xfail('nn.functional.l1_loss', ''),
         xfail('nn.functional.max_unpool2d', 'grad'),
+        xfail('qr'),
     }))
     def test_vmapvjp_has_batch_rule(self, device, dtype, op):
         if not op.supports_autograd:
@@ -1109,10 +1097,6 @@ class TestOperators(TestCase):
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_jvpvjp', vjp_fail.union({
         # These are weirdly non-deterministic
-        skip('nn.functional.conv2d', '', device_type='cpu'),
-        skip('nn.functional.conv2d', 'no_bias', device_type='cpu'),
-        skip('nn.functional.conv2d', 'stride_no_bias', device_type='cpu'),
-        skip('nn.functional.conv2d', 'stride_padding_no_bias', device_type='cpu'),
         skip('nn.functional.fractional_max_pool2d'),  # Random
         skip('nn.functional.fractional_max_pool3d'),  # Random
 
@@ -1133,8 +1117,6 @@ class TestOperators(TestCase):
         xfail('linalg.det', ''),
         xfail('linalg.matrix_norm', ''),
         xfail('linalg.slogdet', ''),
-        xfail('log_softmax', ''),
-        xfail('log_softmax', 'dtype'),
         xfail('logcumsumexp', ''),
         xfail('logdet', ''),
         xfail('lu', ''),
@@ -1147,7 +1129,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.bilinear', ''),
         xfail('nn.functional.binary_cross_entropy', ''),
         xfail('nn.functional.binary_cross_entropy_with_logits', ''),
-        xfail('nn.functional.cross_entropy', ''),
         xfail('nn.functional.embedding', ''),
         xfail('nn.functional.embedding', 'functorch'),
         xfail('nn.functional.embedding_bag', ''),
@@ -1159,8 +1140,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.instance_norm', ''),
         xfail('nn.functional.layer_norm', ''),
         xfail('nn.functional.logsigmoid', ''),
-        xfail('nn.functional.mse_loss', ''),
-        xfail('nn.functional.nll_loss', ''),
         xfail('nn.functional.pad', 'circular'),
         xfail('nn.functional.prelu', ''),
         xfail('nn.functional.softmin', ''),
@@ -1168,8 +1147,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.softplus', ''),
         xfail('put', ''),
         xfail('renorm', ''),
-        xfail('softmax', ''),
-        xfail('softmax', 'with_dtype'),
         xfail('solve', ''),
         xfail('std_mean', ''),
         xfail('symeig', ''),
@@ -1194,7 +1171,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.pdist', ''),
         xfail('scatter_reduce', 'sum'),
         xfail('nn.functional.multi_margin_loss', ''),
-        xfail('nn.functional.l1_loss', ''),
         xfail('nn.functional.max_unpool3d', 'grad'),
         xfail('nn.functional.smooth_l1_loss', ''),
         xfail('nn.functional.max_unpool2d', ''),
@@ -1252,6 +1228,37 @@ class TestOperators(TestCase):
                     expected = (tree_unflatten(primals_out, spec), tree_unflatten(tangents_out, spec))
                 return expected
 
+            def compare_jacobians(primals, cotangents):
+                def get_vjp(primals, cotangents):
+                    _, vjp_fn = vjp(fn, *primals)
+                    return vjp_fn(cotangents)
+
+                jacobian_jvp = jacfwd(get_vjp, (0, 1))(primals, cotangents)
+                jacobian_vjp = jacrev(get_vjp, (0, 1))(primals, cotangents)
+
+                # For dtype changing operations, the jacobians have different dtype.
+                jacobian_jvp = tree_map(lambda x: x.to(torch.float), jacobian_jvp)
+                jacobian_vjp = tree_map(lambda x: x.to(torch.float), jacobian_vjp)
+
+                self.assertEqual(jacobian_jvp, jacobian_vjp)
+
+            # HACK: obviously pytorch should also have the same coverage
+            # For things that do have the same coverage, we test that jvp x vjp
+            # are the same between PyTorch and functorch. For things that don't,
+            # we check that jacfwd(vjp) and jacrev(vjp) are the same. This results
+            # in slower tests.
+            FUNCTORCH_HAS_FORMULA_BUT_NOT_PYTORCH = {
+                'nn.functional.nll_loss',
+                'nn.functional.l1_loss',
+                'nn.functional.mse_loss',
+                'softmax',
+                'log_softmax',
+                'nn.functional.cross_entropy'
+            }
+            if op.name in FUNCTORCH_HAS_FORMULA_BUT_NOT_PYTORCH:
+                compare_jacobians(primals, cotangents)
+                return
+
             expected = reference(primals, cotangents, primals_tangents, cotangents_tangents)
             self.assertEqual(result, expected)
 
@@ -1271,15 +1278,13 @@ def ref_vjp_no_create(f, *primals):
 
 
 run_decompositions = set()
-run_ops = set()
+run_ops = defaultdict(int)
 
 
 class TestDecompositionOpInfo(TestCase):
 
-    @unittest.skipIf(IS_FBCODE, "__torch_dispatch__ is buggy")
     @ops(
         functorch_lagging_op_db + additional_op_db,
-        allowed_dtypes=[torch.float32, torch.float64, torch.float16, torch.bfloat16] + [*integral_types()]
     )
     # entries in here need don't work and need to be fixed.
     # Each one of these is a bug (or needs to be investigated)
@@ -1345,6 +1350,7 @@ class TestDecompositionOpInfo(TestCase):
             # Before adding an entry to this table, make sure your decomposition is right :)
             tol_table = {
                 # Due to strange epsilon behaviors, see https://github.com/pytorch/pytorch/issues/73161
+                (torch.float32, aten.native_batch_norm.default): (1e-3, 1e-3),
                 (torch.float32, aten.native_layer_norm.default): (1e-3, 1e-3),
                 (torch.float32, aten.native_layer_norm_backward.default): (1e-3, 1e-3),
             }
@@ -1404,7 +1410,7 @@ class TestDecompositionOpInfo(TestCase):
             @classmethod
             def __torch_dispatch__(cls, func, types, args=(), kwargs=None):
                 global run_ops
-                run_ops.add(func)
+                run_ops[func] += 1
 
                 def unwrap_tensor(e):
                     if isinstance(e, DecompositionTensor):
@@ -1539,17 +1545,18 @@ class TestDecompositionOpInfo(TestCase):
     @unittest.skipIf(IS_FBCODE, "__torch_dispatch__ is buggy")
     def test_placeholder(self):
         global run_ops, run_decompositions
-        with open('op_analysis/run_ops.txt', 'w') as f:
-            def get_names(inpt):
-                return sorted([x.__name__ for x in inpt])
-            for op in get_names(run_ops):
-                f.write(f'{op}\n')
+        with open('op_analysis/run_ops.txt', 'w') as f, open('op_analysis/count_ops.txt', 'w') as g:
+            for op, count in sorted(run_ops.items(), key=lambda x: x[0].__name__):
+                f.write(f'{op.__name__}\n')
+                g.write(f'{count}\n')
         with open('op_analysis/run_decompositions.txt', 'w') as f:
-            for op in get_names(run_decompositions):
+            for op in sorted([i.__name__ for i in run_decompositions]):
                 f.write(f'{op}\n')
 
     def test_decompositions_torchscriptable(self, device):
-        skip_list = []
+        skip_list = [
+            aten.rsub.Scalar,
+        ]
         for op, decomposition in decomposition_table.items():
             if op in skip_list:
                 continue
