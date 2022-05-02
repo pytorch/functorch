@@ -44,7 +44,7 @@ std::vector<optional<Tensor>> batchIndices(
   for (size_t i = 0; i < indices.size(); i++) {
     auto index = indices[i];
     if (index.has_value()) {
-      indices_.push_back(moveBatchDimToFront(index.value(), indices_bdims[i]));
+      indices_.emplace_back(moveBatchDimToFront(index.value(), indices_bdims[i]));
       minIndexDim = std::max(minIndexDim, index.value().dim());
       if (index.value().dtype() == kBool && indices_bdims[i].has_value()) {
         throw std::runtime_error("vmap: We do not support batching operators that can support dynamic shape. Attempting to batch over indexing with a boolean mask.");
