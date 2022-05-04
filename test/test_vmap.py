@@ -3515,6 +3515,29 @@ class TestVmapOperatorsOpInfo(TestCase):
         y = torch.randn(2, 3, device=device)
         self.assertTrue(isinstance(vmap(f)(x, y), Point))
 
+    def test_advanced_indexing(self, device):
+        def test(f, args):
+            for loop_out, batched_out in get_fallback_and_vmap_exhaustive(f, args, {}):
+                self.assertEqual(loop_out, batched_out)
+
+        def f(x, idx):
+            return x[:, idx]
+
+        def f2(x, idx):
+            return x[idx, :]
+
+        def f3(x, idx):
+            return x[:, :, idx]
+
+        inps = (torch.randn(5, 5, 5), torch.randn(5, 5, 5, 5), torch.randn(5, 5, 5, 5, 5))
+        idxes = (torch.tensor([0, 1, 2]),
+                 torch.tensor([0, 1, 2]).reshape(3, 1),
+                 torch.tensor([0, 1, 2]).reshape(3, 1, 1))
+        for (inp, idx) in itertools.product(inps, idxes):
+            test(f, (inp, idx))
+            test(f2, (inp, idx))
+            test(f3, (inp, idx))
+
 
 class TestRandomness(TestCase):
     def _reset_random(self, generator, orig_state, use_generator, seed):
