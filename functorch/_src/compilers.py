@@ -33,6 +33,7 @@ def ts_compile(fx_g: fx.GraphModule, _) -> Callable:
     Returns:
         Torch scripted model.
     """
+    return fx_g
     for node in fx_g.graph.nodes:
         if node.target in (torch.ops.aten.new_zeros, torch.ops.aten.new_empty):
             if node.args[1] == []:
