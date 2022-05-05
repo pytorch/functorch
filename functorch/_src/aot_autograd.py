@@ -194,15 +194,13 @@ def create_aot_autograd_function(
             else:
                 fw_outs = normalize_as_list(compiled_fw(*flat_tensor_args))
             # No way of clearing ctx.saved_tensors right now afaik
-            ctx.save_for_backward(*fw_outs[num_outs:])
-            # ctx.saved_values = fw_outs[num_outs:]
+            ctx.saved_values = fw_outs[num_outs:]
             return tuple(fw_outs[0:num_outs])
 
         @staticmethod
         @disable_torchdynamo
         def backward(ctx, *flat_args):
             contiguous_args = [t.contiguous() for t in flat_args]
-            # import pdb; pdb.set_trace()
             flat_args = list(ctx.saved_values) + list(contiguous_args)
             ctx.saved_values = None
             out = normalize_as_list(compiled_bw(flat_args))
