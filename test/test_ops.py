@@ -8,9 +8,6 @@ from torch.testing._internal.common_utils import TestCase, run_tests, is_iterabl
 import torch
 from torch import Tensor
 import functools
-import unittest
-from collections import defaultdict
-from contextlib import contextmanager
 from torch.testing._internal.common_device_type import instantiate_device_type_tests
 from torch.testing._internal.common_device_type import ops
 from torch.testing._internal.common_device_type import \
@@ -27,13 +24,11 @@ from common_utils import (
     # tol2,
     opsToleranceOverride,
     check_vmap_fallback,
-    IS_FBCODE,
 )
 from torch.utils._pytree import tree_flatten, tree_unflatten, tree_map
 from functorch import grad, vjp, vmap, jacrev, jacfwd
 import torch.autograd.forward_ad as fwAD
 from functorch._src.eager_transforms import _as_tuple, jvp
-from functorch.compile import decomposition_table
 aten = torch.ops.aten
 
 # Version of autograd.grad that handles outputs that don't depend on inputs
@@ -1249,6 +1244,7 @@ class TestOperators(TestCase):
 
             expected = reference(primals, cotangents, primals_tangents, cotangents_tangents)
             self.assertEqual(result, expected)
+
 
     @ops(filter(lambda op: op.name == "nn.functional.group_norm", functorch_lagging_op_db + additional_op_db),
          allowed_dtypes=(torch.float32, torch.double))  # TODO: generalize
