@@ -1,6 +1,6 @@
 [[linter]]
 code = 'FLAKE8'
-include_patterns = ['**/*.py']
+include_patterns = ['functorch/**/*.py']
 command = [
     'python3',
     'tools/lint/flake8_linter.py',
