@@ -37,7 +37,6 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set +e
-          git merge-base HEAD 6fc9857979979cd21981fc17141643a529a2bc84
           if ! lintrunner -vv --force-color --merge-base-with "${PR_BASE_SHA}" ; then
               echo ""
               echo -e "\e[1m\e[36mYou can reproduce these results locally by using \`lintrunner\`.\e[0m"
