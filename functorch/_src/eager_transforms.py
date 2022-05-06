@@ -1296,7 +1296,6 @@ def _register_jit_decomposition(decomp, use_python=False):
         graph = torch.jit.CompilationUnit(f_str).wrapped_decomp.graph
     else:
         graph = torch.jit.script(decomp_fn).graph
-    print(graph)
     torch.jit._register_decomposition(decomp, graph)
 
 

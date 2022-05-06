@@ -9,12 +9,13 @@ decomposition_table = torch._decomp.decomposition_table
 register_decomposition = torch._decomp.register_decomposition
 get_decompositions = torch._decomp.get_decompositions
 
+# Decompositions have been ported to torch._decomp inside of PyTorch core. The only decompositions here are temporary or hacks. Please provide your contributions to PyTorch core!
+
 
 @register_decomposition(aten.trace.default)
 def trace(self: Tensor) -> Tensor:
     return torch.sum(torch.diag(self))
 
-# Decompositions have been ported to torch._decomp inside of PyTorch core. The only decompositions here are temporary or hacks. Please provide your contributions to PyTorch core!
 
 @register_decomposition(aten.log_sigmoid_forward)
 def log_sigmoid_forward(self: Tensor) -> Tuple[Tensor, Tensor]:

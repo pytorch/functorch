@@ -413,7 +413,6 @@ static void dynamicLayerFrontFallbackOperator(
   }
 #endif
 
-  std::cout<<dynamicLayerStack.back().interpreter().key()<<' '<<op.schema()<<' '<<decomp_jvp<<std::endl;
   // Hack: if jvp and we have a decomposition registered, then do the decomposition
   if (dynamicLayerStack.back().interpreter().key() == TransformType::Jvp &&
       decomp_jvp) {
@@ -446,7 +445,6 @@ void dynamicLayerFrontFallback(const c10::OperatorHandle& op, torch::jit::Stack*
 void dynamicLayerFrontFallBackWithDecomp(
     const c10::OperatorHandle& op,
     torch::jit::Stack* stack) {
-  std::cout<<"hey!"<<std::endl;
   return dynamicLayerFrontFallbackOperator(op, stack, true);
 }
 
@@ -479,8 +477,7 @@ TORCH_LIBRARY_IMPL(aten, FT_DYNAMIC_LAYER_FRONT_MODE_KEY, m) {
   JVP_DECOMP(l1_loss_backward);
   JVP_DECOMP(_log_softmax_backward_data);
   JVP_DECOMP(_softmax_backward_data);
-  m.impl("log_sigmoid", static_cast<decltype(&ATEN_FN(log_sigmoid))>(native::log_sigmoid));
-
+  OP_DECOMPOSE(log_sigmoid);
   JVP_DECOMP(log_sigmoid_forward);
 }
 
