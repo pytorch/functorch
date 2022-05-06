@@ -148,6 +148,8 @@ def ref_vjp(f, *primals):
 
 
 def ref_jvp(f, primals, tangents):
+    # primals_out, tangents_out = torch.autograd.functional.jvp(f, primals, tangents)
+    # return primals_out, tangents_out
     with fwAD.dual_level():
         duals = tuple(fwAD.make_dual(p, t) for p, t in zip(primals, tangents))
         result_duals = f(*duals)
@@ -155,6 +157,14 @@ def ref_jvp(f, primals, tangents):
         primals_out, tangents_out = zip(*(fwAD.unpack_dual(d) for d in result_duals))
         return tree_unflatten(primals_out, spec), tree_unflatten(tangents_out, spec)
 
+JVP_DECOMPOSITION_OVERRIDE = {
+    'nn.functional.sigmoid',
+}
+
+def supports_forward_ad(op):
+    # if op.name in JVP_DECOMPOSITION_OVERRIDE:
+    #     return True
+    return op.supports_forward_ad
 
 def get_sample_cotangents(f, sample):
     fn, primals = normalize_op_input_output(f, sample)
@@ -395,7 +405,7 @@ class TestOperators(TestCase):
     ))
     def test_jvp(self, device, dtype, op):
         # TODO: when we change supports_autograd to supports_backward_ad, also change in this file
-        if not op.supports_forward_ad:
+        if not supports_forward_ad(op):
             self.skipTest("Skipped! Forward AD not supported.")
             return
 
@@ -695,7 +705,7 @@ class TestOperators(TestCase):
 
         samples = op.sample_inputs(device, dtype, requires_grad=False)
 
-        if not op.supports_forward_ad:
+        if not supports_forward_ad(op):
             self.skipTest("Skipped! Forward AD not supported.")
             return
 
@@ -777,7 +787,7 @@ class TestOperators(TestCase):
 
         samples = op.sample_inputs(device, dtype, requires_grad=False)
 
-        if not op.supports_forward_ad:
+        if not supports_forward_ad(op):
             self.skipTest("Skipped! Forward AD not supported.")
             return
 
@@ -852,7 +862,7 @@ class TestOperators(TestCase):
 
         samples = op.sample_inputs(device, dtype, requires_grad=False)
 
-        if not op.supports_forward_ad:
+        if not supports_forward_ad(op):
             self.skipTest("Skipped! Forward AD not supported.")
             return
 
