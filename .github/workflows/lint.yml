@@ -10,7 +10,11 @@ jobs:
   lintrunner:
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
       - name: Setup Python
         uses: actions/setup-python@v2
         with:
@@ -33,6 +37,7 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set +e
+          git merge-base HEAD 6fc9857979979cd21981fc17141643a529a2bc84
           if ! lintrunner -vv --force-color --merge-base-with "${PR_BASE_SHA}" ; then
               echo ""
               echo -e "\e[1m\e[36mYou can reproduce these results locally by using \`lintrunner\`.\e[0m"
