@@ -1245,7 +1245,6 @@ class TestOperators(TestCase):
             expected = reference(primals, cotangents, primals_tangents, cotangents_tangents)
             self.assertEqual(result, expected)
 
-
     @ops(filter(lambda op: op.name == "nn.functional.group_norm", functorch_lagging_op_db + additional_op_db),
          allowed_dtypes=(torch.float32, torch.double))  # TODO: generalize
     def test_group_norm_backward(self, device, dtype, op):
@@ -1262,6 +1261,7 @@ class TestOperators(TestCase):
                 if all(was_skipped_from_batched_tensors(bo, lo.shape[0]) for (bo, lo) in zip(batched_out, loop_out)):
                     continue  # we weren't able to use the batched tensor in autograd.grad
                 self.assertEqual(loop_out, batched_out)
+
 
 only_for = ("cpu", "cuda")
 instantiate_device_type_tests(TestOperators, globals(), only_for=only_for)
