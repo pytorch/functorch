@@ -118,13 +118,22 @@ Tensor linear_hack(const Tensor& input, const Tensor& weight, const c10::optiona
     // Fused op is marginally faster.
     return at::addmm(*bias, input, weight.t());
   }
+  if (input.dim() == 3 && bias->defined() && input.is_contiguous()) {
+    // Also hit the fused path for contiguous 3D input.
+    const auto input_sizes = input.sizes();
+    const auto result = at::addmm(*bias, input.view({input_sizes[0] * input_sizes[1], input_sizes[2]}), weight.t());
+    return result.view({input_sizes[0], input_sizes[1], result.size(1)});
+  }
   auto output = at::matmul(input, weight.t());
   if (bias->defined()) {
-    // TODO(rzou): I'm a little uncomfortable with this
-    if (can_perform_inplace(output, *bias)) {
-      return output.add_(*bias);
+    const auto& stack = getDynamicLayerStack();
+    bool any_vmap_layers = std::any_of(
+        stack.begin(), stack.end(),
+        [](const DynamicLayer& dl){ return dl.key() == TransformType::Vmap; });
+    if (any_vmap_layers) {
+      return output.add(*bias);
     }
-    return output.add(*bias);
+    return output.add_(*bias);
   }
   return output;
 }

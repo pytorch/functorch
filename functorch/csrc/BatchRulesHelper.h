@@ -55,6 +55,9 @@ inline Tensor ensure_has_bdim(const Tensor& tensor, bool has_bdim, int64_t batch
 #define VMAP_SUPPORT2(op, overload, batch_rule) \
   m.impl(#op "." #overload, op ## _ ## overload ## _generated_plumbing<decltype(&batch_rule), &batch_rule>);
 
+#define OP_DECOMPOSE(op)  m.impl(#op, static_cast<decltype(&ATEN_FN(op))>(native::op));
+#define OP_DECOMPOSE2(op, overload)  m.impl(#op"."#overload, static_cast<decltype(&ATEN_FN2(op, overload))>(native::op));
+
 // DO NOT USE ME DIRECTLY! Use BASIC_UNARY_BATCH_RULE to save yourself some pain
 template <typename A, A a, typename C>
 struct BasicUnaryBatchRuleHelper;
@@ -136,7 +139,7 @@ void boxed_tensor_inputs_batch_rule(const c10::OperatorHandle& op, torch::jit::S
       Tensor tensor_value;
       optional<int64_t> tensor_bdim;
       std::tie(tensor_value, tensor_bdim) = unwrapTensorAtLevel(ivalue.toTensor(), cur_level);
-      tensor_inputs.push_back(std::make_pair(tensor_value, tensor_bdim));
+      tensor_inputs.emplace_back(tensor_value, tensor_bdim);
       tensor_pos.push_back(idx);
     }
   }
@@ -191,6 +194,12 @@ inline void handle_variadic_bdims(std::vector<std::pair<Tensor, optional<int64_t
 
 #define VARIADIC_BDIMS_BOXED(op) \
   m.impl(#op, torch::CppFunction::makeFromBoxedFunction<boxed_tensor_inputs_batch_rule<decltype(&handle_variadic_bdims), &handle_variadic_bdims>>());
+
+void run_jit_decomposition(const c10::OperatorHandle& op, torch::jit::Stack* stack);
+
+#define RUN_JIT_DECOMPOSITION(op) \
+  m.impl(#op, torch::CppFunction::makeFromBoxedFunction<&run_jit_decomposition>());
+
 
 using UnpackedBatchedTensor = std::tuple<Tensor,optional<int64_t>>;
 
