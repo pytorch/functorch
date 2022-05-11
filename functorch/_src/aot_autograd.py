@@ -187,23 +187,26 @@ def create_aot_autograd_function(
                 fw_module, bw_module = partition_fn(fx_g, joint_inputs)
                 # print(fw_module.code, bw_module.code)
 
-                compiled_fw = fw_compiler(fw_module, flat_tensor_args)
-                fw_outs = normalize_as_list(compiled_fw(*flat_tensor_args))
+                with torch.cuda.amp.autocast(enabled=False):
+                    compiled_fw = fw_compiler(fw_module, flat_tensor_args)
+                    fw_outs = normalize_as_list(compiled_fw(*flat_tensor_args))
 
-                bw_args = fw_outs[num_outs:] + fw_outs[0:num_outs]
-                compiled_bw = bw_compiler(bw_module, bw_args)
+                    bw_args = fw_outs[num_outs:] + fw_outs[0:num_outs]
+                    compiled_bw = bw_compiler(bw_module, bw_args)
             else:
-                fw_outs = normalize_as_list(compiled_fw(*flat_tensor_args))
+                with torch.cuda.amp.autocast(enabled=False):
+                    fw_outs = normalize_as_list(compiled_fw(*flat_tensor_args))
             ctx.save_for_backward(*fw_outs[num_outs:])
             return tuple(fw_outs[0:num_outs])
 
         @staticmethod
         @disable_torchdynamo
         def backward(ctx, *flat_args):
-            contiguous_args = [t.contiguous() for t in flat_args]
-            # contiguous_args = [t for t in flat_args]
-            out = normalize_as_list(compiled_bw(*ctx.saved_tensors, *contiguous_args))
-            return tuple(out)
+            with torch.cuda.amp.autocast(enabled=False):
+                contiguous_args = [t.contiguous() for t in flat_args]
+                # contiguous_args = [t for t in flat_args]
+                out = normalize_as_list(compiled_bw(*ctx.saved_tensors, *contiguous_args))
+                return tuple(out)
 
     return CompiledFunction
 
