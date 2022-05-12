@@ -216,14 +216,12 @@ void customFunctionBoxed(const c10::OperatorHandle& op, torch::jit::Stack* stack
 
   std::string schema_name = op.schema().name();
   std::string vjp_fn_name = schema_name + "_vjp";
-  auto vjp_fn = c10::Dispatcher::singleton()
-    .findSchemaOrThrow(vjp_fn_name.c_str(), "");
 
   std::shared_ptr<GenericPythonBackward> grad_fn;
   if (_any_requires_grad) {
     grad_fn = std::shared_ptr<GenericPythonBackward>(new GenericPythonBackward(), deleteNode);
     grad_fn->set_next_edges(collect_next_edges(tensors));
-    grad_fn->backward_fn_ = std::move(vjp_fn);
+    grad_fn->backward_fn_ = c10::Dispatcher::singleton().findSchemaOrThrow(vjp_fn_name.c_str(), "");
     grad_fn->num_inputs_ = tensors_.size();
   }
 
