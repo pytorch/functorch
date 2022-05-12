@@ -4,6 +4,9 @@ import torch.nn as nn
 from functools import partial
 from typing import Callable, Iterable, Optional, Tuple, Union
 
+from functorch._src.jiterator_codegen import JiteratorCodeGen
+from torch.cuda.jiterator import _create_jit_fn as create_jit_fn
+
 from .aot_autograd import aot_function, aot_module
 from .decompositions import get_decompositions
 from .partitioners import draw_graph, min_cut_rematerialization_partition
@@ -73,6 +76,42 @@ def ts_compile(fx_g: fx.GraphModule, _) -> Callable:
     f = torch.jit.freeze(f.eval())
     f = torch.jit.optimize_for_inference(f)
     return f
+
+
+def jiterator_compile(fx_g: fx.GraphModule, _) -> Callable:
+    """
+    Compiles the :attr:`fx_g` with Jiterator
+
+    .. warning::
+        This API is experimental and likely to change.
+
+    Args:
+        fx_g(fx.GraphModule): The input Fx graph module to be compiled.
+
+    Returns:
+        Jiterator compiled kernel function
+    """
+
+    # fx_g.graph.print_tabular()
+    # print(fx_g.code)
+
+    jiterator_codegen = JiteratorCodeGen()
+
+    code = jiterator_codegen._gen_jiterator_code(fx_g.graph.nodes, 'self')
+
+    # print(code.src)
+
+    jitted_fn = create_jit_fn(code.src)
+
+    attrs = []
+    for node in fx_g.graph.nodes:
+        if node.op == 'get_attr':
+            attrs.append(fx_g.__getattr__(node.target).cuda())
+
+    def fn_with_attr(*args, **kwargs):
+        return jitted_fn(*args, *attrs, **kwargs)
+
+    return fn_with_attr
 
 
 def tensorexpr_compile(fx_module: fx.GraphModule, flat_args) -> Callable:
@@ -277,6 +316,28 @@ default_decompositions = {
     aten.hardtanh,
     aten.hardswish,
     aten.hardsigmoid,
+    aten.frac,
+    aten.celu,
+    aten.gelu,
+    aten.mish,
+    aten.silu,
+    aten.softplus,
+    aten.clamp,
+    aten.softshrink,
+    aten.deg2rad,
+    # aten.digamma,
+    aten.i0,
+    aten.isinf,
+    aten.logit,
+    aten.nan_to_num,
+    aten.log_sigmoid_forward,
+    aten.rad2deg,
+    aten.relu,
+    aten.sgn,
+    aten.sign,
+    aten.sinc,
+    aten.rsub,
+    aten.heaviside,
 }
 default_decompositions = get_decompositions(default_decompositions)
 
@@ -316,6 +377,48 @@ def memory_efficient_fusion(
     config = {
         "fw_compiler": ts_compile,
         "bw_compiler": ts_compile,
+        "partition_fn": min_cut_rematerialization_partition,
+        "hasher_type": "StaticShapeHasher",
+        "decompositions": default_decompositions,
+        "static_argnums": static_argnums,
+    }
+    config.update(kwargs)
+    if isinstance(fn, torch.nn.Module):
+        return aot_module(fn, **config)
+    else:
+        return aot_function(fn, **config)
+
+def elementwise_fusion(
+    fn: Union[Callable, nn.Module], static_argnums: Optional[Tuple[int]] = None, **kwargs
+):
+    """
+    Wrapper function over :func:`aot_function` and :func:`aot_module` to perform
+    elementwise fusion. It uses the
+    :func:`min_cut_rematerialization_partition` partitioner to perform efficient
+    recomputation. It uses Jiterator to compile the generated forward and backward
+    graphs.
+
+    .. warning::
+        This API is experimental and likely to change.
+
+    Args:
+        fn (Union[Callable, nn.Module]): A Python function or a ``nn.Module``
+            that takes one ore more arguments. Must return one or more Tensors.
+        static_argnums (Optional[Tuple[Int]]): An option tuple of ints to mark
+            the arguments of the function as static.
+        **kwargs: Any other overrides you want to make to the settings
+
+    Returns:
+        Returns a ``Callable``  or ``nn.Module`` that retains the eager behavior
+        of the original :attr:`fn`, but whose forward and backward graphs have
+        gone through recomputation optimizations, and the graphs have been
+        compiled with nvfuser.
+
+    """
+
+    config = {
+        "fw_compiler": jiterator_compile,
+        "bw_compiler": jiterator_compile,
         "partition_fn": min_cut_rematerialization_partition,
         "hasher_type": "StaticShapeHasher",
         "decompositions": default_decompositions,

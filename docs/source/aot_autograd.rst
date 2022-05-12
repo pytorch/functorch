@@ -41,3 +41,4 @@ Compilers (experimental)
 
     nop
     ts_compile
+    jiterator_compile

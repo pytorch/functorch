@@ -12,11 +12,13 @@ from .._src.aot_autograd import (
 )
 from .._src.compilers import (
     ts_compile,
+    jiterator_compile,
     tvm_compile,
     draw_graph_compile,
     nop,
     nnc_jit,
     memory_efficient_fusion,
+    elementwise_fusion,
     debug_compile,
     print_compile,
     default_decompositions
