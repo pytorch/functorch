@@ -929,6 +929,7 @@ def jacfwd(func: Callable, argnums: argnums_t = 0, has_aux: bool = False):
         >>> assert torch.allclose(jacobian[1], expectedY)
 
     """
+    @wraps(func)
     def wrapper_fn(*args):
         f_wrapper, primals = _argnums_partial(func, args, argnums)
         flat_primals, primals_spec = tree_flatten(primals)
@@ -1306,3 +1307,5 @@ _register_jit_decomposition(torch.ops.aten.l1_loss_backward.default)
 _register_jit_decomposition(torch.ops.aten._log_softmax_backward_data.default)
 _register_jit_decomposition(torch.ops.aten._softmax_backward_data.default)
 _register_jit_decomposition(torch.ops.aten.log_sigmoid_forward.default)
+_register_jit_decomposition(torch.ops.aten.binary_cross_entropy_backward.default)
+_register_jit_decomposition(torch.ops.aten.binary_cross_entropy.default)
