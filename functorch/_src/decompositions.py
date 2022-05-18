@@ -103,7 +103,7 @@ def native_layer_norm_backward(
     if output_mask[0]:
         d_input: Optional[Tensor] = (rstd_ / N) * inner
     else:
-        d_input = torch.zeros(())  # should be None but doesn't work with vjp
+        d_input = torch.zeros_like(input)  # should be None but doesn't work with vjp
 
     if output_mask[1] and weight is not None:
         if len(outer_dim_indices) > 0:
@@ -112,6 +112,8 @@ def native_layer_norm_backward(
             )
         else:
             d_weight = grad_out * x_hat
+    elif weight is not None:
+        d_weight = torch.zeros_like(weight)  # should be None but doesn't work with vjp
     else:
         d_weight = torch.zeros(())  # should be None but doesn't work with vjp
 
@@ -120,6 +122,9 @@ def native_layer_norm_backward(
             d_bias: Optional[Tensor] = torch.sum(grad_out, outer_dim_indices, False)
         else:
             d_bias = grad_out
+    elif bias is not None:
+        d_bias = torch.zeros_like(bias)  # should be None but doesn't work with vjp
     else:
         d_bias = torch.zeros(())  # should be None but doesn't work with vjp
+
     return (d_input, d_weight, d_bias)
