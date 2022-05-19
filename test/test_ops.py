@@ -1289,17 +1289,22 @@ class TestOperators(TestCase):
         N, C = 3, 4
         d1, d2, d3 = 5, 6, 7
         shapes = (
-            # ((N, C), (N,), (C,)),
+            ((N, C), (N,), (C,)),
             ((N, C), (N,), None),
-            # ((N, C, d1, d2, d3), (N, d1, d2, d3), (C,)),
+            ((N, C, d1, d2, d3), (N, d1, d2, d3), (C,)),
             ((N, C, d1, d2, d3), (N, d1, d2, d3), None),
         )
         kwargs_options = ({'ignore_index': 0, 'reduction': 'mean'}, {'reduction': 'sum'}, {'reduction': 'none'}, {})
         for input_shape, target_shape, weight_shape in shapes:
             input_options = self._make_extremal_inputs(input_shape, device)
-            weight_options = self._make_extremal_inputs(weight_shape, device)
-            for input, weight, kwargs in self._arg_and_kwarg_options((input_options, weight_options), kwargs_options):
+            for input, kwargs in self._arg_and_kwarg_options((input_options,), kwargs_options):
+                if weight_shape is None:
+                    weight = None
+                else:
+                    weight = torch.randn(weight_shape)
                 target = torch.randint(0, C, target_shape, device=device)
+                target[0] = 1  # since we're ignoring index 0, at least one element must be non-zero
+
                 fn = functools.partial(torch.nn.functional.nll_loss, target=target, weight=weight, **kwargs)
                 result = fn(input)
                 cotangents = torch.randn_like(result)
@@ -1356,29 +1361,38 @@ class TestOperators(TestCase):
         N, C = 3, 4
         d1, d2, d3 = 5, 6, 7
         shapes = (
-            # ((N, C), (N,), (C,)),
-            # ((N, C), (N,), None),
+            ((N, C), (N,), (C,)),
+            ((N, C), (N,), None),
             ((N, C), (N, C), (C,)),
             ((N, C), (N, C), None),
-            # ((C,), (), (C,)),
-            # ((C,), (), None),
-            # ((N, C, d1, d2, d3), (N, d1, d2, d3), (C,)),
+            ((C,), (), (C,)),
+            ((C,), (), None),
+            ((C,), (C,), (C,)),
+            ((C,), (C,), None),
+            ((N, C, d1, d2, d3), (N, d1, d2, d3), (C,)),
             ((N, C, d1, d2, d3), (N, d1, d2, d3), None),
             ((N, C, d1, d2, d3), (N, C, d1, d2, d3), (C,)),
             ((N, C, d1, d2, d3), (N, C, d1, d2, d3), None),
         )
         for input_shape, target_shape, weight_shape in shapes:
             input_options = self._make_extremal_inputs(input_shape, device)
-            weight_options = self._make_extremal_inputs(weight_shape, device)
             kwargs_options = [{'reduction': 'sum'}, {'reduction': 'none'}, {}]
             if input_shape != target_shape:
                 kwargs_options.append({'ignore_index': 0, 'reduction': 'mean'})
 
-            for input, weight, kwargs in self._arg_and_kwarg_options((input_options, weight_options), kwargs_options):
+            for input, kwargs in self._arg_and_kwarg_options((input_options,), kwargs_options):
+                if weight_shape is None:
+                    weight = None
+                else:
+                    weight = torch.randn(weight_shape)
+
                 if input_shape == target_shape:
                     target = torch.rand(target_shape, device=device)
+                elif len(target_shape) == 0:
+                    target = torch.tensor(1)  # must be non-zero since we're ignoring index 0 for one kwarg
                 else:
                     target = torch.randint(0, C, target_shape, device=device)
+
                 fn = functools.partial(torch.nn.functional.cross_entropy, target=target, weight=weight, **kwargs)
                 result = fn(input)
                 cotangents = torch.randn_like(result)
