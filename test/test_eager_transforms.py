@@ -3169,6 +3169,47 @@ def forward(self) -> torch.Tensor:
     return _tensor_constant0
     """)
 
+    def test_functionalize_optional_tensorlist1(self, device):
+
+        def f(a, b) -> torch.Tensor:
+            # at::index has OptionalTensorList arguments,
+            # test that here
+            return a[b]
+
+        a = torch.arange(4).reshape(2, 2)
+        b = torch.ones(2, dtype=torch.long)
+        out = make_fx(functionalize(f))(a, b)
+        self.assertExpectedInline(out.code, """\
+
+
+
+def forward(self, a_1, b_1) -> torch.Tensor:
+    index = torch.ops.aten.index(a_1, [b_1]);  a_1 = b_1 = None
+    return index
+    """)
+
+    def test_functionalize_optional_tensorlist2(self, device):
+
+        def f(a, b) -> torch.Tensor:
+            # See https://github.com/pytorch/pytorch/pull/77846
+            return torch.ops.aten.index(a, b)
+
+        a = torch.arange(4).reshape(2, 2)
+        b = torch.ones(2, dtype=torch.long)
+        out = make_fx(functionalize(f))(a, b)
+        self.assertExpectedInline(out.code, """\
+
+
+
+def forward(self, a_1, b_1) -> torch.Tensor:
+    unbind = torch.ops.aten.unbind(b_1);  b_1 = None
+    getitem = unbind[0]
+    getitem_1 = unbind[1];  unbind = None
+    index = torch.ops.aten.index(a_1, [getitem, getitem_1]);  a_1 = getitem = getitem_1 = None
+    return index
+    """)
+
+
 
 only_for = ("cpu", "cuda")
 instantiate_device_type_tests(
