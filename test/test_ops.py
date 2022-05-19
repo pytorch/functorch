@@ -1257,6 +1257,8 @@ class TestOperators(TestCase):
                 'nn.functional.layer_norm'
             }
             if op.name in FUNCTORCH_HAS_FORMULA_BUT_NOT_PYTORCH:
+                self.assertFalse(op.supports_fwgrad_bwgrad,
+                                 f"{op.name} now supports forward over reverse without a decomposition")
                 def is_differentiable(t):
                     return isinstance(t, torch.Tensor) and t.dtype == torch.float32
                 args = (cotangents, *primals)
