@@ -2847,6 +2847,7 @@ class TestFunctionalize(TestCase):
             return x
         self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
 
+
     def test_inplace_view(self, device):
 
         def f(x: torch.Tensor) -> torch.Tensor:
@@ -2857,6 +2858,20 @@ class TestFunctionalize(TestCase):
             z.add_(tmp)
             return y
         self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
+
+    # See https://github.com/pytorch/functorch/issues/780
+    def test_linear(self, device):
+
+        def f(x, y, z) -> torch.Tensor:
+            return torch._C._nn.linear(x, y, z)
+
+        x = torch.randn(14, 1, 384, device=device)
+        y = torch.randn(96, 384, device=device)
+        z = torch.randn(96, device=device)
+
+        out_expected = f(x, y, z)
+        out_actual = functionalize(f)(x, y, z)
+        self.assertEqual(out_expected, out_actual)
 
     def test_multioutput_inplace_slice_view(self, device):
 
@@ -2928,8 +2943,7 @@ def forward(self, inpt_1) -> torch.Tensor:
     add = torch.ops.aten.add(inpt_1, inpt_1);  inpt_1 = None
     view_copy = torch.ops.aten.view_copy(add, [4])
     view_copy_1 = torch.ops.aten.view_copy(add, [4]);  add = None
-    _tensor_constant0 = self._tensor_constant0
-    add_1 = torch.ops.aten.add(view_copy_1, _tensor_constant0);  view_copy_1 = _tensor_constant0 = None
+    add_1 = torch.ops.aten.add(view_copy_1, 1);  view_copy_1 = None
     view_copy_2 = torch.ops.aten.view_copy(add_1, [4]);  add_1 = None
     return view_copy_2
     """)

@@ -11,6 +11,7 @@ from .decompositions import register_decomposition
 from .partitioners import default_partition
 from .named_members_polyfill import _named_parameters, _named_buffers
 from typing import Callable, List, Dict, Any, Tuple, Optional
+from functools import wraps
 
 try:
     from torchdynamo import disable as disable_torchdynamo
@@ -37,7 +38,7 @@ Context = Any
 
 
 def _dict_flatten(d: Dict[Any, Any]) -> Tuple[List[Any], Context]:
-    keys = list(sorted(d.keys()))
+    keys = sorted(d.keys())
     values = [d[key] for key in keys]
     return values, keys
 
@@ -132,6 +133,8 @@ def create_aot_autograd_function(
     The resulting compiled forward and backward graphs are then wrapped up in a
     ``torch.autograd.Function`` object.
     """
+    if decompositions is None:
+        decompositions = {}
     joint_forward_backward = create_joint_forward_backward(flat_fn)
 
     compiled_fw = None
@@ -212,7 +215,7 @@ class PytreeThunk:
         assert self.spec is None or self.spec == spec
         self.spec = spec
         if type(self.spec) in [tuple, list] and all(
-            [isinstance(i, pytree.LeafSpec) for i in spec.children_specs]
+            isinstance(i, pytree.LeafSpec) for i in spec.children_specs
         ):
             self.is_simple = True
         if isinstance(self.spec, pytree.LeafSpec):
@@ -259,6 +262,7 @@ def rearrange(tensor_args, static_args, static_argnums):
         else:
             args.append(tensor_args[tensor_index])
             tensor_index += 1
+        index += 1
 
     while tensor_index < len(tensor_args):
         args.append(tensor_args[tensor_index])
@@ -279,7 +283,7 @@ def aot_function(
     fw_compiler: Callable,
     bw_compiler: Optional[Callable] = None,
     partition_fn: Callable = default_partition,
-    decompositions: Dict = {},
+    decompositions: Optional[Dict] = None,
     hasher_type: str = "StaticShapeHasher",
     static_argnums: Optional[Tuple[int]] = None,
 ) -> Callable:
@@ -373,6 +377,7 @@ def aot_function(
         static_argnums = list(static_argnums)
         static_argnums.sort()
 
+    @wraps(fn)
     def returned_function(*args, **kwargs):
         global compile_cache
         nonlocal cached_res
@@ -579,7 +584,7 @@ def aot_module_simplified(mod: nn.Module, *top_args, **top_kwargs) -> nn.Module:
         fw_compiler: Callable,
         bw_compiler: Optional[Callable] = None,
         partition_fn: Callable = default_partition,
-        decompositions: Dict = {},
+        decompositions: Optional[Dict] = None,
         hasher_type: str = "StaticShapeHasher",
         static_argnums: Optional[Tuple[int]] = None,
     ) -> Callable:

@@ -6,6 +6,7 @@
 
 from typing import Callable, Union, Tuple, List, Any
 import torch
+import inspect
 from functools import partial, wraps
 import contextlib
 from torch.utils._pytree import tree_flatten, tree_unflatten, tree_map
@@ -13,7 +14,7 @@ from .pytree_hacks import tree_map_, treespec_pprint
 import torch.autograd.forward_ad as fwAD
 
 from .vmap import vmap
-from .decompositions import decomposition_table
+from .decompositions import decomposition_table, decomposition_table_for_jvp
 
 
 from functorch._C import (
@@ -928,6 +929,7 @@ def jacfwd(func: Callable, argnums: argnums_t = 0, has_aux: bool = False):
         >>> assert torch.allclose(jacobian[1], expectedY)
 
     """
+    @wraps(func)
     def wrapper_fn(*args):
         f_wrapper, primals = _argnums_partial(func, args, argnums)
         flat_primals, primals_spec = tree_flatten(primals)
@@ -1273,16 +1275,44 @@ def functionalize(func: Callable, *, remove: str = 'mutations') -> Callable:
     return wrapped
 
 
-def _register_jit_decomposition(decomp):
-    assert decomp in decomposition_table, f"could not find {decomp}"
-    decomp_fn = decomposition_table[decomp]
-    scripted_decomp_fn = torch.jit.script(decomp_fn)
-    torch.jit._register_decomposition(decomp, scripted_decomp_fn.graph)
+def _register_jit_decomposition(decomp, use_python=False):
+    if decomp in decomposition_table_for_jvp:
+        decomposition_table_used = decomposition_table_for_jvp
+    elif decomp in decomposition_table:
+        decomposition_table_used = decomposition_table
+    else:
+        raise RuntimeError(f"could not find decomposition for {decomp}")
+    decomp_fn = decomposition_table_used[decomp]
+    if use_python:
+        decomp_fn = torch.jit.ignore(decomp_fn)
+        sig = inspect.signature(decomp_fn)
+
+        # Create a string wrapping the function from the signature
+        # example output:
+        # def wrapped_decomp(x: torch.Tensor, y: int, z: int):
+        #   return decomp_fn(x, y, z)
+        # Thanks copilot!
+        def get_function_def(sig):
+            param_def = [f"{param_str}" for param_str in sig.parameters.values()]
+            param_use = [f"{param_str}" for param_str in sig.parameters.keys()]
+
+            return f"def wrapped_decomp({', '.join(param_def)}):\n  return decomp_fn({', '.join(param_use)})\n"
+
+        f_str = get_function_def(sig)
+        graph = torch.jit.CompilationUnit(f_str).wrapped_decomp.graph
+    else:
+        graph = torch.jit.script(decomp_fn).graph
+    torch.jit._register_decomposition(decomp, graph)
 
 
 _register_jit_decomposition(torch.ops.aten.trace.default)
 _register_jit_decomposition(torch.ops.aten.nll_loss_backward.default)
+_register_jit_decomposition(torch.ops.aten.nll_loss2d_backward.default)
 _register_jit_decomposition(torch.ops.aten.mse_loss_backward.default)
 _register_jit_decomposition(torch.ops.aten.l1_loss_backward.default)
 _register_jit_decomposition(torch.ops.aten._log_softmax_backward_data.default)
 _register_jit_decomposition(torch.ops.aten._softmax_backward_data.default)
+_register_jit_decomposition(torch.ops.aten.log_sigmoid_forward.default)
+_register_jit_decomposition(torch.ops.aten.binary_cross_entropy_backward.default)
+_register_jit_decomposition(torch.ops.aten.binary_cross_entropy.default)
+_register_jit_decomposition(torch.ops.aten.native_layer_norm_backward.default)
