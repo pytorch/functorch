@@ -89,8 +89,15 @@ class PythonTensor(torch.Tensor):
 
         # Kind of a hacky way to test if an op is in-place or not
         if func.__name__[-1] == "_" and func.__name__[0] != "_":
-            args[0].proxy = proxy_out
-            proxy_out.node.meta['tensor_meta'] = _extract_tensor_metadata(args[0])
+            if isinstance(args[0], torch.Tensor):
+                args[0].proxy = proxy_out
+                proxy_out.node.meta['tensor_meta'] = _extract_tensor_metadata(args[0])
+            elif isinstance(args[0], list):
+                for i in range(len(args[0])):
+                    args[0][i].proxy = proxy_out[i]
+                    proxy_out[i].node.meta['tensor_meta'] = _extract_tensor_metadata(args[0][i])
+            else:
+                assert f"unknown types: {args[0].type()}"
 
         with no_dispatch():
             real_out = func_overload(*args, **kwargs)
