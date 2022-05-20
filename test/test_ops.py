@@ -1304,13 +1304,13 @@ class TestOperators(TestCase):
                 if weight_shape is None:
                     weight = None
                 else:
-                    weight = torch.randn(weight_shape)
+                    weight = torch.randn(weight_shape, device=device)
                 target = torch.randint(0, C, target_shape, device=device)
                 target[0] = 1  # since we're ignoring index 0, at least one element must be non-zero
 
                 fn = functools.partial(torch.nn.functional.nll_loss, target=target, weight=weight, **kwargs)
                 result = fn(input)
-                cotangents = torch.randn_like(result)
+                cotangents = torch.randn_like(result, device=device)
                 self._compare_jacobians_of_vjp(fn, (cotangents, input))
 
     def test_extremal_numerics_l1_loss(self, device):
@@ -1322,7 +1322,7 @@ class TestOperators(TestCase):
             target_options = self._make_extremal_inputs(shape, device)
             for input, target, kwargs in self._arg_and_kwarg_options((input_options, target_options), kwargs_options):
                 result = torch.nn.functional.l1_loss(input, target)
-                cotangents = torch.randn_like(result)
+                cotangents = torch.randn_like(result, device=device)
                 self._compare_jacobians_of_vjp(torch.nn.functional.l1_loss, (cotangents, input, target))
 
     def test_extremal_numerics_mse_loss(self, device):
@@ -1334,7 +1334,7 @@ class TestOperators(TestCase):
             target_options = self._make_extremal_inputs(shape, device)
             for input, target, kwargs in self._arg_and_kwarg_options((input_options, target_options), kwargs_options):
                 result = torch.nn.functional.mse_loss(input, target)
-                cotangents = torch.randn_like(result)
+                cotangents = torch.randn_like(result, device=device)
                 self._compare_jacobians_of_vjp(torch.nn.functional.mse_loss, (cotangents, input, target))
 
     def test_extremal_numerics_softmax(self, device):
@@ -1345,7 +1345,7 @@ class TestOperators(TestCase):
             input_options = self._make_extremal_inputs(shape, device)
             for input, kwargs in self._arg_and_kwarg_options((input_options,), kwargs_options):
                 result = torch.nn.functional.softmax(input)
-                cotangents = torch.randn_like(result)
+                cotangents = torch.randn_like(result, device=device)
                 self._compare_jacobians_of_vjp(torch.nn.functional.softmax, (cotangents, input))
 
 
@@ -1357,7 +1357,7 @@ class TestOperators(TestCase):
             input_options = self._make_extremal_inputs(shape, device)
             for input, kwargs in self._arg_and_kwarg_options((input_options,), kwargs_options):
                 result = torch.nn.functional.log_softmax(input)
-                cotangents = torch.randn_like(result)
+                cotangents = torch.randn_like(result, device=device)
                 self._compare_jacobians_of_vjp(torch.nn.functional.log_softmax, (cotangents, input))
 
     def test_extremal_numerics_cross_entropy(self, device):
@@ -1387,18 +1387,18 @@ class TestOperators(TestCase):
                 if weight_shape is None:
                     weight = None
                 else:
-                    weight = torch.randn(weight_shape)
+                    weight = torch.randn(weight_shape, device=device)
 
                 if input_shape == target_shape:
                     target = torch.rand(target_shape, device=device)
                 elif len(target_shape) == 0:
-                    target = torch.tensor(1)  # must be non-zero since we're ignoring index 0 for one kwarg
+                    target = torch.tensor(1, device=device)  # must be non-zero since ignore_index may be 0
                 else:
                     target = torch.randint(0, C, target_shape, device=device)
 
                 fn = functools.partial(torch.nn.functional.cross_entropy, target=target, weight=weight, **kwargs)
                 result = fn(input)
-                cotangents = torch.randn_like(result)
+                cotangents = torch.randn_like(result, device=device)
                 self._compare_jacobians_of_vjp(fn, (cotangents, input), atol_rtol=(1e-4, 1e-5))
 
     def test_extremal_numerics_binary_cross_entropy(self, device):
@@ -1413,7 +1413,7 @@ class TestOperators(TestCase):
                 target = torch.rand(shape, device=device)
                 fn = functools.partial(torch.nn.functional.binary_cross_entropy, target=target, weight=weight, **kwargs)
                 result = fn(input)
-                cotangents = torch.randn_like(result)
+                cotangents = torch.randn_like(result, device=device)
                 self._compare_jacobians_of_vjp(fn, (cotangents, input), atol_rtol=(1e-4, 2e-5))
 
     def test_extremal_numerics_layer_norm(self, device):
@@ -1429,7 +1429,7 @@ class TestOperators(TestCase):
                 def fn(input, weight, bias):
                     return torch.nn.functional.layer_norm(input, normalized_shape, weight=weight, bias=bias)
                 result = fn(input, weight, bias)
-                cotangents = torch.randn_like(result)
+                cotangents = torch.randn_like(result, device=device)
                 self._compare_jacobians_of_vjp(fn, (cotangents, input, weight, bias))
 
     @ops(filter(lambda op: op.name == "nn.functional.group_norm", functorch_lagging_op_db + additional_op_db),
