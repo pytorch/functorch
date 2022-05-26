@@ -1310,10 +1310,11 @@ def _register_jit_decomposition(decomp, use_python=False):
 #  because the Tensor types generated cannot be unioned by torchscript
 # decomp should be type OpOverload
 _register_jit_decomposition_lib = torch.library.Library("aten", "IMPL", "FuncTorchBatched")
+
+
 def _register_jit_decomposition_bypass_script(decomp):
     if decomp in decomposition_table:
-        decomposition_table_used = decomposition_table
-        _register_jit_decomposition_lib.impl(decomp, torch._decomp.decomposition_table[decomp])   
+        _register_jit_decomposition_lib.impl(decomp, decomposition_table[decomp])
     else:
         raise RuntimeError(f"could not find decomposition for {decomp}")
 
