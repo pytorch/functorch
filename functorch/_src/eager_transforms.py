@@ -1309,12 +1309,12 @@ def _register_jit_decomposition(decomp, use_python=False):
 # _register_jit_decomposition doesn't work for some operators, e.g. addr,
 #  because the Tensor types generated cannot be unioned by torchscript
 # decomp should be type OpOverload
-_register_jit_decomposition_lib = torch.library.Library("aten", "IMPL", "FuncTorchBatched")
+vmap_decompositions_lib = torch.library.Library("aten", "IMPL", "FuncTorchBatched")
 
 
 def _register_jit_decomposition_bypass_script(decomp):
     if decomp in decomposition_table:
-        _register_jit_decomposition_lib.impl(decomp, decomposition_table[decomp])
+        vmap_decompositions_lib.impl(decomp, decomposition_table[decomp])
     else:
         raise RuntimeError(f"could not find decomposition for {decomp}")
 
