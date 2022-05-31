@@ -705,10 +705,10 @@ class TestOperators(TestCase):
 
         xfail('double'),  # required rank 4 tensor to use channels_last format
 
-        # BUG: runs and produces numerical differences
-        xfail('nn.functional.max_unpool1d', device_type='cpu'),
-        xfail('nn.functional.max_unpool2d'),
-        xfail('nn.functional.max_unpool3d'),
+        # Nondeterministic?? Bug, needs fixing
+        skip('nn.functional.max_unpool1d'),
+        skip('nn.functional.max_unpool2d'),
+        skip('nn.functional.max_unpool3d'),
 
         xfail('nn.functional.embedding'),  # embedding_renorm_ does not support fwd AD
         xfail('put'),  # calls put_ during vmap with only vmaps over other, not self
@@ -780,10 +780,10 @@ class TestOperators(TestCase):
 
         xfail('double'),  # required rank 4 tensor to use channels_last format
 
-        skip('nn.functional.max_unpool1d'),  # Flaky, seems to sometimes his max_unpool2d
-        # BUG: runs and produces numerical differences
-        xfail('nn.functional.max_unpool2d'),
-        xfail('nn.functional.max_unpool3d'),
+        # Flaky
+        skip('nn.functional.max_unpool1d'),
+        skip('nn.functional.max_unpool2d'),
+        skip('nn.functional.max_unpool3d'),
 
         xfail('nn.functional.embedding'),  # embedding_renorm_ does not support fwd AD
         xfail('put'),  # calls put_ during vmap with only vmaps over other, not self
