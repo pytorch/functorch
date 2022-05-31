@@ -397,7 +397,7 @@ class TestOperators(TestCase):
         # BUG: runs and produces numerical differences
         skip('nn.functional.max_unpool1d'),  # fails everywhere except on mac
         skip('nn.functional.max_unpool2d'),  # fails everywhere except on windows
-        xfail('nn.functional.max_unpool3d'),
+        skip('nn.functional.max_unpool3d'),
     }))
     @opsToleranceOverride('TestOperators', 'test_jvp', (
         tol1('nn.functional.conv_transpose3d',
