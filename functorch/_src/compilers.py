@@ -72,6 +72,8 @@ def ts_compile(fx_g: fx.GraphModule, _) -> Callable:
 
     f = torch.jit.freeze(f.eval())
     f = torch.jit.optimize_for_inference(f)
+    # amp is already traced in, don't reapply amp casts
+    f._set_ignore_amp(True)
     return f
 
 
@@ -248,6 +250,8 @@ def nop(fx_g: fx.GraphModule, _) -> Callable:
 def simple_ts_compile(fx_g, _):
     f = torch.jit.script(fx_g)
     f = torch.jit.freeze(f.eval())
+    # amp is already traced in, don't reapply amp casts
+    f._set_ignore_amp(True)
     return f
 
 
