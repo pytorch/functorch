@@ -33,7 +33,7 @@ def profile_it(f, inp):
             f(inp)
 
     timing = prof.key_averages()
-    timing_table = timing.table(sort_by="cuda_time_total", row_limit=10)
+    # timing_table = timing.table(sort_by="cuda_time_total", row_limit=10)
     # print(timing_table)
     cuda_time_total = 0
     for e in timing:
@@ -45,17 +45,17 @@ def profile_it(f, inp):
 
 def profile_function(name, f, inp):
     fx_g =  make_fx(f)(inp)
-    script_f = torch.jit.script(fx_g)
-    # print(script_f.code)
+   
     new_g = fx_graph_cse(fx_g.graph)
     new_g = fx.GraphModule(fx_g, new_g)
-    script_g = torch.jit.script(new_g)
-    # print(script_g.code)
-
+    # do not benchmark against the scripted version because script already does some CSE
+    # script_f = torch.jit.script(fx_g)
+    # script_g = torch.jit.script(new_g)
+    # avg_cuda_time_f = profile_it(script_f, inp)
+    # avg_cuda_time_g = profile_it(script_g, inp)
+    avg_cuda_time_f = profile_it(fx_g, inp)
+    avg_cuda_time_g = profile_it(new_g, inp)
     num_node_decrease = len(fx_g.graph.nodes) - len(new_g.graph.nodes)
-
-    avg_cuda_time_f = profile_it(script_f, inp)
-    avg_cuda_time_g = profile_it(script_g, inp)
 
     print(f"{name}, {avg_cuda_time_f}, {avg_cuda_time_g}, {num_node_decrease}, {len(fx_g.graph.nodes)}")
 
@@ -63,83 +63,69 @@ g_gpu = torch.Generator(device='cuda')
 g_gpu.manual_seed(2147483647)
 inp = torch.randn(2**20, device='cuda', generator=g_gpu) # increase input size
 
-# def f1(x):
-#  return x.cos().cos()
+def f1(x):
+ return x.cos().cos()
 
-# profile_function("f1", f1, inp)
+profile_function("f1", f1, inp)
 
-# def fsum(x):
-#     a = x.sum()
-#     b = x.sum()
-#     c = x.sum()
-#     d = x.sum()
-#     return a + b + c + d
+def fsum(x):
+    a = x.sum()
+    b = x.sum()
+    c = x.sum()
+    d = x.sum()
+    return a + b + c + d
 
-# profile_function("fsum", fsum, inp)
+profile_function("fsum", fsum, inp)
 
-# def fconcat(x):
-#     a = torch.cat((x, x))
-#     b = torch.cat((x, x))
-#     return a + b
-# profile_function("fconcat", fconcat, inp)
+def fconcat(x):
+    a = torch.cat((x, x))
+    b = torch.cat((x, x))
+    return a + b
+profile_function("fconcat", fconcat, inp)
 
-# def fsum2(x):
-#     a = x.sum()
-#     for _ in range(30):
-#         a = a+x.sum()
-#     return a
-
-# profile_function("fsum2", fsum2, inp)
-
-# def fsum2(x):
-#     a = x.sum()
-#     for _ in range(30):
-#         a = a+x.sum()
-#     return a
-
-# profile_function("fsum2", fsum2, inp)
-
-# def fsummulti(x):
-#     a = 0
-#     for _ in range(3):
-#         a = a+x.sum()
-#         a = a*x.sum()
-#     return a
-
-# profile_function("fsummulti", fsummulti, inp)
-
-# def fsummulti2(x):
-#     a = 0
-#     for _ in range(30):
-#         a = a+x.sum()
-#         a = a*x.sum()
-#     return a
-
-# profile_function("fsummulti2", fsummulti2, inp)
-
-# def fcos(x):
-#     a = 0
-#     for _ in range(3):
-#         a = a+x.cos()
-#     return a
-
-# profile_function("fcos", fcos, inp)
-
-# def fcos2(x):
-#     a = 0
-#     for _ in range(30):
-#         a = a+x.cos()
-#     return a
-
-# profile_function("fcos2", fcos2, inp)
-
-def ftest(x):
-    a = 0
-    for _ in range(3):
-        a = a+x.cos().sin()
+def fsum2(x):
+    a = x.sum()
+    for _ in range(30):
+        a = a+x.sum()
     return a
 
-profile_function("ftest", ftest, inp)
+profile_function("fsum2", fsum2, inp)
+
+def fsummulti(x):
+    a = 0
+    for _ in range(3):
+        a = a+x.sum()
+        a = a*x.sum()
+    return a
+
+profile_function("fsummulti", fsummulti, inp)
+
+def fsummulti2(x):
+    a = 0
+    for _ in range(30):
+        a = a+x.sum()
+        a = a*x.sum()
+    return a
+
+profile_function("fsummulti2", fsummulti2, inp)
+
+def fcos(x):
+    a = 0
+    for _ in range(3):
+        a = a+x.cos()
+    return a
+
+profile_function("fcos", fcos, inp)
+
+def fcos2(x):
+    a = 0
+    for _ in range(30):
+        a = a+x.cos()
+    return a
+
+profile_function("fcos2", fcos2, inp)
+
+
 
 
 
