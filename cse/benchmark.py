@@ -125,13 +125,21 @@ inp = torch.randn(2**20, device='cuda', generator=g_gpu) # increase input size
 
 # profile_function("fcos", fcos, inp)
 
-def fcos2(x):
+# def fcos2(x):
+#     a = 0
+#     for _ in range(30):
+#         a = a+x.cos()
+#     return a
+
+# profile_function("fcos2", fcos2, inp)
+
+def ftest(x):
     a = 0
     for _ in range(30):
-        a = a+x.cos()
+        a = a+x.cos().sin()
     return a
 
-profile_function("fcos2", fcos2, inp)
+profile_function("ftest", ftest, inp)
 
 
 

@@ -13,7 +13,7 @@ rand_ops = [aten.rand_like, aten.rand, aten.randint, aten.randn]
 # The call nodes (call_function) are hashed to check if they
 # have an equivalent node in the graph. If so, this node will not be copied, and a mapping
 # to the duplicated node is stored in env
-def modify(fx_g: torch.fx.graph.Graph):
+def fx_graph_cse(fx_g: torch.fx.graph.Graph):
     new_graph = fx.Graph()
     env = {} # map from node in the old graph to node in the new graph
     hash_env = {} # map from the computation result to a node in the new graph
