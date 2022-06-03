@@ -27,29 +27,50 @@ def profile_it(f, inp):
     for _ in range(5):
         f(inp)
 
+    itr = 5
     with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
-        for _ in range(5):
+        for _ in range(itr):
             f(inp)
 
-    timing = prof.key_averages().table(sort_by="cuda_time_total", row_limit=10)
-    print(type(timing))
-    print(timing)
+    timing = prof.key_averages()
+    return timing[0].cuda_time_total / itr
 
+    # print(type(timing)) [FunctionEventAvg]
+    # timing_table = timing.table(sort_by="cuda_time_total", row_limit=10)
+    # print(timing_table)
 
-def f(x):
+def profile_function(name, f, inp):
+    fx_g =  make_fx(f)(inp)
+    script_f = torch.jit.script(fx_g)
+    new_g = modify(fx_g.graph)
+    new_g = fx.GraphModule(fx_g, new_g)
+    script_g = torch.jit.script(new_g)
+
+    num_node_decrease = len(fx_g.graph.nodes) - len(new_g.graph.nodes)
+
+    avg_cuda_time_f = profile_it(script_f, inp)
+    avg_cuda_time_g = profile_it(script_g, inp)
+
+    print(f"{name}, {avg_cuda_time_f}, {avg_cuda_time_g}, {num_node_decrease}, {len(fx_g.graph.nodes)}")
+
+g_gpu = torch.Generator(device='cuda')
+g_gpu.manual_seed(2147483647)
+inp = torch.randn(2**20, device='cuda', generator=g_gpu)
+
+def f1(x):
  return x.cos().cos()
 
-inp = torch.randn(2**20, device='cuda')
+profile_function("f1", f1, inp)
 
-fx_g =  make_fx(f)(inp)
-script_f = torch.jit.script(fx_g)
-new_g = modify(fx_g.graph)
-new_g = fx.GraphModule(fx_g, new_g)
-script_g = torch.jit.script(new_g)
+def f2(x):
+    a = x.sum()
+    b = x.sum()
+    c = x.sum()
+    d = x.sum()
+    return a + b + c + d
 
+profile_function("f2", f2, inp)
 
-profile_it(script_f, inp)
-profile_it(script_g, inp)
 
 
 # print(type(fx_g))
