@@ -1,6 +1,7 @@
 import torch
 import torch.fx as fx
 from functorch import make_fx
+import random
 
 from cse import modify
 import unittest
@@ -9,8 +10,11 @@ import unittest
 # delta is an integer >= -1. If delta = -1, only check if the new graph
 #   has less or equal number of nodes
 #  
-def check(f, t, delta, check_val = True):
-    fx_g = make_fx(f)(t)
+def check(f, t, delta, check_val = True, graph_input = False):
+    if graph_input:
+        fx_g = f
+    else:
+        fx_g = make_fx(f)(t)
     new_graph = modify(fx_g.graph)
     new_g = fx.GraphModule(fx_g, new_graph)
 
@@ -165,6 +169,23 @@ class ReduceTestCase(unittest.TestCase):
             return a + b
         t = torch.randn(2, 2)
         check(f, t, 1)
+
+
+class RandomOpTestCase(unittest.TestCase):
+  def test_random(self):
+    def f(x):
+      vals = [x]
+      ops = [torch.clone, torch.cos, torch.tanh, torch.nn.functional.gelu]
+      for _ in range(100): 
+        new_val = random.choice(ops)(random.choice(vals))
+        vals.append(new_val)
+      return vals[-1]
+
+    fx_g = fx.symbolic_trace(f)
+    fx_g.graph.eliminate_dead_code()
+    fx_g.recompile()
+    t = torch.randn(2, 2)
+    check(fx_g, t, -1, graph_input=True)
 
 if __name__ == '__main__':
     unittest.main()
