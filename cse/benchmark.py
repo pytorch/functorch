@@ -33,11 +33,15 @@ def profile_it(f, inp):
             f(inp)
 
     timing = prof.key_averages()
-    return timing[0].cuda_time_total / itr
+    timing_table = timing.table(sort_by="cuda_time_total", row_limit=10)
+    print(timing_table)
+    cuda_time_total = 0
+    for e in timing:
+        cuda_time_total = cuda_time_total + e.cuda_time_total
+    return cuda_time_total / itr
 
     # print(type(timing)) [FunctionEventAvg]
-    # timing_table = timing.table(sort_by="cuda_time_total", row_limit=10)
-    # print(timing_table)
+    
 
 def profile_function(name, f, inp):
     fx_g =  make_fx(f)(inp)
@@ -57,10 +61,10 @@ g_gpu = torch.Generator(device='cuda')
 g_gpu.manual_seed(2147483647)
 inp = torch.randn(2**20, device='cuda', generator=g_gpu)
 
-def f1(x):
- return x.cos().cos()
+# def f1(x):
+#  return x.cos().cos()
 
-profile_function("f1", f1, inp)
+# profile_function("f1", f1, inp)
 
 def f2(x):
     a = x.sum()

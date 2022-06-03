@@ -1,9 +1,8 @@
 import torch
 import torch.fx as fx
-from functorch import make_fx
-from functorch.compile import aot_function, print_compile
 from torch.fx.immutable_collections import immutable_list, immutable_dict
 from torch.fx.node import Node
+from torch.utils._pytree import tree_flatten
 
 aten = torch.ops.aten
 rand_ops = [aten.rand_like, aten.rand, aten.randint, aten.randn]
@@ -85,41 +84,12 @@ def check_same(new_node: torch.fx.node.Node, old_node: torch.fx.node.Node, env: 
 # base case is a list that does not have list/dict member
 # change unhashable types such as list and dictionary to tuples.
 def substitute_list(arg_list, env):
-    # change to mutable type if v is immutable
-    if isinstance(arg_list , immutable_list) or isinstance(arg_list , tuple):
-        arg_list = list(arg_list)
-
+    arg_list, _ = tree_flatten(arg_list)
     for i in range(len(arg_list)):
         v = arg_list[i]
-        # change the args to their mapping in env (if exist)
         if isinstance(v, torch.fx.node.Node) and v in env:
             arg_list[i] = env[v]
-        # recursively check each member of a list
-        elif isinstance(v, list) or isinstance(v, tuple):
-            arg_list[i] = substitute_list(v, env)
-        elif isinstance(v, dict):
-            arg_list[i] = substitute_dict(v, env)
-    return tuple(arg_list) #cast back to tuple for hash
-
-# substitute items of a dictionary to its mapping in env if exists
-# the subsitution is recursive for nested dictionary or list-type items
-# base case is a dict that does not have list/dict member item
-def substitute_dict(kwarg_dict, env):
-    # change to mutable type if v is immutable
-    if isinstance(kwarg_dict , immutable_dict):
-        kwarg_dict = dict(kwarg_dict)
-
-    for k,v in kwarg_dict.items():
-        # change the args to their mapping in env (if exist)
-        if isinstance(v, torch.fx.node.Node) and v in env:
-            kwarg_dict[k] = env[v]
-        # recursively check each member of item
-        elif isinstance(v, list) or isinstance(v, tuple):
-            kwarg_dict[k] = substitute_list(v, env)
-        elif isinstance(v, dict):
-            kwarg_dict[k] = substitute_dict(v, env)
-    return tuple(sorted(kwarg_dict))
-
+    return tuple(arg_list)
 
 # return a new graph with CSE applied to the input graph
 # env stores a mapping from node in the old graph to node in the new graph
@@ -145,7 +115,7 @@ def modify(fx_g: torch.fx.graph.Graph):
             # substitute arg memebrs to their mapping in env if exists
             # also change list types and dict types to tuple types for hashing 
             args = substitute_list(n.args, env)
-            kwargs = substitute_dict(n.kwargs, env)
+            kwargs = substitute_list(n.kwargs, env)
             
             # hash substituted args to a number
             hash_arg = hash((args, kwargs))
@@ -155,7 +125,7 @@ def modify(fx_g: torch.fx.graph.Graph):
             # if hash collision happens, only one set of equivalent nodes are eliminated
             # e.g. if hash(node1)=hash(node2) = hash(node3)=hash(node4), but node1=node2 != node3=node4, 
             # node 2 will be eliminated, but node 4 will not. 
-            if hash_val in hash_env and check_same(hash_env[hash_val], n, env): 
+            if hash_val in hash_env: #and check_same(hash_env[hash_val], n, env): 
                 env[n] = hash_env[hash_val]
                 continue
            
