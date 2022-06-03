@@ -1,7 +1,5 @@
 import torch
 import torch.fx as fx
-from torch.fx.immutable_collections import immutable_list, immutable_dict
-from torch.fx.node import Node
 from torch.utils._pytree import tree_flatten
 
 aten = torch.ops.aten
@@ -15,15 +13,15 @@ rand_ops = [aten.rand_like, aten.rand, aten.randint, aten.randn]
 # to the duplicated node is stored in env
 def fx_graph_cse(fx_g: torch.fx.graph.Graph):
     new_graph = fx.Graph()
-    env = {} # map from node in the old graph to node in the new graph
-    hash_env = {} # map from the computation result to a node in the new graph
-    token_map = {} # map from node to token
+    env = {}  # map from node in the old graph to node in the new graph
+    hash_env = {}  # map from the computation result to a node in the new graph
+    token_map = {}  # map from node to token
     for n in fx_g.nodes:
         # do not CSE away random operations
-        if n.op == 'placeholder' or n.op == 'output' or n.op == 'get_attr' or n.target in rand_ops: # != "call_function"
+        if n.op == 'placeholder' or n.op == 'output' or n.op == 'get_attr' or n.target in rand_ops:  # != "call_function"
             new_node = new_graph.node_copy(n, lambda x: env[x])
             env[n] = new_node
-        else: #n.op == 'call_function', we should never see n.op == 'call_module' or n.op == 'call_method'
+        else:  # n.op == 'call_function', we should never see n.op == 'call_module' or n.op == 'call_method'
             # print("======")
             # print(n.target)
             # print(n.args)
@@ -40,27 +38,27 @@ def fx_graph_cse(fx_g: torch.fx.graph.Graph):
                 return tuple(arg_list), spec
             args, args_spec = substitute(n.args)
             kwargs, kwargs_spec = substitute(n.kwargs)
-            
+
             # each token corresponds to a unique taget with args and kwargs substituted
-            token = {"target":n.target, "args":args,"args_spec":args_spec, "kwargs":kwargs, "kwargs_spec":kwargs_spec}
-            
+            token = {"target": n.target, "args": args, "args_spec": args_spec, "kwargs": kwargs, "kwargs_spec": kwargs_spec}
+
             # hash substituted args to a number, do not hash specs because specs are not hashable
             hash_arg = hash((args, kwargs))
             hash_val = (n.target, hash_arg)
 
             # check if a node can be eliminated. check both hash and node to avoid hash collision problem
             # if hash collision happens, only one set of equivalent nodes are eliminated
-            # e.g. if hash(node1)=hash(node2) = hash(node3)=hash(node4), but node1=node2 != node3=node4, 
-            # node 2 will be eliminated, but node 4 will not. 
+            # e.g. if hash(node1)=hash(node2) = hash(node3)=hash(node4), but node1=node2 != node3=node4,
+            # node 2 will be eliminated, but node 4 will not.
             hash_val_in_hash_env = hash_val in hash_env
             if hash_val_in_hash_env and token_map[hash_val] == token:
                 env[n] = hash_env[hash_val]
                 continue
-           
+
             new_node = new_graph.node_copy(n, lambda x: env[x])
             env[n] = new_node
             if not hash_val_in_hash_env:
                 hash_env[hash_val] = new_node
                 token_map[hash_val] = token
-            
+
     return new_graph
