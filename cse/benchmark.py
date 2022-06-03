@@ -4,7 +4,7 @@ from functorch import make_fx
 import random
 from torch.profiler import profile, record_function, ProfilerActivity
 
-from cse import modify
+from functorch._src.cse import fx_graph_cse
 
 # @torch.jit.script
 # def f(x):
@@ -47,7 +47,7 @@ def profile_function(name, f, inp):
     fx_g =  make_fx(f)(inp)
     script_f = torch.jit.script(fx_g)
     # print(script_f.code)
-    new_g = modify(fx_g.graph)
+    new_g = fx_graph_cse(fx_g.graph)
     new_g = fx.GraphModule(fx_g, new_g)
     script_g = torch.jit.script(new_g)
     # print(script_g.code)
@@ -135,7 +135,7 @@ inp = torch.randn(2**20, device='cuda', generator=g_gpu) # increase input size
 
 def ftest(x):
     a = 0
-    for _ in range(30):
+    for _ in range(3):
         a = a+x.cos().sin()
     return a
 
