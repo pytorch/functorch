@@ -15,7 +15,7 @@ rand_ops = [aten.rand_like, aten.rand, aten.randint, aten.randn]
 def check_v(new_v, old_v, env):
     if type(new_v) != type(old_v): # type doesn't match
         return False
-    if (new_v != old_v): # not check if they match in env
+    if (new_v != old_v): # now check if they match in env
         if isinstance(new_v, list) or isinstance(new_v, tuple): # check each member of list
             if not check_args(new_v, old_v, env):
                 return False
