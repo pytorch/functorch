@@ -52,15 +52,28 @@ mse_loss_backward_batch_rule(
   auto grad_output_ = moveBatchDimToFront(grad_output, grad_output_bdim);
   auto self_ = moveBatchDimToFront(self, self_bdim);
   auto target_ = moveBatchDimToFront(target, target_bdim);
-  if (reduction != Reduction::None && grad_output_bdim.has_value()) {
-    // grad_output_ is of shape [N]. Input is of shape [N?, ...].
-    // We need to view grad_output_ as shape [N, ...].
-    auto self_rank_without_bdim = rankWithoutBatchDim(self, self_bdim);
-    DimVector view_shape(self_rank_without_bdim + 1, 1);
-    view_shape[0] = grad_output_.size(0);
-    grad_output_ = grad_output_.view(view_shape);
+
+  auto grad_output_rank = rankWithoutBatchDim(grad_output, grad_output_bdim);
+  auto self_rank = rankWithoutBatchDim(self, self_bdim);
+  auto target_rank = rankWithoutBatchDim(target, target_bdim);
+  auto logicalRank = std::max(grad_output_rank, std::max(self_rank, target_rank));
+
+  if (grad_output_bdim.has_value()) {
+    DimVector view_shape;
+    view_shape.reserve(self_rank + 1);
+    if (grad_output_bdim.has_value()) {
+      view_shape.push_back(grad_output_.sizes()[0]);
+    }
+    const auto self_start = self_bdim.has_value() ? self_.sizes().begin() + 1 : self_.sizes().begin();
+    view_shape.insert(view_shape.end(), self_start, self_.sizes().end());
+    grad_output_ = grad_output_.reshape(view_shape);
   }
-  auto result = at::mse_loss_backward(grad_output_, self_, target_, Reduction::None);
+
+  grad_output_ = maybePadToLogicalRank(grad_output_, grad_output_bdim, logicalRank);
+  self_ = maybePadToLogicalRank(self_, self_bdim, logicalRank);
+  target_ = maybePadToLogicalRank(target_, target_bdim, logicalRank);
+
+  const auto result = 2. * (self_ - target_) * grad_output_;
   if (reduction == Reduction::Mean) {
     return std::make_tuple(result / numelWithoutBatchDim(self, self_bdim), 0);
   }
