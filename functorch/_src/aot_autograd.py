@@ -147,8 +147,11 @@ def create_aot_autograd_function(
         def forward(ctx, *flat_tensor_args):
             nonlocal compiled_fw, compiled_bw, num_outs
             if compiled_fw is None:
+                flat_tensor_args_clone = pytree.tree_map(
+                    lambda x: x.clone().detach().requires_grad_(x.requires_grad)
+                    if isinstance(x, Tensor) else x, flat_tensor_args)
                 with torch.set_grad_enabled(grad_state):
-                    out = flat_fn(*flat_tensor_args)
+                    out = flat_fn(*flat_tensor_args_clone)
                 out = pytree.tree_map(
                     lambda x: x.detach().contiguous() if isinstance(x, Tensor) else x, out
                 )
@@ -158,7 +161,7 @@ def create_aot_autograd_function(
                 else:
                     num_outs = 1
 
-                joint_inputs = (flat_tensor_args, out)
+                joint_inputs = (flat_tensor_args_clone, out)
                 aot_decompositions = {**aot_autograd_decompositions, **decompositions}
                 with torch.set_grad_enabled(grad_state):
                     fx_g = make_fx(joint_forward_backward, aot_decompositions)(
