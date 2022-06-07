@@ -3,7 +3,10 @@ import torch.fx as fx
 from torch.utils._pytree import tree_flatten
 
 aten = torch.ops.aten
-rand_ops = [aten.rand_like, aten.rand, aten.randint, aten.randn]
+rand_ops = [aten.dropout, aten._fused_dropout, aten._standard_gamma, 
+            aten.bernoulli, aten.multinomial, aten.native_dropout,
+            aten.normal, aten.poisson, aten.binomial, aten.rrelu, 
+            aten.rand_like, aten.rand, aten.randint, aten.randn, aten.randperm]
 
 # return a new graph with CSE applied to the input graph
 # env stores a mapping from node in the old graph to node in the new graph
