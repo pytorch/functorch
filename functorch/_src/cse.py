@@ -19,17 +19,13 @@ def fx_graph_cse(fx_g: torch.fx.graph.Graph):
     env = {}  # map from node in the old graph to node in the new graph
     hash_env = {}  # map from the computation result to a node in the new graph
     token_map = {}  # map from node to token
+    # num_reduced_op = 0
     for n in fx_g.nodes:
         # do not CSE away random operations
         if n.op == 'placeholder' or n.op == 'output' or n.op == 'get_attr' or n.target in rand_ops:  # != "call_function"
             new_node = new_graph.node_copy(n, lambda x: env[x])
             env[n] = new_node
         else:  # n.op == 'call_function', we should never see n.op == 'call_module' or n.op == 'call_method'
-            # print("======")
-            # print(n.target)
-            # print(n.args)
-            # print(n.kwargs)
-
             # substitute args and kwargs memebrs to their mapping in env if exists
             # specs can be used to reconstruct nested list/dictionaries
             def substitute(arg_list):
@@ -56,6 +52,7 @@ def fx_graph_cse(fx_g: torch.fx.graph.Graph):
             hash_val_in_hash_env = hash_val in hash_env
             if hash_val_in_hash_env and token_map[hash_val] == token:
                 env[n] = hash_env[hash_val]
+                # num_reduced_op = num_reduced_op + 1
                 continue
 
             new_node = new_graph.node_copy(n, lambda x: env[x])
@@ -64,4 +61,5 @@ def fx_graph_cse(fx_g: torch.fx.graph.Graph):
                 hash_env[hash_val] = new_node
                 token_map[hash_val] = token
 
+    # print(num_reduced_op,",", len(fx_g.nodes))
     return new_graph
