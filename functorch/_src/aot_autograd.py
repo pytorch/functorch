@@ -53,9 +53,8 @@ aten = torch.ops.aten
 
 
 def create_joint_forward_backward(fn):
-    # tangents are just grad_outs/cotangents (wrong naming)
     def joint_forward_backward(
-        primals: List[Any], tangents: List[Any]
+        primals: List[Any], cotangents: List[Any]
     ) -> Tuple[List[Any], List[Any]]:
         # Call the forward pass
         outs = fn(*primals)
@@ -69,20 +68,20 @@ def create_joint_forward_backward(fn):
                 grad_primals.append(p)
 
         # Get the outputs that need gradients
-        assert len(tangents) == len(outs)
+        assert len(cotangents) == len(outs)
         needed_outs = []
-        needed_tangents = []
-        for out, tangent in zip(outs, tangents):
+        needed_cotangents = []
+        for out, cotangent in zip(outs, cotangents):
             if isinstance(out, Tensor) and out.requires_grad:
                 needed_outs.append(out)
-                needed_tangents.append(tangent)
+                needed_cotangents.append(cotangent)
         backward_out = []
         # Call the backwards pass
         if grad_primals:
             backward_out = torch.autograd.grad(
                 needed_outs,
                 grad_primals,
-                grad_outputs=needed_tangents,
+                grad_outputs=needed_cotangents,
                 allow_unused=True,
             )
         backward_out_iter = iter(backward_out)
