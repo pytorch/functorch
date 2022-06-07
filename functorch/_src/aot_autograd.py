@@ -53,6 +53,7 @@ aten = torch.ops.aten
 
 
 def create_joint_forward_backward(fn):
+    # tangents are just grad_outs/cotangents (wrong naming)
     def joint_forward_backward(
         primals: List[Any], tangents: List[Any]
     ) -> Tuple[List[Any], List[Any]]:
@@ -140,12 +141,14 @@ def create_aot_autograd_function(
     compiled_fw = None
     compiled_bw = None
     num_outs = None
-
+    joint_inputs = None
+    fw_outs = None
+    aot_decompositions = {**aot_autograd_decompositions, **decompositions}
     class CompiledFunction(torch.autograd.Function):
         @staticmethod
         @disable_torchdynamo
         def forward(ctx, *flat_tensor_args):
-            nonlocal compiled_fw, compiled_bw, num_outs
+            nonlocal compiled_fw, num_outs, joint_inputs, fw_outs
             if compiled_fw is None:
                 with torch.set_grad_enabled(grad_state):
                     out = flat_fn(*flat_tensor_args)
@@ -159,19 +162,19 @@ def create_aot_autograd_function(
                     num_outs = 1
 
                 joint_inputs = (flat_tensor_args, out)
-                aot_decompositions = {**aot_autograd_decompositions, **decompositions}
+                # Need it because autograd.Function disables grad in forward
                 with torch.set_grad_enabled(grad_state):
                     fx_g = make_fx(joint_forward_backward, aot_decompositions)(
                         *joint_inputs
                     )
                 fw_module, bw_module = partition_fn(fx_g, joint_inputs)
-                # print(fw_module.code, bw_module.code)
 
                 compiled_fw = fw_compiler(fw_module, flat_tensor_args)
                 fw_outs = normalize_as_list(compiled_fw(*flat_tensor_args))
-
-                bw_args = fw_outs[num_outs:] + fw_outs[0:num_outs]
-                compiled_bw = bw_compiler(bw_module, bw_args)
+                if partition_fn is default_partition:
+                    nonlocal compiled_bw
+                    bw_args = fw_outs[num_outs:] + fw_outs[0:num_outs]
+                    compiled_bw = bw_compiler(bw_module, bw_args)
             else:
                 fw_outs = normalize_as_list(compiled_fw(*flat_tensor_args))
             ctx.save_for_backward(*fw_outs[num_outs:])
@@ -179,9 +182,14 @@ def create_aot_autograd_function(
 
         @staticmethod
         @disable_torchdynamo
-        def backward(ctx, *flat_args):
-            contiguous_args = [t.contiguous() for t in flat_args]
-            # contiguous_args = [t for t in flat_args]
+        def backward(ctx, *flat_grad_outs):
+            nonlocal compiled_bw
+            contiguous_args = [t.contiguous() for t in flat_grad_outs]
+            if compiled_bw is None:
+                with torch.set_grad_enabled(grad_state):
+                    fx_g = make_fx(joint_forward_backward, aot_decompositions)(joint_inputs[0], contiguous_args)
+                fw_module, bw_module = partition_fn(fx_g, joint_inputs)
+                compiled_bw = bw_compiler(bw_module, fw_outs[num_outs:] + contiguous_args)
             out = normalize_as_list(compiled_bw(*ctx.saved_tensors, *contiguous_args))
             return tuple(out)
 
