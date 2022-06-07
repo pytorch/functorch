@@ -11,8 +11,6 @@ import random
 from typing import Callable
 import unittest
 
-
-
 HAS_CUDA = torch.cuda.is_available()
 
 
@@ -371,4 +369,3 @@ class RandomOpTestCase(TestCase):
 
 if __name__ == "__main__":
     run_tests()
-    # unittest.main()
