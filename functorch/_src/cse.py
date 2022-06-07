@@ -36,7 +36,7 @@ def fx_graph_cse(fx_g: torch.fx.graph.Graph):
 
             # each token corresponds to a unique node
             # nodes with the same token can be substituted
-            token = {"target": n.target, "args": args, "args_spec": args_spec, 
+            token = {"target": n.target, "args": args, "args_spec": args_spec,
                      "kwargs": kwargs, "kwargs_spec": kwargs_spec}
 
             # hash substituted args to a number, do not hash specs because specs are not hashable

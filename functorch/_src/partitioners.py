@@ -9,6 +9,7 @@ from torch.fx.passes import graph_drawer
 from typing import Tuple
 from .cse import fx_graph_cse
 
+
 class InvalidNodeBase(object):
     def __repr__(self):
         return "Invalid Node"
@@ -225,7 +226,7 @@ def min_cut_rematerialization_partition(
         import networkx as nx
     except ImportError:
         raise RuntimeError("Need networkx installed to perform smart recomputation heuristics")
-    
+
     #  add the CSE pass
     fx_g = joint_module.graph
     cse_graph = fx_graph_cse(fx_g)
