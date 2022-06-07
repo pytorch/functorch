@@ -58,7 +58,7 @@ mse_loss_backward_batch_rule(
   auto target_rank = rankWithoutBatchDim(target, target_bdim);
   auto logicalRank = std::max(grad_output_rank, std::max(self_rank, target_rank));
 
-  if (grad_output_bdim.has_value()) {
+  if (reduction == Reduction::None && grad_output_bdim.has_value()) {
     DimVector view_shape;
     view_shape.reserve(self_rank + 1);
     if (grad_output_bdim.has_value()) {
