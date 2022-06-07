@@ -143,6 +143,7 @@ def create_aot_autograd_function(
     joint_inputs = None
     fw_outs = None
     aot_decompositions = {**aot_autograd_decompositions, **decompositions}
+
     class CompiledFunction(torch.autograd.Function):
         @staticmethod
         @disable_torchdynamo
