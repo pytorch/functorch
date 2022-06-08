@@ -1303,6 +1303,10 @@ class TestOperators(TestCase):
         # numerical inconsistencies, look like bugs
         xfail('nn.functional.binary_cross_entropy_with_logits', dtypes=(torch.float32, torch.float64)),
         xfail('ldexp', dtypes=(torch.float32,)),
+        xfail('__rmatmul__', dtypes=(torch.float32,)),
+        xfail('matmul', dtypes=(torch.float32,)),
+        xfail('nn.functional.conv_transpose3d', dtypes=(torch.float32,)),
+        xfail('nn.functional.layer_norm', dtypes=(torch.float32,)),
     })
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float32, torch.double))
     def test_vmap_autograd_grad(self, device, dtype, op):
