@@ -27,7 +27,8 @@ def get_sorted_gpu_events(events):
 
 def get_sorted_gpu_mm_conv_events(events):
     def is_mm_conv_event(event):
-        return "name" in event and ("gemm" in event["name"] or "conv" in event["name"])
+        return "name" in event and ("gemm" in event["name"] or "conv" in event["name"] 
+        or "cutlass" in event["name"] or "wgrad" in event["name"])
     gpu_events = get_sorted_gpu_events(events)
     sorted_events = []
     for event in gpu_events:
@@ -36,11 +37,6 @@ def get_sorted_gpu_mm_conv_events(events):
         sorted_events.append(event)
     return sorted_events
 
-
-"""
-return the duration of time that the events run
-overlapping times of events are not double counted
-"""
 def get_duration(sorted_gpu_events):
     event = sorted_gpu_events[0]
     current_end_time = event["ts"] + event["dur"]
@@ -63,10 +59,10 @@ def get_total_length(events):
     for event in events:
         if "cat" in event and event["cat"] != "Trace":
             valid_events.append(event)
-    valid_events = sorted(valid_events, key=lambda x: x["ts"])
     total_start = valid_events[0]["ts"]
     total_end = 0
     for event in valid_events:
+        total_start = min(total_start, event["ts"])
         if("dur" in event):
             end_time = event["ts"] + event["dur"]
         else:
