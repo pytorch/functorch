@@ -34,7 +34,10 @@ mse_loss_batch_rule(const at::Tensor& self, optional<int64_t> self_bdim, const a
   if (result.dim() == 1) {
     return std::make_tuple(result, 0);
   } else if (reduction == Reduction::None) {
-    return std::make_tuple(result, 0);
+    DimVector end_shape;
+    const auto batched_elem = self_bdim.has_value() ?
+        moveBatchDimToFront(self, self_bdim) : moveBatchDimToFront(target, target_bdim);
+    return std::make_tuple(result.reshape(batched_elem.sizes()), 0);
   } else if (reduction == Reduction::Sum) {
     return std::make_tuple(result.sum(-1), 0);
   } else if (reduction == Reduction::Mean) {
