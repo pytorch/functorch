@@ -398,7 +398,7 @@ class TestOperators(TestCase):
         # BUG: runs and produces numerical differences
         skip('nn.functional.max_unpool1d'),  # fails everywhere except on mac
         skip('nn.functional.max_unpool2d'),  # fails everywhere except on windows
-        xfail('nn.functional.max_unpool3d'),
+        skip('nn.functional.max_unpool3d'),  # fails everywhere except on mac
     }))
     @opsToleranceOverride('TestOperators', 'test_jvp', (
         tol1('nn.functional.conv_transpose3d',
@@ -712,9 +712,9 @@ class TestOperators(TestCase):
         xfail('double'),  # required rank 4 tensor to use channels_last format
 
         # BUG: runs and produces numerical differences
-        xfail('nn.functional.max_unpool1d', device_type='cpu'),
-        xfail('nn.functional.max_unpool2d'),
-        xfail('nn.functional.max_unpool3d'),
+        skip('nn.functional.max_unpool1d', device_type='cpu'),  # fails everywhere except on mac
+        skip('nn.functional.max_unpool2d'),  # fails everywhere except on mac
+        skip('nn.functional.max_unpool3d'),  # fails everywhere except on mac
 
         xfail('put'),  # calls put_ during vmap with only vmaps over other, not self
     })
@@ -784,9 +784,8 @@ class TestOperators(TestCase):
         xfail('double'),  # required rank 4 tensor to use channels_last format
 
         skip('nn.functional.max_unpool1d'),  # Flaky, seems to sometimes his max_unpool2d
-        # BUG: runs and produces numerical differences
-        xfail('nn.functional.max_unpool2d'),
-        xfail('nn.functional.max_unpool3d'),
+        skip('nn.functional.max_unpool2d'),  # fails everywhere except on mac
+        skip('nn.functional.max_unpool3d'),  # fails everywhere except on mac
 
         xfail('put'),  # calls put_ during vmap with only vmaps over other, not self
         xfail('nn.functional.prelu'),  # Call Tensor.as_strided
