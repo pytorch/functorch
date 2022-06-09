@@ -1,13 +1,39 @@
 import torch
 import torch.fx as fx
 from torch.utils._pytree import tree_flatten
+from collections import defaultdict
 
 aten = torch.ops.aten
 rand_ops = [aten.dropout, aten._fused_dropout, aten._standard_gamma,
             aten.bernoulli, aten.multinomial, aten.native_dropout,
             aten.normal, aten.poisson, aten.binomial, aten.rrelu,
             aten.rand_like, aten.rand, aten.randint, aten.randn, aten.randperm]
+compute_intensive_ops = [aten.mm, aten.convolution, aten.convolution_backward, aten.bmm, aten.addmm, aten.upsample_bilinear2d]  # noqa: E501
 
+reduced_op_count = 0
+total_op_count = 0
+reduced_ops = defaultdict(int)
+total_ops = defaultdict(int)
+reduced_intensive_op_count = 0
+total_intensive_op_count = 0
+
+
+# Helpful snippet for Shangdi to create her google sheet :)
+# """
+import atexit
+def dump_ops():
+    with open('count_ops.txt', 'a') as g:
+        g.write(f', {reduced_op_count}, {total_op_count}, {reduced_intensive_op_count}, {total_intensive_op_count}\n')
+        # print(f'num_op_reduced: {reduced_op_count}, {total_op_count} \n')
+
+atexit.register(dump_ops)
+# def print_ops():
+#     for op, count in sorted(reduced_ops.items(), key=lambda x: x[0].__name__):
+#         print(f're: {op.__name__}, {count}')
+#     for op, count in sorted(total_ops.items(), key=lambda x: x[0].__name__):
+#         print(f'tt: {op.__name__}, {count}')
+# atexit.register(print_ops)
+# """
 
 # return a new copy of torch.fx.graph.Graph with CSE applied to the input graph
 def fx_graph_cse(fx_g: torch.fx.graph.Graph):
@@ -15,6 +41,7 @@ def fx_graph_cse(fx_g: torch.fx.graph.Graph):
     env = {}  # map from node in the old graph to node in the new graph
     hash_env = {}  # map from hash to a node in the new graph
     token_map = {}  # map from hash to token
+    global reduced_op_count, total_op_count, reduced_intensive_op_count, total_intensive_op_count
     for n in fx_g.nodes:
         # The placeholder, output, and get_attr nodes are copied to the new grpah without change
         # do not CSE away random operations
@@ -45,7 +72,20 @@ def fx_graph_cse(fx_g: torch.fx.graph.Graph):
 
             # check if a node has a substitute and can be eliminated
             hash_val_in_hash_env = hash_val in hash_env
+
+            ### record reduced number os ops start
+            total_op_count = total_op_count + 1
+            total_ops[n.target] = total_ops[n.target] + 1
+            if n.target in compute_intensive_ops:
+                total_intensive_op_count = total_intensive_op_count + 1
+            ### record reduced number os ops end
             if hash_val_in_hash_env and token_map[hash_val] == token:
+                ### record reduced number os ops start
+                reduced_op_count = reduced_op_count + 1
+                if n.target in compute_intensive_ops:
+                    reduced_intensive_op_count = reduced_intensive_op_count + 1
+                reduced_ops[n.target] = reduced_ops[n.target] + 1
+                ### record reduced number os ops end
                 env[n] = hash_env[hash_val]
                 continue
 
