@@ -1300,11 +1300,12 @@ class TestOperators(TestCase):
         # numerical inconsistencies, look like bugs
         xfail('nn.functional.binary_cross_entropy_with_logits', dtypes=(torch.float32, torch.float64)),
         xfail('ldexp', dtypes=(torch.float32,), device_type='cpu'),
-        xfail('matmul', dtypes=(torch.float32,), device_type='cpu'),
-        skip('nn.functional.conv_transpose3d', dtypes=(torch.float32,)),  # fails everwhere except with cuda install
-        xfail('nn.functional.layer_norm', dtypes=(torch.float32,), device_type='cpu'),
-        xfail('linalg.lu_factor', dtypes=(torch.float32,), device_type='cuda'),
-        xfail('linalg.lu_factor_ex', dtypes=(torch.float32,), device_type='cuda'),
+        skip('__rmatmul__', dtypes=(torch.float32,), device_type='cpu'),  # fails on all but windows
+        skip('matmul', dtypes=(torch.float32,), device_type='cpu'),  # fails on all but windows
+        skip('nn.functional.conv_transpose3d', dtypes=(torch.float32,)),  # only fails on cpu only linux
+        skip('nn.functional.layer_norm', dtypes=(torch.float32,), device_type='cpu'),  # fails on windows
+        skip('linalg.lu_factor', dtypes=(torch.float32,), device_type='cuda'),  # fails on all but windows
+        skip('linalg.lu_factor_ex', dtypes=(torch.float32,), device_type='cuda'),  # fails on all but windows
     })
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float32, torch.double))
     def test_vmap_autograd_grad(self, device, dtype, op):
