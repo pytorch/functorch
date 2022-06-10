@@ -1057,6 +1057,7 @@ class TestOperators(TestCase):
         xfail('pca_lowrank', ''),
         xfail('nn.functional.feature_alpha_dropout', 'without_train'),
         xfail('nn.functional.feature_alpha_dropout', 'with_train'),
+        xfail('clamp'),
         # something weird happening with channels_last
         xfail('bfloat16'),
         xfail('double'),
