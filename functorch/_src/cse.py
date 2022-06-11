@@ -1,13 +1,13 @@
 import torch
 import torch.fx as fx
 from torch.utils._pytree import tree_flatten
-from collections import defaultdict
 
 aten = torch.ops.aten
 rand_ops = [aten.dropout, aten._fused_dropout, aten._standard_gamma,
             aten.bernoulli, aten.multinomial, aten.native_dropout,
             aten.normal, aten.poisson, aten.binomial, aten.rrelu,
             aten.rand_like, aten.rand, aten.randint, aten.randn, aten.randperm]
+
 
 # return a new copy of torch.fx.graph.Graph with CSE applied to the input graph
 def fx_graph_cse(fx_g: torch.fx.graph.Graph):
@@ -45,7 +45,6 @@ def fx_graph_cse(fx_g: torch.fx.graph.Graph):
 
             # check if a node has a substitute and can be eliminated
             hash_val_in_hash_env = hash_val in hash_env
-
             if hash_val_in_hash_env and token_map[hash_val] == token:
                 env[n] = hash_env[hash_val]
                 continue
