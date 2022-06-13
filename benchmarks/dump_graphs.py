@@ -17,7 +17,7 @@ from torchdynamo.testing import same
 
 current_name = ""
 graph_index = 0
-folder_name = "torch_bench_graphs_2"
+folder_name = "torch_bench_graphs"
 current_dir = os.getcwd()
 torch.backends.cuda.matmul.allow_tf32 = True
 
