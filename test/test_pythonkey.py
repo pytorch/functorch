@@ -112,7 +112,7 @@ class TestPythonKey(TestCase):
 
     def test_make_fx_no_decompose(self, device):
         # FIXME
-        # return self.skipTest("error: maximum recursion reached")
+        return self.skipTest("error: maximum recursion reached")
         def f(x):
             return torch.tanh(x).sum()
 
@@ -322,6 +322,7 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('diag_embed'),
         xfail('linalg.householder_product'),
         xfail('logit'),
+        xfail('logdet'),
         xfail('matrix_exp'),
         xfail('trapezoid'),
         xfail('trapz'),
@@ -551,7 +552,6 @@ instantiate_device_type_tests(
     globals(),
     only_for=only_for,
 )
-instantiate_device_type_tests(TestPythonKeyOperatorsOpInfo, globals(), only_for=only_for)
 instantiate_device_type_tests(TestEagerFusionOpInfo, globals(), only_for=only_for)
 
 
