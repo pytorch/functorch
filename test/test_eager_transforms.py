@@ -2847,7 +2847,6 @@ class TestFunctionalize(TestCase):
             return x
         self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
 
-
     def test_inplace_view(self, device):
 
         def f(x: torch.Tensor) -> torch.Tensor:

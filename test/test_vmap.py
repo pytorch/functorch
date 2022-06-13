@@ -880,7 +880,6 @@ class TestVmapAPI(TestCase):
         def backward_on_vmapped_tensor(x):
             x.sum().backward()
 
-
         # FIXME
         return self.skipTest("error: element 0 of tensors does not require grad and does not have a grad_fn")
         with self.assertRaisesRegex(RuntimeError, err_msg):
