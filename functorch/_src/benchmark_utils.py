@@ -4,8 +4,9 @@ import time
 import torch
 from torch.profiler import profile, ProfilerActivity
 
-def dump_chrome_trace(f, input, trace_filename, optimize_ctx, num_runs = 1, randomize_input = False, 
-                            devices = ["cuda"], activities=[ProfilerActivity.CUDA], kwargs_for_f={}, kwargs_for_profiler={}):
+
+def dump_chrome_trace(f, input, trace_filename, optimize_ctx, num_runs=1, randomize_input=False,
+                            devices = ["cuda"], activities=[ProfilerActivity.CUDA], kwargs_for_f=None, kwargs_for_profiler=None):
     """
     Output the chrome trace of running f(input, **kwargs_for_f) with [optimize_ctx] [num_runs] times to [trace_filename].
     [activities] are the activities that the profiler will record
@@ -24,6 +25,11 @@ def dump_chrome_trace(f, input, trace_filename, optimize_ctx, num_runs = 1, rand
         if randomize_input
         else inputs
     )
+
+    if kwargs_for_f is None:
+        kwargs_for_f = {}
+    if kwargs_for_profiler is None:
+        kwargs_for_profile = {}
     
     
     with optimize_ctx:
