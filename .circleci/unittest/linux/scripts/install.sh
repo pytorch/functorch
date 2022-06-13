@@ -56,6 +56,8 @@ if [ "${CU_VERSION:-}" == cpu ] ; then
     pip install torch~=1.12 torchvision -f https://download.pytorch.org/whl/test/cpu/torch_test.html --pre
     PYTORCH_VERSION="$(python -c "import torch; print(torch.__version__)")" python setup.py develop bdist_wheel -d $WHEELS_FOLDER
 else
-    pip install torch~=1.12 torchvision -f https://download.pytorch.org/whl/test/cu102/torch_test.html --pre
+    # pip install torch~=1.12 torchvision -f https://download.pytorch.org/whl/test/cu102/torch_test.html --pre
+    # Workaround pip wheel cuda linking issue
+    conda install -y pytorch torchvision cudatoolkit=10.2 -c pytorch-test
     PYTORCH_VERSION="$(python -c "import torch; print(torch.__version__)")" python setup.py develop bdist_wheel -d $WHEELS_FOLDER
 fi
