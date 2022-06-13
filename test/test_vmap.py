@@ -39,6 +39,7 @@ from collections import namedtuple
 
 import functorch
 from functorch import vmap, grad, grad_and_value, jvp, vjp
+from functorch.experimental import chunk_vmap
 from functorch._C import reshape_dim_into, reshape_dim_outof
 from functorch._src.make_functional import functional_init_with_buffers
 
@@ -2721,7 +2722,7 @@ class TestVmapOperators(Namespace.TestVmapBase):
 
     @parametrize('in_dim', [0, 1, 2])
     @parametrize('out_dim', [0, 1, 2])
-    def test_vmap_chunks(self, in_dim, out_dim):
+    def test_chunk_vmap(self, in_dim, out_dim):
         x = torch.randn(16, 16, 16)
 
         def f(x):
@@ -2731,7 +2732,7 @@ class TestVmapOperators(Namespace.TestVmapBase):
         expected = vmap(f, in_dims=in_dim, out_dims=out_dim)(x)
 
         for chunks in [1, 2, 3, 4, 7, 10, 16]:
-            output = vmap(f, in_dims=in_dim, out_dims=out_dim, chunks=chunks)(x)
+            output = chunk_vmap(f, in_dims=in_dim, out_dims=out_dim, chunks=chunks)(x)
             self.assertEqual(output, expected)
 
 

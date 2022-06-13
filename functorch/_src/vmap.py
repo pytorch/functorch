@@ -205,8 +205,7 @@ def vmap(
         func: Callable,
         in_dims: in_dims_t = 0,
         out_dims: out_dims_t = 0,
-        randomness: str = 'error',
-        chunks=1) -> Callable:
+        randomness: str = 'error') -> Callable:
     """
     vmap is the vectorizing map; ``vmap(func)`` returns a new function that
     maps :attr:`func` over some dimension of the inputs. Semantically, vmap
@@ -236,7 +235,6 @@ def vmap(
             random functions will error. Default: 'error'. WARNING: this flag
             only applies to random PyTorch operations and does not apply to
             Python's random module or numpy randomness.
-        chunks (int): TODO
 
     Returns:
         Returns a new "batched" function. It takes the same inputs as
@@ -357,20 +355,64 @@ def vmap(
     if randomness not in ['error', 'different', 'same']:
         raise RuntimeError(f"Only allowed values for randomness are 'error', 'different', or 'same'. Got {randomness}")
 
-    if chunks == 1:
-        @functools.wraps(func)
-        def wrapped(*args, **kwargs):
-            _check_out_dims_is_int_or_int_pytree(out_dims, func)
-            batch_size, flat_in_dims, flat_args, args_spec = _process_batched_inputs(in_dims, args, func)
-            vmap_level = _vmap_increment_nesting(batch_size, randomness)
-            try:
-                batched_inputs = _create_batched_inputs(flat_in_dims, flat_args, vmap_level, args_spec)
-                batched_outputs = func(*batched_inputs, **kwargs)
-                return _unwrap_batched(batched_outputs, out_dims, vmap_level, batch_size, func)
-            finally:
-                _vmap_decrement_nesting()
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        _check_out_dims_is_int_or_int_pytree(out_dims, func)
+        batch_size, flat_in_dims, flat_args, args_spec = _process_batched_inputs(in_dims, args, func)
+        vmap_level = _vmap_increment_nesting(batch_size, randomness)
+        try:
+            batched_inputs = _create_batched_inputs(flat_in_dims, flat_args, vmap_level, args_spec)
+            batched_outputs = func(*batched_inputs, **kwargs)
+            return _unwrap_batched(batched_outputs, out_dims, vmap_level, batch_size, func)
+        finally:
+            _vmap_decrement_nesting()
 
-        return wrapped
+    return wrapped
+
+
+def chunk_vmap(
+        func: Callable,
+        in_dims: in_dims_t = 0,
+        out_dims: out_dims_t = 0,
+        randomness: str = 'error',
+        chunks=2) -> Callable:
+    """
+    chunk_vmap is the vectorizing map using chunks of input data. Splitting data into chunks
+    can help to prevent out-of-memory issues. For more details about vectorizing map, see :func:`vjp`.
+
+    Args:
+        func (function): A Python function that takes one or more arguments.
+            Must return one or more Tensors.
+        in_dims (int or nested structure): Specifies which dimension of the
+            inputs should be mapped over. :attr:`in_dims` should have a
+            structure like the inputs. If the :attr:`in_dim` for a particular
+            input is None, then that indicates there is no map dimension.
+            Default: 0.
+        out_dims (int or Tuple[int]): Specifies where the mapped dimension
+            should appear in the outputs. If :attr:`out_dims` is a Tuple, then
+            it should have one element per output. Default: 0.
+        randomness (str): Specifies whether the randomness in this
+            vmap should be the same or different across batches. If 'different',
+            the randomness for each batch will be different. If 'same', the
+            randomness will be the same across batches. If 'error', any calls to
+            random functions will error. Default: 'error'. WARNING: this flag
+            only applies to random PyTorch operations and does not apply to
+            Python's random module or numpy randomness.
+        chunks (int): Number of chunks to use to split the input data. Default is 2.
+            If equals to 1 then :func:`vjp` is called.
+
+    Returns:
+        Returns a new "batched" function. It takes the same inputs as
+        :attr:`func`, except each input has an extra dimension at the index
+        specified by :attr:`in_dims`. It takes returns the same outputs as
+        :attr:`func`, except each output has an extra dimension at the index
+        specified by :attr:`out_dims`.
+    """
+    if randomness not in ['error', 'different', 'same']:
+        raise RuntimeError(f"Only allowed values for randomness are 'error', 'different', or 'same'. Got {randomness}")
+
+    if chunks == 1:
+        return vmap(func, in_dims=in_dims, out_dims=out_dims, randomness=randomness)
 
     def _flat_vmap(batch_size, flat_in_dims, flat_args, args_spec, **kwargs):
         vmap_level = _vmap_increment_nesting(batch_size, randomness)
