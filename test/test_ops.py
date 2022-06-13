@@ -4,6 +4,8 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import itertools
+
 from torch.testing._internal.common_utils import TestCase, run_tests, is_iterable_of_tensors
 import torch
 from torch import Tensor
@@ -25,6 +27,7 @@ from common_utils import (
     opsToleranceOverride,
     check_vmap_fallback,
 )
+import unittest
 from torch.utils._pytree import tree_flatten, tree_unflatten, tree_map
 from functorch import grad, vjp, vmap, jacrev, jacfwd
 import torch.autograd.forward_ad as fwAD
@@ -395,7 +398,7 @@ class TestOperators(TestCase):
         # BUG: runs and produces numerical differences
         skip('nn.functional.max_unpool1d'),  # fails everywhere except on mac
         skip('nn.functional.max_unpool2d'),  # fails everywhere except on windows
-        xfail('nn.functional.max_unpool3d'),
+        skip('nn.functional.max_unpool3d'),  # fails everywhere except on mac
     }))
     @opsToleranceOverride('TestOperators', 'test_jvp', (
         tol1('nn.functional.conv_transpose3d',
@@ -573,7 +576,6 @@ class TestOperators(TestCase):
 
     vmapvjp_fail = vjp_fail.union({
         # The following are not bugs and are expected behavior
-        xfail('fill_'),  # Not possible, wontfix
         xfail('masked_select'),  # Not possible due to dynamic shapes
         skip('bernoulli'),  # randomness
         skip('normal', ''),  # randomness
@@ -588,9 +590,8 @@ class TestOperators(TestCase):
 
         # All of the following are bugs and need to be fixed
         skip('linalg.svdvals'),  # # really annoying thing where it passes correctness check but not has_batch_rule
-        xfail('__getitem__', ''),
+        xfail('__getitem__', ''),  # dynamic error
         xfail('_masked.prod'),  # calls aten::item
-        xfail('block_diag'),
         xfail('eig'),  # calls aten::item
         xfail('linalg.det', ''),  # calls .item()
         xfail('linalg.eig'),  # Uses aten::allclose
@@ -623,6 +624,12 @@ class TestOperators(TestCase):
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @toleranceOverride({torch.float32: tol(atol=1e-04, rtol=1e-04)})
+    @opsToleranceOverride('TestOperators', 'test_vmapvjp', (
+        tol1('linalg.svd',
+             {torch.float32: tol(atol=1.5e-04, rtol=1e-04)}, device_type="cuda"),
+        tol1('svd',
+             {torch.float32: tol(atol=1.5e-04, rtol=1e-04)}, device_type="cuda"),
+    ))
     @skipOps('TestOperators', 'test_vmapvjp', vmapvjp_fail)
     def test_vmapvjp(self, device, dtype, op):
         if not op.supports_autograd:
@@ -663,8 +670,6 @@ class TestOperators(TestCase):
 
         # Try to in-place batched tensor into non-batched tensor
         xfail('matrix_exp'),
-        xfail('fill_'),
-        xfail('block_diag'),  # TODO: We expect this to fail in core, but it doesn't
 
         # Apprently these support forward AD, but we get "Trying to use forward AD..."
         # These are cases where OpInfo has supports_forward_ad=True, but disables
@@ -704,11 +709,10 @@ class TestOperators(TestCase):
         xfail('double'),  # required rank 4 tensor to use channels_last format
 
         # BUG: runs and produces numerical differences
-        xfail('nn.functional.max_unpool1d', device_type='cpu'),
-        xfail('nn.functional.max_unpool2d'),
-        xfail('nn.functional.max_unpool3d'),
+        skip('nn.functional.max_unpool1d', device_type='cpu'),  # fails everywhere except on mac
+        skip('nn.functional.max_unpool2d'),  # fails everywhere except on mac
+        skip('nn.functional.max_unpool3d'),  # fails everywhere except on mac
 
-        xfail('nn.functional.embedding'),  # embedding_renorm_ does not support fwd AD
         xfail('put'),  # calls put_ during vmap with only vmaps over other, not self
     })
     def test_vmapjvp(self, device, dtype, op):
@@ -746,14 +750,14 @@ class TestOperators(TestCase):
         skip('nn.functional.max_pool1d'),  # fails on cpu, runs on cuda
         xfail('nn.functional.batch_norm', device_type='cuda'),
         xfail('nn.functional.batch_norm', 'without_cudnn', device_type='cuda'),
-        xfail('nn.functional.hinge_embedding_loss', device_type='cuda'),
         xfail('_masked.mean'),
         xfail('_masked.prod'),
 
         # Causing issues with multiple cpu levels of forward mode AD
         xfail('nn.functional.batch_norm', device_type='cpu'),
-        xfail('nn.functional.hinge_embedding_loss', device_type='cpu'),
 
+        # https://github.com/pytorch/functorch/issues/857
+        skip('nn.functional.embedding', ''),
         xfail('nn.functional.soft_margin_loss', ''),
         xfail('nn.functional.binary_cross_entropy_with_logits', ''),
         xfail('linalg.householder_product'),
@@ -761,10 +765,8 @@ class TestOperators(TestCase):
         xfail('quantile'),
         xfail('var_mean'),
         xfail('as_strided'),
-        xfail('fill_'),
         xfail('nn.functional.gaussian_nll_loss'),
         xfail('std_mean'),
-        xfail('block_diag'),
         xfail('scatter'),
         xfail('matrix_exp'),
         xfail('nanquantile'),
@@ -779,11 +781,9 @@ class TestOperators(TestCase):
         xfail('double'),  # required rank 4 tensor to use channels_last format
 
         skip('nn.functional.max_unpool1d'),  # Flaky, seems to sometimes his max_unpool2d
-        # BUG: runs and produces numerical differences
-        xfail('nn.functional.max_unpool2d'),
-        xfail('nn.functional.max_unpool3d'),
+        skip('nn.functional.max_unpool2d'),  # fails everywhere except on mac
+        skip('nn.functional.max_unpool3d'),  # fails everywhere except on mac
 
-        xfail('nn.functional.embedding'),  # embedding_renorm_ does not support fwd AD
         xfail('put'),  # calls put_ during vmap with only vmaps over other, not self
         xfail('nn.functional.prelu'),  # Call Tensor.as_strided
     }
@@ -870,6 +870,7 @@ class TestOperators(TestCase):
         xfail('nn.functional.soft_margin_loss', ''),
         xfail('nn.functional.binary_cross_entropy_with_logits', ''),
         xfail('nn.functional.max_unpool1d', 'grad'),
+        xfail('nn.functional.embedding', ''),
         xfail('lu_unpack'),
         xfail('nn.functional.glu'),
         xfail('nn.functional.bilinear'),  # trilinear doesn't have batching rule
@@ -902,7 +903,6 @@ class TestOperators(TestCase):
     @toleranceOverride({torch.float32: tol(atol=1e-04, rtol=1e-04)})
     @skipOps('TestOperators', 'test_vmapvjp_has_batch_rule', vmapvjp_fail.union({
         xfail('view_as_complex'),
-        xfail('__getitem__', ''),
         xfail('cholesky'),
         xfail('complex'),
         xfail('copysign'),
@@ -915,7 +915,6 @@ class TestOperators(TestCase):
         xfail('fmin'),
         xfail('fmax'),
         xfail('special.log_ndtr'),
-        xfail('fill_'),
         xfail('index_copy'),
         xfail('index_fill'),
         xfail('linalg.cholesky'),
@@ -952,7 +951,6 @@ class TestOperators(TestCase):
         xfail('to_sparse'),
         xfail('unfold'),
         xfail('vdot'),
-        xfail('block_diag'),
         xfail('nn.functional.dropout'),
         xfail('_masked.prod'),
         xfail('fft.ihfft2'),
@@ -1037,8 +1035,6 @@ class TestOperators(TestCase):
         # fallback path doesn't work
         # All of the following are bugs and need to be fixed
         xfail('__getitem__', ''),
-        xfail('clamp', ''),
-        xfail('fill_'),
         xfail('index_put', ''),
         xfail('matrix_exp'),
         xfail('view_as_complex'),
@@ -1054,6 +1050,7 @@ class TestOperators(TestCase):
         xfail('pca_lowrank', ''),
         xfail('nn.functional.feature_alpha_dropout', 'without_train'),
         xfail('nn.functional.feature_alpha_dropout', 'with_train'),
+        xfail('clamp'),
         # something weird happening with channels_last
         xfail('bfloat16'),
         xfail('double'),
@@ -1102,6 +1099,27 @@ class TestOperators(TestCase):
 
                 self.assertEqual(result_vjps, expected_vjps)
 
+    def _compare_jacobians_of_vjp(self, fn, cotangents_and_primals, argnums=None, atol_rtol=None):
+        if argnums is None:
+            argnums = tuple(range(len(cotangents_and_primals)))
+
+        def get_vjp(cotangents, *primals):
+            _, vjp_fn = vjp(fn, *primals)
+            return vjp_fn(cotangents)
+
+        jacobian_jvp = jacfwd(get_vjp, argnums)(*cotangents_and_primals)
+        jacobian_vjp = jacrev(get_vjp, argnums)(*cotangents_and_primals)
+
+        # For dtype changing operations, the jacobians have different dtype.
+        jacobian_jvp = tree_map(lambda x: x.to(torch.float), jacobian_jvp)
+        jacobian_vjp = tree_map(lambda x: x.to(torch.float), jacobian_vjp)
+
+        if atol_rtol is not None:
+            (atol, rtol) = atol_rtol
+            self.assertEqual(jacobian_jvp, jacobian_vjp, atol=atol, rtol=rtol)
+        else:
+            self.assertEqual(jacobian_jvp, jacobian_vjp)
+
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_jvpvjp', vjp_fail.union({
         # These are weirdly non-deterministic
@@ -1118,7 +1136,6 @@ class TestOperators(TestCase):
         xfail('_masked.softmin', ''),
         xfail('amax', ''),
         xfail('amin', ''),
-        xfail('block_diag', ''),
         xfail('cdist', ''),
         xfail('cholesky', ''),
         xfail('eig', ''),
@@ -1131,20 +1148,17 @@ class TestOperators(TestCase):
         xfail('nansum', ''),
         xfail('nn.functional.batch_norm', ''),
         xfail('nn.functional.batch_norm', 'without_cudnn', device_type='cuda'),
-        xfail('nn.functional.embedding', ''),
+        xfail('nn.functional.embedding'),
         xfail('nn.functional.embedding', 'functorch'),
         xfail('nn.functional.embedding_bag', ''),
         xfail('nn.functional.grid_sample', ''),
         xfail('nn.functional.hardsigmoid', ''),
-        xfail('nn.functional.hardswish', ''),
         xfail('nn.functional.huber_loss', ''),
         xfail('nn.functional.instance_norm', ''),
         xfail('nn.functional.logsigmoid', ''),
         xfail('nn.functional.pad', 'circular'),
-        xfail('nn.functional.prelu', ''),
         xfail('nn.functional.softmin', ''),
         xfail('nn.functional.softmin', 'with_dtype'),
-        xfail('nn.functional.softplus', ''),
         xfail('renorm', ''),
         xfail('std_mean', ''),
         xfail('symeig', ''),
@@ -1163,7 +1177,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.pdist', ''),
         xfail('scatter_reduce', 'sum'),
         xfail('nn.functional.multi_margin_loss', ''),
-        xfail('nn.functional.smooth_l1_loss', ''),
         xfail('scatter_reduce', 'mean'),
         xfail('scatter_reduce', 'prod'),
         skip('linalg.householder_product', '', device_type='cuda'),  # flaky, I'm not sure why
@@ -1223,24 +1236,6 @@ class TestOperators(TestCase):
                     expected = (tree_unflatten(primals_out, spec), tree_unflatten(tangents_out, spec))
                 return expected
 
-            def compare_jacobians(cotangents_and_primals, in_dims, atol_rtol):
-                def get_vjp(cotangents, *primals):
-                    _, vjp_fn = vjp(fn, *primals)
-                    return vjp_fn(cotangents)
-
-                jacobian_jvp = jacfwd(get_vjp, in_dims)(*cotangents_and_primals)
-                jacobian_vjp = jacrev(get_vjp, in_dims)(*cotangents_and_primals)
-
-                # For dtype changing operations, the jacobians have different dtype.
-                jacobian_jvp = tree_map(lambda x: x.to(torch.float), jacobian_jvp)
-                jacobian_vjp = tree_map(lambda x: x.to(torch.float), jacobian_vjp)
-
-                if atol_rtol is not None:
-                    (atol, rtol) = atol_rtol
-                    self.assertEqual(jacobian_jvp, jacobian_vjp, atol=atol, rtol=rtol)
-                else:
-                    self.assertEqual(jacobian_jvp, jacobian_vjp)
-
             # HACK: obviously pytorch should also have the same coverage
             # For things that do have the same coverage, we test that jvp x vjp
             # are the same between PyTorch and functorch. For things that don't,
@@ -1248,28 +1243,184 @@ class TestOperators(TestCase):
             # in slower tests.
             FUNCTORCH_HAS_FORMULA_BUT_NOT_PYTORCH = {
                 'nn.functional.nll_loss',
-                'nn.functional.l1_loss',
-                'nn.functional.mse_loss',
                 'softmax',
                 'log_softmax',
                 'nn.functional.cross_entropy',
-                'nn.functional.binary_cross_entropy',
                 'nn.functional.layer_norm'
             }
             if op.name in FUNCTORCH_HAS_FORMULA_BUT_NOT_PYTORCH:
+                self.assertFalse(op.supports_fwgrad_bwgrad,
+                                 f"{op.name} now supports forward over reverse without a decomposition. " +
+                                 "Please remove the decomposition version")
                 def is_differentiable(t):
                     return isinstance(t, torch.Tensor) and t.dtype == torch.float32
                 args = (cotangents, *primals)
                 if op.name == 'nn.functional.binary_cross_entropy':
-                    in_dims = (0, 1)  # targets is float32 but isn't differentiable
-                    atol_rtol = 1.5E-4, 1.3e-06
+                    argnums = (0, 1)  # targets is float32 but isn't differentiable
+                    atol_rtol = 1.5e-4, 1.3e-06
                 else:
-                    in_dims = tuple(i for i in range(len(args)) if is_differentiable(args[i]))
+                    argnums = tuple(i for i in range(len(args)) if is_differentiable(args[i]))
                     atol_rtol = None
-                compare_jacobians(args, in_dims, atol_rtol)
+                self._compare_jacobians_of_vjp(fn, args, argnums, atol_rtol)
             else:
                 expected = reference(primals, cotangents, primals_tangents, cotangents_tangents)
                 self.assertEqual(result, expected)
+
+    def _make_extremal_inputs(self, shape, device):
+        if shape == None:
+            return (None,)
+        return (
+            torch.full(shape, -1000., device=device),
+            torch.zeros(shape, device=device),
+            torch.full(shape, 1000., device=device),
+        )
+
+    def _arg_and_kwarg_options(self, args_options, kwargs_options):
+        return itertools.product(*args_options, kwargs_options)
+
+    def test_extremal_numerics_nll_loss(self, device):
+        N, C = 3, 4
+        d1, d2, d3 = 5, 6, 7
+        shapes = (
+            ((N, C), (N,), (C,)),
+            ((N, C), (N,), None),
+            ((N, C, d1, d2, d3), (N, d1, d2, d3), (C,)),
+            ((N, C, d1, d2, d3), (N, d1, d2, d3), None),
+        )
+        kwargs_options = ({'ignore_index': 0, 'reduction': 'mean'}, {'reduction': 'sum'}, {'reduction': 'none'}, {})
+        for input_shape, target_shape, weight_shape in shapes:
+            input_options = self._make_extremal_inputs(input_shape, device)
+            for input, kwargs in self._arg_and_kwarg_options((input_options,), kwargs_options):
+                if weight_shape is None:
+                    weight = None
+                else:
+                    weight = torch.randn(weight_shape, device=device)
+                target = torch.randint(0, C, target_shape, device=device)
+                target[0] = 1  # since we're ignoring index 0, at least one element must be non-zero
+
+                fn = functools.partial(torch.nn.functional.nll_loss, target=target, weight=weight, **kwargs)
+                result = fn(input)
+                cotangents = torch.randn_like(result, device=device)
+                self._compare_jacobians_of_vjp(fn, (cotangents, input))
+
+    def test_extremal_numerics_l1_loss(self, device):
+        N, C, H, W = 3, 4, 5, 6
+        shapes = ((N, C), (N, C, H), (N, C, H, W))
+        kwargs_options = ({'reduction': 'sum'}, {'reduction': 'none'}, {})
+        for shape in shapes:
+            input_options = self._make_extremal_inputs(shape, device)
+            target_options = self._make_extremal_inputs(shape, device)
+            for input, target, kwargs in self._arg_and_kwarg_options((input_options, target_options), kwargs_options):
+                result = torch.nn.functional.l1_loss(input, target)
+                cotangents = torch.randn_like(result, device=device)
+                self._compare_jacobians_of_vjp(torch.nn.functional.l1_loss, (cotangents, input, target))
+
+    def test_extremal_numerics_mse_loss(self, device):
+        N, C, H, W = 3, 4, 5, 6
+        shapes = ((N, C), (N, C, H), (N, C, H, W))
+        kwargs_options = ({'reduction': 'sum'}, {'reduction': 'none'}, {})
+        for shape in shapes:
+            input_options = self._make_extremal_inputs(shape, device)
+            target_options = self._make_extremal_inputs(shape, device)
+            for input, target, kwargs in self._arg_and_kwarg_options((input_options, target_options), kwargs_options):
+                result = torch.nn.functional.mse_loss(input, target)
+                cotangents = torch.randn_like(result, device=device)
+                self._compare_jacobians_of_vjp(torch.nn.functional.mse_loss, (cotangents, input, target))
+
+    def test_extremal_numerics_softmax(self, device):
+        N, C, H, W = 3, 4, 5, 6
+        shapes = ((N, C), (N, C, H), (N, C, H, W))
+        kwargs_options = ({'dim': 1}, {})
+        for shape in shapes:
+            input_options = self._make_extremal_inputs(shape, device)
+            for input, kwargs in self._arg_and_kwarg_options((input_options,), kwargs_options):
+                result = torch.nn.functional.softmax(input)
+                cotangents = torch.randn_like(result, device=device)
+                self._compare_jacobians_of_vjp(torch.nn.functional.softmax, (cotangents, input))
+
+
+    def test_extremal_numerics_log_softmax(self, device):
+        N, C, H, W = 3, 4, 5, 6
+        shapes = ((N, C), (N, C, H), (N, C, H, W))
+        kwargs_options = ({'dim': 1}, {})
+        for shape in shapes:
+            input_options = self._make_extremal_inputs(shape, device)
+            for input, kwargs in self._arg_and_kwarg_options((input_options,), kwargs_options):
+                result = torch.nn.functional.log_softmax(input)
+                cotangents = torch.randn_like(result, device=device)
+                self._compare_jacobians_of_vjp(torch.nn.functional.log_softmax, (cotangents, input))
+
+    def test_extremal_numerics_cross_entropy(self, device):
+        N, C = 3, 4
+        d1, d2, d3 = 5, 6, 7
+        shapes = (
+            ((N, C), (N,), (C,)),
+            ((N, C), (N,), None),
+            ((N, C), (N, C), (C,)),
+            ((N, C), (N, C), None),
+            ((C,), (), (C,)),
+            ((C,), (), None),
+            ((C,), (C,), (C,)),
+            ((C,), (C,), None),
+            ((N, C, d1, d2, d3), (N, d1, d2, d3), (C,)),
+            ((N, C, d1, d2, d3), (N, d1, d2, d3), None),
+            ((N, C, d1, d2, d3), (N, C, d1, d2, d3), (C,)),
+            ((N, C, d1, d2, d3), (N, C, d1, d2, d3), None),
+        )
+        for input_shape, target_shape, weight_shape in shapes:
+            input_options = self._make_extremal_inputs(input_shape, device)
+            kwargs_options = [{'reduction': 'sum'}, {'reduction': 'none'}, {}]
+            if input_shape != target_shape:
+                kwargs_options.append({'ignore_index': 0, 'reduction': 'mean'})
+
+            for input, kwargs in self._arg_and_kwarg_options((input_options,), kwargs_options):
+                if weight_shape is None:
+                    weight = None
+                else:
+                    weight = torch.randn(weight_shape, device=device)
+
+                if input_shape == target_shape:
+                    target = torch.rand(target_shape, device=device)
+                elif len(target_shape) == 0:
+                    target = torch.tensor(1, device=device)  # must be non-zero since ignore_index may be 0
+                else:
+                    target = torch.randint(0, C, target_shape, device=device)
+
+                fn = functools.partial(torch.nn.functional.cross_entropy, target=target, weight=weight, **kwargs)
+                result = fn(input)
+                cotangents = torch.randn_like(result, device=device)
+                self._compare_jacobians_of_vjp(fn, (cotangents, input), atol_rtol=(1e-4, 1e-5))
+
+    def test_extremal_numerics_binary_cross_entropy(self, device):
+        N, C, H, W = 3, 4, 5, 6
+        shapes = ((N, C), (N, C, H), (N, C, H, W))
+        for shape in shapes:
+            weight_options = self._make_extremal_inputs(shape, device)
+            kwargs_options = [{'reduction': 'sum'}, {'reduction': 'none'}, {}]
+
+            for weight, kwargs in self._arg_and_kwarg_options((weight_options,), kwargs_options):
+                input = torch.rand(shape, device=device)
+                target = torch.rand(shape, device=device)
+                fn = functools.partial(torch.nn.functional.binary_cross_entropy, target=target, weight=weight, **kwargs)
+                result = fn(input)
+                cotangents = torch.randn_like(result, device=device)
+                self._compare_jacobians_of_vjp(fn, (cotangents, input), atol_rtol=(1e-4, 2e-5))
+
+    def test_extremal_numerics_layer_norm(self, device):
+        N, C, H, W = 3, 4, 5, 6
+        shapes = ((N, C), (N, C, H), (N, C, H, W))
+        for shape in shapes:
+            input_options = self._make_extremal_inputs(shape, device)
+            normalized_shape = shape[1:]
+            weight_options = self._make_extremal_inputs(normalized_shape, device)
+            bias_options = self._make_extremal_inputs(normalized_shape, device)
+
+            for input, bias, weight in self._arg_and_kwarg_options((input_options, bias_options, weight_options), ()):
+                def fn(input, weight, bias):
+                    return torch.nn.functional.layer_norm(input, normalized_shape, weight=weight, bias=bias)
+                result = fn(input, weight, bias)
+                cotangents = torch.randn_like(result, device=device)
+                self._compare_jacobians_of_vjp(fn, (cotangents, input, weight, bias))
 
     @ops(filter(lambda op: op.name == "nn.functional.group_norm", functorch_lagging_op_db + additional_op_db),
          allowed_dtypes=(torch.float32, torch.double))  # TODO: generalize

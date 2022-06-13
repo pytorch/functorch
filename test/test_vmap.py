@@ -3083,7 +3083,6 @@ class TestVmapBatchedGradient(Namespace.TestVmapBase):
 class TestVmapOperatorsOpInfo(TestCase):
     vmap_fail = {
         # These are things that we either cannot fix or are not actually problems
-        xfail('fill_'),
         xfail('resize_'),
         xfail('resize_as_'),
         xfail('to_sparse'),
@@ -3138,6 +3137,8 @@ class TestVmapOperatorsOpInfo(TestCase):
     @opsToleranceOverride('TestVmapOperatorsOpInfo', 'test_vmap_exhaustive', (
         tol1('linalg.det',
              {torch.float32: tol(atol=1e-04, rtol=1e-04)}, device_type='cuda'),
+        tol1('nn.functional.conv_transpose3d',
+             {torch.float32: tol(atol=1.5e-04, rtol=1e-04)}, device_type='cuda'),
     ))
     @toleranceOverride({torch.float32: tol(atol=1e-04, rtol=1e-04)})
     @skipOps('TestVmapOperatorsOpInfo', 'test_vmap_exhaustive', vmap_fail)
@@ -3175,7 +3176,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('complex'),
         xfail('copysign'),
         xfail('eig'),
-        xfail('fill_'),
         xfail('histogram'),
         xfail('index_fill'),
         xfail('nansum'),
@@ -3266,7 +3266,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('linalg.lu_factor_ex', ''),
         xfail('diagflat', ''),
         xfail('special.log_ndtr'),
-        xfail('block_diag'),  # aten::slice_copy.Tensor hit the vmap fallback which is currently disabled
         xfail('nn.functional.triplet_margin_loss', ''),
         xfail('nn.functional.pdist', ''),
         xfail('scatter_reduce', 'sum'),
