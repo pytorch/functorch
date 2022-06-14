@@ -13,6 +13,7 @@ import torch
 import torchdynamo
 from torchbench_utils import *
 from torchdynamo.testing import same
+import pickle
 
 
 current_name = ""
@@ -40,7 +41,13 @@ log = logging.getLogger(__name__)
 def save_fx(gm, example_inputs):
     from functorch.compile import aot_module_simplified
 
-    def graph_saver_forward(gm, _):
+    def graph_saver_forward(gm, fw_args):
+        input_meta = []
+        for arg in fw_args:
+            if(type(arg) == int or type(arg) == float):
+                input_meta.append((type(arg),))
+            else:
+                input_meta.append((type(arg), arg.shape, arg.stride(), arg.dtype))
         global current_name
         global graph_index
         global folder_name
@@ -48,12 +55,20 @@ def save_fx(gm, example_inputs):
         if not isExist:
             os.makedirs(f"{folder_name}/{current_name}")
         gm.to_folder(f"{folder_name}/{current_name}/{current_name}_forward_{graph_index}")
+        pickle.dump(input_meta, open( f"{folder_name}/{current_name}/{current_name}_forward_{graph_index}/{current_name}_forward_{graph_index}.input", "wb" ))
         return gm
 
-    def graph_saver_backward(gm, _):
+    def graph_saver_backward(gm, bw_args):
+        input_meta = []
+        for arg in bw_args:
+            if(type(arg) == int or type(arg) == float):
+                input_meta.append((type(arg),))
+            else:
+                input_meta.append((type(arg), arg.shape, arg.stride(), arg.dtype))
         global current_name
         global graph_index
         gm.to_folder(f"{folder_name}/{current_name}/{current_name}_backward_{graph_index}")
+        pickle.dump(input_meta, open( f"{folder_name}/{current_name}/{current_name}_backward_{graph_index}/{current_name}_backward_{graph_index}.input", "wb" ))
         graph_index = graph_index + 1
         return gm
 
