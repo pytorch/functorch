@@ -12,9 +12,9 @@ def synchronize():
 def dump_chrome_trace(f, input, trace_filename, optimize_ctx, activities, num_runs=1, randomize_input=False,
                       devices=None, kwargs_for_f=None, kwargs_for_profiler=None):
     """
-    Output the chrome trace of running f(input, **kwargs_for_f) with [optimize_ctx] 
+    Output the chrome trace of running f(input, **kwargs_for_f) with [optimize_ctx]
     [num_runs] times to [trace_filename].
-    
+
     [activities] are the activities that the profiler will record, e.g. ProfilerActivity.CUDA.
     Return total runtime without the profiler
 
