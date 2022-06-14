@@ -2,23 +2,27 @@ import copy
 import time
 
 import torch
-from torch.profiler import profile, ProfilerActivity
+from torch.profiler import profile
 
+def synchronize():
+    pass
 
-def dump_chrome_trace(f, input, trace_filename, optimize_ctx, num_runs=1, randomize_input=False,
-                            devices = ["cuda"], activities=[ProfilerActivity.CUDA], kwargs_for_f=None, kwargs_for_profiler=None):
+def dump_chrome_trace(f, input, trace_filename, optimize_ctx, activities, num_runs=1, randomize_input=False,
+                      devices=None, kwargs_for_f=None, kwargs_for_profiler=None):
     """
     Output the chrome trace of running f(input, **kwargs_for_f) with [optimize_ctx] [num_runs] times to [trace_filename].
-    [activities] are the activities that the profiler will record
+    [activities] are the activities that the profiler will record. e.g. ProfilerActivity.CUDA
     Return total runtime without the profiler
 
     Outputs to trace_filename
     """
 
+    if devices is None:
+        devices = ["cuda"]
+
+    global synchronize
     if devices != ["cpu"] and torch.cuda.is_available():
         synchronize = torch.cuda.synchronize
-    else:
-        synchronize =  lambda: None
 
     inputs = (
         randomize_input(copy.deepcopy(input))
@@ -29,12 +33,11 @@ def dump_chrome_trace(f, input, trace_filename, optimize_ctx, num_runs=1, random
     if kwargs_for_f is None:
         kwargs_for_f = {}
     if kwargs_for_profiler is None:
-        kwargs_for_profile = {}
-    
-    
+        kwargs_for_profiler = {}
+
     with optimize_ctx:
         torch.manual_seed(1337)
-        for _ in range(5): # warmup runs
+        for _ in range(5):  # warmup runs
             f(inputs, **kwargs_for_f)
             synchronize()
         torch.manual_seed(1337)
@@ -44,7 +47,7 @@ def dump_chrome_trace(f, input, trace_filename, optimize_ctx, num_runs=1, random
             synchronize()
         t1 = time.perf_counter()
     timing = t1 - t0
-    
+
     with profile(activities=activities, **kwargs_for_profiler) as prof:
         with optimize_ctx:
             synchronize()
@@ -54,4 +57,4 @@ def dump_chrome_trace(f, input, trace_filename, optimize_ctx, num_runs=1, random
                 synchronize()
     prof.export_chrome_trace(trace_filename)
 
-    return  f"{timing:.3f}"
+    return f"{timing:.3f}"
