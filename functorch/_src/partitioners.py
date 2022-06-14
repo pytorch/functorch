@@ -153,7 +153,7 @@ def default_partition(
                 saved_values.append(user)
         else:
             saved_values.append(node)
-    saved_values = list(set(saved_values))
+    saved_values = list(saved_values)
 
     return _extract_fwd_bwd_modules(joint_module, saved_values)
 

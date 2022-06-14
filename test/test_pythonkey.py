@@ -255,7 +255,7 @@ def _outs_and_grads(fn, inps):
         for out in outs:
             res=res+out.sum()
         return res
-    print(inps)
+    # print(inps)
     grads = torch.autograd.grad(full_reduce(diff_outs), pytree.tree_flatten(inps)[0], create_graph=True)
     return outs, grads
 
@@ -271,16 +271,19 @@ def _outs_and_grads_and_grad_grads(fn, inps):
             diff_inps.append(inp)
     def full_reduce(outs):
         res = 0
+        # print("entering full_reduce: ", type(outs))
         for out in outs:
             res=res+out.sum()
         return res
-    grads = torch.autograd.grad(full_reduce(diff_outs), diff_inps, create_graph=True)
-    print("grads: ", grads)
+    print("diff_outs, diff_inps: ", diff_outs, diff_inps)
+    grads = torch.autograd.grad(diff_outs, diff_inps, create_graph=True)
+    # print("grad call with: ", full_reduce(diff_outs), diff_inps)
     diff_grads = []
     for grad_ in grads:
         if isinstance(grad_, torch.Tensor) and grad_.requires_grad:
             diff_grads.append(grad_)
-    grad_grads = torch.autograd.grad(full_reduce(diff_grads), diff_inps)
+    # print("grad grad call with: ", grads, full_reduce(diff_grads), diff_inps)
+    grad_grads = torch.autograd.grad(diff_grads, diff_inps)
     return outs, grads, grad_grads
 
 class TestAOTAutograd(TestCase):
@@ -293,7 +296,7 @@ class TestAOTAutograd(TestCase):
         test_out, test_grad, test_grad_grad = _outs_and_grads_and_grad_grads(compiled_f, inp)
         self.assertEqual(ref_out, test_out)
         self.assertEqual(ref_grad, test_grad)
-        # self.assertEqual(ref_grad_grad, test_grad_grad)
+        self.assertEqual(ref_grad_grad, test_grad_grad)
 
     def test_single_output(self):
         def f(a, b):
@@ -311,6 +314,12 @@ class TestAOTAutograd(TestCase):
         def f(a, b):
             return [a + b, a - b]
         inp = [torch.randn(3, 3, requires_grad=True), torch.randn(3, 3)]
+        self.verify_aot_autograd(f, inp)
+
+    def test_cube(self):
+        def f(a):
+            return a ** 3
+        inp = [torch.tensor(2.3, requires_grad=True)]
         self.verify_aot_autograd(f, inp)
 
     def test_no_grad_input_output(self):

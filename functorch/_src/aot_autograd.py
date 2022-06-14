@@ -170,13 +170,13 @@ def create_aot_autograd_function(
                 compiled_fw = fw_compiler(fw_module, flat_tensor_args)
                 fw_outs = normalize_as_list(compiled_fw(*flat_tensor_args))
                 if partition_fn is default_partition:
-                    print("ENTERING default_partition")
                     ctx.num_intermediate = len(fw_outs[num_outs:])
                     ctx.num_inputs = len(flat_tensor_args)
                     to_be_saved = fw_outs[num_outs:] + list(flat_tensor_args) + out
-                    print("fw outs: ", fw_outs, "-------")
+                    ctx.fx_g = fx_g
                     ctx.save_for_backward(*to_be_saved)
                     ctx.fwd_graph = fw_module.code
+                    ctx.bw_graph = bw_module.code
                 else:
                     nonlocal compiled_bw
                     bw_args = fw_outs[num_outs:] + fw_outs[0:num_outs]
@@ -201,42 +201,26 @@ def create_aot_autograd_function(
         @staticmethod
         @disable_torchdynamo
         def backward(ctx, *flat_grad_outs):
-            print(flat_grad_outs)
             contiguous_args = [t.contiguous() for t in flat_grad_outs]
             if compiled_bw is None:
                 assert partition_fn is default_partition
                 with torch.set_grad_enabled(grad_state):
                     inputs = ctx.saved_tensors[ctx.num_intermediate:ctx.num_intermediate+ctx.num_inputs]
                     fx_g = make_fx(joint_forward_backward, aot_decompositions)(inputs, contiguous_args)
-                    # assert that the forward graph generated here is the same
-                    # if it's specified that the user might want to calculate double backwards
                 fw_module, bw_module = partition_fn(fx_g, ctx.saved_tensors[ctx.num_intermediate:])
-                print(fw_module.code)
-                print(ctx.fwd_graph)
-                assert fw_module.code == ctx.fwd_graph
-                func_code = bw_module.code.split('self, ')
-                # print(func_code[0] + func_code[1])
-                exec(func_code[0] + func_code[1], globals())
-                f = create_aot_autograd_function(forward, bw_compiler, bw_compiler, partition_fn, aot_decompositions, grad_state)
-                # print(bw_module.code, *ctx.saved_tensors, contiguous_args)
-                # print(*ctx.saved_tensors[:ctx.num_intermediate], *contiguous_args)
-                # print(*ctx.saved_tensors[ctx.num_intermediate:], *contiguous_args)
-                return f.apply(*ctx.saved_tensors[:ctx.num_intermediate], *contiguous_args)
+                assert fx_g.code == ctx.fx_g.code
+                f = aot_function(bw_module, bw_compiler, bw_compiler, partition_fn, aot_decompositions)
+                print("INPUTS----->", *ctx.saved_tensors[:ctx.num_intermediate], *contiguous_args)
+                print(bw_module.code)
+                out = f(*ctx.saved_tensors[:ctx.num_intermediate], *contiguous_args)
+                return out
             else:
-                assert not torch.is_grad_enabled()
-                out = normalize_as_list(compiled_bw(*ctx.saved_tensors, *contiguous_args))
+                if partition_fn is default_partition:
+                    out = normalize_as_list(compiled_bw(*ctx.saved_tensors[:ctx.num_intermediate], *contiguous_args))
+                else:
+                    assert not torch.is_grad_enabled()
+                    out = normalize_as_list(compiled_bw(*ctx.saved_tensors, *contiguous_args))
                 return tuple(out)
-            # nonlocal compiled_bw
-            # contiguous_args = [t.contiguous() for t in flat_grad_outs]
-            # if compiled_bw is None:
-            #     with torch.set_grad_enabled(grad_state):
-            #         fx_g = make_fx(joint_forward_backward, aot_decompositions)(joint_inputs[0], contiguous_args)
-            #         # assert that the forward graph generated here is the same
-            #         # if it's specified that the user might want to calculate double backwards
-            #     fw_module, bw_module = partition_fn(fx_g, joint_inputs)
-            #     compiled_bw = bw_compiler(bw_module, fw_outs[num_outs:] + contiguous_args)
-            # out = normalize_as_list(compiled_bw(*ctx.saved_tensors, *contiguous_args))
-            # return tuple(out)
 
     return CompiledFunction
 
