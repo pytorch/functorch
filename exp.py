@@ -26,7 +26,7 @@ def f(a):
     d = torch.clone(c)
     e = torch.relu(d)
     f = torch.relu(e)
-    return e + f
+    return b + c + e + f
 
 traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
 
