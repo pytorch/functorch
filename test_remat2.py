@@ -109,6 +109,8 @@ def copy_all_nodes(module_origin, module_dest, fused_graph, name_to_node):
             break
     for node in module_origin.graph.nodes:
         if node.op == "output":
+            if (len(used_inds) == 0 and len(node.args[0]) == 1): # only has a single output TODO: check
+                break
             new_args = []
             for i in range(len(node.args[0])):
                 if i in used_inds:
