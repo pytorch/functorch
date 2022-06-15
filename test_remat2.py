@@ -16,7 +16,7 @@ def f(a):
     f = torch.relu(e)
     return b + c + e + f
 
-traced = make_fx(f)(torch.randn(2))
+traced = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
 supported_ops = NvFuserOperatorSupport()
 partitioner = CapabilityBasedPartitioner(traced, supported_ops)
 candidates = partitioner.get_candidates()
