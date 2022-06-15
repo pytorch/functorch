@@ -208,7 +208,9 @@ additional_op_db.append(
         sample_inputs_func=sample_inputs_mse_loss,
         supports_out=False,
         supports_forward_ad=True,
-        supports_fwgrad_bwgrad=True,
+        # It technically does, but it's a long story...
+        # we need this as False to do our testing :)
+        supports_fwgrad_bwgrad=False,
         dtypes=floating_types_and(torch.float16),
         backward_dtypes=floating_types(),
         dtypesIfCUDA=floating_types_and(torch.bfloat16, torch.float16),
