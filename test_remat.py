@@ -17,7 +17,7 @@ from torch.fx.passes.tools_common import NodeList, NodeSet, legalize_graph
 
 import unittest
 from torch.testing._internal.common_utils import TestCase, run_tests
-from remat_utils import get_users, get_fused_node_pairs
+from remat_utils import get_users, get_fused_node_pairs, get_num_changes
 
 
 def f(a):
@@ -102,13 +102,24 @@ def f4(a):
     return j + h + b
 
 def get_fused_graph(f):
-        traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
-        supported_ops = NvFuserOperatorSupport()
-        partitioner = CapabilityBasedPartitioner(traced_graph, supported_ops)
-        candidates = partitioner.get_candidates()
-        partitions = partitioner.partition(candidates)
-        fused_graph = partitioner.fuse_partitions(partitions) # modifed traced in-place
-        return fused_graph
+    traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
+    supported_ops = NvFuserOperatorSupport()
+    partitioner = CapabilityBasedPartitioner(traced_graph, supported_ops)
+    candidates = partitioner.get_candidates()
+    partitions = partitioner.partition(candidates)
+    fused_graph = partitioner.fuse_partitions(partitions) # modifed traced in-place
+    return fused_graph
+
+def get_fused_graph_for_num_changes(f):
+    traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
+    node_users_map = {node.name: set(node.users.keys()) for node in traced_graph.graph.nodes }
+    supported_ops = NvFuserOperatorSupport()
+    partitioner = CapabilityBasedPartitioner(traced_graph, supported_ops)
+    candidates = partitioner.get_candidates()
+    candidates_names = set([node.name for node in candidates])
+    partitions = partitioner.partition(candidates)
+    fused_graph = partitioner.fuse_partitions(partitions) # modifed traced in-place
+    return candidates_names, node_users_map, fused_graph
 
 class GetUsersTestCase(TestCase):
 
@@ -183,6 +194,30 @@ class GetFusedNodePairsTestCase(TestCase):
         pair_names = [(pair[0].name, pair[1].name) for pair in pairs]
         expected_pairs = [["fused_2", "fused_1"], ["fused_2", "fused_0"], ["fused_1", "fused_0"]]
         self.assertEqual(pair_names, expected_pairs)
+
+
+class GetNumChangesTestCase(TestCase):
+
+    # @classmethod
+    # def setUpClass(cls):
+    #     cls.fused_graph = get_fused_graph(f)
+    #     cls.fused_graph_1 = get_fused_graph(f1)
+    #     cls.fused_graph_2 = get_fused_graph(f2)
+    #     cls.fused_graph_3 = get_fused_graph(f3)
+    #     cls.fused_graph_4 = get_fused_graph(f4)
+
+    def test_simple(self):
+        candidates_names, node_users_map, fused_graph = get_fused_graph_for_num_changes(f)
+        name_to_node = {node.name:node for node in fused_graph.graph.nodes}
+        node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
+        add_num_placeholder, remove_num_placeholder, delta_write \
+            = get_num_changes(node_pair, candidates_names, node_users_map, fused_graph)
+        self.assertEqual(add_num_placeholder, 1, f"add_num_placeholder is {add_num_placeholder}")
+        self.assertEqual(remove_num_placeholder, 2)
+        self.assertEqual(delta_write, -1)
+
+    # def test_share_inputs(self):
+
 
 if __name__ == "__main__":
     run_tests()
