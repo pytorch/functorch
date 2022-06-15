@@ -36,38 +36,34 @@ def get_fused_node_pairs(fused_graph):
     return fused_node_pairs
 
 
-def get_delta_write(orig_node_names, node_users_map, candidates_names, dest_node_names):
+def get_delta_write(orig_node_names, node_users_map, dest_node_names):
     """"
     get the number of write changes if we rematerializes nodes in [orig_node_names] to compute
     [dest_node_names].
 
     [node_users_map] is a map from nodes' names to their user in original un-fused graph 
-    [candidates_names] are the names of fusable nodes in orignal un-fused graph
 
     If a node has any write to an unfusable node, this write cannot be reduced.
     """
 
-    def cannot_fuse(name):
-        return name not in candidates_names
-
     delta_write = 0
+    orig_node_names_set = set(orig_node_names)
     for name in orig_node_names:
         local_count = 0
-        for user_node in node_users_map[name]:
-            if cannot_fuse(user_node.name): # must pass result to a non-fusable operator
-                local_count = 0 # cannot reduce this write
-                break
-            if user_node.name in dest_node_names:
-                local_count += 1
+        user_names_set = set([n.name for n in node_users_map[name]])
+        user_names_outside_set = user_names_set.difference(orig_node_names_set)
+        if len(user_names_outside_set) > 0 and user_names_outside_set.issubset(set(dest_node_names)):
+            local_count += 1
         delta_write -= local_count
     return delta_write
 
 
-def get_num_changes(node_pair, candidates_names, node_users_map, fused_graph):
+def get_num_changes(node_pair, node_users_map, fused_graph):
     # get the number of read/write changes if we rematerilize node_pair[0] in node_pair[1]
     # candidate names is all node names in original graph that are fusable
     # node_users_map is a map from nodes to their users in the original graph
     # assumption: node_pair[0] must be ancestors of node_pair[1]
+    # assumption: nodes in node_pair have modules in fused_graph with same name
 
     node_origin = node_pair[0]
     node_dest = node_pair[1]
@@ -100,14 +96,14 @@ def get_num_changes(node_pair, candidates_names, node_users_map, fused_graph):
             dest_node_names.add(node.name)
    
     # get the number of writes reduced if we remateriliaze origin
-    delta_write = get_delta_write(orig_node_names, node_users_map, candidates_names, dest_node_names)
+    delta_write = get_delta_write(orig_node_names, node_users_map, dest_node_names)
     return add_num_placeholder, remove_num_placeholder, delta_write
     
-def check_remat_orign(node_pair, candidates_names, node_users_map, fused_graph):
+def check_remat_orign(node_pair, node_users_map, fused_graph):
     # check whether we should rematerilize node_pair[0] in node_pair[1]
     # candidate names is all node names in original graph that are fusable
     # node_users_map is a map from nodes to their users in the original graph
-    add_num_placeholder, remove_num_placeholder, delta_write = get_num_changes(node_pair, candidates_names, node_users_map, fused_graph)
+    add_num_placeholder, remove_num_placeholder, delta_write = get_num_changes(node_pair, node_users_map, fused_graph)
     delta_read = add_num_placeholder - remove_num_placeholder
     return delta_write + delta_read < 0
 
@@ -197,12 +193,11 @@ def rematerialize(traced_graph):
     partitions = partitioner.partition(candidates)
     fused_graph = partitioner.fuse_partitions(partitions) # modifed traced in-place
 
-    candidates_names = set([node.name for node in candidates])
     name_to_node = {node.name:node for node in fused_graph.graph.nodes}
 
     fused_node_pairs = get_fused_node_pairs(fused_graph)
     for node_pair in fused_node_pairs:
-        do_remat = check_remat_orign(node_pair, candidates_names, node_users_map, fused_graph)
+        do_remat = check_remat_orign(node_pair, node_users_map, fused_graph)
         print(do_remat)
         if do_remat:
             copy_all_nodes(node_pair, fused_graph, name_to_node)
