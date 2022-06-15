@@ -101,6 +101,18 @@ def f4(a):
     j = i.relu()
     return j + h + b
 
+
+# three fused groups
+def f5(a):
+    b = a.cos()
+    c = torch.relu(b)
+    d = torch.clone(c)
+    h = d + b + c
+    i = h.clone()
+    j = i.relu()
+    return j + h + b
+
+
 def get_fused_graph(f):
     traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
     supported_ops = NvFuserOperatorSupport()
@@ -116,10 +128,9 @@ def get_fused_graph_for_num_changes(f):
     supported_ops = NvFuserOperatorSupport()
     partitioner = CapabilityBasedPartitioner(traced_graph, supported_ops)
     candidates = partitioner.get_candidates()
-    candidates_names = set([node.name for node in candidates])
     partitions = partitioner.partition(candidates)
     fused_graph = partitioner.fuse_partitions(partitions) # modifed traced in-place
-    return candidates_names, node_users_map, fused_graph
+    return node_users_map, fused_graph
 
 class GetUsersTestCase(TestCase):
 
@@ -206,18 +217,58 @@ class GetNumChangesTestCase(TestCase):
     #     cls.fused_graph_3 = get_fused_graph(f3)
     #     cls.fused_graph_4 = get_fused_graph(f4)
 
-    def test_simple(self):
-        candidates_names, node_users_map, fused_graph = get_fused_graph_for_num_changes(f)
+    def test_user_within_origin_module(self):
+        node_users_map, fused_graph = get_fused_graph_for_num_changes(f)
         name_to_node = {node.name:node for node in fused_graph.graph.nodes}
         node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
         add_num_placeholder, remove_num_placeholder, delta_write \
-            = get_num_changes(node_pair, candidates_names, node_users_map, fused_graph)
+            = get_num_changes(node_pair, node_users_map, fused_graph)
         self.assertEqual(add_num_placeholder, 1, f"add_num_placeholder is {add_num_placeholder}")
-        self.assertEqual(remove_num_placeholder, 2)
-        self.assertEqual(delta_write, -1)
+        self.assertEqual(remove_num_placeholder, 2, f"remove_num_placeholder is {remove_num_placeholder}")
+        self.assertEqual(delta_write, -1, f"delta_write is {delta_write}")
 
-    # def test_share_inputs(self):
+    def test_multiple_fused_groups(self):
+        node_users_map, fused_graph = get_fused_graph_for_num_changes(f3)
+        name_to_node = {node.name:node for node in fused_graph.graph.nodes}
+        node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
+        add_num_placeholder, remove_num_placeholder, delta_write \
+            = get_num_changes(node_pair, node_users_map, fused_graph)
+        self.assertEqual(add_num_placeholder, 4, f"add_num_placeholder is {add_num_placeholder}")
+        self.assertEqual(remove_num_placeholder, 1, f"remove_num_placeholder is {remove_num_placeholder}")
+        self.assertEqual(delta_write, 0, f"delta_write is {delta_write}")
 
+    def test_share_placeholders(self):
+        node_users_map, fused_graph = get_fused_graph_for_num_changes(f4)
+        name_to_node = {node.name:node for node in fused_graph.graph.nodes}
+        node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
+        add_num_placeholder, remove_num_placeholder, delta_write \
+            = get_num_changes(node_pair, node_users_map, fused_graph)
+        self.assertEqual(add_num_placeholder, 4, f"add_num_placeholder is {add_num_placeholder}")
+        self.assertEqual(remove_num_placeholder, 2, f"remove_num_placeholder is {remove_num_placeholder}")
+        self.assertEqual(delta_write, 0, f"delta_write is {delta_write}")
+
+    def test_write_to_non_fusable_and_other_groups(self):
+        node_users_map, fused_graph = get_fused_graph_for_num_changes(f4)
+        name_to_node = {node.name:node for node in fused_graph.graph.nodes}
+        node_pair = (name_to_node["fused_2"], name_to_node["fused_1"])
+        add_num_placeholder, remove_num_placeholder, delta_write \
+            = get_num_changes(node_pair, node_users_map, fused_graph)
+        self.assertEqual(add_num_placeholder, 1, f"add_num_placeholder is {add_num_placeholder}")
+        self.assertEqual(remove_num_placeholder, 2, f"remove_num_placeholder is {remove_num_placeholder}")
+        self.assertEqual(delta_write, 0, f"delta_write is {delta_write}")
+
+    def test_write_to_other_groups(self):
+        node_users_map, fused_graph = get_fused_graph_for_num_changes(f5)
+        name_to_node = {node.name:node for node in fused_graph.graph.nodes}
+        node_pair = (name_to_node["fused_2"], name_to_node["fused_1"])
+        add_num_placeholder, remove_num_placeholder, delta_write \
+            = get_num_changes(node_pair, node_users_map, fused_graph)
+        self.assertEqual(add_num_placeholder, 1, f"add_num_placeholder is {add_num_placeholder}")
+        self.assertEqual(remove_num_placeholder, 2, f"remove_num_placeholder is {remove_num_placeholder}")
+        self.assertEqual(delta_write, 0, f"delta_write is {delta_write}")
+
+# test multiple users in other groups
+# test multiple users in my group
 
 if __name__ == "__main__":
     run_tests()
