@@ -19,3 +19,5 @@ op_analysis/*.txt
 *.swo
 *.swp
 *.swm
+
+.hypothesis/

@@ -14,7 +14,7 @@ def is_fused_node(node):
 
 def get_users(node):
     # get the users of a node in fused graph
-    # the user might use the output of ndoe through getitem
+    # the user might use the output of node through getitem
     users = set()
     for user_node in node.users:
         if user_node.target == operator.getitem: #  TODO: any other possible skips?
