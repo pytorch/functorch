@@ -17,7 +17,7 @@ from torch.fx.passes.tools_common import NodeList, NodeSet, legalize_graph
 
 import unittest
 from torch.testing._internal.common_utils import TestCase, run_tests
-from remat_utils import get_users
+from remat_utils import get_users, get_fused_node_pairs
 
 
 def f(a):
@@ -27,6 +27,14 @@ def f(a):
     e = torch.relu(d)
     f = torch.relu(e)
     return b + c + e + f
+# === fused graph graph():
+#     %a_1 : [#users=1] = placeholder[target=a_1]
+#     %fused_1 : [#users=2] = call_module[target=fused_1](args = (%a_1,), kwargs = {})
+#     %getitem : [#users=1] = call_function[target=operator.getitem](args = (%fused_1, 0), kwargs = {})
+#     %getitem_1 : [#users=2] = call_function[target=operator.getitem](args = (%fused_1, 1), kwargs = {})
+#     %clone : [#users=1] = call_function[target=torch.ops.aten.clone](args = (%getitem_1,), kwargs = {})
+#     %fused_0 : [#users=1] = call_module[target=fused_0](args = (%clone, %getitem, %getitem_1), kwargs = {})
+#     return fused_0
 
 def f1(a):
     b = a.cos()
@@ -35,7 +43,14 @@ def f1(a):
     e = torch.relu(d)
     f = torch.relu(e)
     return b + e + f
-
+# === fused graph graph():
+#     %a_1 : [#users=1] = placeholder[target=a_1]
+#     %fused_1 : [#users=2] = call_module[target=fused_1](args = (%a_1,), kwargs = {})
+#     %getitem : [#users=1] = call_function[target=operator.getitem](args = (%fused_1, 0), kwargs = {})
+#     %getitem_1 : [#users=1] = call_function[target=operator.getitem](args = (%fused_1, 1), kwargs = {})
+#     %clone : [#users=1] = call_function[target=torch.ops.aten.clone](args = (%getitem_1,), kwargs = {})
+#     %fused_0 : [#users=1] = call_module[target=fused_0](args = (%clone, %getitem), kwargs = {})
+#     return fused_0
 
 def f2(a):
     b = a.cos()
@@ -44,6 +59,13 @@ def f2(a):
     e = torch.relu(d)
     f = torch.relu(e)
     return e + f
+# === fused graph graph():
+#     %a_1 : [#users=1] = placeholder[target=a_1]
+#     %fused_1 : [#users=2] = call_module[target=fused_1](args = (%a_1,), kwargs = {})
+#     %clone : [#users=1] = call_function[target=torch.ops.aten.clone](args = (%fused_1,), kwargs = {})
+#     %fused_0 : [#users=1] = call_module[target=fused_0](args = (%clone, %fused_1), kwargs = {})
+#     return fused_0
+
 
 def get_fused_graph(f):
         traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
@@ -90,8 +112,32 @@ class GetUsersTestCase(TestCase):
         expected_users = set(["clone"])
         self.assertEqual(users_by_name, expected_users)
 
+class GetFusedNodePairsTestCase(TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        cls.fused_graph = get_fused_graph(f)
+        # cls.name_to_node = {node.name:node for node in cls.fused_graph.graph.nodes}
+        cls.fused_graph_1 = get_fused_graph(f1)
+        # cls.name_to_node_1 = {node.name:node for node in fused_graph_1.graph.nodes}
+        cls.fused_graph_2 = get_fused_graph(f2)
+        # cls.name_to_node_2 = {node.name:node for node in fused_graph_2.graph.nodes}
+    
+    def test_only_one_pair(self):
+        pairs = get_fused_node_pairs(self.fused_graph)
+        pair_names = [(pair[0].name, pair[1].name) for pair in pairs]
+        expected_pairs = [["fused_1", "fused_0"]]
+        self.assertEqual(pair_names, expected_pairs)
+    
+        pairs = get_fused_node_pairs(self.fused_graph_1)
+        pair_names = [(pair[0].name, pair[1].name) for pair in pairs]
+        self.assertEqual(pair_names, expected_pairs)
 
+    def test_no_pair(self):
+        pairs = get_fused_node_pairs(self.fused_graph_2)
+        pair_names = [(pair[0].name, pair[1].name) for pair in pairs]
+        expected_pairs = []
+        self.assertEqual(pair_names, expected_pairs)
 
 if __name__ == "__main__":
     run_tests()
