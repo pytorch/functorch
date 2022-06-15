@@ -1159,7 +1159,6 @@ class TestOperators(TestCase):
         xfail('nn.functional.huber_loss', ''),
         xfail('nn.functional.instance_norm', ''),
         xfail('nn.functional.logsigmoid', ''),
-        xfail('nn.functional.pad', 'circular'),
         xfail('nn.functional.softmin', ''),
         xfail('nn.functional.softmin', 'with_dtype'),
         xfail('renorm', ''),
@@ -1204,6 +1203,12 @@ class TestOperators(TestCase):
 
             primals_tangents = tree_map(lambda x: torch.randn_like(x), primals)
             cotangents_tangents = tree_map(lambda x: torch.randn_like(x), cotangents)
+
+            # For reasons unknown to me, pad circular ends up mutating these.
+            # copy them to workaround it.
+            # repro at https://gist.github.com/zou3519/9d2a4e49faf63b3495733df9777b95f8
+            primals_tangents_copy = tree_map(lambda x: torch.clone(x), primals_tangents)
+            cotangents_tangents_copy = tree_map(lambda x: torch.clone(x), cotangents_tangents)
 
             if isinstance(primals[0], torch.Tensor) and primals[0].numel() == 0:
                 # typically the first primal arg is the input. If the input has no elements, we will typically run
@@ -1266,7 +1271,7 @@ class TestOperators(TestCase):
                     atol_rtol = None
                 self._compare_jacobians_of_vjp(fn, args, argnums, atol_rtol)
             else:
-                expected = reference(primals, cotangents, primals_tangents, cotangents_tangents)
+                expected = reference(primals, cotangents, primals_tangents_copy, cotangents_tangents_copy)
                 self.assertEqual(result, expected)
 
     def _make_extremal_inputs(self, shape, device):
