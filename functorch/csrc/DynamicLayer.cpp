@@ -102,26 +102,13 @@ class FuncTorchTLS : public FuncTorchTLSBase {
   }
 
   void checkSupportsInplaceRequiresGrad() const override {
-    TORCH_CHECK(dynamicLayerStack.size() == 0 || allow_inplace_requires_grad_,
-        "You are attempting to call Tensor.requires_grad_() (or perhaps using ",
-        "torch.autograd.functional.* APIs) inside of a function being transformed ",
-        "by a functorch transform. ",
-        "This is unsupported, please attempt to use the functorch transforms ",
-        "(e.g. grad, vjp, jacrev, jacfwd, hessian) or call requires_grad_() "
-        "outside of a function being transformed instead.");
+    // Does nothing
   }
   void checkSupportsRetainGrad() const override {
-    TORCH_CHECK(dynamicLayerStack.size() == 0,
-        "You are attempting to call Tensor.retain_grad() ",
-        "inside of a function being transformed ",
-        "by a functorch transform. ",
-        "This is unsupported, please attempt to use the functorch transforms ",
-        "(e.g. grad, vjp, jacrev, jacfwd, hessian) or call retain_grad() "
-        "outside of a function being transformed instead.");
+    // Does nothing
   }
 
   std::vector<DynamicLayer> dynamicLayerStack;
-  bool allow_inplace_requires_grad_ = false;
 };
 
 static FuncTorchTLS* getRawFunctorchTLS() {
@@ -134,17 +121,6 @@ static FuncTorchTLS* getRawFunctorchTLS() {
   FuncTorchTLS* result = static_cast<FuncTorchTLS*>(raw_state);
   return result;
 }
-
-void setInplaceRequiresGradAllowed(bool allowed) {
-  auto* functorch_tls = getRawFunctorchTLS();
-  functorch_tls->allow_inplace_requires_grad_ = allowed;
-}
-
-bool getInplaceRequiresGradAllowed() {
-  auto* functorch_tls = getRawFunctorchTLS();
-  return functorch_tls->allow_inplace_requires_grad_;
-}
-
 
 static std::vector<DynamicLayer>& dynamicLayerStackAccessor() {
   return getRawFunctorchTLS()->dynamicLayerStack;
