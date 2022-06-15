@@ -66,6 +66,40 @@ def f2(a):
 #     %fused_0 : [#users=1] = call_module[target=fused_0](args = (%clone, %fused_1), kwargs = {})
 #     return fused_0
 
+# three fused groups
+def f3(a):
+    b = a.cos()
+    c = torch.relu(b)
+    d = torch.clone(c)
+    e = torch.clone(b)
+    h = e + d + b + c
+    i = h.clone()
+    j = i.relu()
+    return j + h
+
+# assignment {add_3: 0, relu_1: 0, add_2: 1, add_1: 1, add: 1, relu: 2, cos: 2}
+# === fused graph graph():
+#     %a_1 : [#users=1] = placeholder[target=a_1]
+#     %fused_2 : [#users=2] = call_module[target=fused_2](args = (%a_1,), kwargs = {})
+#     %getitem : [#users=2] = call_function[target=operator.getitem](args = (%fused_2, 0), kwargs = {})
+#     %getitem_1 : [#users=2] = call_function[target=operator.getitem](args = (%fused_2, 1), kwargs = {})
+#     %clone : [#users=1] = call_function[target=torch.ops.aten.clone](args = (%getitem_1,), kwargs = {})
+#     %clone_1 : [#users=1] = call_function[target=torch.ops.aten.clone](args = (%getitem,), kwargs = {})
+#     %fused_1 : [#users=2] = call_module[target=fused_1](args = (%clone_1, %clone, %getitem, %getitem_1), kwargs = {})
+#     %clone_2 : [#users=1] = call_function[target=torch.ops.aten.clone](args = (%fused_1,), kwargs = {})
+#     %fused_0 : [#users=1] = call_module[target=fused_0](args = (%clone_2, %fused_1), kwargs = {})
+#     return fused_0
+
+# three fused groups
+def f4(a):
+    b = a.cos()
+    c = torch.relu(b)
+    d = torch.clone(c)
+    e = torch.clone(b)
+    h = e + d + b + c
+    i = h.clone()
+    j = i.relu()
+    return j + h + b
 
 def get_fused_graph(f):
         traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
@@ -117,12 +151,11 @@ class GetFusedNodePairsTestCase(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.fused_graph = get_fused_graph(f)
-        # cls.name_to_node = {node.name:node for node in cls.fused_graph.graph.nodes}
         cls.fused_graph_1 = get_fused_graph(f1)
-        # cls.name_to_node_1 = {node.name:node for node in fused_graph_1.graph.nodes}
         cls.fused_graph_2 = get_fused_graph(f2)
-        # cls.name_to_node_2 = {node.name:node for node in fused_graph_2.graph.nodes}
-    
+        cls.fused_graph_3 = get_fused_graph(f3)
+        cls.fused_graph_4 = get_fused_graph(f4)
+
     def test_only_one_pair(self):
         pairs = get_fused_node_pairs(self.fused_graph)
         pair_names = [(pair[0].name, pair[1].name) for pair in pairs]
@@ -137,6 +170,18 @@ class GetFusedNodePairsTestCase(TestCase):
         pairs = get_fused_node_pairs(self.fused_graph_2)
         pair_names = [(pair[0].name, pair[1].name) for pair in pairs]
         expected_pairs = []
+        self.assertEqual(pair_names, expected_pairs)
+
+    def test_two_pairs(self):
+        pairs = get_fused_node_pairs(self.fused_graph_3)
+        pair_names = [(pair[0].name, pair[1].name) for pair in pairs]
+        expected_pairs = [["fused_2", "fused_1"], ["fused_1", "fused_0"]]
+        self.assertEqual(pair_names, expected_pairs)
+
+    def test_multiple_pairs(self):
+        pairs = get_fused_node_pairs(self.fused_graph_4)
+        pair_names = [(pair[0].name, pair[1].name) for pair in pairs]
+        expected_pairs = [["fused_2", "fused_1"], ["fused_2", "fused_0"], ["fused_1", "fused_0"]]
         self.assertEqual(pair_names, expected_pairs)
 
 if __name__ == "__main__":
