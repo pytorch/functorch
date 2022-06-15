@@ -64,9 +64,10 @@ def get_delta_write(orig_node_names, node_users_map, candidates_names, dest_node
 
 
 def get_num_changes(node_pair, candidates_names, node_users_map, fused_graph):
-    # check whether we should rematerilize node_pair[0] in node_pair[1]
+    # get the number of read/write changes if we rematerilize node_pair[0] in node_pair[1]
     # candidate names is all node names in original graph that are fusable
     # node_users_map is a map from nodes to their users in the original graph
+    # assumption: node_pair[0] must be ancestors of node_pair[1]
 
     node_origin = node_pair[0]
     node_dest = node_pair[1]
@@ -82,6 +83,8 @@ def get_num_changes(node_pair, candidates_names, node_users_map, fused_graph):
     add_num_placeholder = 0
     remove_num_placeholder = 0
     for node in module_origin.graph.nodes:
+        # might be overcounting some placeholders that are not neccessary to compute
+        # nodes in dest
         if node.op == "placeholder":
             add_num_placeholder += 1
             orig_placeholder_node_names.add(node.name)
@@ -90,18 +93,22 @@ def get_num_changes(node_pair, candidates_names, node_users_map, fused_graph):
         
     for node in module_dest.graph.nodes:
         if node.op == "placeholder":
+            # avoid double counting placeholders that already exists
             if node.name in orig_node_names or node.name in orig_placeholder_node_names:
                 remove_num_placeholder += 1
         elif node.op != "output":
             dest_node_names.add(node.name)
-
-    delta_read = add_num_placeholder - remove_num_placeholder
+   
     # get the number of writes reduced if we remateriliaze origin
     delta_write = get_delta_write(orig_node_names, node_users_map, candidates_names, dest_node_names)
-    return delta_read, delta_write
+    return add_num_placeholder, remove_num_placeholder, delta_write
     
 def check_remat_orign(node_pair, candidates_names, node_users_map, fused_graph):
-    delta_read, delta_write = get_num_changes(node_pair, candidates_names, node_users_map, fused_graph)
+    # check whether we should rematerilize node_pair[0] in node_pair[1]
+    # candidate names is all node names in original graph that are fusable
+    # node_users_map is a map from nodes to their users in the original graph
+    add_num_placeholder, remove_num_placeholder, delta_write = get_num_changes(node_pair, candidates_names, node_users_map, fused_graph)
+    delta_read = add_num_placeholder - remove_num_placeholder
     return delta_write + delta_read < 0
 
 
