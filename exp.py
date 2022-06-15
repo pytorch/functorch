@@ -21,14 +21,14 @@ from remat_utils import get_users
 
 
 def f(a):
-    b = a.cos()
-    c = torch.relu(b)
-    d = torch.clone(c)
-    e = torch.clone(b)
-    h = e + d + b + c
-    i = h.clone()
-    j = i.relu()
-    return j + h
+    b = a.relu()
+    c = a.cos()
+    d = b + c
+    e = b.relu()
+    f = e + b
+    g = f.clone()
+    h = g + b
+    return h + d
 
 traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
 

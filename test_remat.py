@@ -113,6 +113,16 @@ def f5(a):
     return j + h + b
 
 
+def f6(a):
+    b = a.relu()
+    c = a.cos()
+    d = b + c
+    e = b.relu()
+    f = e + b
+    g = f.clone()
+    h = g + b
+    return h + d
+
 def get_fused_graph(f):
     traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
     supported_ops = NvFuserOperatorSupport()
@@ -209,14 +219,6 @@ class GetFusedNodePairsTestCase(TestCase):
 
 class GetNumChangesTestCase(TestCase):
 
-    # @classmethod
-    # def setUpClass(cls):
-    #     cls.fused_graph = get_fused_graph(f)
-    #     cls.fused_graph_1 = get_fused_graph(f1)
-    #     cls.fused_graph_2 = get_fused_graph(f2)
-    #     cls.fused_graph_3 = get_fused_graph(f3)
-    #     cls.fused_graph_4 = get_fused_graph(f4)
-
     def test_user_within_origin_module(self):
         node_users_map, fused_graph = get_fused_graph_for_num_changes(f)
         name_to_node = {node.name:node for node in fused_graph.graph.nodes}
@@ -267,8 +269,15 @@ class GetNumChangesTestCase(TestCase):
         self.assertEqual(remove_num_placeholder, 2, f"remove_num_placeholder is {remove_num_placeholder}")
         self.assertEqual(delta_write, 0, f"delta_write is {delta_write}")
 
-# test multiple users in other groups
-# test multiple users in my group
+    def test_multiple_users_in_origin_group(self):
+        node_users_map, fused_graph = get_fused_graph_for_num_changes(f6)
+        name_to_node = {node.name:node for node in fused_graph.graph.nodes}
+        node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
+        add_num_placeholder, remove_num_placeholder, delta_write \
+            = get_num_changes(node_pair, node_users_map, fused_graph)
+        self.assertEqual(add_num_placeholder, 1, f"add_num_placeholder is {add_num_placeholder}")
+        self.assertEqual(remove_num_placeholder, 2, f"remove_num_placeholder is {remove_num_placeholder}")
+        self.assertEqual(delta_write, -1, f"delta_write is {delta_write}")
 
 if __name__ == "__main__":
     run_tests()
