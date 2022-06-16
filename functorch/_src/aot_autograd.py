@@ -108,12 +108,12 @@ def _reshape_alias(x, shape, strides):
     return aten.view(x, shape)
 
 
-@register_decomposition(aten.new_zeros, aot_autograd_decompositions)
+@register_decomposition(aten.new_zeros, aot_autograd_decompositions, disable_meta=True)
 def new_zeros(inp, size, dtype=None, layout=None, device=None, pin_memory=None):
     return torch.zeros(size, dtype=inp.dtype, device=inp.device)
 
 
-@register_decomposition(aten.new_full, aot_autograd_decompositions)
+@register_decomposition(aten.new_full, aot_autograd_decompositions, disable_meta=True)
 def new_full(inp, size, value, dtype=None, layout=None, device=None, pin_memory=None):
     return torch.full(size, value, dtype=inp.dtype, device=inp.device)
 
