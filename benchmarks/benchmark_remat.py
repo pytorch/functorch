@@ -33,17 +33,19 @@ def profile_function(name, f, inp):
 
     fused_graph = rematerialize(traced_graph)
 
+    num_fused_group = 0
     for node in fused_graph.graph.nodes:
         if "fused_" in node.name:
             module = getattr(fused_graph, node.name)
             setattr(fused_graph, node.name, torch.jit.script(module) )
+            num_fused_group += 1
 
     # fused_graph.fused_1 = torch.jit.script(fused_graph.fused_1)
     # fused_graph.fused_0 = torch.jit.script(fused_graph.fused_0)
 
     avg_cuda_time_g = benchmark_GPU_time(fused_graph, inp)
 
-    print(f"{name}, {avg_cuda_time_f}, {avg_cuda_time_g}")
+    print(f"{name}, {avg_cuda_time_f}, {avg_cuda_time_g}, {num_fused_group}")
 
 g_gpu = torch.Generator(device='cuda')
 g_gpu.manual_seed(2147483647)
@@ -59,14 +61,31 @@ def f(a):
 
 profile_function("f", f, inp)
 
-def f(x):
-    vals = [x]
-    ops = [torch.clone, torch.cos, torch.sin, torch.relu, torch.tanh, torch.nn.functional.gelu]
+def frandom(x):
+    vals = [x, x]
+    ops = [torch.clone, torch.clone, torch.clone, torch.add, torch.add,
+         torch.cos, torch.sin, torch.relu, torch.tanh, torch.nn.functional.gelu]
     for _ in range(100):
-        new_val = random.choice(ops)(random.choice(vals))
+        op = random.choice(ops)
+        if op == torch.add:
+            new_val = op(random.choice(vals), random.choice(vals))
+        else:
+            new_val = op(random.choice(vals))
         vals.append(new_val)
     return vals[-1]
 
-fx_g = fx.symbolic_trace(f)
-fx_g.graph.eliminate_dead_code()
-fx_g.recompile()
+i = 0
+profile_function(f"rand_test_{i}", frandom, inp)
+i += 1
+
+profile_function(f"rand_test_{i}", frandom, inp)
+i += 1
+
+profile_function(f"rand_test_{i}", frandom, inp)
+i += 1
+
+profile_function(f"rand_test_{i}", frandom, inp)
+i += 1
+
+profile_function(f"rand_test_{i}", frandom, inp)
+i += 1
