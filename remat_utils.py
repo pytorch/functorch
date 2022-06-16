@@ -145,6 +145,7 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
     # print("=====module_dest.graph\n", module_dest.graph)
 
     # change the args of dest node in fused_graph
+    # TODO: bug: the active place_holders might be in another module, and thus need get_item
     for node in fused_graph.graph.nodes:
         if(node.name == module_dest.name):
             node.args = tuple([name_to_node[name] for name in active_placeholders]) 
@@ -172,6 +173,7 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
             break
     for node in module_origin.graph.nodes:
         if node.op == "output":
+            # breakpoint()
             if (len(used_inds) == 0 and type(node.args[0] is not tuple)): # only has a single output TODO: check
                 break
             new_args = []

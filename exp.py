@@ -6,15 +6,18 @@ from torch.fx.partitioner.nvfuser_operator_support import NvFuserOperatorSupport
 
 from torch.profiler import profile, ProfilerActivity
 from torch.fx.passes.fuser_utils import fuse_by_partitions
+from remat_utils import rematerialize, copy_all_nodes
 
 
 def f(a):
     b = a.cos()
     c = torch.relu(b)
     d = torch.clone(c)
-    e = torch.relu(d)
-    f = torch.relu(e)
-    return b + c + e + f
+    e = torch.clone(b)
+    h = e + d + b + c
+    i = h.clone()
+    j = i.relu()
+    return j + h
 
 traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
 
@@ -26,13 +29,21 @@ partitioner = CapabilityBasedPartitioner(traced_graph, supported_ops)
 candidates = partitioner.get_candidates()
 partitions = partitioner.partition(candidates)
 fused_graph = partitioner.fuse_partitions(partitions) # modifed traced in-place
+
 # nodes = {node.name:node for node in traced_graph.graph.nodes}
 # paritions = [[nodes["cos"], nodes["relu"], nodes["add"]], [nodes["relu_1"], nodes["relu_2"], nodes["add_1"], nodes["add_2"]]]
 # fused_graph = fuse_by_partitions(traced_graph, paritions)
-print("=== fused graph", fused_graph.graph)
-print("=== fused_0 graph", fused_graph.fused_0.graph)
-print("=== fused_1 graph", fused_graph.fused_1.graph)
 
+name_to_node = {node.name:node for node in fused_graph.graph.nodes}
+# print(name_to_node)
+node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
+copy_all_nodes(node_pair, fused_graph, name_to_node)
+fused_graph.recompile()
+
+# fused_graph = rematerialize(traced_graph)
+# print("=== after fused graph", fused_graph.graph)
+# print("=== after fused_0 graph", fused_graph.fused_0.graph)
+# print("=== after fused_1 graph", fused_graph.fused_1.graph)
 
 # a = torch.rand(5)
 # expected = f(a)
