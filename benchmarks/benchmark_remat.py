@@ -1,12 +1,8 @@
+import random
+
 import torch
 from functorch import make_fx
 from torch.profiler import profile, ProfilerActivity
-
-from torch.fx.partitioner.partitioner import CapabilityBasedPartitioner
-from torch.fx.partitioner.nvfuser_operator_support import NvFuserOperatorSupport
-from torch.fx.passes.graph_drawer import FxGraphDrawer
-from torch.fx.passes.tools_common import legalize_graph
-import operator
 
 from functorch._src.remat_utils import rematerialize
 
@@ -62,3 +58,15 @@ def f(a):
     return b + c + e + f
 
 profile_function("f", f, inp)
+
+def f(x):
+    vals = [x]
+    ops = [torch.clone, torch.cos, torch.sin, torch.relu, torch.tanh, torch.nn.functional.gelu]
+    for _ in range(100):
+        new_val = random.choice(ops)(random.choice(vals))
+        vals.append(new_val)
+    return vals[-1]
+
+fx_g = fx.symbolic_trace(f)
+fx_g.graph.eliminate_dead_code()
+fx_g.recompile()
