@@ -21,3 +21,5 @@ op_analysis/*.txt
 *.swm
 
 .hypothesis/
+exp.py
+remat_bench.txt
