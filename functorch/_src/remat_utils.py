@@ -65,7 +65,7 @@ def get_num_changes(node_pair, node_users_map, fused_graph):
     node_dest = node_pair[1]
     module_origin = getattr(fused_graph, node_origin.name)
     module_dest = getattr(fused_graph, node_dest.name)
-        
+
     # get number of writes reduced if copy all nodes from orig to dest
     # look at the users in traced graph, check how many output args have users in dest, but no
     # un-fusable user
@@ -82,7 +82,7 @@ def get_num_changes(node_pair, node_users_map, fused_graph):
             orig_placeholder_node_names.add(node.name)
         elif node.op != "output":
             orig_node_names.add(node.name)
-        
+
     for node in module_dest.graph.nodes:
         if node.op == "placeholder":
             # avoid double counting placeholders that already exists
@@ -90,11 +90,12 @@ def get_num_changes(node_pair, node_users_map, fused_graph):
                 remove_num_placeholder += 1
         elif node.op != "output":
             dest_node_names.add(node.name)
-   
+
     # get the number of writes reduced if we remateriliaze origin
     delta_write = get_delta_write(orig_node_names, node_users_map, dest_node_names)
     return add_num_placeholder, remove_num_placeholder, delta_write
-    
+
+
 def check_remat_orign(node_pair, node_users_map, fused_graph):
     # check whether we should rematerilize node_pair[0] in node_pair[1]
     # candidate names is all node names in original graph that are fusable
@@ -108,15 +109,15 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
     module_origin = getattr(fused_graph, node_pair[0].name)
     module_dest = getattr(fused_graph, node_pair[1].name)
 
-    name_to_node_dest = {node.name:node for node in module_dest.graph.nodes}
+    name_to_node_dest = {node.name: node for node in module_dest.graph.nodes}
     # create new nodes in dest
     first_node_dest = None
     for node in module_dest.graph.nodes:
         first_node_dest = node
         break
 
-    env = {} #  map from node in origin to node in dest
-    origin_placeholder_map = {} #  map from placeholder name in module_origin.graph to node_pair[0].args
+    env = {}  # map from node in origin to node in dest
+    origin_placeholder_map = {}  # map from placeholder name in module_origin.graph to node_pair[0].args
     loc = 0 
     for node in module_origin.graph.nodes:
         if node.op == "placeholder":
