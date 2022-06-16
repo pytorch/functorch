@@ -1,10 +1,5 @@
-import torch
-from functorch import make_fx
-from torch.profiler import profile, ProfilerActivity
-
 from torch.fx.partitioner.partitioner import CapabilityBasedPartitioner
 from torch.fx.partitioner.nvfuser_operator_support import NvFuserOperatorSupport
-from torch.fx.passes.graph_drawer import FxGraphDrawer
 from torch.fx.passes.tools_common import legalize_graph
 import operator
 
@@ -12,12 +7,13 @@ import operator
 def is_fused_node(node):
     return node.op == "call_module" and "fused_" in node.target
 
+
 def get_users(node):
     # get the users of a node in fused graph
     # the user might use the output of node through getitem
     users = set()
     for user_node in node.users:
-        if user_node.target == operator.getitem: #  TODO: any other possible skips?
+        if user_node.target == operator.getitem:  # TODO: any other possible skips?
             users = users.union(set(user_node.users.keys()))
         elif user_node.op != 'output':
             users.add(user_node)
@@ -41,7 +37,7 @@ def get_delta_write(orig_node_names, node_users_map, dest_node_names):
     get the number of write changes if we rematerializes nodes in [orig_node_names] to compute
     [dest_node_names].
 
-    [node_users_map] is a map from nodes' names to their user in original un-fused graph 
+    [node_users_map] is a map from nodes' names to their user in original un-fused graph
 
     If a node has any write to an unfusable node, this write cannot be reduced.
     """
@@ -50,7 +46,7 @@ def get_delta_write(orig_node_names, node_users_map, dest_node_names):
     orig_node_names_set = set(orig_node_names)
     for name in orig_node_names:
         local_count = 0
-        user_names_set = set([n.name for n in node_users_map[name]])
+        user_names_set = set({n.name for n in node_users_map[name]})
         user_names_outside_set = user_names_set.difference(orig_node_names_set)
         if len(user_names_outside_set) > 0 and user_names_outside_set.issubset(set(dest_node_names)):
             local_count += 1
@@ -148,14 +144,12 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
     legalize_graph(module_dest)
     module_dest.graph.eliminate_dead_code()
     module_dest.graph.lint()
-    # print("=====module_dest.graph\n", module_dest.graph)
 
     # change the args of dest node in fused_graph
     # use origin_placeholder_map because the active place_holders 
     # might be in another module, and thus need get_item
     for node in fused_graph.graph.nodes:
         if(node.name == module_dest.name):
-            # breakpoint()
             node.args = tuple([name_to_node[name] if name in name_to_node \
                         else origin_placeholder_map[name] for name in active_placeholders]) 
             break
@@ -163,7 +157,6 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
     legalize_graph(fused_graph)
     fused_graph.graph.eliminate_dead_code()
     fused_graph.graph.lint()
-    # print("======= fused_graph.graph\n", fused_graph.graph)
     module_dest.recompile() 
 
     # remove the unsed output to write less
@@ -182,8 +175,7 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
             break
     for node in module_origin.graph.nodes:
         if node.op == "output":
-            # breakpoint()
-            if (len(used_inds) == 0 and type(node.args[0] is not tuple)): # only has a single output TODO: check
+            if (len(used_inds) == 0 and type(node.args[0] is not tuple)): # only has a single output
                 break
             new_args = []
             for i in range(len(node.args[0])):
@@ -196,6 +188,8 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
     module_origin.recompile() 
 
 def rematerialize(traced_graph):
+    traced_graph.graph.eliminate_dead_code()
+    traced_graph.recompile()
     node_users_map = {node.name: set(node.users.keys()) for node in traced_graph.graph.nodes }
 
     supported_ops = NvFuserOperatorSupport()

@@ -1,3 +1,5 @@
+import random
+
 from functorch import make_fx
 import torch
 
@@ -441,6 +443,42 @@ class CopyAllNodesTestCase(TestCase):
         self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
         self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
+    def test_single_fused_group(self):
+        def f8(a):
+            b = torch.sin(a)
+            c = torch.tanh(b)
+            d = torch.tanh(c)
+            e = torch.relu(d)
+            return e
+        traced_graph = make_fx(f8, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
+        fused_graph = rematerialize(traced_graph)
+
+        a = torch.rand(5)
+        expected = f8(a)
+        result = fused_graph(a)
+        self.assertEqual(expected, result, "result is not correct")
+
+
+class RandomOpTestCase(TestCase):
+    def test_random(self):
+        def frandom(x):
+            vals = [x]
+            ops = [torch.clone, torch.cos, torch.sin, torch.relu, torch.tanh, torch.nn.functional.gelu]
+            for _ in range(100):
+                new_val = random.choice(ops)(random.choice(vals))
+                vals.append(new_val)
+            return vals[-1]
+
+        a = torch.rand(5, device='cuda')
+
+        for _ in range(30):
+            traced_graph = make_fx(frandom, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(a)
+            expected = traced_graph(a)
+
+            fused_graph = rematerialize(traced_graph)
+            result = fused_graph(a)
+
+            self.assertEqual(expected, result, f"result is not correct, {expected}, {result}")
 
 if __name__ == "__main__":
     run_tests()
