@@ -109,6 +109,19 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
     module_origin = getattr(fused_graph, node_pair[0].name)
     module_dest = getattr(fused_graph, node_pair[1].name)
 
+    # map from placeholder names to dest's args in fused graph
+    dest_args = []
+    for node in fused_graph.graph.nodes:
+        if(node.name == module_dest.name):   
+            for arg in node.args:
+               dest_args.append(arg)
+            break
+    old_placeholders = []
+    for node in module_dest.graph.nodes:
+        if node.op == "placeholder":
+            old_placeholders.append(node.name)
+    dest_arg_map = dict(zip(old_placeholders, dest_args)) 
+
     name_to_node_dest = {node.name: node for node in module_dest.graph.nodes}
     # create new nodes in dest
     first_node_dest = None
@@ -151,8 +164,17 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
     # might be in another module, and thus need get_item
     for node in fused_graph.graph.nodes:
         if(node.name == module_dest.name):
-            node.args = tuple([name_to_node[name] if name in name_to_node \
-                        else origin_placeholder_map[name] for name in active_placeholders]) 
+            new_args = []
+            for name in active_placeholders:
+                if name in name_to_node: # name is a node in fused graph
+                    new_args.append(name_to_node[name])
+                elif name in origin_placeholder_map: # name is a palceholder in origin's module
+                    new_args.append(origin_placeholder_map[name])
+                else: # name is a palceholder in dest's module
+                    new_args.append(dest_arg_map[name])
+            node.args = tuple(new_args)
+            # node.args = tuple([name_to_node[name] if name in name_to_node \
+            #             else origin_placeholder_map[name] for name in active_placeholders]) 
             break
 
     legalize_graph(fused_graph)

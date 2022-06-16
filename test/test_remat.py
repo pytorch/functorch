@@ -458,6 +458,25 @@ class CopyAllNodesTestCase(TestCase):
         result = fused_graph(a)
         self.assertEqual(expected, result, "result is not correct")
 
+    def test_dest_arg_not_in_origin(self):
+        def f9(a):
+            b = a.relu()
+            c = b.relu()
+            d = c.clone()
+            e = d + b
+            f = e.clone()
+            g = f + e
+            h = g + c
+            return h
+
+        a = torch.rand(5)
+        expected = f9(a)
+        fused_graph = get_fused_graph(f9)
+        name_to_node = {node.name:node for node in fused_graph.graph.nodes}
+        copy_all_nodes((name_to_node["fused_1"], name_to_node["fused_0"]), fused_graph, name_to_node)
+        result = fused_graph(a)
+        self.assertEqual(expected, result, f"result is not correct, {expected}, {result}")
+
 
 class RandomOpTestCase(TestCase):
     def test_random(self):
