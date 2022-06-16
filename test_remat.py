@@ -311,6 +311,61 @@ class CopyAllNodesTestCase(TestCase):
         self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
         self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
+    def test_1(self):
+        traced_graph = make_fx(f1, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
+        fused_graph = rematerialize(traced_graph)
+
+        a = torch.rand(5)
+        expected = f1(a)
+        result = fused_graph(a)
+        self.assertEqual(expected, result, "result is not correct")
+        
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
+        self.assertEqual(count_inp, 2, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
+
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
+        self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
+
+    def test_2_nochange(self):
+        traced_graph = make_fx(f2, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
+        fused_graph = rematerialize(traced_graph)
+
+        a = torch.rand(5)
+        expected = f2(a)
+        result = fused_graph(a)
+        self.assertEqual(expected, result, "result is not correct")
+        
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
+        self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
+
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
+        self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
+
+    def test_3_three_groups(self):
+        traced_graph = make_fx(f3, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
+        fused_graph = rematerialize(traced_graph)
+
+        a = torch.rand(5)
+        expected = f3(a)
+        result = fused_graph(a)
+        self.assertEqual(expected, result, "result is not correct")
+        
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
+        self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
+
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
+        self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
+
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_2)
+        self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
+
 
 if __name__ == "__main__":
     run_tests()
