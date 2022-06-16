@@ -8,7 +8,7 @@ from torch.fx.passes.graph_drawer import FxGraphDrawer
 from torch.fx.passes.tools_common import legalize_graph
 import operator
 
-from remat_utils import rematerialize
+from functorch._src.remat_utils import rematerialize
 
 def f(a):
     b = a.cos()
