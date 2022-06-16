@@ -287,7 +287,10 @@ def get_num_input_outpus(gm):
         elif node.op == "output":
             if count_out > 0:
                 assert False, "multiple output nodes"
-            count_out = 1 if type(node.args[0] is not tuple) else len(node.args[0])
+            if type(node.args[0]) is not tuple:
+                count_out = 1 
+            else:
+                count_out = len(node.args[0]) - node.args[0].count(0)
 
     return count_inp, count_out
 
@@ -376,7 +379,7 @@ class CopyAllNodesTestCase(TestCase):
 
         # count_inp, count_out = get_num_input_outpus(fused_graph.fused_2)
         # self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
-        # self.assertEqual(count_out, 1, f"count_out is {count_out}")
+        # self.assertEqual(count_out, 2, f"count_out is {count_out}")
 
 
 if __name__ == "__main__":
