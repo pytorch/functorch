@@ -726,9 +726,10 @@ class Operator:
             return Support.YES
         exemptions = {
             # we have support (see OpInfo), testing artifact
-            'torch.nn.functional.dropout2d',
+            'nn.functional.dropout2d',
+            'nn.functional.dropout',
             # exception: we dont even support double backward for this
-            'torch.nn.functional.hardswish',
+            'nn.functional.hardswish',
             'bernoulli',  # this isn't differentiable
             'normal',  # not differentiable
         }
