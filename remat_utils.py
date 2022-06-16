@@ -130,6 +130,7 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
             continue
         with module_dest.graph.inserting_before(first_node_dest):
             new_node = module_dest.graph.node_copy(node, lambda x: env[x])
+            new_node.name = node.name # use the same name such that node can be referenced back to original graph
             env[node] = new_node
             # change the args of nodes in dest to use the new node
             if node.name in name_to_node_dest:
