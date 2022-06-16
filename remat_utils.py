@@ -119,9 +119,14 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
         first_node_dest = node
         break
 
-    env = {} # map from node in origin to node in dest
+    env = {} #  map from node in origin to node in dest
+    origin_placeholder_map = {} #  map from placeholder name in module_origin.graph to node_pair[0].args
+    loc = 0 
     for node in module_origin.graph.nodes:
-        if node.op == "output":
+        if node.op == "placeholder":
+            origin_placeholder_map[node.name] = node_pair[0].args[loc]
+            loc += 1
+        elif node.op == "output":
             continue
         with module_dest.graph.inserting_before(first_node_dest):
             new_node = module_dest.graph.node_copy(node, lambda x: env[x])
@@ -145,10 +150,13 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
     # print("=====module_dest.graph\n", module_dest.graph)
 
     # change the args of dest node in fused_graph
-    # TODO: bug: the active place_holders might be in another module, and thus need get_item
+    # use origin_placeholder_map because the active place_holders 
+    # might be in another module, and thus need get_item
     for node in fused_graph.graph.nodes:
         if(node.name == module_dest.name):
-            node.args = tuple([name_to_node[name] for name in active_placeholders]) 
+            # breakpoint()
+            node.args = tuple([name_to_node[name] if name in name_to_node \
+                        else origin_placeholder_map[name] for name in active_placeholders]) 
             break
 
     legalize_graph(fused_graph)
