@@ -173,10 +173,9 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
                 else: # name is a palceholder in dest's module
                     new_args.append(dest_arg_map[name])
             node.args = tuple(new_args)
-            # node.args = tuple([name_to_node[name] if name in name_to_node \
-            #             else origin_placeholder_map[name] for name in active_placeholders]) 
             break
-
+    
+    fused_graph.recompile()
     legalize_graph(fused_graph)
     fused_graph.graph.eliminate_dead_code()
     fused_graph.graph.lint()
@@ -209,6 +208,7 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
             node.args = tuple([tuple(new_args),])
             break
     module_origin.recompile() 
+    fused_graph.recompile()
 
 def rematerialize(traced_graph):
     traced_graph.graph.eliminate_dead_code()
@@ -228,6 +228,5 @@ def rematerialize(traced_graph):
         do_remat = check_remat_orign(node_pair, node_users_map, fused_graph)
         if do_remat:
             copy_all_nodes(node_pair, fused_graph, name_to_node)
-            fused_graph.recompile()
 
     return fused_graph
