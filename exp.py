@@ -1,34 +1,20 @@
-from re import A
 from functorch import make_fx
 import torch
-from torch._decomp import decomposition_table, get_decompositions
-import numpy
-import torch
-import torch.fx as fx
-from functorch import make_fx
-from functorch.compile import aot_function, print_compile
-from torch.fx import symbolic_trace
 
-import operator
 from torch.fx.partitioner.partitioner import CapabilityBasedPartitioner
 from torch.fx.partitioner.nvfuser_operator_support import NvFuserOperatorSupport
-from torch.fx.passes.graph_drawer import FxGraphDrawer
-from torch.fx.passes.tools_common import NodeList, NodeSet, legalize_graph
 
-import unittest
-from torch.testing._internal.common_utils import TestCase, run_tests
-from remat_utils import get_users
+from torch.profiler import profile, ProfilerActivity
+from torch.fx.passes.fuser_utils import fuse_by_partitions
 
 
 def f(a):
-    b = a.relu()
-    c = a.cos()
-    d = b + c
-    e = b.relu()
-    f = e + b
-    g = f.clone()
-    h = g + b
-    return h + d
+    b = a.cos()
+    c = torch.relu(b)
+    d = torch.clone(c)
+    e = torch.relu(d)
+    f = torch.relu(e)
+    return b + c + e + f
 
 traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
 
@@ -40,8 +26,26 @@ partitioner = CapabilityBasedPartitioner(traced_graph, supported_ops)
 candidates = partitioner.get_candidates()
 partitions = partitioner.partition(candidates)
 fused_graph = partitioner.fuse_partitions(partitions) # modifed traced in-place
+# nodes = {node.name:node for node in traced_graph.graph.nodes}
+# paritions = [[nodes["cos"], nodes["relu"], nodes["add"]], [nodes["relu_1"], nodes["relu_2"], nodes["add_1"], nodes["add_2"]]]
+# fused_graph = fuse_by_partitions(traced_graph, paritions)
 print("=== fused graph", fused_graph.graph)
 print("=== fused_0 graph", fused_graph.fused_0.graph)
 print("=== fused_1 graph", fused_graph.fused_1.graph)
 
 
+# a = torch.rand(5)
+# expected = f(a)
+# result = fused_graph(a)
+# torch.testing.assert_close(expected, result)
+
+# fused_graph.fused_1 = torch.jit.script(fused_graph.fused_1)
+# fused_graph.fused_0 = torch.jit.script(fused_graph.fused_0)
+
+# inp = torch.randn(2**22, device='cuda')
+# for _ in range(5):
+#     fused_graph(inp)
+# with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
+#     for _ in range(5):
+#         fused_graph(inp)
+# print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
