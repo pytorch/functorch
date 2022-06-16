@@ -7,7 +7,7 @@ from torch.fx.passes.graph_drawer import FxGraphDrawer
 from torch.fx.passes.tools_common import NodeList, NodeSet, legalize_graph
 
 from torch.testing._internal.common_utils import TestCase, run_tests
-from remat_utils import get_users, get_fused_node_pairs, get_num_changes, rematerialize, copy_all_nodes
+from functorch._src.remat_utils import get_users, get_fused_node_pairs, get_num_changes, rematerialize, copy_all_nodes
 
 
 def f(a):
