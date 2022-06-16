@@ -172,7 +172,7 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
             break
     for node in module_origin.graph.nodes:
         if node.op == "output":
-            if (len(used_inds) == 0 and len(node.args[0]) == 1): # only has a single output TODO: check
+            if (len(used_inds) == 0 and type(node.args[0] is not tuple)): # only has a single output TODO: check
                 break
             new_args = []
             for i in range(len(node.args[0])):
@@ -198,7 +198,6 @@ def rematerialize(traced_graph):
     fused_node_pairs = get_fused_node_pairs(fused_graph)
     for node_pair in fused_node_pairs:
         do_remat = check_remat_orign(node_pair, node_users_map, fused_graph)
-        print(do_remat)
         if do_remat:
             copy_all_nodes(node_pair, fused_graph, name_to_node)
             fused_graph.recompile()
