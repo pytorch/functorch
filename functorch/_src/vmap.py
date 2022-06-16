@@ -352,20 +352,15 @@ def vmap(
         vmap does not provide general autobatching or handle variable-length
         sequences out of the box.
     """
-    if randomness not in ['error', 'different', 'same']:
-        raise RuntimeError(f"Only allowed values for randomness are 'error', 'different', or 'same'. Got {randomness}")
+    _check_randomness_arg(randomness)
 
     @functools.wraps(func)
     def wrapped(*args, **kwargs):
         _check_out_dims_is_int_or_int_pytree(out_dims, func)
         batch_size, flat_in_dims, flat_args, args_spec = _process_batched_inputs(in_dims, args, func)
-        vmap_level = _vmap_increment_nesting(batch_size, randomness)
-        try:
-            batched_inputs = _create_batched_inputs(flat_in_dims, flat_args, vmap_level, args_spec)
-            batched_outputs = func(*batched_inputs, **kwargs)
-            return _unwrap_batched(batched_outputs, out_dims, vmap_level, batch_size, func)
-        finally:
-            _vmap_decrement_nesting()
+        return _flat_vmap(
+            func, batch_size, flat_in_dims, flat_args, args_spec, out_dims, randomness, **kwargs
+        )
 
     return wrapped
 
@@ -378,7 +373,7 @@ def chunk_vmap(
         chunks=2) -> Callable:
     """
     chunk_vmap is the vectorizing map using chunks of input data. Splitting data into chunks
-    can help to prevent out-of-memory issues. For more details about vectorizing map, see :func:`vjp`.
+    can help to prevent out-of-memory issues. For more details about vectorizing map, see :func:`vmap`.
 
     Args:
         func (function): A Python function that takes one or more arguments.
@@ -399,7 +394,7 @@ def chunk_vmap(
             only applies to random PyTorch operations and does not apply to
             Python's random module or numpy randomness.
         chunks (int): Number of chunks to use to split the input data. Default is 2.
-            If equals to 1 then :func:`vjp` is called.
+            If equals to 1 then :func:`vmap` is called.
 
     Returns:
         Returns a new "batched" function. It takes the same inputs as
@@ -408,20 +403,10 @@ def chunk_vmap(
         :attr:`func`, except each output has an extra dimension at the index
         specified by :attr:`out_dims`.
     """
-    if randomness not in ['error', 'different', 'same']:
-        raise RuntimeError(f"Only allowed values for randomness are 'error', 'different', or 'same'. Got {randomness}")
+    _check_randomness_arg(randomness)
 
     if chunks == 1:
         return vmap(func, in_dims=in_dims, out_dims=out_dims, randomness=randomness)
-
-    def _flat_vmap(batch_size, flat_in_dims, flat_args, args_spec, **kwargs):
-        vmap_level = _vmap_increment_nesting(batch_size, randomness)
-        try:
-            batched_inputs = _create_batched_inputs(flat_in_dims, flat_args, vmap_level, args_spec)
-            batched_outputs = func(*batched_inputs, **kwargs)
-            return _unwrap_batched(batched_outputs, out_dims, vmap_level, batch_size, func)
-        finally:
-            _vmap_decrement_nesting()
 
     def _get_chunk_flat_args(flat_args_, flat_in_dims_, chunks_):
         flat_args_chunks = tuple(
@@ -458,10 +443,15 @@ def chunk_vmap(
 
         # Apply vmap on chunks
         chunks_output = []
+        rs = torch.get_rng_state() if randomness == "same" else None
         for flat_args in chunks_flat_args:
             batch_size = _validate_and_get_batch_size(flat_in_dims, flat_args)
+            if rs is not None:
+                torch.set_rng_state(rs)
             chunks_output.append(
-                _flat_vmap(batch_size, flat_in_dims, flat_args, args_spec, **kwargs)
+                _flat_vmap(
+                    func, batch_size, flat_in_dims, flat_args, args_spec, out_dims, randomness, **kwargs
+                )
             )
 
         flat_output_chunks, arg_spec = _flatten_chunks_output(chunks_output)
@@ -482,3 +472,19 @@ def chunk_vmap(
         return tree_unflatten(flat_output, arg_spec)
 
     return wrapped_with_chunks
+
+
+# Vmap refactored helper funcions:
+def _check_randomness_arg(randomness):
+    if randomness not in ['error', 'different', 'same']:
+        raise RuntimeError(f"Only allowed values for randomness are 'error', 'different', or 'same'. Got {randomness}")
+
+
+def _flat_vmap(func, batch_size, flat_in_dims, flat_args, args_spec, out_dims, randomness, **kwargs):
+    vmap_level = _vmap_increment_nesting(batch_size, randomness)
+    try:
+        batched_inputs = _create_batched_inputs(flat_in_dims, flat_args, vmap_level, args_spec)
+        batched_outputs = func(*batched_inputs, **kwargs)
+        return _unwrap_batched(batched_outputs, out_dims, vmap_level, batch_size, func)
+    finally:
+        _vmap_decrement_nesting()
