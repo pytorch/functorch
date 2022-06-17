@@ -176,7 +176,7 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
             break
     
     fused_graph.recompile()
-    legalize_graph(fused_graph)
+    # legalize_graph(fused_graph)  # TODO:why this hang sometimes?
     fused_graph.graph.eliminate_dead_code()
     fused_graph.graph.lint()
     module_dest.recompile() 
@@ -210,17 +210,16 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
     module_origin.recompile() 
     fused_graph.recompile()
 
-def rematerialize(traced_graph):
-    traced_graph.graph.eliminate_dead_code()
-    traced_graph.recompile()
-    node_users_map = {node.name: set(node.users.keys()) for node in traced_graph.graph.nodes }
-
+def get_fused_graph(traced_graph):
     supported_ops = NvFuserOperatorSupport()
     partitioner = CapabilityBasedPartitioner(traced_graph, supported_ops)
     candidates = partitioner.get_candidates()
     partitions = partitioner.partition(candidates)
     fused_graph = partitioner.fuse_partitions(partitions) # modifed traced in-place
+    return fused_graph
 
+
+def rematerialize_fused_graph(fused_graph, node_users_map):
     name_to_node = {node.name:node for node in fused_graph.graph.nodes}
 
     fused_node_pairs = get_fused_node_pairs(fused_graph)
@@ -230,3 +229,13 @@ def rematerialize(traced_graph):
             copy_all_nodes(node_pair, fused_graph, name_to_node)
 
     return fused_graph
+
+
+def rematerialize(traced_graph):
+    traced_graph.graph.eliminate_dead_code()
+    traced_graph.recompile()
+    node_users_map = {node.name: set(node.users.keys()) for node in traced_graph.graph.nodes }
+
+    fused_graph = get_fused_graph(traced_graph)
+    return rematerialize_fused_graph(fused_graph, node_users_map)
+
