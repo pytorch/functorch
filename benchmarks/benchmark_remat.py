@@ -2,6 +2,7 @@ import random
 
 import torch
 from functorch import make_fx
+import torch.fx as fx
 from functorch.compile import draw_graph
 from torch.profiler import profile, ProfilerActivity
 from torch.fx._symbolic_trace import symbolic_trace
@@ -9,6 +10,7 @@ import pickle
 import copy
 
 from functorch._src.remat_utils import rematerialize, get_fused_graph, rematerialize_fused_graph
+from functorch._src.cse import fx_graph_cse
 
 random.seed(1)
 
@@ -96,10 +98,12 @@ def profile_function(name, f, inp, list_inp = False):
     traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(inp)
     avg_cuda_time_f = profile_graph(traced_graph, inp, list_inp)
 
-    traced_graph_copy = copy.deepcopy(traced_graph)
+    csed = fx_graph_cse(traced_graph.graph)
+    csed_graph =  fx.GraphModule(traced_graph, csed)
+    csed_graph_copy = copy.deepcopy(csed_graph)
 
-    avg_cuda_time_g, num_fused_group = profile_fused(traced_graph, inp, list_inp)
-    avg_cuda_time_h, _ = profile_rematerialize(traced_graph_copy, inp, list_inp)
+    avg_cuda_time_g, num_fused_group = profile_fused(csed_graph, inp, list_inp)
+    avg_cuda_time_h, _ = profile_rematerialize(csed_graph_copy, inp, list_inp)
     print(f"{name}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fused_group}")
 
 
@@ -124,6 +128,16 @@ def frandom(x):
         vals.append(new_val)
     return sum(vals)
 
+g_gpu = torch.Generator(device='cuda')
+g_gpu.manual_seed(214748364)
+inp = torch.randn(2**20, device='cuda', generator=g_gpu)
+
+print("name, scripted_cuda_time, fused_cuda_time, remat_cuda_time, num_fused_group")
+
+profile_function("f", f, inp)
+
+for i in range(10):
+    profile_function(f"rand_test_{i}", frandom, inp)
 
 
 class FxModule(torch.nn.Module):
@@ -162,17 +176,6 @@ class FxModule(torch.nn.Module):
         addmm_2 = torch.ops.aten.addmm(primals_5, relu__6, t_2);  primals_5 = None
         return [addmm_2, primals_16, relu__1, primals_17, t_1, relu__3, getitem_5, primals_8, relu__6, relu_, primals_10, t, view, getitem_4, t_2, getitem, primals_12, getitem_3, getitem_2, relu__4, getitem_1, relu__2, relu__5, primals_14]
 
-
-g_gpu = torch.Generator(device='cuda')
-g_gpu.manual_seed(214748364)
-inp = torch.randn(2**20, device='cuda', generator=g_gpu)
-
-print("name, scripted_time, fused_time, remat_time, num_fused_group")
-
-profile_function("f", f, inp)
-
-for i in range(10):
-    profile_function(f"rand_test_{i}", frandom, inp)
 
 # m = FxModule()
 # inp = pickle.load(open("/scratch/shangdiy/work/torchbenchmark/torch_bench_graphs/alexnet/alexnet_forward_0/alexnet_forward_0.exampleinput", "rb"))
