@@ -115,7 +115,7 @@ def f(a):
 def frandom(x):
     vals = [x, x]
     ops = [torch.clone] * 4 + [torch.add] * 2 + [torch.relu] * 5
-    for _ in range(10):
+    for _ in range(50):
         op = random.choice(ops)
         if op == torch.add:
             new_val = op(random.choice(vals), random.choice(vals))
