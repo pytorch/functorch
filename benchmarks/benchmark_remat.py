@@ -7,7 +7,7 @@ from torch.profiler import profile, ProfilerActivity
 from torch.fx._symbolic_trace import symbolic_trace
 import pickle
 
-from functorch._src.remat_utils import rematerialize
+from functorch._src.remat_utils import rematerialize, get_fused_graph, rematerialize_fused_graph
 
 # def f(x):
 #     vals = [x]
@@ -18,20 +18,21 @@ from functorch._src.remat_utils import rematerialize
 
 # draw_graph(make_fx(f)(torch.randn(5)), 'test')
 # exit(0)
+random.seed(1)
 
 def benchmark_GPU_time(f, inp, list_inp, itr = 5):
-    if list_inp:
-        for _ in range(5):
-            f(*inp)
-        with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
-            for _ in range(itr):
-                f(*inp)
+    # if list_inp:
+    #     for _ in range(5):
+    #         f(*inp)
+    #     with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
+    #         for _ in range(itr):
+    #             f(*inp)
 
-        timing = prof.key_averages()
-        cuda_time_total = 0
-        for e in timing:
-            cuda_time_total = cuda_time_total + e.cuda_time_total
-        return cuda_time_total / itr
+    #     timing = prof.key_averages()
+    #     cuda_time_total = 0
+    #     for e in timing:
+    #         cuda_time_total = cuda_time_total + e.cuda_time_total
+    #     return cuda_time_total / itr
 
     for _ in range(5):
         f(inp)
@@ -39,20 +40,46 @@ def benchmark_GPU_time(f, inp, list_inp, itr = 5):
         for _ in range(itr):
             f(inp)
 
+    # print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=10))
+
     timing = prof.key_averages()
     cuda_time_total = 0
     for e in timing:
         cuda_time_total = cuda_time_total + e.cuda_time_total
     return cuda_time_total / itr
-    # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
 
-def profile_graph(name, traced_graph, inp, list_inp):
-    # print("traced_graph\n", traced_graph)
+# def profile_graph(name, traced_graph, inp, list_inp):
+#     # print("traced_graph\n", traced_graph)
+#     script_f = torch.jit.script(traced_graph)
+#     avg_cuda_time_f = benchmark_GPU_time(script_f, inp, list_inp)
+
+#     # fused_graph = rematerialize(traced_graph)
+#     fused_graph = get_fused_graph(traced_graph)
+
+#     num_fused_group = 0
+#     for node in fused_graph.graph.nodes:
+#         if "fused_" in node.name:
+#             module = getattr(fused_graph, node.name)
+#             setattr(fused_graph, node.name, torch.jit.script(module) )
+#             num_fused_group += 1
+
+#     avg_cuda_time_g = benchmark_GPU_time(fused_graph, inp, list_inp)
+
+#     print(f"{name}, {avg_cuda_time_f}, {avg_cuda_time_g}, {num_fused_group}")
+
+def profile_scripted(f, inp, list_inp):
+    traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(inp)
+    traced_graph.graph.eliminate_dead_code()
+    traced_graph.recompile()
     script_f = torch.jit.script(traced_graph)
     avg_cuda_time_f = benchmark_GPU_time(script_f, inp, list_inp)
+    return avg_cuda_time_f
 
-    fused_graph = rematerialize(traced_graph)
-
+def profile_fused(f, inp, list_inp):
+    traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(inp)
+    traced_graph.graph.eliminate_dead_code()
+    traced_graph.recompile()
+    fused_graph = get_fused_graph(traced_graph)
     num_fused_group = 0
     for node in fused_graph.graph.nodes:
         if "fused_" in node.name:
@@ -62,19 +89,41 @@ def profile_graph(name, traced_graph, inp, list_inp):
 
     avg_cuda_time_g = benchmark_GPU_time(fused_graph, inp, list_inp)
 
-    print(f"{name}, {avg_cuda_time_f}, {avg_cuda_time_g}, {num_fused_group}")
+    return avg_cuda_time_g, num_fused_group
 
-    
-def profile_function(name, f, inp, list_inp = False):
+def profile_rematerialize(f, inp, list_inp):
     traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(inp)
     traced_graph.graph.eliminate_dead_code()
     traced_graph.recompile()
-    print(traced_graph.code)
-    profile_graph(name, traced_graph, inp, list_inp)
+    fused_graph = rematerialize(traced_graph)
+    num_fused_group = 0
+    for node in fused_graph.graph.nodes:
+        if "fused_" in node.name:
+            module = getattr(fused_graph, node.name)
+            setattr(fused_graph, node.name, torch.jit.script(module) )
+            num_fused_group += 1
+
+    avg_cuda_time_g = benchmark_GPU_time(fused_graph, inp, list_inp)
+
+    return avg_cuda_time_g
+
+    
+
+    
+def profile_function(name, f, inp, list_inp = False):
+    
+    avg_cuda_time_f = profile_scripted(f, inp, list_inp)
+    avg_cuda_time_g, num_fused_group = profile_fused(f, inp, list_inp)
+    avg_cuda_time_h = profile_rematerialize(f, inp, list_inp)
+
+
+    print(f"{name}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fused_group}")
 
 g_gpu = torch.Generator(device='cuda')
-g_gpu.manual_seed(2147483647)
+g_gpu.manual_seed(214748364)
 inp = torch.randn(2**20, device='cuda', generator=g_gpu)
+
+print("name, scripted_time, fused_time, remat_time, num_fused_group")
 
 def f(a):
     b = a.cos()
@@ -84,13 +133,12 @@ def f(a):
     f = torch.relu(e)
     return b + c + e + f
 
-# profile_function("f", f, inp)
+profile_function("f", f, inp)
 
 def frandom(x):
     vals = [x, x]
-    ops = [torch.clone, torch.clone, torch.clone, torch.add, torch.add,
-         torch.relu,torch.relu,torch.relu,torch.relu,torch.relu]
-    for _ in range(50):
+    ops = [torch.clone] * 4 + [torch.add] * 2 + [torch.relu] * 5
+    for _ in range(10):
         op = random.choice(ops)
         if op == torch.add:
             new_val = op(random.choice(vals), random.choice(vals))
