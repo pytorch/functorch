@@ -102,13 +102,26 @@ class FuncTorchTLS : public FuncTorchTLSBase {
   }
 
   void checkSupportsInplaceRequiresGrad() const override {
-    // Does nothing
+    TORCH_CHECK(dynamicLayerStack.size() == 0 || allow_inplace_requires_grad_,
+        "You are attempting to call Tensor.requires_grad_() (or perhaps using ",
+        "torch.autograd.functional.* APIs) inside of a function being transformed ",
+        "by a functorch transform. ",
+        "This is unsupported, please attempt to use the functorch transforms ",
+        "(e.g. grad, vjp, jacrev, jacfwd, hessian) or call requires_grad_() "
+        "outside of a function being transformed instead.");
   }
   void checkSupportsRetainGrad() const override {
-    // Does nothing
+    TORCH_CHECK(dynamicLayerStack.size() == 0,
+        "You are attempting to call Tensor.retain_grad() ",
+        "inside of a function being transformed ",
+        "by a functorch transform. ",
+        "This is unsupported, please attempt to use the functorch transforms ",
+        "(e.g. grad, vjp, jacrev, jacfwd, hessian) or call retain_grad() "
+        "outside of a function being transformed instead.");
   }
 
   std::vector<DynamicLayer> dynamicLayerStack;
+  bool allow_inplace_requires_grad_ = false;
 };
 
 static FuncTorchTLS* getRawFunctorchTLS() {
@@ -121,6 +134,17 @@ static FuncTorchTLS* getRawFunctorchTLS() {
   FuncTorchTLS* result = static_cast<FuncTorchTLS*>(raw_state);
   return result;
 }
+
+void setInplaceRequiresGradAllowed(bool allowed) {
+  auto* functorch_tls = getRawFunctorchTLS();
+  functorch_tls->allow_inplace_requires_grad_ = allowed;
+}
+
+bool getInplaceRequiresGradAllowed() {
+  auto* functorch_tls = getRawFunctorchTLS();
+  return functorch_tls->allow_inplace_requires_grad_;
+}
+
 
 static std::vector<DynamicLayer>& dynamicLayerStackAccessor() {
   return getRawFunctorchTLS()->dynamicLayerStack;
@@ -473,14 +497,11 @@ TORCH_LIBRARY_IMPL(_, FT_DYNAMIC_LAYER_BACK_MODE_KEY, m) {
 TORCH_LIBRARY_IMPL(aten, FT_DYNAMIC_LAYER_FRONT_MODE_KEY, m) {
   JVP_DECOMP(nll_loss_backward);
   JVP_DECOMP(nll_loss2d_backward);
-  JVP_DECOMP(mse_loss_backward);
-  JVP_DECOMP(l1_loss_backward);
   JVP_DECOMP(_log_softmax_backward_data);
   JVP_DECOMP(_softmax_backward_data);
   OP_DECOMPOSE(log_sigmoid);
   JVP_DECOMP(log_sigmoid_forward);
-  JVP_DECOMP(binary_cross_entropy);
-  JVP_DECOMP(binary_cross_entropy_backward);
+  JVP_DECOMP(native_layer_norm_backward);
 }
 
 

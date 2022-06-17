@@ -11,6 +11,7 @@ from .decompositions import register_decomposition
 from .partitioners import default_partition
 from .named_members_polyfill import _named_parameters, _named_buffers
 from typing import Callable, List, Dict, Any, Tuple, Optional
+from functools import wraps
 
 try:
     from torchdynamo import disable as disable_torchdynamo
@@ -146,6 +147,10 @@ def create_aot_autograd_function(
         def forward(ctx, *flat_tensor_args):
             nonlocal compiled_fw, compiled_bw, num_outs
             if compiled_fw is None:
+                # Set input tensors that require grad to leaves
+                flat_tensor_args = pytree.tree_map(
+                    lambda x: x.detach().requires_grad_(x.requires_grad), flat_tensor_args
+                )
                 with torch.set_grad_enabled(grad_state):
                     out = flat_fn(*flat_tensor_args)
                 out = pytree.tree_map(
@@ -261,6 +266,7 @@ def rearrange(tensor_args, static_args, static_argnums):
         else:
             args.append(tensor_args[tensor_index])
             tensor_index += 1
+        index += 1
 
     while tensor_index < len(tensor_args):
         args.append(tensor_args[tensor_index])
@@ -375,6 +381,7 @@ def aot_function(
         static_argnums = list(static_argnums)
         static_argnums.sort()
 
+    @wraps(fn)
     def returned_function(*args, **kwargs):
         global compile_cache
         nonlocal cached_res
