@@ -19,7 +19,6 @@ from torch.testing._internal.common_dtype import get_all_fp_dtypes
 from torch.testing._internal.common_utils import IS_WINDOWS
 from functools import partial
 from functorch.experimental import replace_all_batch_norm_modules_
-from contextlib import nullcontext
 
 import functorch
 from functorch import (
@@ -815,7 +814,6 @@ class TestGradTransform(TestCase):
         self.assertEqual(result, (x <= 0).type_as(x))
 
     def test_tensor_ctor_inside_grad(self, device):
-        self.skipTest("Only fails on CUDA but I can't figure out how to test that")
         def foo(x):
             return x * torch.tensor(2., device=device)
 
@@ -2001,6 +1999,18 @@ class TestJvp(TestCase):
         gx, = torch.autograd.grad(y, x)
         self.assertEqual(gx, x.cos())
 
+    def test_zerotensor_vmapjvp_interaction(self, device):
+        dummy = torch.ones(4, 1)
+        x = torch.randn(4, 2)
+        x_tangent = torch.randn(2)
+
+        def push_jvp(dummy, x):
+            result = jvp(torch.cov, (x,), (x_tangent,))
+            return result
+
+        # Should not error
+        vmap(vmap(push_jvp, (0, None)))(dummy, x)
+
 
 class TestCustomFunction(TestCase):
     @unittest.skipIf(IS_WINDOWS, "Prototype of custom_vjp doesn't link on windows")
@@ -2146,6 +2156,93 @@ class TestComposability(TestCase):
         fx_f = make_fx(vjp_fn)(cotangent, True, True)
         new_cotangent = torch.randn(())
         self.assertEqual(fx_f(new_cotangent, True, True), vjp_fn(new_cotangent))
+
+    def test_requires_grad_inside_transform(self, device):
+        def f(x):
+            x.requires_grad_()
+            return x.sin().sum()
+
+        x = torch.randn(3)
+
+        with self.assertRaisesRegex(RuntimeError, "Tensor.requires_grad_()"):
+            vmap(f)(x)
+        with self.assertRaisesRegex(RuntimeError, "Tensor.requires_grad_()"):
+            grad(f)(x)
+        with self.assertRaisesRegex(RuntimeError, "Tensor.requires_grad_()"):
+            vmap(grad(f))(x)
+
+        x = torch.randn([])
+        with self.assertRaisesRegex(RuntimeError, "Tensor.requires_grad_()"):
+            grad(grad(f))(x)
+
+    def test_retain_grad_inside_transform(self, device):
+        def f(x):
+            y = x.sin()
+            y.retain_grad()
+            return y.sum()
+
+        x = torch.randn(3)
+
+        with self.assertRaisesRegex(RuntimeError, "Tensor.retain_grad()"):
+            grad(f)(x)
+
+    def test_autograd_functional_jacrev_inside_transform(self, device):
+        def f(x):
+            y = torch.autograd.functional.jacobian(lambda x: x.sin().sum(), x)
+            return y
+
+        B = 5
+        x = torch.randn(B, 3)
+        with self.assertRaisesRegex(RuntimeError, "torch.autograd.functional"):
+            vmap(f)(x)
+
+        x = torch.randn([])
+        with self.assertRaisesRegex(RuntimeError, "torch.autograd.functional"):
+            grad(f)(x)
+
+    def test_autograd_functional_vjp_inside_transform(self, device):
+        def f(x):
+            y = torch.autograd.functional.vjp(lambda x: x.sin().sum(), x)
+            return y
+
+        B = 5
+        x = torch.randn(B, 3)
+        with self.assertRaisesRegex(RuntimeError, "torch.autograd.functional"):
+            vmap(f)(x)
+
+        x = torch.randn([])
+        with self.assertRaisesRegex(RuntimeError, "torch.autograd.functional"):
+            grad(f)(x)
+
+    def test_autograd_functional_jvp_inside_transform(self, device):
+        def f(x):
+            t = torch.ones_like(x)
+            y = torch.autograd.functional.jvp(lambda x: x.sin().sum(), (x,), (t,))
+            return y
+
+        B = 5
+        x = torch.randn(B, 3)
+        with self.assertRaisesRegex(RuntimeError, "torch.autograd.functional"):
+            vmap(f)(x)
+
+        x = torch.randn([])
+        with self.assertRaisesRegex(RuntimeError, "torch.autograd.functional"):
+            grad(f)(x)
+
+    def test_autograd_functional_jacfwd_inside_transform(self, device):
+        def f(x):
+            y = torch.autograd.functional.jacobian(
+                lambda x: x.sin().sum(), x, strategy='forward-mode', vectorize=True)
+            return y
+
+        B = 5
+        x = torch.randn(B, 3)
+        with self.assertRaises(RuntimeError):
+            vmap(f)(x)
+
+        x = torch.randn([])
+        with self.assertRaises(RuntimeError):
+            grad(f)(x)
 
 
 class TestMakeFunctional(TestCase):
