@@ -9,30 +9,21 @@ import pickle
 
 from functorch._src.remat_utils import rematerialize, get_fused_graph, rematerialize_fused_graph
 
-# def f(x):
-#     vals = [x]
-#     for _ in range(5):
-#         vals.append(vals[-1].relu())
-#     vals.append(vals[-1].clone())
-#     return sum(vals)
-
-# draw_graph(make_fx(f)(torch.randn(5)), 'test')
-# exit(0)
 random.seed(1)
 
 def benchmark_GPU_time(f, inp, list_inp, itr = 5):
-    # if list_inp:
-    #     for _ in range(5):
-    #         f(*inp)
-    #     with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
-    #         for _ in range(itr):
-    #             f(*inp)
+    if list_inp:
+        for _ in range(5):
+            f(*inp)
+        with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
+            for _ in range(itr):
+                f(*inp)
 
-    #     timing = prof.key_averages()
-    #     cuda_time_total = 0
-    #     for e in timing:
-    #         cuda_time_total = cuda_time_total + e.cuda_time_total
-    #     return cuda_time_total / itr
+        timing = prof.key_averages()
+        cuda_time_total = 0
+        for e in timing:
+            cuda_time_total = cuda_time_total + e.cuda_time_total
+        return cuda_time_total / itr
 
     for _ in range(5):
         f(inp)
@@ -48,82 +39,71 @@ def benchmark_GPU_time(f, inp, list_inp, itr = 5):
         cuda_time_total = cuda_time_total + e.cuda_time_total
     return cuda_time_total / itr
 
-# def profile_graph(name, traced_graph, inp, list_inp):
-#     # print("traced_graph\n", traced_graph)
-#     script_f = torch.jit.script(traced_graph)
-#     avg_cuda_time_f = benchmark_GPU_time(script_f, inp, list_inp)
-
-#     # fused_graph = rematerialize(traced_graph)
-#     fused_graph = get_fused_graph(traced_graph)
-
-#     num_fused_group = 0
-#     for node in fused_graph.graph.nodes:
-#         if "fused_" in node.name:
-#             module = getattr(fused_graph, node.name)
-#             setattr(fused_graph, node.name, torch.jit.script(module) )
-#             num_fused_group += 1
-
-#     avg_cuda_time_g = benchmark_GPU_time(fused_graph, inp, list_inp)
-
-#     print(f"{name}, {avg_cuda_time_f}, {avg_cuda_time_g}, {num_fused_group}")
-
-def profile_scripted(f, inp, list_inp):
-    traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(inp)
+def profile_graph(traced_graph, inp, list_inp):
     traced_graph.graph.eliminate_dead_code()
     traced_graph.recompile()
     script_f = torch.jit.script(traced_graph)
     avg_cuda_time_f = benchmark_GPU_time(script_f, inp, list_inp)
+
     return avg_cuda_time_f
+
+def profile_fused_graph(fused_graph, inp, list_inp):
+    num_fused_group = 0
+    for node in fused_graph.graph.nodes:
+        if "fused_" in node.name:
+            module = getattr(fused_graph, node.name)
+            setattr(fused_graph, node.name, torch.jit.script(module) )
+            num_fused_group += 1
+
+        if num_fused_group == 0: # no fused group
+            script_f = torch.jit.script(fused_graph)
+            return benchmark_GPU_time(script_f, inp, list_inp), 0
+
+    avg_cuda_time_g = benchmark_GPU_time(fused_graph, inp, list_inp)
+    return avg_cuda_time_g, num_fused_group
+
+
+def profile_scripted(f, inp, list_inp):
+    traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(inp)
+    return profile_graph(traced_graph, inp, list_inp)
+
 
 def profile_fused(f, inp, list_inp):
     traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(inp)
     traced_graph.graph.eliminate_dead_code()
     traced_graph.recompile()
     fused_graph = get_fused_graph(traced_graph)
-    num_fused_group = 0
-    for node in fused_graph.graph.nodes:
-        if "fused_" in node.name:
-            module = getattr(fused_graph, node.name)
-            setattr(fused_graph, node.name, torch.jit.script(module) )
-            num_fused_group += 1
+    return profile_fused_graph(fused_graph, inp, list_inp)
 
-    avg_cuda_time_g = benchmark_GPU_time(fused_graph, inp, list_inp)
-
-    return avg_cuda_time_g, num_fused_group
 
 def profile_rematerialize(f, inp, list_inp):
     traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(inp)
     traced_graph.graph.eliminate_dead_code()
     traced_graph.recompile()
     fused_graph = rematerialize(traced_graph)
-    num_fused_group = 0
-    for node in fused_graph.graph.nodes:
-        if "fused_" in node.name:
-            module = getattr(fused_graph, node.name)
-            setattr(fused_graph, node.name, torch.jit.script(module) )
-            num_fused_group += 1
-
-    avg_cuda_time_g = benchmark_GPU_time(fused_graph, inp, list_inp)
-
-    return avg_cuda_time_g
-
-    
-
-    
-def profile_function(name, f, inp, list_inp = False):
-    
-    avg_cuda_time_f = profile_scripted(f, inp, list_inp)
-    avg_cuda_time_g, num_fused_group = profile_fused(f, inp, list_inp)
-    avg_cuda_time_h = profile_rematerialize(f, inp, list_inp)
+    return profile_fused_graph(fused_graph, inp, list_inp)
 
 
+def profile_module(name, m, inp):
+    traced_graph = symbolic_trace(m)
+    avg_cuda_time_f = profile_graph(traced_graph, inp, True)
+
+    traced_graph = symbolic_trace(m)
+    fused_graph = get_fused_graph(traced_graph)
+    avg_cuda_time_g, num_fused_group = profile_fused_graph(fused_graph, inp, True)
+
+    traced_graph = symbolic_trace(m)
+    fused_graph = rematerialize(traced_graph)
+    avg_cuda_time_h, _ = profile_fused_graph(fused_graph, inp, True)
     print(f"{name}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fused_group}")
 
-g_gpu = torch.Generator(device='cuda')
-g_gpu.manual_seed(214748364)
-inp = torch.randn(2**20, device='cuda', generator=g_gpu)
 
-print("name, scripted_time, fused_time, remat_time, num_fused_group")
+def profile_function(name, f, inp, list_inp = False):
+    avg_cuda_time_f = profile_scripted(f, inp, list_inp)
+    avg_cuda_time_g, num_fused_group = profile_fused(f, inp, list_inp)
+    avg_cuda_time_h, _ = profile_rematerialize(f, inp, list_inp)
+    print(f"{name}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fused_group}")
+
 
 def f(a):
     b = a.cos()
@@ -133,7 +113,6 @@ def f(a):
     f = torch.relu(e)
     return b + c + e + f
 
-profile_function("f", f, inp)
 
 def frandom(x):
     vals = [x, x]
@@ -147,21 +126,6 @@ def frandom(x):
         vals.append(new_val)
     return sum(vals)
 
-i = 0
-profile_function(f"rand_test_{i}", frandom, inp)
-i += 1
-
-profile_function(f"rand_test_{i}", frandom, inp)
-i += 1
-
-profile_function(f"rand_test_{i}", frandom, inp)
-i += 1
-
-profile_function(f"rand_test_{i}", frandom, inp)
-i += 1
-
-profile_function(f"rand_test_{i}", frandom, inp)
-i += 1
 
 
 class FxModule(torch.nn.Module):
@@ -199,9 +163,32 @@ class FxModule(torch.nn.Module):
         t_2 = torch.ops.aten.t(primals_6);  primals_6 = None
         addmm_2 = torch.ops.aten.addmm(primals_5, relu__6, t_2);  primals_5 = None
         return [addmm_2, primals_16, relu__1, primals_17, t_1, relu__3, getitem_5, primals_8, relu__6, relu_, primals_10, t, view, getitem_4, t_2, getitem, primals_12, getitem_3, getitem_2, relu__4, getitem_1, relu__2, relu__5, primals_14]
-        
 
-# m = FxModule()
-# traced_graph = symbolic_trace(m)
-# inp = pickle.load(open("/scratch/shangdiy/work/torchbenchmark/torch_bench_graphs/alexnet/alexnet_forward_0/alexnet_forward_0.exampleinput", "rb"))
-# profile_graph("alexnet_forward", traced_graph, inp, True)
+
+g_gpu = torch.Generator(device='cuda')
+g_gpu.manual_seed(214748364)
+inp = torch.randn(2**20, device='cuda', generator=g_gpu)
+
+print("name, scripted_time, fused_time, remat_time, num_fused_group")
+
+# profile_function("f", f, inp)
+
+# i = 0
+# profile_function(f"rand_test_{i}", frandom, inp)
+# i += 1
+
+# profile_function(f"rand_test_{i}", frandom, inp)
+# i += 1
+
+# profile_function(f"rand_test_{i}", frandom, inp)
+# i += 1
+
+# profile_function(f"rand_test_{i}", frandom, inp)
+# i += 1
+
+# profile_function(f"rand_test_{i}", frandom, inp)
+# i += 1
+
+m = FxModule()
+inp = pickle.load(open("/scratch/shangdiy/work/torchbenchmark/torch_bench_graphs/alexnet/alexnet_forward_0/alexnet_forward_0.exampleinput", "rb"))
+profile_module("alexnet_forward", m, inp)
