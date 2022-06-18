@@ -161,6 +161,7 @@ def create_aot_autograd_function(
         def forward(ctx, *flat_tensor_args):
             nonlocal compiled_fw, compiled_bw, num_outs
             # Disable the JIT Autocast flag to prevent re-autocasting of jitted graph.
+            # TODO - Remove when https://github.com/pytorch/functorch/pull/794 is fixed.
             old_jit_autocast_flag = torch._C._jit_set_autocast_mode(False)
             if compiled_fw is None:
                 with preserve_rng_state():
@@ -204,6 +205,7 @@ def create_aot_autograd_function(
         @disable_torchdynamo
         def backward(ctx, *flat_args):
             # Disable the JIT Autocast flag to prevent re-autocasting of jitted graph.
+            # TODO - Remove when https://github.com/pytorch/functorch/pull/794 is fixed.
             old_jit_autocast_flag = torch._C._jit_set_autocast_mode(False)
             contiguous_args = [t.contiguous() for t in flat_args]
             # contiguous_args = [t for t in flat_args]
