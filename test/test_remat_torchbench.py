@@ -5,7 +5,7 @@ import pickle
 
 import torch
 from torch.fx._symbolic_trace import symbolic_trace
-from functorch._src.remat_utils import rematerialize, get_fused_graph, rematerialize_fused_graph
+from functorch._src.remat_utils_weighted import rematerialize, get_fused_graph, rematerialize_fused_graph
 from torch.profiler import profile, ProfilerActivity
 
 graphs_dir = "/scratch/shangdiy/work/torchbenchmark/"
