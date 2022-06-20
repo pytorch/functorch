@@ -8,7 +8,7 @@ import os
 from torch.fx.passes import graph_drawer
 from typing import Tuple
 from .cse import fx_graph_cse
-
+from utilities import _size_of
 
 class InvalidNodeBase(object):
     def __repr__(self):
@@ -159,36 +159,36 @@ def default_partition(
     return _extract_fwd_bwd_modules(joint_module, saved_values)
 
 
-def _prod(x):
-    s = 1
-    for i in x:
-        s *= i
-    return s
+# def _prod(x):
+#     s = 1
+#     for i in x:
+#         s *= i
+#     return s
 
 
-def _size_of(metadata):
-    sizes = {
-        torch.float: 4,
-        torch.float16: 2,
-        torch.bfloat16: 2,
-        torch.float32: 4,
-        torch.float64: 8,
-        torch.int: 4,
-        torch.int8: 1,
-        torch.int16: 2,
-        torch.int32: 4,
-        torch.int64: 8,
-        torch.uint8: 1,
-        torch.bool: 1,
-    }
+# def _size_of(metadata):
+#     sizes = {
+#         torch.float: 4,
+#         torch.float16: 2,
+#         torch.bfloat16: 2,
+#         torch.float32: 4,
+#         torch.float64: 8,
+#         torch.int: 4,
+#         torch.int8: 1,
+#         torch.int16: 2,
+#         torch.int32: 4,
+#         torch.int64: 8,
+#         torch.uint8: 1,
+#         torch.bool: 1,
+#     }
 
-    numel = _prod(metadata.shape)
-    dtype = metadata.dtype
+#     numel = _prod(metadata.shape)
+#     dtype = metadata.dtype
 
-    if dtype not in sizes:
-        raise NotImplementedError("Don't know the size of dtype ", dtype)
+#     if dtype not in sizes:
+#         raise NotImplementedError("Don't know the size of dtype ", dtype)
 
-    return numel * sizes[dtype]
+#     return numel * sizes[dtype]
 
 
 # Used for some investigative purposes
