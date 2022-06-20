@@ -8,7 +8,7 @@ import os
 from torch.fx.passes import graph_drawer
 from typing import Tuple
 from .cse import fx_graph_cse
-from utilities import _size_of
+from .utilities import _size_of
 
 class InvalidNodeBase(object):
     def __repr__(self):

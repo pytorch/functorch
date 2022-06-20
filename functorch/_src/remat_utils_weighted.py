@@ -2,7 +2,8 @@ from torch.fx.partitioner.partitioner import CapabilityBasedPartitioner
 from torch.fx.partitioner.nvfuser_operator_support import NvFuserOperatorSupport
 from torch.fx.passes.tools_common import legalize_graph
 import operator
-from utilities import _size_of
+
+from .utilities import _size_of
 
 def is_fused_node(node):
     return node.op == "call_module" and "fused_" in node.target
@@ -31,8 +32,7 @@ def get_fused_node_pairs(fused_graph):
             fused_node_pairs.extend(pairs)
     return fused_node_pairs
 
-
-def get_delta_write(orig_node_names, node_users_map, dest_node_names):
+def get_delta_write(orig_nodes, node_users_map, dest_node_names):
     """"
     get the number of write changes if we rematerializes nodes in [orig_node_names] to compute
     [dest_node_names].
@@ -42,16 +42,21 @@ def get_delta_write(orig_node_names, node_users_map, dest_node_names):
     If a node has any write to an unfusable node, this write cannot be reduced.
     """
 
-    delta_write = 0
-    orig_node_names_set = set(orig_node_names)
-    for name in orig_node_names:
-        local_count = 0
+    # delta_write = 0
+    delta_write_weighted = 0
+    orig_node_names_set = set(node.name for node in orig_nodes)
+    for node in orig_nodes:
+        name = node.name
+        # local_count = 0
+        local_weighted_count = 0
         user_names_set = set({n.name for n in node_users_map[name]})
         user_names_outside_set = user_names_set.difference(orig_node_names_set)
         if len(user_names_outside_set) > 0 and user_names_outside_set.issubset(set(dest_node_names)):
-            local_count += 1
-        delta_write -= local_count
-    return delta_write
+            # local_count += 1
+            local_weighted_count += _size_of(node.meta['tensor_meta'])
+        # delta_write -= local_count
+        delta_write_weighted -= local_weighted_count
+    return delta_write_weighted
 
 
 def get_num_changes(node_pair, node_users_map, fused_graph):
@@ -69,31 +74,38 @@ def get_num_changes(node_pair, node_users_map, fused_graph):
     # get number of writes reduced if copy all nodes from orig to dest
     # look at the users in traced graph, check how many output args have users in dest, but no
     # un-fusable user
+    orig_nodes = set()
     orig_node_names = set()
     orig_placeholder_node_names = set()
     dest_node_names = set()
-    add_num_placeholder = 0
-    remove_num_placeholder = 0
+    # add_num_placeholder = 0
+    # remove_num_placeholder = 0
+
+    add_placeholder_size = 0
+    remove_placeholder_size = 0
     for node in module_origin.graph.nodes:
         # might be overcounting some placeholders that are not neccessary to compute
         # nodes in dest
         if node.op == "placeholder":
-            add_num_placeholder += 1
+            # add_num_placeholder += 1
             orig_placeholder_node_names.add(node.name)
+            add_placeholder_size += _size_of(node.meta['tensor_meta'])
         elif node.op != "output":
+            orig_nodes.add(node)
             orig_node_names.add(node.name)
 
     for node in module_dest.graph.nodes:
         if node.op == "placeholder":
             # avoid double counting placeholders that already exists
             if node.name in orig_node_names or node.name in orig_placeholder_node_names:
-                remove_num_placeholder += 1
+                # remove_num_placeholder += 1
+                remove_placeholder_size += _size_of(node.meta['tensor_meta'])
         elif node.op != "output":
             dest_node_names.add(node.name)
 
     # get the number of writes reduced if we remateriliaze origin
-    delta_write = get_delta_write(orig_node_names, node_users_map, dest_node_names)
-    return add_num_placeholder, remove_num_placeholder, delta_write
+    delta_write = get_delta_write(orig_nodes, node_users_map, dest_node_names)
+    return add_placeholder_size, remove_placeholder_size, delta_write
 
 
 def check_remat_orign(node_pair, node_users_map, fused_graph):
