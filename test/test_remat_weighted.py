@@ -129,6 +129,15 @@ def f7(a):
     c = b.clone()
     return b + c
 
+
+def f10(a):
+    b = a.max()
+    c = b.relu()
+    d = c.clone()
+    e = d.relu()
+    return b + c + e
+
+
 def get_fused_graph(f):
     traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2).to(torch.float))
     supported_ops = NvFuserOperatorSupport()
@@ -138,8 +147,9 @@ def get_fused_graph(f):
     fused_graph = partitioner.fuse_partitions(partitions) # modifed traced in-place
     return fused_graph
 
-def get_fused_graph_for_num_changes(f):
-    traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2).to(torch.float))
+
+def get_fused_graph_for_num_changes(f, input_size = 2):
+    traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(input_size).to(torch.float))
     node_users_map = {node.name: set(node.users.keys()) for node in traced_graph.graph.nodes }
     supported_ops = NvFuserOperatorSupport()
     partitioner = CapabilityBasedPartitioner(traced_graph, supported_ops)
@@ -147,6 +157,7 @@ def get_fused_graph_for_num_changes(f):
     partitions = partitioner.partition(candidates)
     fused_graph = partitioner.fuse_partitions(partitions) # modifed traced in-place
     return node_users_map, fused_graph
+
 
 class GetUsersTestCase(TestCase):
 
@@ -223,8 +234,8 @@ class GetFusedNodePairsTestCase(TestCase):
         self.assertEqual(pair_names, expected_pairs)
 
 
-class GetNumChangesTestCase(TestCase):
-    # the expected size is the number of placeholders time 8 because tensor has size 2 and each is a size 4 float32
+class GetNumChangesPointwiseTestCase(TestCase):
+    # the expected size is the number of placeholders time 8 because tensor has default size 2 and each is a size 4 float32
 
     def test_user_within_origin_module(self):
         node_users_map, fused_graph = get_fused_graph_for_num_changes(f)
@@ -285,6 +296,20 @@ class GetNumChangesTestCase(TestCase):
         self.assertEqual(add_num_placeholder, 1*8, f"add_num_placeholder is {add_num_placeholder}")
         self.assertEqual(remove_num_placeholder, 2*8, f"remove_num_placeholder is {remove_num_placeholder}")
         self.assertEqual(delta_write, -1*8, f"delta_write is {delta_write}")
+
+
+class GetNumChangesTestCase(TestCase):
+
+    def test_reduction_ops(self):
+        node_users_map, fused_graph = get_fused_graph_for_num_changes(f10, 3)
+        name_to_node = {node.name:node for node in fused_graph.graph.nodes}
+        node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
+        add_num_placeholder, remove_num_placeholder, delta_write \
+            = get_num_changes(node_pair, node_users_map, fused_graph)
+        self.assertEqual(add_num_placeholder, 1*12, f"add_num_placeholder is {add_num_placeholder}")
+        self.assertEqual(remove_num_placeholder, 2 * 4, f"remove_num_placeholder is {remove_num_placeholder}")
+        self.assertEqual(delta_write, -1*4, f"delta_write is {delta_write}")
+
 
 def get_num_input_outpus(gm):
     count_inp = 0
