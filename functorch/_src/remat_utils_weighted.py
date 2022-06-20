@@ -2,6 +2,7 @@ from torch.fx.partitioner.partitioner import CapabilityBasedPartitioner
 from torch.fx.partitioner.nvfuser_operator_support import NvFuserOperatorSupport
 from torch.fx.passes.tools_common import legalize_graph
 import operator
+import math
 
 from .utilities import _size_of
 
@@ -53,7 +54,10 @@ def get_delta_write(orig_nodes, node_users_map, dest_node_names):
         user_names_outside_set = user_names_set.difference(orig_node_names_set)
         if len(user_names_outside_set) > 0 and user_names_outside_set.issubset(set(dest_node_names)):
             # local_count += 1
-            local_weighted_count += _size_of(node.meta['tensor_meta'])
+            weight = 0  # TODO: what to do if no tensor_meta exists?
+            if 'tensor_meta' in node.meta:
+                weight = _size_of(node.meta['tensor_meta'])
+            local_weighted_count += weight
         # delta_write -= local_count
         delta_write_weighted -= local_weighted_count
     return delta_write_weighted
@@ -89,7 +93,10 @@ def get_num_changes(node_pair, node_users_map, fused_graph):
         if node.op == "placeholder":
             # add_num_placeholder += 1
             orig_placeholder_node_names.add(node.name)
-            add_placeholder_size += _size_of(node.meta['tensor_meta'])
+            weight = 0  # TODO: what to do if no tensor_meta exists?
+            if 'tensor_meta' in node.meta:
+                weight = _size_of(node.meta['tensor_meta'])
+            add_placeholder_size += weight
         elif node.op != "output":
             orig_nodes.add(node)
             orig_node_names.add(node.name)
@@ -99,7 +106,10 @@ def get_num_changes(node_pair, node_users_map, fused_graph):
             # avoid double counting placeholders that already exists
             if node.name in orig_node_names or node.name in orig_placeholder_node_names:
                 # remove_num_placeholder += 1
-                remove_placeholder_size += _size_of(node.meta['tensor_meta'])
+                weight = 0  # TODO: what to do if no tensor_meta exists?
+                if 'tensor_meta' in node.meta:
+                    weight = _size_of(node.meta['tensor_meta'])
+                remove_placeholder_size +=  weight
         elif node.op != "output":
             dest_node_names.add(node.name)
 
