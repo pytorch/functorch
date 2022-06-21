@@ -12,8 +12,7 @@ and then run the following command:
 
   pip install functorch
 
-We currently support manylinux, x86 MacOS (M1 support coming in the future), and Windows.
-Please reach out on
+We currently support manylinux, x86 MacOS, and Windows, please reach out on
 `GitHub <https://github.com/pytorch/functorch>`_ for other platforms.
 
 Colab
