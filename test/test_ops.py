@@ -320,6 +320,7 @@ class TestOperators(TestCase):
     @skipOps('TestOperators', 'test_grad', vjp_fail.union({
         skip('nn.functional.fractional_max_pool2d'),  # fails on cuda, runs okay on cpu
         skip('nn.functional.fractional_max_pool3d'),  # fails on cuda, runs okay on cpu
+        xfail('linalg.eig'),  # diagonal_scatter does not support complex
     }))
     @opsToleranceOverride('TestOperators', 'test_grad', (
         tol1('nn.functional.binary_cross_entropy_with_logits',
@@ -595,7 +596,6 @@ class TestOperators(TestCase):
         xfail('eig'),  # calls aten::item
         xfail('linalg.det', ''),  # calls .item()
         xfail('linalg.eig'),  # Uses aten::allclose
-        xfail('linalg.eigh'),  # needs diag_scatter
         xfail('linalg.householder_product'),  # needs select_scatter
         xfail('linalg.slogdet'),  # calls .item()
         xfail('logdet'),  # calls .item()
@@ -606,7 +606,6 @@ class TestOperators(TestCase):
         xfail('put'),
         xfail('quantile'),  # checks q via a .item() call
         xfail('stft'),
-        xfail('symeig'),  # would benefit from diag_scatter
         xfail('view_as_complex'),
 
         # required rank 4 tensor to use channels_last format
@@ -649,92 +648,6 @@ class TestOperators(TestCase):
             for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}, opinfo=op):
                 self.assertEqual(loop_out, batched_out)
 
-    # There are several variations we care about
-    # 1) primal batched (TODO)
-    # 2) tangent batched (batched grads) <--
-    # 3) both batched (TODO)
-    # The below tests (2) only.
-    @ops(functorch_lagging_op_db, allowed_dtypes=(torch.float,))
-    @toleranceOverride({torch.float32: tol(atol=1e-04, rtol=1e-04)})
-    @skipOps('TestOperators', 'test_vmapjvp', {
-        skip('nn.functional.dropout'),  # randomness
-        skip('nn.functional.rrelu'),  # randomness
-        skip('nn.functional.fractional_max_pool2d'),  # randomness
-        skip('nn.functional.fractional_max_pool3d'),  # randomness
-        skip('bernoulli', ''),  # randomness
-        skip('nn.functional.max_pool1d'),  # fails on cpu, runs on cuda
-
-        # TODO: fails in core due to in-place batched nto non-batched
-        # but fails here for a different reason
-        xfail('linalg.householder_product'),
-
-        # Try to in-place batched tensor into non-batched tensor
-        xfail('matrix_exp'),
-
-        # Apprently these support forward AD, but we get "Trying to use forward AD..."
-        # These are cases where OpInfo has supports_forward_ad=True, but disables
-        # the test
-        xfail('var_mean'),
-        xfail('std_mean'),
-
-        # RuntimeError: expand: the number of sizes provided (1) must be greater or
-        # equal to the number of dimensions in the tensor (2)
-        xfail('nanquantile'),
-        xfail('quantile'),
-
-        # Not implemented
-        xfail('scatter'),
-
-        # =============================================
-        # NB: The above failures also fail in PyTorch core.
-        #     The failures below only fail in functorch
-        # =============================================
-
-        # Composite ops that do bad things. Need to be fixed in PyTorch core.
-        # RuntimeError: Cannot access data pointer of Tensor that doesn't have storage
-        xfail('tensor_split'),
-
-        # Causing multiple forward mode AD issues, needs investigation
-        xfail('nn.functional.batch_norm'),
-        xfail('nn.functional.batch_norm', 'without_cudnn', device_type='cuda'),
-
-        skip('nn.functional.feature_alpha_dropout', 'with_train'),
-        skip('pca_lowrank', ''),
-        skip('nn.functional.dropout2d', ''),
-        skip('nn.functional.feature_alpha_dropout', 'without_train'),
-        skip('svd_lowrank', ''),
-        xfail('nn.functional.soft_margin_loss', ''),
-        xfail('stft'),  # something weird is happening with shapes
-
-        xfail('double'),  # required rank 4 tensor to use channels_last format
-
-        # BUG: runs and produces numerical differences
-        skip('nn.functional.max_unpool1d', device_type='cpu'),  # fails everywhere except on mac
-        skip('nn.functional.max_unpool2d'),  # fails everywhere except on mac
-        skip('nn.functional.max_unpool3d'),  # fails everywhere except on mac
-
-        xfail('put'),  # calls put_ during vmap with only vmaps over other, not self
-    })
-    def test_vmapjvp(self, device, dtype, op):
-        if is_inplace(op, op.get_op()):
-            # TODO: test in-place
-            self.skipTest("Skipped! NYI: inplace-testing not supported.")
-            return
-
-        samples = op.sample_inputs(device, dtype, requires_grad=False)
-
-        if not op.supports_forward_ad:
-            self.skipTest("Skipped! Forward AD not supported.")
-            return
-
-        for sample in samples:
-            arg_values = [sample.input] + list(sample.args)
-            kwarg_values = sample.kwargs
-            args = tuple([*arg_values, *kwarg_values])
-            fn, args = get_jvp_variant(op, sample)
-            for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}, opinfo=op, bdims=(0,)):
-                self.assertEqual(loop_out, batched_out)
-
     vmapjvpall_fail = {
         # The following are expected (not a bug)
         skip('bernoulli', ''),  # randomness
@@ -756,7 +669,9 @@ class TestOperators(TestCase):
         # Causing issues with multiple cpu levels of forward mode AD
         xfail('nn.functional.batch_norm', device_type='cpu'),
 
-        # https://github.com/pytorch/functorch/issues/857
+        # Not actually a problem: embedding with max_norm mutates the weight
+        # and causes different runs to produce different results.
+        # skip because this is flaky depending on what the max_norm is!
         skip('nn.functional.embedding', ''),
         xfail('nn.functional.soft_margin_loss', ''),
         xfail('nn.functional.binary_cross_entropy_with_logits', ''),
@@ -788,7 +703,7 @@ class TestOperators(TestCase):
         xfail('nn.functional.prelu'),  # Call Tensor.as_strided
     }
 
-    @ops(functorch_lagging_op_db, allowed_dtypes=(torch.float,))
+    @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @opsToleranceOverride('TestOperators', 'test_vmapjvpall', (
         tol1('nn.functional.conv_transpose3d',
              {torch.float32: tol(atol=2e-04, rtol=9e-3)}, device_type='cuda'),
@@ -818,7 +733,7 @@ class TestOperators(TestCase):
             for loop_out, batched_out in get_fallback_and_vmap_exhaustive(fn, args, {}, opinfo=op):
                 self.assertEqual(loop_out, batched_out)
 
-    @ops(functorch_lagging_op_db, allowed_dtypes=(torch.float,))
+    @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
     @skipOps('TestOperators', 'test_vmapjvpall_has_batch_rule', vmapjvpall_fail.union({
         xfail('linalg.solve_triangular'),
         xfail('nn.functional.huber_loss'),
@@ -947,7 +862,6 @@ class TestOperators(TestCase):
         xfail('put'),
         xfail('quantile'),
         xfail('renorm'),
-        xfail('symeig'),
         xfail('take'),
         xfail('tensor_split'),
         xfail('to_sparse'),
@@ -1149,17 +1063,12 @@ class TestOperators(TestCase):
         xfail('logdet', ''),
         xfail('nanmean', ''),
         xfail('nansum', ''),
-        xfail('nn.functional.batch_norm', ''),
-        xfail('nn.functional.batch_norm', 'without_cudnn', device_type='cuda'),
-        xfail('nn.functional.embedding'),
-        xfail('nn.functional.embedding', 'functorch'),
         xfail('nn.functional.embedding_bag', ''),
         xfail('nn.functional.grid_sample', ''),
         xfail('nn.functional.hardsigmoid', ''),
         xfail('nn.functional.huber_loss', ''),
         xfail('nn.functional.instance_norm', ''),
         xfail('nn.functional.logsigmoid', ''),
-        xfail('nn.functional.pad', 'circular'),
         xfail('nn.functional.softmin', ''),
         xfail('nn.functional.softmin', 'with_dtype'),
         xfail('renorm', ''),
@@ -1249,7 +1158,8 @@ class TestOperators(TestCase):
                 'softmax',
                 'log_softmax',
                 'nn.functional.cross_entropy',
-                'nn.functional.layer_norm'
+                'nn.functional.layer_norm',
+                'nn.functional.batch_norm',
             }
             if op.name in FUNCTORCH_HAS_FORMULA_BUT_NOT_PYTORCH:
                 self.assertFalse(op.supports_fwgrad_bwgrad,
