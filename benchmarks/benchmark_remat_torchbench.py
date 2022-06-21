@@ -293,7 +293,7 @@ def profile_graph(traced_graph, inp, list_inp):
 def profile_fused_graph(fused_graph, inp, list_inp):
     num_fused_group = 0
     for node in fused_graph.graph.nodes:
-        if "fused_" in node.name:
+        if "fused_" in node.name and node.op == "call_module":
             module = getattr(fused_graph, node.name)
             setattr(fused_graph, node.name, torch.jit.script(module) )
             num_fused_group += 1
@@ -307,6 +307,9 @@ def profile_fused_graph(fused_graph, inp, list_inp):
 
 
 def profile_module(name, m, inp):
+
+    eager_time = benchmark_GPU_time(m, inp, True)
+
     traced_graph = symbolic_trace(m)
     avg_cuda_time_f = profile_graph(traced_graph, inp, True)
 
@@ -321,11 +324,11 @@ def profile_module(name, m, inp):
     fused_graph = rematerialize(csed_graph_copy)
     avg_cuda_time_h, _ = profile_fused_graph(fused_graph, inp, True)
 
-    print(f"{name}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fused_group}")
+    print(f"{name}, {eager_time}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fused_group}")
 
 device = 'cuda'
 
-print("name, scripted_cuda_time, fused_cuda_time, remat_cuda_time, num_fused_group")
+print("name, eager_time, scripted_cuda_time, fused_cuda_time, remat_cuda_time, num_fused_group")
 
 for dir in test_cases:
     path = dir.split('/')
