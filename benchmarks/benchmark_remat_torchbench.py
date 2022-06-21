@@ -4,9 +4,11 @@ import importlib
 import pickle
 
 import torch
+import torch.fx as fx
 from torch.fx._symbolic_trace import symbolic_trace
 from functorch._src.remat_utils_weighted import rematerialize, get_fused_graph, rematerialize_fused_graph
 from torch.profiler import profile, ProfilerActivity
+from functorch._src.cse import fx_graph_cse
 
 graphs_dir = "/scratch/shangdiy/work/torchbenchmark/"
 os.chdir(graphs_dir)
@@ -208,7 +210,122 @@ test_cases = [
     # "torch_bench_graphs/mnasnet1_0/mnasnet1_0_forward_0",  #cudnn_batch_norm: ATen not compiled with cuDNN support
 ]
 
+zero_fusion_group = [
+    "nvidia_deeprecommender_backward_0",
+    "nvidia_deeprecommender_forward_0",
+    "hf_DistilBert_backward_0",
+    "hf_Albert_backward_1",
+    "hf_Albert_backward_0",
+    "hf_Albert_forward_1",
+    "dlrm_forward_0",
+    "drq_forward_1",
+    "drq_backward_1",
+    "hf_Bert_backward_0",
+    "squeezenet1_1_forward_0",
+    "alexnet_forward_0",
+    "alexnet_backward_0",
+    "soft_actor_critic_backward_1",
+    "soft_actor_critic_forward_1",
+    "vgg16_forward_0",
+    "vgg16_backward_0",
+    "dcgan_backward_0",
+    "dcgan_forward_0",
+    "hf_T5_backward_7",
+]
+
+one_fusion_group = [
+    "hf_DistilBert_forward_0",
+    "hf_Albert_forward_3",
+    "hf_Albert_forward_0",
+    "hf_Albert_backward_3",
+    "hf_Bert_backward_2",
+    "hf_Bert_forward_2",
+    "hf_Bert_forward_0",
+    "hf_Bart_backward_0",
+    "hf_Bart_backward_7",
+    "hf_Bart_forward_7",
+    "hf_Bart_forward_0",
+    "soft_actor_critic_backward_0",
+    "soft_actor_critic_forward_0",
+    "hf_T5_forward_7",
+    "hf_T5_forward_14",
+    "hf_T5_forward_6",
+]
+
+SKIP_CASES = set(zero_fusion_group).union(set(one_fusion_group))
+
+def benchmark_GPU_time(f, inp, list_inp, itr = 5):
+    if list_inp:
+        for _ in range(5):
+            f(*inp)
+        with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
+            for _ in range(itr):
+                f(*inp)
+
+        timing = prof.key_averages()
+        cuda_time_total = 0
+        for e in timing:
+            cuda_time_total = cuda_time_total + e.cuda_time_total
+        return cuda_time_total / itr
+
+    for _ in range(5):
+        f(inp)
+    with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
+        for _ in range(itr):
+            f(inp)
+
+    # print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=10))
+
+    timing = prof.key_averages()
+    cuda_time_total = 0
+    for e in timing:
+        cuda_time_total = cuda_time_total + e.cuda_time_total
+    return cuda_time_total / itr
+
+def profile_graph(traced_graph, inp, list_inp):
+    traced_graph.graph.eliminate_dead_code()
+    traced_graph.recompile()
+    script_f = torch.jit.script(traced_graph)
+    avg_cuda_time_f = benchmark_GPU_time(script_f, inp, list_inp)
+
+    return avg_cuda_time_f
+
+def profile_fused_graph(fused_graph, inp, list_inp):
+    num_fused_group = 0
+    for node in fused_graph.graph.nodes:
+        if "fused_" in node.name:
+            module = getattr(fused_graph, node.name)
+            setattr(fused_graph, node.name, torch.jit.script(module) )
+            num_fused_group += 1
+
+    if num_fused_group == 0: # no fused group
+        script_f = torch.jit.script(fused_graph)
+        return benchmark_GPU_time(script_f, inp, list_inp), 0
+
+    avg_cuda_time_g = benchmark_GPU_time(fused_graph, inp, list_inp)
+    return avg_cuda_time_g, num_fused_group
+
+
+def profile_module(name, m, inp):
+    traced_graph = symbolic_trace(m)
+    avg_cuda_time_f = profile_graph(traced_graph, inp, True)
+
+    traced_graph = symbolic_trace(m)
+    csed = fx_graph_cse(traced_graph.graph)
+    csed_graph =  fx.GraphModule(traced_graph, csed)
+    csed_graph_copy = copy.deepcopy(csed_graph)
+    
+    fused_graph = get_fused_graph(csed_graph)
+    avg_cuda_time_g, num_fused_group = profile_fused_graph(fused_graph, inp, True)
+
+    fused_graph = rematerialize(csed_graph_copy)
+    avg_cuda_time_h, _ = profile_fused_graph(fused_graph, inp, True)
+
+    print(f"{name}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fused_group}")
+
 device = 'cuda'
+
+print("name, scripted_cuda_time, fused_cuda_time, remat_cuda_time, num_fused_group")
 
 for dir in test_cases:
     path = dir.split('/')
@@ -216,48 +333,31 @@ for dir in test_cases:
     module_path = '.'.join(path)
     input_data_path = f'{dir}/{model_name}.input'
 
-    print(f"====== {model_name} ======")
+    if model_name in SKIP_CASES:
+        continue
+
+
+    # print(f"====== {model_name} ======")
     module = importlib.import_module(module_path)
 
     m = module.FxModule()
-    traced = symbolic_trace(m)
-    traced.graph.eliminate_dead_code()
-    traced.recompile()
-    node_users_map = {node.name: set(node.users.keys()) for node in traced.graph.nodes }
     try:
-        # print("Generating testing data...")
+    
+        inputs = []
         with (open(input_data_path, 'rb')) as f:
+            
             inputs_meta = pickle.load(f)
-            # print(len(inputs_meta))
-            # print(inputs_meta)
-
-            inputs = []
             for meta in inputs_meta:
                 type, shape, stride, dtype = meta
-
                 if dtype in {torch.int, torch.int32, torch.int64, torch.bool, torch.int, torch.uint8}:
                     input = torch.randint(0, 1, shape, dtype=dtype, device=device)
                 else:
                     input = torch.rand(shape, dtype=dtype, device=device)
-
                 inputs.append(input)
-
         m.to(device)
-
-        print("Running original model...")
-        expected = m(*inputs)
-
-        fused_graph = get_fused_graph(traced)
-        fused_graph.to(device)
-        print("Running fused model...")
-        result = fused_graph(*inputs)   
-        torch.testing.assert_close(expected, result, equal_nan=True, rtol=1e-5, atol=1e-5)
-        print("Running remat model...")
-        fused_graph = rematerialize_fused_graph(fused_graph, node_users_map)
-        fused_graph.to(device)
-        result = fused_graph(*inputs)   
-        torch.testing.assert_close(expected, result, equal_nan=True, rtol=1e-5, atol=1e-5)
-        # print("Passed!")
+        profile_module(model_name, m, inputs)
 
     except Exception as e:
-        print(f"{model_name} failed!", e)
+        print(f"{model_name}, failed,")
+        print(e)
+        # exit(1)
