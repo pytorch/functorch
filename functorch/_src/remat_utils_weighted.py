@@ -235,9 +235,7 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
 def get_fused_graph(traced_graph):
     supported_ops = NvFuserOperatorSupport()
     partitioner = CapabilityBasedPartitioner(traced_graph, supported_ops)
-    candidates = partitioner.get_candidates()
-    partitions = partitioner.partition(candidates)
-    fused_graph = partitioner.fuse_partitions(partitions) # modifed traced in-place
+    fused_graph = partitioner.partition_and_fuse()
     return fused_graph
 
 
