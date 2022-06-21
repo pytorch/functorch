@@ -6,6 +6,9 @@ import math
 
 from .utilities import _size_of
 
+
+num_group_fused = 0  # used for analytical purpose
+
 def is_fused_node(node):
     return node.op == "call_module" and "fused_" in node.target
 
@@ -240,14 +243,15 @@ def get_fused_graph(traced_graph):
 
 
 def rematerialize_fused_graph(fused_graph, node_users_map):
+    global num_group_fused
     name_to_node = {node.name:node for node in fused_graph.graph.nodes}
 
     fused_node_pairs = get_fused_node_pairs(fused_graph)
     for node_pair in fused_node_pairs:
         do_remat = check_remat_orign(node_pair, node_users_map, fused_graph)
         if do_remat:
+            num_group_fused += 1
             copy_all_nodes(node_pair, fused_graph, name_to_node)
-
     return fused_graph
 
 
@@ -259,3 +263,13 @@ def rematerialize(traced_graph):
     fused_graph = get_fused_graph(traced_graph)
     return rematerialize_fused_graph(fused_graph, node_users_map)
 
+def rematerialize_stat(traced_graph, stat):
+    traced_graph.graph.eliminate_dead_code()
+    traced_graph.recompile()
+    node_users_map = {node.name: set(node.users.keys()) for node in traced_graph.graph.nodes }
+
+    fused_graph = get_fused_graph(traced_graph)
+    fused_graph = rematerialize_fused_graph(fused_graph, node_users_map)
+    global num_group_fused
+    stat["num_group_fused"] = num_group_fused
+    return fused_graph
