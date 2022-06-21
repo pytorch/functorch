@@ -335,10 +335,10 @@ class TestAOTAutograd(TestCase):
 
     def test_cube(self):
         def f(a):
-            return a * a * a
+            return a ** 3
         inp = [torch.tensor(2.3, requires_grad=True)]
-        # self.verify_aot_autograd_with_double_backward(f, inp)
-        self.verify_aot_autograd(f, inp)
+        self.verify_aot_autograd_with_double_backward(f, inp)
+        # self.verify_aot_autograd(f, inp)
 
     def test_no_grad_input_output(self):
         def f(a, b):

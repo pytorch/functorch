@@ -198,36 +198,39 @@ def create_aot_autograd_function(
                         input_flat_grad_outs.append(grad)
                 with torch.set_grad_enabled(grad_state):
                     fx_g_b = make_fx(joint_forward_backward, aot_decompositions)(inputs, input_flat_grad_outs)
+                saved_value_nodes = _get_saved_values(fx_g_b, saved_value_names)
+                assert len(saved_value_nodes) <= len(saved_value_names)
+                fw_module_b, bw_module_b, saved_values_new = _extract_fwd_bwd_modules(fx_g_b, saved_value_nodes)
+                if len(saved_values_new) != len(saved_value_names):
+                    new_intermediates = []
+                    # Forward saves more intermediates than needed
+                    assert len(saved_values_new) < len(saved_value_names)
+                    j = 0
+                    for node in saved_values_new:
+                        while node.name != saved_value_names[j]:
+                            j+=1
+                        new_intermediates.append(intermediates[j])
+                        j+=1
+                    intermediates = new_intermediates
             else:
                 input_flat_grad_outs = flat_grad_outs
                 j_b = create_joint_forward_backward(fw_module)
                 with torch.set_grad_enabled(grad_state):
                     fx_g_b = make_fx(j_b, aot_decompositions)(inputs, input_flat_grad_outs)
+                fw_module_b, bw_module_b, _ = partition_fn(fx_g_b, (inputs, input_flat_grad_outs))
 
-            saved_value_nodes = _get_saved_values(fx_g_b, saved_value_names)
-            assert len(saved_value_nodes) <= len(saved_value_names)
-            fw_module_b, bw_module_b, saved_values_new = _extract_fwd_bwd_modules(fx_g_b, saved_value_nodes)
+
             bw_module_fn = None
             for elem in bw_modules:
                 if elem.code == bw_module_b.code:
                     bw_module_fn = elem
+                    break
             if bw_module_fn is None:
                 bw_modules.append(bw_module_b)
                 bw_module_fn = bw_module_b
 
             f = aot_function(bw_module_fn, bw_compiler, bw_compiler, partition_fn, aot_decompositions)
 
-            if len(saved_values_new) != len(saved_value_names):
-                new_intermediates = []
-                # Forward saves more intermediates than needed
-                assert len(saved_values_new) < len(saved_value_names)
-                j = 0
-                for node in saved_values_new:
-                    while node.name != saved_value_names[j]:
-                        j+=1
-                    new_intermediates.append(intermediates[j])
-                    j+=1
-                intermediates = new_intermediates
             out = f(*intermediates, *input_flat_grad_outs)
             return tuple(normalize_as_list(out))
 
