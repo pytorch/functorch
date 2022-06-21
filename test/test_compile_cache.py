@@ -16,6 +16,15 @@ class TestCompileCache(TestCase):
 
         res = aot_fn(a_clone, b_clone)
         res.sum().backward()
+
+        # a_clone_2 = a.clone().detach().requires_grad_(True)
+        # b_clone_2 = b.clone().detach().requires_grad_(True)
+        # res = aot_fn(a_clone_2, b_clone_2)
+        # res.sum().backward()
+
+        # res = aot_fn(a_clone_2, b_clone_2)
+        # res.sum().backward()
+
         assert torch.allclose(res, ref)
         assert torch.allclose(a.grad, a_clone.grad)
         assert torch.allclose(b.grad, b_clone.grad)
@@ -30,17 +39,16 @@ class TestCompileCache(TestCase):
             aot_autograd_fn = aot_function(fn, nop, nop, hasher_type=hasher_type)
 
             a = torch.randn(10, 20, requires_grad=True)
-            b = torch.randn(20, requires_grad=True)
-            self.check(a, b, aot_autograd_fn, fn)
-
-            a = torch.randn(10, 20, requires_grad=True)
             b = torch.randn(10, 20, requires_grad=True)
             self.check(a, b, aot_autograd_fn, fn)
 
-            end_num_recomps = functorch.compile.num_of_recompilations()
+            a = torch.randn(10, 20, requires_grad=True)
+            b = torch.randn(10, 1, requires_grad=True)
+            self.check(a, b, aot_autograd_fn, fn)
 
+            end_num_recomps = functorch.compile.num_of_recompilations()
             total_recomps = end_num_recomps - start_num_recomps
-            assert total_recomps == 2
+            assert total_recomps == 4
 
     def test_compilation_for_dynamic_shape(self):
         def fn(x, bias):
@@ -65,9 +73,9 @@ class TestCompileCache(TestCase):
 
             total_recomps = end_num_recomps - start_num_recomps
             if hasher_type == "DynamicShapeHasher":
-                assert total_recomps == 1
+                assert total_recomps == 11
             elif hasher_type == "StaticShapeHasher":
-                assert total_recomps == 10
+                assert total_recomps == 20
 
             for s in range(10, 20):
                 a = torch.randn(s, s, requires_grad=True)
@@ -78,9 +86,9 @@ class TestCompileCache(TestCase):
 
             total_recomps = end_num_recomps - start_num_recomps
             if hasher_type == "DynamicShapeHasher":
-                assert total_recomps == 2
+                assert total_recomps == 22
             elif hasher_type == "StaticShapeHasher":
-                assert total_recomps == 20
+                assert total_recomps == 40
 
     def test_global_cache_no_recompilations(self):
         def f(x, bias):
@@ -97,7 +105,7 @@ class TestCompileCache(TestCase):
 
         end_num_recomps = functorch.compile.num_of_recompilations()
         total_recomps = end_num_recomps - start_num_recomps
-        assert total_recomps == 1
+        assert total_recomps == 2
 
     def test_multiple_functions(self):
         def f(x, bias):
@@ -122,7 +130,7 @@ class TestCompileCache(TestCase):
 
             end_num_recomps = functorch.compile.num_of_recompilations()
             total_recomps = end_num_recomps - start_num_recomps
-            assert total_recomps == 2
+            assert total_recomps == 4
 
             # Force recompilation for function f and check num of recompilations again
             a = torch.randn(10, 20, requires_grad=True)
@@ -131,7 +139,7 @@ class TestCompileCache(TestCase):
 
             end_num_recomps = functorch.compile.num_of_recompilations()
             total_recomps = end_num_recomps - start_num_recomps
-            assert total_recomps == 3
+            assert total_recomps == 6
 
     def test_high_number_of_args(self):
         def f(*args):
@@ -240,7 +248,7 @@ class TestCompileCacheStaticArgs(TestCase):
         end_num_recomps = functorch.compile.num_of_recompilations()
 
         total_recomps = end_num_recomps - start_num_recomps
-        assert total_recomps == 2
+        assert total_recomps == 4
 
     def test_static_arg_before_tensor_arg(self):
         def fn(static_arg, x):
@@ -273,7 +281,7 @@ class TestCompileCacheStaticArgs(TestCase):
         end_num_recomps = functorch.compile.num_of_recompilations()
 
         total_recomps = end_num_recomps - start_num_recomps
-        assert total_recomps == 2
+        assert total_recomps == 4
 
     def test_interleaved_static_args(self):
         def fn(static_arg1, x, static_arg2):
@@ -308,7 +316,7 @@ class TestCompileCacheStaticArgs(TestCase):
         end_num_recomps = functorch.compile.num_of_recompilations()
 
         total_recomps = end_num_recomps - start_num_recomps
-        assert total_recomps == 2
+        assert total_recomps == 4
 
     def test_dropout(self):
         def fn(x, prob):
@@ -332,7 +340,7 @@ class TestCompileCacheStaticArgs(TestCase):
         end_num_recomps = functorch.compile.num_of_recompilations()
 
         total_recomps = end_num_recomps - start_num_recomps
-        assert total_recomps == 2
+        assert total_recomps == 3
 
     def test_if_condition(self):
         def fn(x, state: bool):
@@ -362,7 +370,7 @@ class TestCompileCacheStaticArgs(TestCase):
         end_num_recomps = functorch.compile.num_of_recompilations()
 
         total_recomps = end_num_recomps - start_num_recomps
-        assert total_recomps == 2
+        assert total_recomps == 4
 
     def test_custom(self):
         class Record:
@@ -396,7 +404,7 @@ class TestCompileCacheStaticArgs(TestCase):
         end_num_recomps = functorch.compile.num_of_recompilations()
 
         total_recomps = end_num_recomps - start_num_recomps
-        assert total_recomps == 2
+        assert total_recomps == 4
 
     def test_tuple(self):
         def fn(a_tuple, static_arg):
@@ -440,7 +448,7 @@ class TestCompileCacheStaticArgs(TestCase):
         end_num_recomps = functorch.compile.num_of_recompilations()
 
         total_recomps = end_num_recomps - start_num_recomps
-        assert total_recomps == 2
+        assert total_recomps == 4
 
     def test_tuple_with_first_arg_as_static(self):
         def fn(static_arg, a_tuple):
@@ -484,7 +492,7 @@ class TestCompileCacheStaticArgs(TestCase):
         end_num_recomps = functorch.compile.num_of_recompilations()
 
         total_recomps = end_num_recomps - start_num_recomps
-        assert total_recomps == 2
+        assert total_recomps == 4
 
     def test_dict(self):
         def fn(a_dict, static_arg):
@@ -530,7 +538,7 @@ class TestCompileCacheStaticArgs(TestCase):
         end_num_recomps = functorch.compile.num_of_recompilations()
 
         total_recomps = end_num_recomps - start_num_recomps
-        assert total_recomps == 2
+        assert total_recomps == 4
 
     def test_dict_with_static_arg_before_dict(self):
         def fn(static_arg, a_dict):
@@ -579,7 +587,7 @@ class TestCompileCacheStaticArgs(TestCase):
         end_num_recomps = functorch.compile.num_of_recompilations()
 
         total_recomps = end_num_recomps - start_num_recomps
-        assert total_recomps == 2
+        assert total_recomps == 4
 
     def test_tuple_static_args(self):
         def fn(x, tuple_static_arg):
@@ -608,7 +616,7 @@ class TestCompileCacheStaticArgs(TestCase):
         end_num_recomps = functorch.compile.num_of_recompilations()
 
         total_recomps = end_num_recomps - start_num_recomps
-        assert total_recomps == 2
+        assert total_recomps == 4
 
     def test_arg_none(self):
         def check(a, b, c, aot_autograd_fn, fn):
@@ -677,7 +685,7 @@ class TestCompileCacheStaticArgs(TestCase):
         end_num_recomps = functorch.compile.num_of_recompilations()
 
         total_recomps = end_num_recomps - start_num_recomps
-        assert total_recomps == 7
+        assert total_recomps == 14
 
 
 if __name__ == "__main__":
