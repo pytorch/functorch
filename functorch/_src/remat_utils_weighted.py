@@ -8,6 +8,8 @@ from .utilities import _size_of
 
 
 num_group_remat = 0  # used for analytical purpose
+memory_reduced = 0
+# no_weight_nodes = {}
 
 def is_fused_node(node):
     return node.op == "call_module" and "fused_" in node.target
@@ -45,7 +47,7 @@ def get_delta_write(orig_nodes, node_users_map, dest_node_names):
 
     If a node has any write to an unfusable node, this write cannot be reduced.
     """
-
+    # global no_weight_nodes
     # delta_write = 0
     delta_write_weighted = 0
     orig_node_names_set = set(node.name for node in orig_nodes)
@@ -60,6 +62,8 @@ def get_delta_write(orig_nodes, node_users_map, dest_node_names):
             weight = 0  # TODO: what to do if no tensor_meta exists?
             if 'tensor_meta' in node.meta:
                 weight = _size_of(node.meta['tensor_meta'])
+            # else:
+                # no_weight_nodes.add(node)
             local_weighted_count += weight
         # delta_write -= local_count
         delta_write_weighted -= local_weighted_count
@@ -72,6 +76,7 @@ def get_num_changes(node_pair, node_users_map, fused_graph):
     # node_users_map is a map from nodes to their users in the original graph
     # assumption: node_pair[0] must be ancestors of node_pair[1]
     # assumption: nodes in node_pair have modules in fused_graph with same name
+    global no_weight_nodes
 
     node_origin = node_pair[0]
     node_dest = node_pair[1]
@@ -99,6 +104,8 @@ def get_num_changes(node_pair, node_users_map, fused_graph):
             weight = 0  # TODO: what to do if no tensor_meta exists?
             if 'tensor_meta' in node.meta:
                 weight = _size_of(node.meta['tensor_meta'])
+            # else:
+            #     no_weight_nodes.add(node)
             add_placeholder_size += weight
         elif node.op != "output":
             orig_nodes.add(node)
@@ -112,6 +119,8 @@ def get_num_changes(node_pair, node_users_map, fused_graph):
                 weight = 0  # TODO: what to do if no tensor_meta exists?
                 if 'tensor_meta' in node.meta:
                     weight = _size_of(node.meta['tensor_meta'])
+                # else:
+                #     no_weight_nodes.add(node)
                 remove_placeholder_size +=  weight
         elif node.op != "output":
             dest_node_names.add(node.name)
@@ -127,7 +136,12 @@ def check_remat_orign(node_pair, node_users_map, fused_graph):
     # node_users_map is a map from nodes to their users in the original graph
     add_num_placeholder, remove_num_placeholder, delta_write = get_num_changes(node_pair, node_users_map, fused_graph)
     delta_read = add_num_placeholder - remove_num_placeholder
-    return delta_write + delta_read < 0
+
+    do_remat = delta_write + delta_read < 0
+    global memory_reduced
+    if do_remat:
+        memory_reduced += delta_write + delta_read
+    return do_remat 
 
 
 def copy_all_nodes(node_pair, fused_graph, name_to_node):
@@ -244,7 +258,6 @@ def get_fused_graph(traced_graph):
 
 def rematerialize_fused_graph(fused_graph, node_users_map):
     global num_group_remat
-    num_group_remat = 0 
     name_to_node = {node.name:node for node in fused_graph.graph.nodes}
 
     fused_node_pairs = get_fused_node_pairs(fused_graph)
@@ -265,12 +278,20 @@ def rematerialize(traced_graph):
     return rematerialize_fused_graph(fused_graph, node_users_map)
 
 def rematerialize_stat(traced_graph, stat):
+    global num_group_remat, memory_reduced
+    # global no_weight_nodes
+    # no_weight_nodes = {}
+
+    num_group_remat = 0 
+    memory_reduced = 0
     traced_graph.graph.eliminate_dead_code()
     traced_graph.recompile()
     node_users_map = {node.name: set(node.users.keys()) for node in traced_graph.graph.nodes }
 
     fused_graph = get_fused_graph(traced_graph)
     fused_graph = rematerialize_fused_graph(fused_graph, node_users_map)
-    global num_group_remat
+    
     stat["num_group_remat"] = num_group_remat
+    stat["memory_reduced"] = memory_reduced
+    # print(no_weight_nodes)
     return fused_graph

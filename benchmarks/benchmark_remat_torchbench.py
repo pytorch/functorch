@@ -7,7 +7,7 @@ import torch
 import torch.fx as fx
 from functorch import make_fx
 from torch.fx._symbolic_trace import symbolic_trace
-from functorch._src.remat_utils_weighted import rematerialize, rematerialize_stat, get_fused_graph, rematerialize_fused_graph
+from functorch._src.remat_utils_weighted import rematerialize, rematerialize_stat, get_fused_graph, rematerialize_fused_graph, is_fused_node
 from torch.profiler import profile, ProfilerActivity
 from functorch._src.cse import fx_graph_cse
 
@@ -262,21 +262,8 @@ one_fusion_group = [
 ]
 
 non_zero_remat_group = [
-    "BERT_pytorch_backward_0",
-    "hf_T5_backward_0",
-    "hf_T5_backward_11",
-    "hf_T5_backward_9",
-    "hf_T5_backward_3",
-    "hf_T5_backward_12",
-    "hf_T5_backward_4",
     "hf_T5_backward_6",
-    "hf_T5_backward_10",
-    "hf_T5_backward_1",
-    "hf_T5_backward_5",
-    "hf_T5_backward_13",
     "hf_T5_backward_14",
-    "hf_T5_backward_2",
-    "hf_T5_backward_8",
 ]
 
 SKIP_CASES = set(zero_fusion_group).union(set(one_fusion_group))
@@ -316,10 +303,18 @@ def profile_graph(traced_graph, inp, list_inp):
 
     return avg_cuda_time_f
 
+def get_num_fused_group(gm):
+    num_fusion_group = 0
+    for node in gm.graph.nodes:
+        if is_fused_node(node):
+            num_fusion_group += 1
+    return num_fusion_group
+
+
 def profile_fused_graph(fused_graph, inp, list_inp):
     num_fusion_group = 0
     for node in fused_graph.graph.nodes:
-        if "fused_" in node.name and node.op == "call_module":
+        if is_fused_node(node):
             module = getattr(fused_graph, node.name)
             setattr(fused_graph, node.name, torch.jit.script(module) )
             num_fusion_group += 1
@@ -360,9 +355,10 @@ def profile_module(name, m, inp):
     stat = {}
     fused_graph = rematerialize_stat(csed_graph_copy, stat)
     num_remat_group = stat["num_group_remat"]
+    memory_reduced = stat["memory_reduced"]
     avg_cuda_time_h, _ = profile_fused_graph(fused_graph, inp, True)
 
-    print(f"{name}, {eager_time}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fusion_group}, {num_remat_group}", flush=True)
+    print(f"{name}, {eager_time}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fusion_group}, {num_remat_group}, {memory_reduced}", flush=True)
 
 def check_num_remat(name, m, inp):
     def fake_fn(args):
@@ -379,12 +375,14 @@ def check_num_remat(name, m, inp):
     stat = {}
     fused_graph = rematerialize_stat(csed_graph, stat)
     num_remat_group = stat["num_group_remat"]
-    if(num_remat_group != 0):
-        print(f"{name}", flush=True)
+    memory_reduced = stat["memory_reduced"]
+    num_fusion_group = get_num_fused_group(fused_graph)
+    # if(num_remat_group != 0):
+    # print(f" '{name}',  {num_fusion_group}, {num_remat_group}, {memory_reduced}", flush=True)
 
 device = 'cuda'
 
-print("name, eager_time, scripted_cuda_time, fused_cuda_time, remat_cuda_time, num_fusion_group, num_remat_group")
+print("name, eager_time, scripted_cuda_time, fused_cuda_time, remat_cuda_time, num_fusion_group, num_remat_group, memory_reduced")
 
 # test_cases = [
 #     "torch_bench_graphs/hf_Bart/hf_Bart_forward_3",
@@ -398,9 +396,9 @@ for dir in test_cases:
     if model_name in SKIP_CASES:
         continue
     
-    if model_name not in non_zero_remat_group:
-        continue
-    # print(f"====== {model_name} ======")
+    # if model_name not in non_zero_remat_group:
+        # continue
+    print(f"====== {model_name} ======")
     module = importlib.import_module(module_path)
 
     m = module.FxModule()
