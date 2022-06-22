@@ -22,7 +22,7 @@ def _canonicalize(fx_g):
 
 def _strip_overloads(gm):
     """
-    Modifies the target of graphs nodes in :attr:`gm` to strip overloads.
+    Modifies the target of graph nodes in :attr:`gm` to strip overloads.
 
     Args:
         gm(fx.GraphModule): The input Fx graph module to be modified
