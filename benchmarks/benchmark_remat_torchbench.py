@@ -5,8 +5,9 @@ import pickle
 
 import torch
 import torch.fx as fx
+from functorch import make_fx
 from torch.fx._symbolic_trace import symbolic_trace
-from functorch._src.remat_utils_weighted import rematerialize, get_fused_graph, rematerialize_fused_graph
+from functorch._src.remat_utils_weighted import rematerialize, rematerialize_stat, get_fused_graph, rematerialize_fused_graph
 from torch.profiler import profile, ProfilerActivity
 from functorch._src.cse import fx_graph_cse
 
@@ -210,6 +211,7 @@ test_cases = [
     # "torch_bench_graphs/mnasnet1_0/mnasnet1_0_forward_0",  #cudnn_batch_norm: ATen not compiled with cuDNN support
 ]
 
+
 zero_fusion_group = [
     "nvidia_deeprecommender_backward_0",
     "nvidia_deeprecommender_forward_0",
@@ -252,7 +254,15 @@ one_fusion_group = [
     "hf_T5_forward_6",
 ]
 
-SKIP_CASES = set(zero_fusion_group).union(set(one_fusion_group))
+zero_remat_group = [
+    "resnext50_32x4d_forward_0",
+    "resnext50_32x4d_backward_0",
+    "resnet18_backward_0",
+    "mnasnet1_0_backward_0",
+    "BERT_pytorch_forward_0"
+]
+
+SKIP_CASES = set(zero_fusion_group).union(set(one_fusion_group)).union(set(zero_remat_group))
 
 def benchmark_GPU_time(f, inp, list_inp, itr = 5):
     if list_inp:
@@ -261,7 +271,6 @@ def benchmark_GPU_time(f, inp, list_inp, itr = 5):
         with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
             for _ in range(itr):
                 f(*inp)
-
         timing = prof.key_averages()
         cuda_time_total = 0
         for e in timing:
@@ -291,54 +300,78 @@ def profile_graph(traced_graph, inp, list_inp):
     return avg_cuda_time_f
 
 def profile_fused_graph(fused_graph, inp, list_inp):
-    num_fused_group = 0
+    num_fusion_group = 0
     for node in fused_graph.graph.nodes:
         if "fused_" in node.name and node.op == "call_module":
             module = getattr(fused_graph, node.name)
             setattr(fused_graph, node.name, torch.jit.script(module) )
-            num_fused_group += 1
+            num_fusion_group += 1
 
-    if num_fused_group == 0: # no fused group
+    if num_fusion_group == 0: # no fused group
         script_f = torch.jit.script(fused_graph)
         return benchmark_GPU_time(script_f, inp, list_inp), 0
 
     avg_cuda_time_g = benchmark_GPU_time(fused_graph, inp, list_inp)
-    return avg_cuda_time_g, num_fused_group
+    return avg_cuda_time_g, num_fusion_group
 
 
 def profile_module(name, m, inp):
 
-    eager_time = benchmark_GPU_time(m, inp, True)
+    def fake_fn(args):
+        return m(*args)
+    
+    traced_graph = make_fx(fake_fn)(inputs)
+    eager_time = benchmark_GPU_time(traced_graph, inp, True)
 
-    traced_graph = symbolic_trace(m)
     avg_cuda_time_f = profile_graph(traced_graph, inp, True)
 
-    traced_graph = symbolic_trace(m)
+    traced_graph = make_fx(fake_fn)(inputs)
     csed = fx_graph_cse(traced_graph.graph)
     csed_graph =  fx.GraphModule(traced_graph, csed)
     csed_graph_copy = copy.deepcopy(csed_graph)
     
     fused_graph = get_fused_graph(csed_graph)
-    avg_cuda_time_g, num_fused_group = profile_fused_graph(fused_graph, inp, True)
+    avg_cuda_time_g, num_fusion_group = profile_fused_graph(fused_graph, inp, True)
 
-    fused_graph = rematerialize(csed_graph_copy)
+    stat = {}
+    fused_graph = rematerialize_stat(csed_graph_copy, stat)
+    num_fused_group = stat["num_group_fused"]
     avg_cuda_time_h, _ = profile_fused_graph(fused_graph, inp, True)
 
-    print(f"{name}, {eager_time}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fused_group}")
+    print(f"{name}, {eager_time}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fusion_group}, {num_fused_group}", flush=True)
+
+def check_num_remat(name, m, inp):
+    def fake_fn(args):
+        return m(*args)
+    
+    traced_graph = make_fx(fake_fn)(inputs)
+    # traced_graph = symbolic_trace(m)
+
+
+    csed = fx_graph_cse(traced_graph.graph)
+    csed_graph =  fx.GraphModule(traced_graph, csed)
+
+    stat = {}
+    fused_graph = rematerialize_stat(csed_graph, stat)
+    num_remat_group = stat["num_group_remat"]
+    if(num_remat_group == 0):
+        print(f"{name}", flush=True)
 
 device = 'cuda'
 
-print("name, eager_time, scripted_cuda_time, fused_cuda_time, remat_cuda_time, num_fused_group")
+print("name, eager_time, scripted_cuda_time, fused_cuda_time, remat_cuda_time, num_fusion_group, num_remat_group")
+
+# test_cases = [
+#     "torch_bench_graphs/hf_Bart/hf_Bart_forward_3",
+# ]
 
 for dir in test_cases:
     path = dir.split('/')
     model_name = path[-1]
     module_path = '.'.join(path)
     input_data_path = f'{dir}/{model_name}.input'
-
     if model_name in SKIP_CASES:
         continue
-
 
     # print(f"====== {model_name} ======")
     module = importlib.import_module(module_path)
@@ -359,8 +392,10 @@ for dir in test_cases:
                 inputs.append(input)
         m.to(device)
         profile_module(model_name, m, inputs)
+        # check_num_remat(model_name, m, inputs)
 
     except Exception as e:
+        # pass
         print(f"{model_name}, failed,")
         print(e)
         # exit(1)

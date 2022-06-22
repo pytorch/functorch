@@ -1,5 +1,5 @@
-from torch.fx.partitioner.partitioner import CapabilityBasedPartitioner
-from torch.fx.partitioner.nvfuser_operator_support import NvFuserOperatorSupport
+from torch.fx.passes.infra.partitioner import CapabilityBasedPartitioner
+from torch.fx.passes.backends.nvfuser.operator_support import NvFuserOperatorSupport
 from torch.fx.passes.tools_common import legalize_graph
 import operator
 import math
@@ -271,5 +271,5 @@ def rematerialize_stat(traced_graph, stat):
     fused_graph = get_fused_graph(traced_graph)
     fused_graph = rematerialize_fused_graph(fused_graph, node_users_map)
     global num_group_fused
-    stat["num_group_fused"] = num_group_fused
+    stat["num_group_remat"] = num_group_fused
     return fused_graph
