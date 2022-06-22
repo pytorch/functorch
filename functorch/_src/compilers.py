@@ -20,6 +20,12 @@ def _canonicalize(fx_g):
     return fx_g
 
 
+def _prepare_for_jit_script(gm):
+    for node in gm.graph.nodes:
+        if isinstance(node.target, torch._ops.OpOverload):
+            node.target = node.target.overloadpacket
+
+
 def ts_compile(fx_g: fx.GraphModule, _) -> Callable:
     """
     Compiles the :attr:`fx_g` with Torchscript compiler.
@@ -45,6 +51,8 @@ def ts_compile(fx_g: fx.GraphModule, _) -> Callable:
                 v = v.type
             new_kwargs[k] = v
         node.kwargs = new_kwargs
+
+    _prepare_for_jit_script(fx_g)
 
     fx_g.graph.lint()
 
