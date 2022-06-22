@@ -321,11 +321,13 @@ def profile_module(name, m, inp):
         return m(*args)
     
     traced_graph = make_fx(fake_fn)(inputs)
-    eager_time = benchmark_GPU_time(traced_graph, inp, True)
+    traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
+    eager_time = benchmark_GPU_time(traced_graph, inp, False)
 
     avg_cuda_time_f = profile_graph(traced_graph, inp, True)
 
     traced_graph = make_fx(fake_fn)(inputs)
+    traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
     csed = fx_graph_cse(traced_graph.graph)
     csed_graph =  fx.GraphModule(traced_graph, csed)
     csed_graph_copy = copy.deepcopy(csed_graph)
@@ -335,10 +337,10 @@ def profile_module(name, m, inp):
 
     stat = {}
     fused_graph = rematerialize_stat(csed_graph_copy, stat)
-    num_fused_group = stat["num_group_fused"]
+    num_remat_group = stat["num_group_remat"]
     avg_cuda_time_h, _ = profile_fused_graph(fused_graph, inp, True)
 
-    print(f"{name}, {eager_time}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fusion_group}, {num_fused_group}", flush=True)
+    print(f"{name}, {eager_time}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fusion_group}, {num_remat_group}", flush=True)
 
 def check_num_remat(name, m, inp):
     def fake_fn(args):
@@ -398,4 +400,3 @@ for dir in test_cases:
         # pass
         print(f"{model_name}, failed,")
         print(e)
-        # exit(1)
