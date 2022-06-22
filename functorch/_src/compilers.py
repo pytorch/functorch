@@ -20,7 +20,7 @@ def _canonicalize(fx_g):
     return fx_g
 
 
-def _strip_overloads(gm):
+def strip_overloads(gm):
     """
     Modifies the target of graph nodes in :attr:`gm` to strip overloads.
 
@@ -59,7 +59,7 @@ def ts_compile(fx_g: fx.GraphModule, _) -> Callable:
             new_kwargs[k] = v
         node.kwargs = new_kwargs
 
-    _strip_overloads(fx_g)
+    strip_overloads(fx_g)
 
     fx_g.graph.lint()
 
