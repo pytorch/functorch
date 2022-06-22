@@ -14,6 +14,13 @@ from functorch._src.cse import fx_graph_cse
 graphs_dir = "/scratch/shangdiy/work/torchbenchmark/"
 os.chdir(graphs_dir)
 
+def _prepare_for_jit_script(gm):
+    for node in gm.graph.nodes:
+        if isinstance(node.target, torch._ops.OpOverload):
+            node.target = node.target.overloadpacket
+
+
+
 test_cases = [
     "torch_bench_graphs/resnext50_32x4d/resnext50_32x4d_forward_0", 
     "torch_bench_graphs/resnext50_32x4d/resnext50_32x4d_backward_0", 
@@ -254,15 +261,25 @@ one_fusion_group = [
     "hf_T5_forward_6",
 ]
 
-zero_remat_group = [
-    "resnext50_32x4d_forward_0",
-    "resnext50_32x4d_backward_0",
-    "resnet18_backward_0",
-    "mnasnet1_0_backward_0",
-    "BERT_pytorch_forward_0"
+non_zero_remat_group = [
+    "BERT_pytorch_backward_0",
+    "hf_T5_backward_0",
+    "hf_T5_backward_11",
+    "hf_T5_backward_9",
+    "hf_T5_backward_3",
+    "hf_T5_backward_12",
+    "hf_T5_backward_4",
+    "hf_T5_backward_6",
+    "hf_T5_backward_10",
+    "hf_T5_backward_1",
+    "hf_T5_backward_5",
+    "hf_T5_backward_13",
+    "hf_T5_backward_14",
+    "hf_T5_backward_2",
+    "hf_T5_backward_8",
 ]
 
-SKIP_CASES = set(zero_fusion_group).union(set(one_fusion_group)).union(set(zero_remat_group))
+SKIP_CASES = set(zero_fusion_group).union(set(one_fusion_group))
 
 def benchmark_GPU_time(f, inp, list_inp, itr = 5):
     if list_inp:
@@ -324,9 +341,14 @@ def profile_module(name, m, inp):
     traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
     eager_time = benchmark_GPU_time(traced_graph, inp, False)
 
+    _prepare_for_jit_script(traced_graph)
+    traced_graph.recompile()
+
     avg_cuda_time_f = profile_graph(traced_graph, inp, True)
 
     traced_graph = make_fx(fake_fn)(inputs)
+    _prepare_for_jit_script(traced_graph)
+    traced_graph.recompile()
     traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
     csed = fx_graph_cse(traced_graph.graph)
     csed_graph =  fx.GraphModule(traced_graph, csed)
@@ -348,7 +370,8 @@ def check_num_remat(name, m, inp):
     
     traced_graph = make_fx(fake_fn)(inputs)
     # traced_graph = symbolic_trace(m)
-
+    _prepare_for_jit_script(traced_graph)
+    traced_graph.recompile()
 
     csed = fx_graph_cse(traced_graph.graph)
     csed_graph =  fx.GraphModule(traced_graph, csed)
@@ -356,7 +379,7 @@ def check_num_remat(name, m, inp):
     stat = {}
     fused_graph = rematerialize_stat(csed_graph, stat)
     num_remat_group = stat["num_group_remat"]
-    if(num_remat_group == 0):
+    if(num_remat_group != 0):
         print(f"{name}", flush=True)
 
 device = 'cuda'
@@ -374,7 +397,9 @@ for dir in test_cases:
     input_data_path = f'{dir}/{model_name}.input'
     if model_name in SKIP_CASES:
         continue
-
+    
+    if model_name not in non_zero_remat_group:
+        continue
     # print(f"====== {model_name} ======")
     module = importlib.import_module(module_path)
 
