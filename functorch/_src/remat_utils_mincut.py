@@ -4,7 +4,7 @@ from torch.fx.passes.tools_common import legalize_graph
 import operator
 import math
 
-from .utilities import _size_of
+from .utilities import _size_of, get_cut_nodes_from_partition
 
 
 num_group_remat = 0  # used for analytical purpose
@@ -248,6 +248,64 @@ def copy_all_nodes(node_pair, fused_graph, name_to_node):
             break
     module_origin.recompile() 
     fused_graph.recompile()
+
+def get_weight(node):
+    weight = 0
+    if 'tensor_meta' in node.meta:
+        weight = _size_of(node.meta['tensor_meta'])
+    return weight
+
+
+def find_min_cut(node_pair, node_users_map, fused_graph):
+    try:
+        import networkx as nx 
+    except ImportError:
+        raise RuntimeError("Need networkx installed to perform smart recomputation heuristics")
+    nx_graph = nx.DiGraph()
+    node_origin = node_pair[0]
+    node_dest = node_pair[1]
+    module_origin = getattr(fused_graph, node_origin.name)
+    module_dest = getattr(fused_graph, node_dest.name)
+
+    dest_placeholder_names = set(node.name for node in module_dest.graph.nodes if node.op == "placeholder")
+    dest_node_names = set(node.name for node in module_dest.graph.nodes if node.op != "placeholder" and node.op != "output")
+    orig_node_names = set(node.name for node in module_origin.graph.nodes if node.op != "placeholder" and node.op != "output")
+
+
+    for node in module_origin.graph.nodes:
+        if node.op == 'output':
+            continue
+
+        weight = get_weight(node)
+        if node.name in dest_placeholder_names:
+            user_names_set = set({n.name for n in node_users_map[node.name]})
+            user_names_outside_set = user_names_set.difference(orig_node_names)
+            if len(user_names_outside_set) > 0 and user_names_outside_set.issubset(set(dest_node_names)):
+                capacity = 2*weight  # cost for both read and write because only dest_module is using it
+            else:
+                capacity = weight  # only need incur read cost
+            nx_graph.add_edge(node.name+"_in", 'sink', capacity=capacity)
+            continue
+
+        if node.op == 'placeholder':
+            # if need to read this placeholder again
+            nx_graph.add_edge("source", node.name+"_out", capacity=weight)  
+        elif node.op ==  'call_function':
+            # if rematerialize an internal node, need to read and write
+            # TODO: might not need to add the write cost, because it might be read by other
+            # TODO: might not need to add the read cost, if already reading it
+            # TODO: test case for both
+            nx_graph.add_edge(node.name+"_in", node.name+"_out", capacity=2*weight)
+ 
+        for user in node.users:
+            nx_graph.add_edge(node.name+"_out", user.name+"_in", capacity=math.inf)
+
+
+    cut_value, partition = nx.minimum_cut(nx_graph, "source", "sink")
+    print(cut_value, partition)
+    cut_nodes = get_cut_nodes_from_partition(partition, nx_graph)
+    print(cut_nodes)
+
 
 def get_fused_graph(traced_graph):
     supported_ops = NvFuserOperatorSupport()
