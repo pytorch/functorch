@@ -3,13 +3,33 @@ import torch
 import torch.fx as fx
 from torch.utils._pytree import tree_flatten
 
+from collections import defaultdict
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
+
+reduced_ops = defaultdict(lambda: 0)
+
+import atexit
+# def dump_ops():
+#     with open('count_ops.txt', 'a') as g:
+#         g.write(f', {reduced_op_count}, {total_op_count}, {reduced_intensive_op_count}, {total_intensive_op_count}\n')
+#         # print(f'num_op_reduced: {reduced_op_count}, {total_op_count} \n')
+
+# atexit.register(dump_ops)
+def print_ops():
+    for op, count in sorted(reduced_ops.items(), key=lambda x: x[0].__name__):
+        print(f'{op.__name__}, {count}')
+    # for op, count in sorted(total_ops.items(), key=lambda x: x[0].__name__):
+    #     print(f'tt: {op.__name__}, {count}')
+atexit.register(print_ops)
+
 aten = torch.ops.aten
 rand_ops = [aten.dropout, aten._fused_dropout, aten._standard_gamma,
             aten.bernoulli, aten.multinomial, aten.native_dropout,
             aten.normal, aten.poisson, aten.binomial, aten.rrelu,
             aten.rand_like, aten.rand, aten.randint, aten.randn, aten.randperm]
 
-
+print()
 # return a new copy of torch.fx.graph.Graph with CSE applied to the input graph
 def fx_graph_cse(fx_g: torch.fx.graph.Graph):
     new_graph = fx.Graph()
@@ -47,6 +67,7 @@ def fx_graph_cse(fx_g: torch.fx.graph.Graph):
             # check if a node has a substitute and can be eliminated
             hash_val_in_hash_env = hash_val in hash_env
             if hash_val_in_hash_env and token_map[hash_val] == token:
+                reduced_ops[n.target] = reduced_ops[n.target]+1
                 env[n] = hash_env[hash_val]
                 continue
 
