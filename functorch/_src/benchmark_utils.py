@@ -9,7 +9,7 @@ def synchronize():
     pass
 
 
-def dump_chrome_trace(f, input, trace_filename, optimize_ctx, activities, num_runs=1, randomize_input=False,
+def dump_chrome_trace(f, input, trace_filename, optimize_ctx, activities, num_runs=1,
                       devices=None, kwargs_for_f=None, kwargs_for_profiler=None):
     """
     Output the chrome trace of running f(input, **kwargs_for_f) with [optimize_ctx]
@@ -27,12 +27,6 @@ def dump_chrome_trace(f, input, trace_filename, optimize_ctx, activities, num_ru
     global synchronize
     if devices != ["cpu"] and torch.cuda.is_available():
         synchronize = torch.cuda.synchronize
-
-    input = (
-        randomize_input(copy.deepcopy(input))
-        if randomize_input
-        else input
-    )
 
     if kwargs_for_f is None:
         kwargs_for_f = {}
