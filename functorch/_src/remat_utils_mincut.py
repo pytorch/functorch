@@ -232,7 +232,7 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
         import networkx as nx 
     except ImportError:
         raise RuntimeError("Need networkx installed to perform smart recomputation heuristics")
-    nx_graph = nx.Graph()
+    nx_graph = nx.DiGraph()
     node_origin = node_pair[0]
     node_dest = node_pair[1]
     module_origin = getattr(fused_graph, node_origin.name)
