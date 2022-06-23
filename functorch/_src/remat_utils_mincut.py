@@ -1,3 +1,4 @@
+from logging import raiseExceptions
 from torch.fx.passes.infra.partitioner import CapabilityBasedPartitioner
 from torch.fx.passes.backends.nvfuser.operator_support import NvFuserOperatorSupport
 from torch.fx.passes.tools_common import legalize_graph
@@ -5,7 +6,7 @@ import operator
 import math
 import copy
 
-from .utilities import _size_of, get_cut_nodes_from_partition, draw_nx_graph
+from .utilities import _size_of, draw_nx_graph
 
 
 num_group_remat = 0  # used for analytical purpose
@@ -69,6 +70,28 @@ def get_name_to_args_map(node, gm):
             loc += 1
     return placeholder_map 
 
+def get_nx_node_name(node_name):
+    if node_name.endswith("_in"):
+        return node_name[:-3]
+    elif node_name.endswith("_out"):
+        return node_name[:-4]
+    raise Exception("node name is not _in or _out, "+ node_name)
+
+
+# TODO: test case for not rematerializing anything, cut across sink
+def get_cut_nodes_from_partition(partition, nx_graph):
+    reachable, non_reachable = partition
+    cutset = set()
+    for u, nbrs in ((n, nx_graph[n]) for n in reachable):
+        cutset.update((u, v) for v in nbrs if v in non_reachable)
+
+    cut_nodes = set()
+    for node_in, node_out in cutset:
+        # assert node_in[:-3] == node_out[:-4]
+        # node_name = node_in[:-3]
+        # cut_nodes.add(node_name)
+        cut_nodes.add(get_nx_node_name(node_in))
+    return cut_nodes
 
 def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
     """
@@ -89,10 +112,8 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
 
     node_to_copy = set()
     for node_name in non_reachable:
-        if node_name.endswith("_in"):
-            node_to_copy.add(node_name[:-3])
-        elif node_name.endswith("_out"):
-            node_to_copy.add(node_name[:-4])
+        node_name = get_nx_node_name(node_name)
+        node_to_copy.add(node_name)
     node_to_copy = node_to_copy.difference(cut_nodes)
 
     first_node_dest = None
@@ -204,10 +225,25 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
     module_dest = getattr(fused_graph, node_dest.name)
 
     dest_placeholder_names = set(node.name for node in module_dest.graph.nodes if node.op == "placeholder")
-
     # used to check if a node has users in dest. The user node in the original graph has the same name as the call_func nodes in dest.
     dest_node_names = set(node.name for node in module_dest.graph.nodes if node.op != "placeholder" and node.op != "output")
     orig_node_names = set(node.name for node in module_origin.graph.nodes if node.op != "placeholder" and node.op != "output")
+
+    def get_capacity(node):
+        # if rematerialize an internal node, need to read and write
+        # might not need to add the write cost, because it might be read by other
+        # might not need to add the read cost, if already reading it - no need the cost
+        # TODO: test case for both
+        user_names_set = set({n.name for n in node_users_map[node.name]})
+        user_names_outside_set = user_names_set.difference(orig_node_names)
+        write_cost = 0 # cost for both read and write because only dest_module is using it
+        if weight and user_names_outside_set.issubset(set(dest_node_names)):
+            write_cost = weight  
+        
+        read_cost = weight
+
+        capacity = write_cost+read_cost
+        return capacity
 
 
     for node in module_origin.graph.nodes:
@@ -217,44 +253,40 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
         weight = get_weight(node)
 
         if node.op == 'placeholder':
-            # if need to read this placeholder again
+            nx_graph.add_edge("source", node.name+"_in", capacity=math.inf)   
+
+
+        if node.name in dest_placeholder_names:
+            capacity = get_capacity(node)
+            nx_graph.add_edge(node.name+"_in", 'sink', capacity=capacity)
+            for user in node.users:
+                if user.op != "output":
+                    nx_graph.add_edge(node.name+"_in", user.name+"_in", capacity=math.inf)
+            continue
+
+
+        if node.op == 'placeholder':
             capacity=weight
-            nx_graph.add_edge("source", node.name+"_in", capacity=math.inf)  
-        if node.op ==  'call_function':
-            # if rematerialize an internal node, need to read and write
-            # might not need to add the write cost, because it might be read by other
-            # might not need to add the read cost, if already reading it - no need the cost
-            # TODO: test case for both
-            user_names_set = set({n.name for n in node_users_map[node.name]})
-            user_names_outside_set = user_names_set.difference(orig_node_names)
-            write_cost = 0 # cost for both read and write because only dest_module is using it
-
-            if weight and user_names_outside_set.issubset(set(dest_node_names)):
-                write_cost = weight  
-            
-            read_cost = weight
-            if node.name in dest_placeholder_names:
-                nx_graph.add_edge(node.name+"_out", 'sink', capacity=math.inf)
-
-            capacity = write_cost+read_cost
+        elif node.op ==  'call_function':
+            capacity = get_capacity(node)
         
         nx_graph.add_edge(node.name+"_in", node.name+"_out", capacity=capacity)
- 
         for user in node.users:
             if user.op != "output":
                 nx_graph.add_edge(node.name+"_out", user.name+"_in", capacity=math.inf)
 
-    draw_nx_graph(nx_graph)
+    # draw_nx_graph(nx_graph)
+    print(nx_graph.edges.data() )
     cut_value, partition = nx.minimum_cut(nx_graph, "source", "sink")
-    print(cut_value, partition)
+    # print(cut_value, partition)
     cut_nodes = get_cut_nodes_from_partition(partition, nx_graph)
-    print(cut_nodes)
+    # print(cut_nodes)
     return partition, cut_nodes
 
 
 def check_remat(partition):
     _, non_reachable = partition
-    return non_reachable == "sink"
+    return non_reachable == {"sink"}
 
 def get_fused_graph(traced_graph):
     supported_ops = NvFuserOperatorSupport()

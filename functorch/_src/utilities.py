@@ -32,20 +32,6 @@ def _size_of(metadata):
     return numel * sizes[dtype]
 
 
-def get_cut_nodes_from_partition(partition, nx_graph):
-    reachable, non_reachable = partition
-    cutset = set()
-    for u, nbrs in ((n, nx_graph[n]) for n in reachable):
-        cutset.update((u, v) for v in nbrs if v in non_reachable)
-
-    cut_nodes = set()
-    for node_in, node_out in cutset:
-        assert node_in[:-3] == node_out[:-4]
-        node_name = node_in[:-3]
-        cut_nodes.add(node_name)
-    return cut_nodes
-
-
 def draw_nx_graph(nx_graph, filename = "fig.svg"):
     import matplotlib.pyplot as pyplot  # pylint: disable=import-error
     import networkx as nx 

@@ -1,5 +1,5 @@
 from torch.fx.partitioner.partitioner import CapabilityBasedPartitioner
-from torch.fx.partitioner.nvfuser_operator_support import NvFuserOperatorSupport
+from torch.fx.passes.backends.nvfuser.operator_support import NvFuserOperatorSupport
 from torch.fx.passes.tools_common import legalize_graph
 import operator
 

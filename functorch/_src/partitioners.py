@@ -8,7 +8,7 @@ import os
 from torch.fx.passes import graph_drawer
 from typing import Tuple
 from .cse import fx_graph_cse
-from .utilities import _size_of, get_cut_nodes_from_partition
+from .utilities import _size_of
 
 class InvalidNodeBase(object):
     def __repr__(self):
@@ -358,7 +358,17 @@ def min_cut_rematerialization_partition(
             nx_graph.add_edge(node.name+"_out", user.name+"_in", capacity=math.inf)
 
     cut_value, partition = nx.minimum_cut(nx_graph, "source", "sink")
-    cut_nodes = get_cut_nodes_from_partition(partition, nx_graph)
+    reachable, non_reachable = partition
+    cutset = set()
+    for u, nbrs in ((n, nx_graph[n]) for n in reachable):
+        cutset.update((u, v) for v in nbrs if v in non_reachable)
+
+    cut_nodes = set()
+    for node_in, node_out in cutset:
+        assert node_in[:-3] == node_out[:-4]
+        node_name = node_in[:-3]
+        cut_nodes.add(node_name)
+    return cut_nodes
 
     # To make this stuff deterministic
     node_idx = {node: idx for idx, node in enumerate(joint_module.graph.nodes)}
