@@ -61,4 +61,4 @@ def dump_chrome_trace(f, input, trace_filename, optimize_ctx, activities, num_ru
                 synchronize()
     prof.export_chrome_trace(trace_filename)
 
-    return f"{timing:.3f}"
+    return timing
