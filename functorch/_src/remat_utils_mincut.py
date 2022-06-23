@@ -49,7 +49,7 @@ def get_weight(node):
     return weight
 
 
-def get_name_to_args_map(node, gm):
+def get_name_to_args_map(node_orig, gm):
     # map from module_dest.graph's placeholder names to module_dest's node's args in fused graph
     # dest_args = []
     # for node in fused_graph.graph.nodes:
@@ -66,7 +66,7 @@ def get_name_to_args_map(node, gm):
     loc = 0 
     for node in gm.graph.nodes:
         if node.op == "placeholder":
-            placeholder_map[node.name] = node.args[loc]
+            placeholder_map[node.name] = node_orig.args[loc]
             loc += 1
     return placeholder_map 
 
@@ -78,7 +78,6 @@ def get_nx_node_name(node_name):
     raise Exception("node name is not _in or _out, "+ node_name)
 
 
-# TODO: test case for not rematerializing anything, cut across sink
 def get_cut_nodes_from_partition(partition, nx_graph):
     reachable, non_reachable = partition
     cutset = set()
@@ -92,6 +91,16 @@ def get_cut_nodes_from_partition(partition, nx_graph):
         # cut_nodes.add(node_name)
         cut_nodes.add(get_nx_node_name(node_in))
     return cut_nodes
+
+def order_topologically(nodes, gm):
+    node_order_dict = {}
+    rank = 0
+    for n in gm.graph.nodes:
+        node_order_dict[n.name] = rank
+        rank += 1
+    
+    nodes = sorted(nodes, key=lambda x: node_order_dict[x])
+    return nodes
 
 def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
     """
@@ -112,9 +121,11 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
 
     node_to_copy = set()
     for node_name in non_reachable:
+        if node_name == "sink":
+            continue
         node_name = get_nx_node_name(node_name)
         node_to_copy.add(node_name)
-    node_to_copy = node_to_copy.difference(cut_nodes)
+    node_to_copy = node_to_copy.difference(cut_nodes)  # TODO: cut nodes are handeled separately as placeholders
 
     first_node_dest = None
     for node in module_dest.graph.nodes:
@@ -126,15 +137,18 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
     env = {}  # map from node in origin to node in dest
     # new placeholders, TODO: check if there are existing placeholders
     for node_name in cut_nodes:
-        if node_name in name_to_node_dest:
-            continue  # already has a placeholder for it in dest
         node = name_to_node_origin[node_name]
+        if node_name in name_to_node_dest:
+            # already has a placeholder for it in dest
+            env[node] = name_to_node_dest[node_name]
+            continue  
         with module_dest.graph.inserting_before(first_node_dest):
             new_node = module_dest.graph.placeholder(node.name, type_expr=node.type)
             new_node.meta = copy.copy(node.meta)
             env[node] = new_node
 
     # copy internal nodes
+    node_to_copy = order_topologically(node_to_copy , module_origin)
     for node_name in node_to_copy:
         node = name_to_node_origin[node_name]
         with module_dest.graph.inserting_before(first_node_dest):
@@ -218,7 +232,7 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
         import networkx as nx 
     except ImportError:
         raise RuntimeError("Need networkx installed to perform smart recomputation heuristics")
-    nx_graph = nx.DiGraph()
+    nx_graph = nx.Graph()
     node_origin = node_pair[0]
     node_dest = node_pair[1]
     module_origin = getattr(fused_graph, node_origin.name)
@@ -258,10 +272,11 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
 
         if node.name in dest_placeholder_names:
             capacity = get_capacity(node)
-            nx_graph.add_edge(node.name+"_in", 'sink', capacity=capacity)
+            nx_graph.add_edge(node.name+"_out", 'sink', capacity=capacity)
+            nx_graph.add_edge(node.name+"_in", node.name+"_out", capacity=capacity)
             for user in node.users:
                 if user.op != "output":
-                    nx_graph.add_edge(node.name+"_in", user.name+"_in", capacity=math.inf)
+                    nx_graph.add_edge(node.name+"_out", user.name+"_in", capacity=math.inf)
             continue
 
 
@@ -276,8 +291,9 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
                 nx_graph.add_edge(node.name+"_out", user.name+"_in", capacity=math.inf)
 
     # draw_nx_graph(nx_graph)
-    print(nx_graph.edges.data() )
     cut_value, partition = nx.minimum_cut(nx_graph, "source", "sink")
+    # for edge in nx_graph.edges.data():
+    #     print(edge)
     # print(cut_value, partition)
     cut_nodes = get_cut_nodes_from_partition(partition, nx_graph)
     # print(cut_nodes)
@@ -286,7 +302,7 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
 
 def check_remat(partition):
     _, non_reachable = partition
-    return non_reachable == {"sink"}
+    return non_reachable != {"sink"}
 
 def get_fused_graph(traced_graph):
     supported_ops = NvFuserOperatorSupport()

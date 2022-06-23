@@ -124,10 +124,10 @@ def f6(a):
 #     %fused_0 : [#users=1] = call_module[target=fused_0](args = (%clone, %getitem, %a_1), kwargs = {})
 #     return fused_0
 
-def f7(a):
-    b = a.relu()
-    c = b.clone()
-    return b + c
+# def f7(a):
+#     b = a.relu()
+#     c = b.clone()
+#     return b + c
 
 
 def f10(a):
@@ -242,7 +242,7 @@ class GetFusedNodePairsTestCase(TestCase):
         self.assertEqual(pair_names, expected_pairs)
 
 
-class GetNumChangesPointwiseTestCase(TestCase):
+class GetCutNodesPointwiseTestCase(TestCase):
     # the expected size is the number of placeholders time 8 because tensor has default size 2 and each is a size 4 float32
 
     def test_user_within_origin_module(self):
@@ -264,42 +264,38 @@ class GetNumChangesPointwiseTestCase(TestCase):
         name_to_node = {node.name:node for node in fused_graph.graph.nodes}
         node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
         _, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
-        self.assertEqual(cut_nodes, {"add_tensor_2"}, f"cut_nodes is {cut_nodes}")  
+        self.assertEqual(cut_nodes, {"add_tensor_2", "cos_default"}, f"cut_nodes is {cut_nodes}")  
 
     def test_write_to_non_fusable_and_other_groups(self):
         node_users_map, fused_graph = get_fused_graph_for_num_changes(f4)
         name_to_node = {node.name:node for node in fused_graph.graph.nodes}
         node_pair = (name_to_node["fused_2"], name_to_node["fused_1"])
         _, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
-        self.assertEqual(cut_nodes, {"a_1"}, f"cut_nodes is {cut_nodes}")  
+        self.assertTrue(cut_nodes == {"a_1"} or cut_nodes == {"cos_default"}, f"cut_nodes is {cut_nodes}")  
 
     def test_write_to_other_groups(self):
         node_users_map, fused_graph = get_fused_graph_for_num_changes(f5)
         name_to_node = {node.name:node for node in fused_graph.graph.nodes}
         node_pair = (name_to_node["fused_2"], name_to_node["fused_1"])
         _, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
-        self.assertEqual(cut_nodes, {"a_1"}, f"cut_nodes is {cut_nodes}")  
+        self.assertTrue(cut_nodes == {"a_1"} or cut_nodes == {"cos_default"}, f"cut_nodes is {cut_nodes}")  
 
     def test_multiple_users_in_origin_group(self):
         node_users_map, fused_graph = get_fused_graph_for_num_changes(f6)
         name_to_node = {node.name:node for node in fused_graph.graph.nodes}
         node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
         _, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
-        self.assertEqual(cut_nodes, {"relu_default", "a_1"}, f"cut_nodes is {cut_nodes}")  
+        self.assertEqual(cut_nodes, {"a_1"}, f"cut_nodes is {cut_nodes}")  
 
 
-class GetNumChangesTestCase(TestCase):
+class GetCutNodesTestCase(TestCase):
 
     def test_reduction_ops(self):
-        pass
-        # node_users_map, fused_graph = get_fused_graph_for_num_changes(f10, 3)
-        # name_to_node = {node.name:node for node in fused_graph.graph.nodes}
-        # node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
-        # add_num_placeholder, remove_num_placeholder, delta_write \
-        #     = get_num_changes(node_pair, node_users_map, fused_graph)
-        # self.assertEqual(add_num_placeholder, 1*12, f"add_num_placeholder is {add_num_placeholder}")
-        # self.assertEqual(remove_num_placeholder, 2 * 4, f"remove_num_placeholder is {remove_num_placeholder}")
-        # self.assertEqual(delta_write, -1*4, f"delta_write is {delta_write}")
+        node_users_map, fused_graph = get_fused_graph_for_num_changes(f10, 3)
+        name_to_node = {node.name:node for node in fused_graph.graph.nodes}
+        node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
+        _, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
+        self.assertEqual(cut_nodes, {"max_default"}, f"cut_nodes is {cut_nodes}")  
 
 
 def get_num_input_outpus(gm):
@@ -320,57 +316,60 @@ def get_num_input_outpus(gm):
 
 # check same result before and after
 # check if the number of placeholders and outputs are as expected
-# class CopyAllNodesTestCase(TestCase):
-#     def test(self):
-#         traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
-#         fused_graph = rematerialize(traced_graph)
+class CopyNodesTestCase(TestCase):
+    def test(self):
+        a = torch.rand(5)
+        traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(a)
+        strip_overloads(traced_graph)
+        fused_graph = rematerialize(traced_graph)
 
-#         a = torch.rand(5)
-#         expected = f(a)
-#         result = fused_graph(a)
-#         self.assertEqual(expected, result, "result is not correct")
+        expected = f(a)
+        result = fused_graph(a)
+        self.assertEqual(expected, result, "result is not correct")
         
-#         count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
-#         self.assertEqual(count_inp, 2, f"count_inp is {count_inp}")
-#         self.assertEqual(count_out, 1, f"count_out is {count_out}")
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
+        self.assertEqual(count_inp, 2, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
-#         count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
-#         self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
-#         self.assertEqual(count_out, 1, f"count_out is {count_out}")
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
+        self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
-#     def test_1(self):
-#         traced_graph = make_fx(f1, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
-#         fused_graph = rematerialize(traced_graph)
+    def test_1(self):
+        traced_graph = make_fx(f1, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
+        strip_overloads(traced_graph)
+        fused_graph = rematerialize(traced_graph)
 
-#         a = torch.rand(5)
-#         expected = f1(a)
-#         result = fused_graph(a)
-#         self.assertEqual(expected, result, "result is not correct")
+        a = torch.rand(5)
+        expected = f1(a)
+        result = fused_graph(a)
+        self.assertEqual(expected, result, "result is not correct")
         
-#         count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
-#         self.assertEqual(count_inp, 2, f"count_inp is {count_inp}")
-#         self.assertEqual(count_out, 1, f"count_out is {count_out}")
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
+        self.assertEqual(count_inp, 2, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
-#         count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
-#         self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
-#         self.assertEqual(count_out, 1, f"count_out is {count_out}")
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
+        self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
-#     def test_2_nochange(self):
-#         traced_graph = make_fx(f2, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
-#         fused_graph = rematerialize(traced_graph)
+    def test_2_nochange(self):
+        traced_graph = make_fx(f2, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
+        strip_overloads(traced_graph)
+        fused_graph = rematerialize(traced_graph)
 
-#         a = torch.rand(5)
-#         expected = f2(a)
-#         result = fused_graph(a)
-#         self.assertEqual(expected, result, "result is not correct")
+        a = torch.rand(5)
+        expected = f2(a)
+        result = fused_graph(a)
+        self.assertEqual(expected, result, "result is not correct")
         
-#         count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
-#         self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
-#         self.assertEqual(count_out, 1, f"count_out is {count_out}")
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
+        self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
-#         count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
-#         self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
-#         self.assertEqual(count_out, 1, f"count_out is {count_out}")
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
+        self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
     # def test_input_arg_in_module(self):
     #     fused_graph = get_fused_graph(f3)
@@ -384,67 +383,72 @@ def get_num_input_outpus(gm):
     #     result = fused_graph(a)
     #     self.assertEqual(expected, result, "result is not correct")
 
-    # def test_one_merge_one_skip(self):
-    #     traced_graph = make_fx(f3, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
-    #     fused_graph = rematerialize(traced_graph)
+    def test_one_merge_one_skip(self):
+        traced_graph = make_fx(f3, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
+        strip_overloads(traced_graph)
+        fused_graph = rematerialize(traced_graph)
 
-    #     a = torch.rand(5)
-    #     expected = f3(a)
-    #     result = fused_graph(a)
-    #     self.assertEqual(expected, result, "result is not correct")
+        a = torch.rand(5)
+        expected = f3(a)
+        result = fused_graph(a)
+        self.assertEqual(expected, result, "result is not correct")
         
-    #     count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
-    #     self.assertEqual(count_inp, 2, f"count_inp is {count_inp}")
-    #     self.assertEqual(count_out, 1, f"count_out is {count_out}")
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
+        self.assertEqual(count_inp, 2, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
-    #     count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
-    #     self.assertEqual(count_inp, 3, f"count_inp is {count_inp}")
-    #     self.assertEqual(count_out, 1, f"count_out is {count_out}")
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
+        self.assertEqual(count_inp, 3, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
-    #     count_inp, count_out = get_num_input_outpus(fused_graph.fused_2)
-    #     self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
-    #     self.assertEqual(count_out, 2, f"count_out is {count_out}")
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_2)
+        self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 2, f"count_out is {count_out}")
 
-    # def test_one_merge_two_skip(self):
-    #     traced_graph = make_fx(f4, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
-    #     fused_graph = rematerialize(traced_graph)
+    def test_one_merge_two_skip(self):
+        traced_graph = make_fx(f4, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
+        strip_overloads(traced_graph)
+        fused_graph = rematerialize(traced_graph)
 
-    #     a = torch.rand(5)
-    #     expected = f4(a)
-    #     result = fused_graph(a)
-    #     self.assertEqual(expected, result, "result is not correct")
+        a = torch.rand(5)
+        expected = f4(a)
+        result = fused_graph(a)
+        self.assertEqual(expected, result, "result is not correct")
         
-    #     count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
-    #     self.assertEqual(count_inp, 3, f"count_inp is {count_inp}")
-    #     self.assertEqual(count_out, 1, f"count_out is {count_out}")
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
+        self.assertEqual(count_inp, 3, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
-    #     count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
-    #     self.assertEqual(count_inp, 3, f"count_inp is {count_inp}")
-    #     self.assertEqual(count_out, 1, f"count_out is {count_out}")
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
+        self.assertEqual(count_inp, 3, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
-    #     count_inp, count_out = get_num_input_outpus(fused_graph.fused_2)
-    #     self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
-    #     self.assertEqual(count_out, 2, f"count_out is {count_out}")
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_2)
+        self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 2, f"count_out is {count_out}")
 
-    # def test_6(self):
-    #     traced_graph = make_fx(f6, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
-    #     fused_graph = rematerialize(traced_graph)
+    def test_6(self):
+        traced_graph = make_fx(f6, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
+        strip_overloads(traced_graph)
+        fused_graph = rematerialize(traced_graph)
 
-    #     a = torch.rand(5)
-    #     expected = f6(a)
-    #     result = fused_graph(a)
-    #     self.assertEqual(expected, result, "result is not correct")
+        a = torch.rand(5)
+        expected = f6(a)
+        result = fused_graph(a)
+        self.assertEqual(expected, result, "result is not correct")
         
-    #     count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
-    #     self.assertEqual(count_inp, 2, f"count_inp is {count_inp}")
-    #     self.assertEqual(count_out, 1, f"count_out is {count_out}")
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
+        self.assertEqual(count_inp, 2, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
-    #     count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
-    #     self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
-    #     self.assertEqual(count_out, 1, f"count_out is {count_out}")
+        count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
+        self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
+        self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
+    # no fused group
     # def test_using_origin_output(self):
     #     traced_graph = make_fx(f7, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
+    #     strip_overloads(traced_graph)
     #     fused_graph = rematerialize(traced_graph)
 
     #     a = torch.rand(5)
@@ -460,20 +464,21 @@ def get_num_input_outpus(gm):
     #     self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
     #     self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
-    # def test_single_fused_group(self):
-    #     def f8(a):
-    #         b = torch.sin(a)
-    #         c = torch.tanh(b)
-    #         d = torch.tanh(c)
-    #         e = torch.relu(d)
-    #         return e
-    #     traced_graph = make_fx(f8, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
-    #     fused_graph = rematerialize(traced_graph)
+    def test_single_fused_group(self):
+        def f8(a):
+            b = torch.sin(a)
+            c = torch.tanh(b)
+            d = torch.tanh(c)
+            e = torch.relu(d)
+            return e
+        traced_graph = make_fx(f8, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
+        strip_overloads(traced_graph)
+        fused_graph = rematerialize(traced_graph)
 
-    #     a = torch.rand(5)
-    #     expected = f8(a)
-    #     result = fused_graph(a)
-    #     self.assertEqual(expected, result, "result is not correct")
+        a = torch.rand(5)
+        expected = f8(a)
+        result = fused_graph(a)
+        self.assertEqual(expected, result, "result is not correct")
 
     # def test_dest_arg_not_in_origin(self):
     #     def f9(a):
