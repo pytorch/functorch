@@ -99,7 +99,6 @@ def get_duration(sorted_gpu_events):
         end_time = event["ts"] + event["dur"]
         total_duration = total_duration + max(end_time - start_time, 0)
         current_end_time = max(current_end_time, end_time)
-    print(total_duration)
     return total_duration
 
 
