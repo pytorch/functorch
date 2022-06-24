@@ -492,6 +492,23 @@ class CopyNodesTestCase(TestCase):
         result = fused_graph(a)
         self.assertEqual(expected, result, f"result is not correct, {expected}, {result}")
 
+    def test_create_new_output_arg(self):
+        def f11(a):
+            b = a.max()
+            c = b.relu()
+            d = b.cos()
+            e = c + d
+            f = e.clone()
+            return f * d + c
+        a = torch.rand(5)
+        traced_graph = make_fx(f11, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(a)
+        strip_overloads(traced_graph)
+        fused_graph = rematerialize(traced_graph)
+
+        expected = f11(a)
+        result = fused_graph(a)
+        self.assertEqual(expected, result, "result is not correct, {expected}, {result}")
+
 
 class RandomOpTestCase(TestCase):
     def test_random(self):

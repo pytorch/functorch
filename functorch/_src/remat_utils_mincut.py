@@ -90,6 +90,12 @@ def order_topologically(nodes, gm):
     nodes = sorted(nodes, key=lambda x: node_order_dict[x])
     return nodes
 
+def get_output_node_args(node):
+    if type(node.args[0]) is not tuple: # TODO: test a single output
+        return node.args
+    return node.args[0]
+
+
 def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
     """
     copy nodes in the non_reachable partition to module of node_pair[1]
@@ -106,6 +112,25 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
     name_to_node_origin = {node.name:node for node in module_origin.graph.nodes}
     name_to_node_dest = {node.name:node for node in module_dest.graph.nodes}
 
+    # add new outputs to origin module
+    module_origin_new_outputs = {name_to_node_origin[name] for name in cut_nodes}
+    new_args = []
+    for node in module_origin.graph.nodes:
+        if node.op == "output":
+            old_args = get_output_node_args(node)
+            module_origin_new_outputs = list(module_origin_new_outputs.difference(set(old_args)))
+            if len(module_origin_new_outputs) > 0:  # need to add new ouputs to module_origin and new inputs to module_dest
+                with fused_graph.graph.inserting_after(node_pair[0]):
+                    for i in range(len(module_origin_new_outputs )):
+                        new_node = fused_graph.graph.call_function(operator.getitem, args=(node_pair[0], i + len(old_args),))
+                        dest_placeholder_map[module_origin_new_outputs[i].name] = new_node # add new arg to dest placeholder map
+                new_args = list(old_args) + module_origin_new_outputs
+                module_origin.graph.erase_node(node)
+                module_origin.graph.output(new_args[0] if len(new_args) == 1 else tuple(new_args)) # TODO: test a single output
+            break
+    
+    module_origin.recompile()
+    fused_graph.recompile()
 
     node_to_copy = set()
     for node_name in non_reachable:
@@ -113,7 +138,7 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
             continue
         node_name = get_nx_node_name(node_name)
         node_to_copy.add(node_name)
-    node_to_copy = node_to_copy.difference(cut_nodes)  # TODO: cut nodes are handeled separately as placeholders
+    node_to_copy = node_to_copy.difference(cut_nodes)  # cut nodes are handeled separately as placeholders
 
     first_node_dest = None
     for node in module_dest.graph.nodes:
@@ -163,14 +188,15 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
     # change the args of dest node in fused_graph
     # use origin_placeholder_map because the active place_holders 
     # might be in another module, and thus need get_item
+    # TODO: might need to add additional args that was not outputted before
     node = node_pair[1]  # dest node
     new_args = []
     for name in active_placeholders:
         if name in name_to_node: # name is a node in fused graph
             new_args.append(name_to_node[name])
-        elif name in origin_placeholder_map: # name is a palceholder in origin's module
+        elif name in origin_placeholder_map: # name is a placeholder in origin's module
             new_args.append(origin_placeholder_map[name])
-        else: # name is a palceholder in dest's module
+        else: # name is a placeholder in dest's module or a newly added input
             new_args.append(dest_placeholder_map[name])
     node.args = tuple(new_args)
 
