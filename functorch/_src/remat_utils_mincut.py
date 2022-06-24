@@ -1,4 +1,4 @@
-from logging import raiseExceptions
+import torch
 from torch.fx.passes.infra.partitioner import CapabilityBasedPartitioner
 from torch.fx.passes.backends.nvfuser.operator_support import NvFuserOperatorSupport
 from torch.fx.passes.tools_common import legalize_graph
@@ -112,12 +112,16 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
     name_to_node_origin = {node.name:node for node in module_origin.graph.nodes}
     name_to_node_dest = {node.name:node for node in module_dest.graph.nodes}
 
-    # add new outputs to origin module
+    # add outputs of origin_module to dest_placheolder_map
     module_origin_new_outputs = {name_to_node_origin[name] for name in cut_nodes}
-    new_args = []
     for node in module_origin.graph.nodes:
         if node.op == "output":
             old_args = get_output_node_args(node)
+            loc = 0
+            for user in node_pair[0].users:
+                if isinstance(old_args[loc], torch.fx.node.Node):
+                    user_name = old_args[loc].name
+                    dest_placeholder_map[user_name] = user # add new arg to dest placeholder map
             module_origin_new_outputs = list(module_origin_new_outputs.difference(set(old_args)))
             if len(module_origin_new_outputs) > 0:  # need to add new ouputs to module_origin and new inputs to module_dest
                 with fused_graph.graph.inserting_after(node_pair[0]):
@@ -188,7 +192,6 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
     # change the args of dest node in fused_graph
     # use origin_placeholder_map because the active place_holders 
     # might be in another module, and thus need get_item
-    # TODO: might need to add additional args that was not outputted before
     node = node_pair[1]  # dest node
     new_args = []
     for name in active_placeholders:
@@ -281,23 +284,14 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
         weight = get_weight(node)
 
         if node.op == 'placeholder':
-            nx_graph.add_edge("source", node.name+"_in", capacity=math.inf)   
-
-
-        if node.name in dest_placeholder_names:
-            capacity = get_capacity(node)
-            nx_graph.add_edge(node.name+"_out", 'sink', capacity=capacity)
-            nx_graph.add_edge(node.name+"_in", node.name+"_out", capacity=capacity)
-            for user in node.users:
-                if user.op != "output":
-                    nx_graph.add_edge(node.name+"_out", user.name+"_in", capacity=math.inf)
-            continue
-
-
-        if node.op == 'placeholder':
             capacity=weight
+            nx_graph.add_edge("source", node.name+"_in", capacity=math.inf)   
         elif node.op ==  'call_function':
             capacity = get_capacity(node)
+
+        
+        if node.name in dest_placeholder_names:
+            nx_graph.add_edge(node.name+"_out", 'sink', capacity=capacity)
         
         nx_graph.add_edge(node.name+"_in", node.name+"_out", capacity=capacity)
         for user in node.users:
