@@ -280,6 +280,16 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
 
     # draw_nx_graph(nx_graph)
     cut_value, partition = nx.minimum_cut(nx_graph, "source", "sink")
+
+    cut_at_sink = 0
+    for e in nx_graph.edges.data():
+        if e[1] == "sink":
+            cut_at_sink += e[2]["capacity"]
+
+    # print(cut_at_sink, cut_value)
+    global memory_reduced 
+    memory_reduced = cut_at_sink - cut_value
+
     # for edge in nx_graph.edges.data():
     #     print(edge)
     # print(cut_value, partition)
