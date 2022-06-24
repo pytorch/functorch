@@ -106,6 +106,11 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
     module_origin = getattr(fused_graph, node_pair[0].name)
     module_dest = getattr(fused_graph, node_pair[1].name)
 
+    # print("============")
+    # module_origin.graph.eliminate_dead_code()
+    # print(module_origin.graph)
+    # print(module_dest.graph)
+
     dest_placeholder_map = get_name_to_args_map(node_pair[1], module_dest)
     origin_placeholder_map = get_name_to_args_map(node_pair[0], module_origin)
 
@@ -238,6 +243,13 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
             break
     module_origin.recompile() 
     fused_graph.recompile()
+    # print("============")
+    # print(module_origin.graph)
+    # print(module_dest.graph)
+    # # print(fused_graph.graph)
+    # exit(0)
+    
+
 
 
 def find_min_cut(node_pair, node_users_map, fused_graph):
@@ -259,6 +271,8 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
     # used to check if a node has users in dest. The user node in the original graph has the same name as the call_func nodes in dest.
     dest_node_names = set(node.name for node in module_dest.graph.nodes if node.op != "placeholder" and node.op != "output")
     orig_node_names = set(node.name for node in module_origin.graph.nodes if node.op != "placeholder" and node.op != "output")
+
+
 
     def get_capacity(node):
         # if rematerialize an internal node, need to read and write
@@ -282,6 +296,15 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
             continue
 
         weight = get_weight(node)
+
+        # some ops like cuda_batch_norm return tuples, and they cannot be returned as output
+        # because torch.jit.script does not accept 
+        # need to return getitem, these getitems might already in the graph
+        # neeed to change the capacity between _in and _out of these ndoes to inf
+        for user in node.users:
+            if user.target == operator.getitem:
+                weight = math.inf
+            break
 
         if node.op == 'placeholder':
             capacity=weight
