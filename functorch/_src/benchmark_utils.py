@@ -154,7 +154,7 @@ def compute_utilization(filename: str, total_length: float):
 
 def benchmark_utilization(f, input, trace_folder, optimize_ctx=None, trace_file_name="tmp_chrome_trace", num_runs=1):
     """
-    Benchmark the GPU Utilization and percent of time spent on matmal and convolution operations of 
+    Benchmark the GPU Utilization and percent of time spent on matmal and convolution operations of
     running f(input, **kwargs_for_f) with [optimize_ctx] [num_runs] times.
     It will produce a chrome trace file in trace_folder/trace_file_name.json
 
@@ -193,8 +193,8 @@ def benchmark_utilization(f, input, trace_folder, optimize_ctx=None, trace_file_
         optimize_ctx = NullContext()
 
     chrome_trace_file_name = os.path.join(trace_folder, trace_file_name + ".json")
-    total_length = dump_chrome_trace(f, input, chrome_trace_file_name, optimize_ctx, 
-        [ProfilerActivity.CUDA], num_runs=num_runs, devices="cuda")
+    total_length = dump_chrome_trace(f, input, chrome_trace_file_name, optimize_ctx,
+                                     [ProfilerActivity.CUDA], num_runs=num_runs, devices="cuda")
     utilization, mm_conv_utilization = compute_utilization(chrome_trace_file_name, total_length)
 
     return utilization, mm_conv_utilization
