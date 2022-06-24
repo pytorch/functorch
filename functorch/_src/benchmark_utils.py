@@ -105,7 +105,7 @@ def get_duration(sorted_gpu_events):
 def get_sorted_gpu_mm_conv_events(events):
     def is_mm_conv_event(event):
         return "name" in event and ("gemm" in event["name"] or "conv" in event["name"]
-            or "cutlass" in event["name"] or "wgrad" in event["name"])
+                                    or "cutlass" in event["name"] or "wgrad" in event["name"])
     gpu_events = get_sorted_gpu_events(events)
     sorted_events = []
     for event in gpu_events:
@@ -145,7 +145,7 @@ def compute_utilization(filename: str, total_length: float):
     total_length = total_length * 1e6
     sorted_gpu_events = get_sorted_gpu_events(events)
     utilization = get_duration(sorted_gpu_events) / total_length
-    
+
     sorted_gpu_mm_conv_events = get_sorted_gpu_mm_conv_events(events)
     mm_conv_utilization = get_duration(sorted_gpu_mm_conv_events) / total_length
 
@@ -154,8 +154,8 @@ def compute_utilization(filename: str, total_length: float):
 
 def benchmark_utilization(f, input, trace_folder, optimize_ctx=None, trace_file_name="tmp_chrome_trace", num_runs=1):
     """
-    Benchmark the GPU Utilization and percent of time spent on matmal and convolution operations of running f(input, **kwargs_for_f) with [optimize_ctx]
-    [num_runs] times.
+    Benchmark the GPU Utilization and percent of time spent on matmal and convolution operations of 
+    running f(input, **kwargs_for_f) with [optimize_ctx] [num_runs] times.
     It will produce a chrome trace file in trace_folder/trace_file_name.json
 
     Example:
@@ -164,7 +164,7 @@ def benchmark_utilization(f, input, trace_folder, optimize_ctx=None, trace_file_
     def f(a):
         return a.sum()
     a = torch.rand(2**20, device="cuda")
-    utilization, mm_conv_utilization = benchmark_utilization(f, a, "tmp", trace_file_name = "tmp_chrome_trace", num_runs=1)
+    utilization, mm_conv_utilization = benchmark_utilization(f, a, "tmp", trace_file_name = "tmp_chrome_trace")
     ```
 
     Args:
@@ -193,7 +193,8 @@ def benchmark_utilization(f, input, trace_folder, optimize_ctx=None, trace_file_
         optimize_ctx = NullContext()
 
     chrome_trace_file_name = os.path.join(trace_folder, trace_file_name + ".json")
-    total_length = dump_chrome_trace(f, input, chrome_trace_file_name, optimize_ctx, [ProfilerActivity.CUDA], num_runs=num_runs, devices="cuda")
+    total_length = dump_chrome_trace(f, input, chrome_trace_file_name, optimize_ctx, 
+        [ProfilerActivity.CUDA], num_runs=num_runs, devices="cuda")
     utilization, mm_conv_utilization = compute_utilization(chrome_trace_file_name, total_length)
 
     return utilization, mm_conv_utilization
