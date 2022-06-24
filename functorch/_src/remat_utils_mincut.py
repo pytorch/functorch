@@ -50,18 +50,6 @@ def get_weight(node):
 
 
 def get_name_to_args_map(node_orig, gm):
-    # map from module_dest.graph's placeholder names to module_dest's node's args in fused graph
-    # dest_args = []
-    # for node in fused_graph.graph.nodes:
-    #     if(node.name == module_dest.name):   
-    #         for arg in node.args:
-    #            dest_args.append(arg)
-    #         break
-    # old_placeholders = []
-    # for node in module_dest.graph.nodes:
-    #     if node.op == "placeholder":
-    #         old_placeholders.append(node.name)
-    # dest_arg_map = dict(zip(old_placeholders, dest_args))
     placeholder_map = {}  # map from placeholder name in module_origin.graph to node_pair[0].args
     loc = 0 
     for node in gm.graph.nodes:

@@ -124,10 +124,10 @@ def f6(a):
 #     %fused_0 : [#users=1] = call_module[target=fused_0](args = (%clone, %getitem, %a_1), kwargs = {})
 #     return fused_0
 
-# def f7(a):
-#     b = a.relu()
-#     c = b.clone()
-#     return b + c
+def f7(a):
+    b = a.relu()
+    c = b.clone()
+    return b + c
 
 
 def f10(a):
@@ -445,24 +445,15 @@ class CopyNodesTestCase(TestCase):
         self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
         self.assertEqual(count_out, 1, f"count_out is {count_out}")
 
-    # no fused group
-    # def test_using_origin_output(self):
-    #     traced_graph = make_fx(f7, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
-    #     strip_overloads(traced_graph)
-    #     fused_graph = rematerialize(traced_graph)
+    def test_no_fuse_group(self):
+        traced_graph = make_fx(f7, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
+        strip_overloads(traced_graph)
+        fused_graph = rematerialize(traced_graph)
 
-    #     a = torch.rand(5)
-    #     expected = f7(a)
-    #     result = fused_graph(a)
-    #     self.assertEqual(expected, result, "result is not correct")
-        
-    #     count_inp, count_out = get_num_input_outpus(fused_graph.fused_0)
-    #     self.assertEqual(count_inp, 2, f"count_inp is {count_inp}")
-    #     self.assertEqual(count_out, 1, f"count_out is {count_out}")
-
-    #     count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
-    #     self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
-    #     self.assertEqual(count_out, 1, f"count_out is {count_out}")
+        a = torch.rand(5)
+        expected = f7(a)
+        result = fused_graph(a)
+        self.assertEqual(expected, result, "result is not correct")
 
     def test_single_fused_group(self):
         def f8(a):
@@ -480,24 +471,26 @@ class CopyNodesTestCase(TestCase):
         result = fused_graph(a)
         self.assertEqual(expected, result, "result is not correct")
 
-    # def test_dest_arg_not_in_origin(self):
-    #     def f9(a):
-    #         b = a.relu()
-    #         c = b.relu()
-    #         d = c.clone()
-    #         e = d + b
-    #         f = e.clone()
-    #         g = f + e
-    #         h = g + c
-    #         return h
+    def test_dest_arg_not_in_origin(self):
+        def f9(a):
+            b = a.relu()
+            c = b.relu()
+            d = c.clone()
+            e = d + b
+            f = e.clone()
+            g = f + e
+            h = g + c
+            return h
 
-    #     a = torch.rand(5)
-    #     expected = f9(a)
-    #     fused_graph = get_fused_graph(f9)
-    #     name_to_node = {node.name:node for node in fused_graph.graph.nodes}
-    #     copy_all_nodes((name_to_node["fused_1"], name_to_node["fused_0"]), fused_graph, name_to_node)
-    #     result = fused_graph(a)
-    #     self.assertEqual(expected, result, f"result is not correct, {expected}, {result}")
+        a = torch.rand(5)
+        expected = f9(a)
+        node_users_map, fused_graph = get_fused_graph_for_num_changes(f9)
+        name_to_node = {node.name:node for node in fused_graph.graph.nodes}
+        node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
+        partition, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
+        copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes)
+        result = fused_graph(a)
+        self.assertEqual(expected, result, f"result is not correct, {expected}, {result}")
 
 
 class RandomOpTestCase(TestCase):
