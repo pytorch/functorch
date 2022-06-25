@@ -123,10 +123,12 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
         if node.op == "output":
             old_args = get_output_node_args(node)
             loc = 0
-            for user in node_pair[0].users:
+            breakpoint()
+            for user in node_pair[0].users: #TODO: can only do this for getitem users. might have a single add node that have two users
                 if isinstance(old_args[loc], torch.fx.node.Node):
                     user_name = old_args[loc].name
                     dest_placeholder_map[user_name] = user # add new arg to dest placeholder map
+                loc += 1
             module_origin_new_outputs = list(module_origin_new_outputs.difference(set(old_args)))
             if len(module_origin_new_outputs) > 0:  # need to add new ouputs to module_origin and new inputs to module_dest
                 with fused_graph.graph.inserting_after(node_pair[0]):
@@ -197,6 +199,9 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
     # change the args of dest node in fused_graph
     # use origin_placeholder_map because the active place_holders 
     # might be in another module, and thus need get_item
+    # breakpoint()
+    # for node in fused_graph.graph.nodes:
+    #     if(node.name == module_dest.name):
     node = node_pair[1]  # dest node
     new_args = []
     for name in active_placeholders:
@@ -207,7 +212,8 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
         else: # name is a placeholder in dest's module or a newly added input
             new_args.append(dest_placeholder_map[name])
     node.args = tuple(new_args)
-
+            # break
+    # breakpoint()
     fused_graph.recompile()
     # legalize_graph(fused_graph)  # TODO:why this hang sometimes?
     fused_graph.graph.eliminate_dead_code()
@@ -314,7 +320,7 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
 
         
         if node.name in dest_placeholder_names:
-            nx_graph.add_edge(node.name+"_out", 'sink', capacity=capacity)
+            nx_graph.add_edge(node.name+"_out", 'sink', capacity=math.inf)
         
         nx_graph.add_edge(node.name+"_in", node.name+"_out", capacity=capacity)
         for user in node.users:
