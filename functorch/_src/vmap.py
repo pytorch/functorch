@@ -372,8 +372,9 @@ def chunk_vmap(
         randomness: str = 'error',
         chunks=2) -> Callable:
     """
-    chunk_vmap is the vectorizing map using chunks of input data. Splitting data into chunks
-    can help to prevent out-of-memory issues. For more details about vectorizing map, see :func:`vmap`.
+    chunk_vmap is the vectorizing map (vmap) using chunks of input data. It is a mix of vmap (which vectorizes
+    everything) and map (which executes things sequentially). ``chunk_vmap`` vectorizes the input with number of
+    chunks at a time. For more details about vectorizing map, see :func:`vmap`.
 
     Args:
         func (function): A Python function that takes one or more arguments.
@@ -453,7 +454,6 @@ def chunk_vmap(
                     func, batch_size, flat_in_dims, flat_args, args_spec, out_dims, randomness, **kwargs
                 )
             )
-
         flat_output_chunks, arg_spec = _flatten_chunks_output(chunks_output)
         # Removing temporary variables helps to reduce memory usage on device like CUDA
         del chunks_output

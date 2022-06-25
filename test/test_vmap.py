@@ -2721,11 +2721,8 @@ class TestVmapOperators(Namespace.TestVmapBase):
 
     @parametrize('in_dim', [0, 1, 2])
     @parametrize('out_dim', [0, 1, 2])
-    @parametrize('randomness', ['error', 'different', 'same'])
+    @parametrize('randomness', ['error', 'same'])
     def test_chunk_vmap(self, in_dim, out_dim, randomness):
-
-        if (in_dim > 0 or out_dim > 0) and randomness == "different":
-            raise unittest.SkipTest("Something wrong with this configuration")
 
         x = torch.randn(4, 5, 6)
 
@@ -4172,6 +4169,24 @@ class TestRandomness(TestCase):
             def f(z):
                 return torch.rrelu(x)
             vmap(f, randomness='same')(z)
+
+    @parametrize('in_dim', [0, 1, 2])
+    @parametrize('out_dim', [0, 1, 2])
+    def test_chunk_vmap(self, in_dim, out_dim):
+
+        randomness = "different"
+
+        x = torch.randn(4, 5, 6)
+
+        def f(x):
+            y = x.sin() + torch.rand_like(x)
+            return y
+
+        for chunks in [1, 2, 3, 4, 7, 10, 16]:
+            output = chunk_vmap(
+                f, in_dims=in_dim, out_dims=out_dim, randomness=randomness, chunks=chunks
+            )(x)
+            self._assert_all_slices_unique(output)
 
 
 class TestTransformFailure(TestCase):
