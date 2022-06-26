@@ -21,7 +21,7 @@ from functorch._src.aot_autograd import aot_module_simplified
 from functorch.compile import (
     nnc_jit, compiled_function, compiled_module,
     min_cut_rematerialization_partition, aot_function, aot_module, decomposition_table, nop,
-    num_of_recompilations, default_partition, default_decompositions
+    num_of_recompilations, default_partition, default_decompositions, memory_efficient_fusion,
 )
 
 from torch.testing._internal.common_device_type import ops
@@ -315,7 +315,6 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('linalg.cholesky'),
         skip('msort'),
         xfail('nn.functional.dropout'),
-        xfail('polar'),
         xfail('to_sparse'),
         xfail('addcdiv'),
         xfail('cholesky'),
@@ -327,6 +326,8 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('matrix_exp'),
         xfail('trapezoid'),
         xfail('trapz'),
+        xfail('corrcoef'),
+        xfail('cov'),
         skip('nn.functional.binary_cross_entropy_with_logits'),  # seems to fail sometimes?
         skip('nn.functional.margin_ranking_loss'),  # seems flaky
     })
@@ -497,7 +498,7 @@ class TestPartitioning(TestCase):
         def f(x):
             return torch.mm(x, torch.ones(x.shape)).tanh().tanh()
         fw_graph, bw_graph = get_fw_bw_graph(f, [torch.randn(5, 5, requires_grad=True)])
-        self.assertEqual(get_num_ins_outs(fw_graph), (1, 2))
+        self.assertEqual(get_num_ins_outs(fw_graph), (1, 3))
 
         ins, outs = get_ins_outs(fw_graph)
         self.assertEqual(outs[1].target, torch.ops.aten.mm)
@@ -545,6 +546,40 @@ class TestAOTModuleSimplified(TestCase):
         assert torch.allclose(ref[0], res[0])
         assert torch.allclose(inputs[0].grad, cloned_inputs[0].grad)
         assert torch.allclose(inputs[1].grad, cloned_inputs[1].grad)
+
+
+class TestRandom(TestCase):
+    def test_preserve_random(self):
+        def fn(x):
+            return torch.nn.functional.dropout(x, 0.5) + x
+
+
+        x = torch.randn(4)
+
+        torch.manual_seed(0)
+        ref = fn(x)
+
+        torch.manual_seed(0)
+        aot_fn = aot_function(fn, nop)
+        res = aot_fn(x)
+
+        assert torch.allclose(ref, res)
+
+
+class TestAutocast(TestCase):
+    @unittest.skipIf(not torch.cuda.is_available(), "CUDA is unavailable")
+    @unittest.skipIf(not USE_TORCHVISION, "test requires torchvision")
+    def test_autocast(self):
+        mod = torchvision.models.resnet18().cuda()
+        mod.train()
+
+        x = torch.randn(16, 3, 32, 32, device="cuda")
+        aot_mod = memory_efficient_fusion(mod)
+
+        # Ensure that AOT Autograd works with AMP
+        with torch.cuda.amp.autocast(True):
+            res = aot_mod(x)
+        res.sum().backward()
 
 
 only_for = ("cpu")

@@ -3187,6 +3187,7 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('histogram'),
         xfail('index_fill'),
         xfail('nansum'),
+        xfail('nanmean'),
         # `index_put` OpInfo in pytorch/pytorch has
         # masked index as input which is not supported
         xfail('index_put', ''),
@@ -3277,7 +3278,6 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('nn.functional.triplet_margin_loss', ''),
         xfail('nn.functional.pdist', ''),
         xfail('scatter_reduce', 'sum'),
-        xfail('nn.functional.l1_loss', ''),
         xfail('nn.functional.smooth_l1_loss', ''),
         xfail('scatter_reduce', 'amax'),
         xfail('nn.functional.max_unpool1d', 'grad'),
