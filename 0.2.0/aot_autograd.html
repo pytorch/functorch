@@ -1,0 +1,425 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>functorch.compile (experimental) &mdash; functorch 0.2.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="_static/copybutton.css" type="text/css" />
+  <link rel="stylesheet" href="_static/togglebutton.css" type="text/css" />
+  <link rel="stylesheet" href="_static/mystnb.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/custom.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="functorch.compile.aot_function" href="generated/functorch.compile.aot_function.html" />
+    <link rel="prev" title="functorch.experimental.functionalize" href="generated/functorch.experimental.functionalize.html" />
+  <!-- Google Analytics -->
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-117752657-2"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'UA-117752657-2');
+    </script>
+  
+  <!-- End Google Analytics -->
+
+  
+
+  
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://pytorch.org/functorch" aria-label="functorch"></a>
+
+      <div class="main-menu">
+        <ul>
+
+          <li>
+            <a href="https://pytorch.org/functorch">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pytorch/functorch/tree/main/examples">Examples</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pytorch/functorch">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  <a href='https://pytorch.org/functorch/versions.html'>0.2.0 (works with PyTorch 1.12) &#x25BC</a>
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Install functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/whirlwind_tour.html">Whirlwind Tour</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ux_limitations.html">UX Limitations</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API Reference and Notes</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="functorch.html">functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="experimental.html">functorch.experimental</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">functorch.compile (experimental)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/jacobians_hessians.html">Jacobians, Hessians, hvp, vhp, and more: composing functorch transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/ensembling.html">Model ensembling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/per_sample_grads.html">Per-sample-gradients</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/neural_tangent_kernels.html">Neural Tangent Kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/aot_autograd_optimizations.html">AOT Autograd - How to use and optimize?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/minifier.html">Using the Minifier</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>functorch.compile (experimental)</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="_sources/aot_autograd.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <div class="section" id="functorch-compile-experimental">
+<h1>functorch.compile (experimental)<a class="headerlink" href="#functorch-compile-experimental" title="Permalink to this headline">¶</a></h1>
+<p>AOT Autograd is an experimental feature that allows ahead of time capture of
+forward and backward graphs, and allows easy integration with compilers. This
+creates an easy to hack Python-based development environment to speedup training
+of PyTorch models. AOT Autograd currently lives inside <code class="docutils literal notranslate"><span class="pre">functorch.compile</span></code>
+namespace.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>AOT Autograd is experimental and the APIs are likely to change. We are looking
+for feedback. If you are interested in using AOT Autograd and need help or have
+suggestions, please feel free to open an issue. We will be happy to help.</p>
+</div>
+<div class="section" id="compilation-apis-experimental">
+<h2>Compilation APIs (experimental)<a class="headerlink" href="#compilation-apis-experimental" title="Permalink to this headline">¶</a></h2>
+<table class="longtable docutils colwidths-auto # Necessary for the table generated by autosummary to look decent align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/functorch.compile.aot_function.html#functorch.compile.aot_function" title="functorch.compile.aot_function"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aot_function</span></code></a></p></td>
+<td><p>Traces the forward and backward graph of <code class="xref py py-attr docutils literal notranslate"><span class="pre">fn</span></code> using torch dispatch mechanism, and then compiles the generated forward and backward graphs through <code class="xref py py-attr docutils literal notranslate"><span class="pre">fw_compiler</span></code> and <code class="xref py py-attr docutils literal notranslate"><span class="pre">bw_compiler</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/functorch.compile.aot_module.html#functorch.compile.aot_module" title="functorch.compile.aot_module"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aot_module</span></code></a></p></td>
+<td><p>Traces the forward and backward graph of <code class="xref py py-attr docutils literal notranslate"><span class="pre">mod</span></code> using torch dispatch tracing mechanism.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/functorch.compile.memory_efficient_fusion.html#functorch.compile.memory_efficient_fusion" title="functorch.compile.memory_efficient_fusion"><code class="xref py py-obj docutils literal notranslate"><span class="pre">memory_efficient_fusion</span></code></a></p></td>
+<td><p>Wrapper function over <a class="reference internal" href="generated/functorch.compile.aot_function.html#functorch.compile.aot_function" title="functorch.compile.aot_function"><code class="xref py py-func docutils literal notranslate"><span class="pre">aot_function()</span></code></a> and <a class="reference internal" href="generated/functorch.compile.aot_module.html#functorch.compile.aot_module" title="functorch.compile.aot_module"><code class="xref py py-func docutils literal notranslate"><span class="pre">aot_module()</span></code></a> to perform memory efficient fusion.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="partitioners-experimental">
+<h2>Partitioners (experimental)<a class="headerlink" href="#partitioners-experimental" title="Permalink to this headline">¶</a></h2>
+<table class="longtable docutils colwidths-auto # Necessary for the table generated by autosummary to look decent align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/functorch.compile.default_partition.html#functorch.compile.default_partition" title="functorch.compile.default_partition"><code class="xref py py-obj docutils literal notranslate"><span class="pre">default_partition</span></code></a></p></td>
+<td><p>Partitions the <code class="xref py py-attr docutils literal notranslate"><span class="pre">joint_module</span></code> in a manner that closely resembles the behavior observed in the original <code class="docutils literal notranslate"><span class="pre">.forward()</span></code> and <code class="docutils literal notranslate"><span class="pre">.backward()</span></code> of the callable, i.e., the resulting forward graph contains those operators that are executed in the original <code class="docutils literal notranslate"><span class="pre">.forward()</span></code> callable passed to <a class="reference internal" href="generated/functorch.compile.aot_function.html#functorch.compile.aot_function" title="functorch.compile.aot_function"><code class="xref py py-func docutils literal notranslate"><span class="pre">aot_function()</span></code></a>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/functorch.compile.min_cut_rematerialization_partition.html#functorch.compile.min_cut_rematerialization_partition" title="functorch.compile.min_cut_rematerialization_partition"><code class="xref py py-obj docutils literal notranslate"><span class="pre">min_cut_rematerialization_partition</span></code></a></p></td>
+<td><p>Partitions the joint graph such that the backward recomputes the forward.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="compilers-experimental">
+<h2>Compilers (experimental)<a class="headerlink" href="#compilers-experimental" title="Permalink to this headline">¶</a></h2>
+<table class="longtable docutils colwidths-auto # Necessary for the table generated by autosummary to look decent align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/functorch.compile.nop.html#functorch.compile.nop" title="functorch.compile.nop"><code class="xref py py-obj docutils literal notranslate"><span class="pre">nop</span></code></a></p></td>
+<td><p>Returns the <code class="xref py py-attr docutils literal notranslate"><span class="pre">fx_g</span></code> Fx graph module as it is.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/functorch.compile.ts_compile.html#functorch.compile.ts_compile" title="functorch.compile.ts_compile"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ts_compile</span></code></a></p></td>
+<td><p>Compiles the <code class="xref py py-attr docutils literal notranslate"><span class="pre">fx_g</span></code> with Torchscript compiler.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+             </article>
+             
+            </div>
+            <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="generated/functorch.compile.aot_function.html" class="btn btn-neutral float-right" title="functorch.compile.aot_function" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+      
+      
+        <a href="generated/functorch.experimental.functionalize.html" class="btn btn-neutral" title="functorch.experimental.functionalize" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
+    </div>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright functorch Contributors.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">functorch.compile (experimental)</a><ul>
+<li><a class="reference internal" href="#compilation-apis-experimental">Compilation APIs (experimental)</a></li>
+<li><a class="reference internal" href="#partitioners-experimental">Partitioners (experimental)</a></li>
+<li><a class="reference internal" href="#compilers-experimental">Compilers (experimental)</a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+         <script src="_static/jquery.js"></script>
+         <script src="_static/underscore.js"></script>
+         <script src="_static/doctools.js"></script>
+         <script src="_static/clipboard.min.js"></script>
+         <script src="_static/copybutton.js"></script>
+         <script >let toggleHintShow = 'Click to show';</script>
+         <script >let toggleHintHide = 'Click to hide';</script>
+         <script >let toggleOpenOnPrint = 'true';</script>
+         <script src="_static/togglebutton.js"></script>
+         <script >var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
+     
+
+  
+
+  <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <script script type="text/javascript">
+    var collapsedSections = ['Notes', 'Language Bindings', 'Libraries', 'Community'];
+  </script>
+
+  <img height="1" width="1" style="border-style:none;" alt="" src="https://www.googleadservices.com/pagead/conversion/795629140/?label=txkmCPmdtosBENSssfsC&amp;guid=ON&amp;script=0"/>
+
+  
+
+  <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>
+
+<link rel="canonical" href="aot_autograd.html" />
