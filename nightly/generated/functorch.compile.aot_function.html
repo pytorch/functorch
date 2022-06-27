@@ -126,7 +126,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.2.0a0+386a541) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.3.0a0+0e08bf5) &#x25BC</a>
                 </div>
               
             
@@ -163,6 +163,7 @@
 <p class="caption"><span class="caption-text">API Reference and Notes</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../functorch.html">functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../experimental.html">functorch.experimental</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
@@ -251,7 +252,7 @@
 <h1>functorch.compile.aot_function<a class="headerlink" href="#functorch-compile-aot-function" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="functorch.compile.aot_function">
-<code class="sig-prename descclassname"><span class="pre">functorch.compile.</span></code><code class="sig-name descname"><span class="pre">aot_function</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="pre">fn</span></em>, <em class="sig-param"><span class="pre">fw_compiler</span></em>, <em class="sig-param"><span class="pre">bw_compiler=None</span></em>, <em class="sig-param"><span class="pre">partition_fn=&lt;function</span> <span class="pre">default_partition&gt;</span></em>, <em class="sig-param"><span class="pre">decompositions={}</span></em>, <em class="sig-param"><span class="pre">hasher_type='StaticShapeHasher'</span></em>, <em class="sig-param"><span class="pre">static_argnums=None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/functorch/_src/aot_autograd.html#aot_function"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.compile.aot_function" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">functorch.compile.</span></code><code class="sig-name descname"><span class="pre">aot_function</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="pre">fn</span></em>, <em class="sig-param"><span class="pre">fw_compiler</span></em>, <em class="sig-param"><span class="pre">bw_compiler=None</span></em>, <em class="sig-param"><span class="pre">partition_fn=&lt;function</span> <span class="pre">default_partition&gt;</span></em>, <em class="sig-param"><span class="pre">decompositions=None</span></em>, <em class="sig-param"><span class="pre">hasher_type='StaticShapeHasher'</span></em>, <em class="sig-param"><span class="pre">static_argnums=None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/functorch/_src/aot_autograd.html#aot_function"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.compile.aot_function" title="Permalink to this definition">¶</a></dt>
 <dd><p>Traces the forward and backward graph of <code class="xref py py-attr docutils literal notranslate"><span class="pre">fn</span></code> using torch dispatch
 mechanism, and then compiles the generated forward and backward graphs
 through <code class="xref py py-attr docutils literal notranslate"><span class="pre">fw_compiler</span></code> and <code class="xref py py-attr docutils literal notranslate"><span class="pre">bw_compiler</span></code>.</p>

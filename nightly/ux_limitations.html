@@ -126,7 +126,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.2.0a0+386a541) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.3.0a0+0e08bf5) &#x25BC</a>
                 </div>
               
             
@@ -163,6 +163,7 @@
 <p class="caption"><span class="caption-text">API Reference and Notes</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="functorch.html">functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="experimental.html">functorch.experimental</a></li>
 <li class="toctree-l1"><a class="reference internal" href="aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
@@ -290,6 +291,21 @@ that facilitate the transform.</p>
 </pre></div>
 </div>
 </div>
+<div class="section" id="torch-autograd-apis">
+<h2>torch.autograd APIs<a class="headerlink" href="#torch-autograd-apis" title="Permalink to this headline">¶</a></h2>
+<p>If you are trying to use a <code class="docutils literal notranslate"><span class="pre">torch.autograd</span></code> API like <code class="docutils literal notranslate"><span class="pre">torch.autograd.grad</span></code>
+or <code class="docutils literal notranslate"><span class="pre">torch.autograd.backward</span></code> inside of a function being transformed by
+<a class="reference internal" href="generated/functorch.vmap.html#functorch.vmap" title="functorch.vmap"><code class="xref py py-func docutils literal notranslate"><span class="pre">vmap()</span></code></a> or one of functorch’s AD transforms (<a class="reference internal" href="generated/functorch.vjp.html#functorch.vjp" title="functorch.vjp"><code class="xref py py-func docutils literal notranslate"><span class="pre">vjp()</span></code></a>, <a class="reference internal" href="generated/functorch.jvp.html#functorch.jvp" title="functorch.jvp"><code class="xref py py-func docutils literal notranslate"><span class="pre">jvp()</span></code></a>,
+<a class="reference internal" href="generated/functorch.jacrev.html#functorch.jacrev" title="functorch.jacrev"><code class="xref py py-func docutils literal notranslate"><span class="pre">jacrev()</span></code></a>, <a class="reference internal" href="generated/functorch.jacfwd.html#functorch.jacfwd" title="functorch.jacfwd"><code class="xref py py-func docutils literal notranslate"><span class="pre">jacfwd()</span></code></a>), the transform may not be able to transform over it.
+If it is unable to do so, you’ll receive an error message.</p>
+<p>This is a fundamental design limitation in how PyTorch’s AD support is implemented
+and the reason why we designed the functorch library. Please instead use the functorch
+equivalents of the <code class="docutils literal notranslate"><span class="pre">torch.autograd</span></code> APIs:
+- <code class="docutils literal notranslate"><span class="pre">torch.autograd.grad</span></code>, <code class="docutils literal notranslate"><span class="pre">Tensor.backward</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">functorch.vjp</span></code> or <code class="docutils literal notranslate"><span class="pre">functorch.grad</span></code>
+- <code class="docutils literal notranslate"><span class="pre">torch.autograd.functional.jvp</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">functorch.jvp</span></code>
+- <code class="docutils literal notranslate"><span class="pre">torch.autograd.functional.jacobian</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">functorch.jacrev</span></code> or <code class="docutils literal notranslate"><span class="pre">functorch.jacfwd</span></code>
+- <code class="docutils literal notranslate"><span class="pre">torch.autograd.functional.hessian</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">functorch.hessian</span></code></p>
+</div>
 <div class="section" id="vmap-limitations">
 <h2>vmap limitations<a class="headerlink" href="#vmap-limitations" title="Permalink to this headline">¶</a></h2>
 <div class="admonition note">
@@ -367,6 +383,13 @@ elements (or more):</p>
 </pre></div>
 </div>
 </div>
+<div class="section" id="mutation-out-pytorch-operations">
+<h3>Mutation: out= PyTorch Operations<a class="headerlink" href="#mutation-out-pytorch-operations" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference internal" href="generated/functorch.vmap.html#functorch.vmap" title="functorch.vmap"><code class="xref py py-func docutils literal notranslate"><span class="pre">vmap()</span></code></a> doesn’t support the <code class="docutils literal notranslate"><span class="pre">out=</span></code> keyword argument in PyTorch operations.
+It will error out gracefully if it encounters that in your code.</p>
+<p>This is not a fundamental limitation; we could theoretically support this in the
+future but we have chosen not to for now.</p>
+</div>
 <div class="section" id="data-dependent-python-control-flow">
 <h3>Data-dependent Python control flow<a class="headerlink" href="#data-dependent-python-control-flow" title="Permalink to this headline">¶</a></h3>
 <p>We don’t yet support <code class="docutils literal notranslate"><span class="pre">vmap</span></code> over data-dependent control flow. Data-dependent
@@ -398,6 +421,39 @@ tensors will work:</p>
 using special control flow operators (e.g. <code class="docutils literal notranslate"><span class="pre">jax.lax.cond</span></code>, <code class="docutils literal notranslate"><span class="pre">jax.lax.while_loop</span></code>).
 We’re investigating adding equivalents of those to functorch
 (open an issue on <a class="reference external" href="https://github.com/pytorch/functorch">GitHub</a> to voice your support!).</p>
+</div>
+<div class="section" id="data-dependent-operations-item">
+<h3>Data-dependent operations (.item())<a class="headerlink" href="#data-dependent-operations-item" title="Permalink to this headline">¶</a></h3>
+<p>We do not (and will not) support vmap over a user-defined function that calls
+<code class="docutils literal notranslate"><span class="pre">.item()</span></code> on a Tensor. For example, the following will raise an error message:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">x</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">vmap</span><span class="p">(</span><span class="n">f</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Please try to rewrite your code to not use <code class="docutils literal notranslate"><span class="pre">.item()</span></code> calls.</p>
+<p>You may also encounter an error message about using <code class="docutils literal notranslate"><span class="pre">.item()</span></code> but you might
+not have used it. In those cases, it is possible that PyTorch internally is
+calling <code class="docutils literal notranslate"><span class="pre">.item()</span></code> – please file an issue on GitHub and we’ll fix
+PyTorch internals.</p>
+</div>
+<div class="section" id="dynamic-shape-operations-nonzero-and-friends">
+<h3>Dynamic shape operations (nonzero and friends)<a class="headerlink" href="#dynamic-shape-operations-nonzero-and-friends" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">vmap(f)</span></code> requires that <code class="docutils literal notranslate"><span class="pre">f</span></code> applied to every “example” in your input
+returns a Tensor with the same shape. Operations such as <code class="docutils literal notranslate"><span class="pre">torch.nonzero</span></code>,
+<code class="docutils literal notranslate"><span class="pre">torch.is_nonzero</span></code> are not supported and will error as a result.</p>
+<p>To see why, consider the following example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">xs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">]])</span>
+<span class="n">vmap</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nonzero</span><span class="p">)(</span><span class="n">xs</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">torch.nonzero(xs[0])</span></code> returns a Tensor of shape 2;
+but <code class="docutils literal notranslate"><span class="pre">torch.nonzero(xs[1])</span></code> returns a Tensor of shape 1.
+We are unable to construct a single Tensor as an output;
+the output would need to be a ragged Tensor (and PyTorch does not yet have
+the concept of a ragged Tensor).</p>
 </div>
 </div>
 <div class="section" id="randomness">
@@ -492,10 +548,14 @@ file an issue.</p>
               <ul>
 <li><a class="reference internal" href="#">UX Limitations</a><ul>
 <li><a class="reference internal" href="#general-limitations">General limitations</a></li>
+<li><a class="reference internal" href="#torch-autograd-apis">torch.autograd APIs</a></li>
 <li><a class="reference internal" href="#vmap-limitations">vmap limitations</a><ul>
 <li><a class="reference internal" href="#mutation-arbitrary-mutation-of-python-data-structures">Mutation: Arbitrary mutation of Python data structures</a></li>
 <li><a class="reference internal" href="#mutation-in-place-pytorch-operations">Mutation: in-place PyTorch Operations</a></li>
+<li><a class="reference internal" href="#mutation-out-pytorch-operations">Mutation: out= PyTorch Operations</a></li>
 <li><a class="reference internal" href="#data-dependent-python-control-flow">Data-dependent Python control flow</a></li>
+<li><a class="reference internal" href="#data-dependent-operations-item">Data-dependent operations (.item())</a></li>
+<li><a class="reference internal" href="#dynamic-shape-operations-nonzero-and-friends">Dynamic shape operations (nonzero and friends)</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#randomness">Randomness</a></li>

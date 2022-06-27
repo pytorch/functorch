@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>functorch.compile.min_cut_rematerialization_partition &mdash; functorch nightly documentation</title>
+  <title>functorch.experimental &mdash; functorch nightly documentation</title>
   
 
   
@@ -25,17 +25,17 @@
 
   
 
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
-  <link rel="stylesheet" href="../_static/copybutton.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/togglebutton.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/mystnb.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="_static/copybutton.css" type="text/css" />
+  <link rel="stylesheet" href="_static/togglebutton.css" type="text/css" />
+  <link rel="stylesheet" href="_static/mystnb.css" type="text/css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
-    <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="functorch.compile.nop" href="functorch.compile.nop.html" />
-    <link rel="prev" title="functorch.compile.default_partition" href="functorch.compile.default_partition.html" />
+  <link rel="stylesheet" href="_static/css/custom.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="functorch.experimental.functionalize" href="generated/functorch.experimental.functionalize.html" />
+    <link rel="prev" title="Patching Batch Norm" href="batch_norm.html" />
   <!-- Google Analytics -->
   
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-117752657-2"></script>
@@ -54,16 +54,16 @@
   
 
   
-  <script src="../_static/js/modernizr.min.js"></script>
+  <script src="_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
 
-<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
-<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
-<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
-<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
-<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
-<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
 
 <!-- Preload the katex fonts -->
 
@@ -138,7 +138,7 @@
 
 
 <div role="search">
-  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
     <input type="text" name="q" placeholder="Search Docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
@@ -156,24 +156,24 @@
             
               <p class="caption"><span class="caption-text">Getting Started</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../install.html">Install functorch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../notebooks/whirlwind_tour.html">Whirlwind Tour</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../ux_limitations.html">UX Limitations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Install functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/whirlwind_tour.html">Whirlwind Tour</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ux_limitations.html">UX Limitations</a></li>
 </ul>
 <p class="caption"><span class="caption-text">API Reference and Notes</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="../functorch.html">functorch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../experimental.html">functorch.experimental</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="../aot_autograd.html">functorch.compile (experimental)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="functorch.html">functorch</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">functorch.experimental</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../notebooks/jacobians_hessians.html">Jacobians, Hessians, hvp, vhp, and more: composing functorch transforms</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../notebooks/ensembling.html">Model ensembling</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../notebooks/per_sample_grads.html">Per-sample-gradients</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../notebooks/neural_tangent_kernels.html">Neural Tangent Kernels</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../notebooks/aot_autograd_optimizations.html">AOT Autograd - How to use and optimize?</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../notebooks/minifier.html">Using the Minifier</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/jacobians_hessians.html">Jacobians, Hessians, hvp, vhp, and more: composing functorch transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/ensembling.html">Model ensembling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/per_sample_grads.html">Per-sample-gradients</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/neural_tangent_kernels.html">Neural Tangent Kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/aot_autograd_optimizations.html">AOT Autograd - How to use and optimize?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/minifier.html">Using the Minifier</a></li>
 </ul>
 
             
@@ -206,7 +206,7 @@
   <ul class="pytorch-breadcrumbs">
     
       <li>
-        <a href="../index.html">
+        <a href="index.html">
           
             Docs
           
@@ -214,15 +214,13 @@
       </li>
 
         
-          <li><a href="../aot_autograd.html">functorch.compile (experimental)</a> &gt;</li>
-        
-      <li>functorch.compile.min_cut_rematerialization_partition</li>
+      <li>functorch.experimental</li>
     
     
       <li class="pytorch-breadcrumbs-aside">
         
             
-            <a href="../_sources/generated/functorch.compile.min_cut_rematerialization_partition.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+            <a href="_sources/experimental.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
           
         
       </li>
@@ -248,31 +246,18 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="functorch-compile-min-cut-rematerialization-partition">
-<h1>functorch.compile.min_cut_rematerialization_partition<a class="headerlink" href="#functorch-compile-min-cut-rematerialization-partition" title="Permalink to this headline">¶</a></h1>
-<dl class="py function">
-<dt id="functorch.compile.min_cut_rematerialization_partition">
-<code class="sig-prename descclassname"><span class="pre">functorch.compile.</span></code><code class="sig-name descname"><span class="pre">min_cut_rematerialization_partition</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">joint_module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_joint_inputs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/functorch/_src/partitioners.html#min_cut_rematerialization_partition"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.compile.min_cut_rematerialization_partition" title="Permalink to this definition">¶</a></dt>
-<dd><p>Partitions the joint graph such that the backward recomputes the forward.
-Recomputing helps in trading off memory bandwidth with computation.</p>
-<p>To create the fwd and bwd graph, we copy the joint graph, manually set the
-outputs to just original forward or backward outputs. And then we run the
-resulting graphs through dead code elimintation.</p>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>This API is experimental and likely to change.</p>
+  <div class="section" id="functorch-experimental">
+<h1>functorch.experimental<a class="headerlink" href="#functorch-experimental" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="experimental-function-transforms">
+<h2>Experimental Function Transforms<a class="headerlink" href="#experimental-function-transforms" title="Permalink to this headline">¶</a></h2>
+<table class="longtable docutils colwidths-auto # Necessary for the table generated by autosummary to look decent align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/functorch.experimental.functionalize.html#functorch.experimental.functionalize" title="functorch.experimental.functionalize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">functionalize</span></code></a></p></td>
+<td><p>functionalize is a transform that can be used to remove (intermediate) mutations and aliasing from a function, while preserving the function’s semantics.</p></td>
+</tr>
+</tbody>
+</table>
 </div>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>joint_module</strong> (<em>fx.GraphModule</em>) – The joint forward and backward graph. This
-is the result of AOT Autograd tracing.</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Returns the generated forward and backward Fx graph modules.</p>
-</dd>
-</dl>
-</dd></dl>
-
 </div>
 
 
@@ -283,10 +268,10 @@ is the result of AOT Autograd tracing.</p>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="functorch.compile.nop.html" class="btn btn-neutral float-right" title="functorch.compile.nop" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="generated/functorch.experimental.functionalize.html" class="btn btn-neutral float-right" title="functorch.experimental.functionalize" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
-        <a href="functorch.compile.default_partition.html" class="btn btn-neutral" title="functorch.compile.default_partition" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        <a href="batch_norm.html" class="btn btn-neutral" title="Patching Batch Norm" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
       
     </div>
   
@@ -318,7 +303,10 @@ is the result of AOT Autograd tracing.</p>
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
-<li><a class="reference internal" href="#">functorch.compile.min_cut_rematerialization_partition</a></li>
+<li><a class="reference internal" href="#">functorch.experimental</a><ul>
+<li><a class="reference internal" href="#experimental-function-transforms">Experimental Function Transforms</a></li>
+</ul>
+</li>
 </ul>
 
             </div>
@@ -333,25 +321,25 @@ is the result of AOT Autograd tracing.</p>
   
 
      
-       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-         <script src="../_static/jquery.js"></script>
-         <script src="../_static/underscore.js"></script>
-         <script src="../_static/doctools.js"></script>
-         <script src="../_static/clipboard.min.js"></script>
-         <script src="../_static/copybutton.js"></script>
+       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+         <script src="_static/jquery.js"></script>
+         <script src="_static/underscore.js"></script>
+         <script src="_static/doctools.js"></script>
+         <script src="_static/clipboard.min.js"></script>
+         <script src="_static/copybutton.js"></script>
          <script >let toggleHintShow = 'Click to show';</script>
          <script >let toggleHintHide = 'Click to hide';</script>
          <script >let toggleOpenOnPrint = 'true';</script>
-         <script src="../_static/togglebutton.js"></script>
+         <script src="_static/togglebutton.js"></script>
          <script >var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
      
 
   
 
-  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
-  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
-  <script type="text/javascript" src="../_static/js/theme.js"></script>
+  <script type="text/javascript" src="_static/js/theme.js"></script>
 
   <script type="text/javascript">
       jQuery(function () {
@@ -367,7 +355,7 @@ is the result of AOT Autograd tracing.</p>
 
   
 
-  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+  <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
 
   <script type="text/javascript">
     $(document).ready(function() {
@@ -389,4 +377,4 @@ is the result of AOT Autograd tracing.</p>
 </body>
 </html>
 
-<link rel="canonical" href="generated/functorch.compile.min_cut_rematerialization_partition.html" />
+<link rel="canonical" href="experimental.html" />

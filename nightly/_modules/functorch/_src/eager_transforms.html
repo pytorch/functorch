@@ -124,7 +124,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.2.0a0+386a541) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.3.0a0+0e08bf5) &#x25BC</a>
                 </div>
               
             
@@ -161,6 +161,7 @@
 <p class="caption"><span class="caption-text">API Reference and Notes</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../functorch.html">functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../experimental.html">functorch.experimental</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
@@ -250,6 +251,7 @@
 
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span>
 <span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span><span class="p">,</span> <span class="n">wraps</span>
 <span class="kn">import</span> <span class="nn">contextlib</span>
 <span class="kn">from</span> <span class="nn">torch.utils._pytree</span> <span class="kn">import</span> <span class="n">tree_flatten</span><span class="p">,</span> <span class="n">tree_unflatten</span><span class="p">,</span> <span class="n">tree_map</span>
@@ -257,6 +259,8 @@
 <span class="kn">import</span> <span class="nn">torch.autograd.forward_ad</span> <span class="k">as</span> <span class="nn">fwAD</span>
 
 <span class="kn">from</span> <span class="nn">.vmap</span> <span class="kn">import</span> <span class="n">vmap</span>
+<span class="kn">from</span> <span class="nn">.decompositions</span> <span class="kn">import</span> <span class="n">decomposition_table</span><span class="p">,</span> <span class="n">decomposition_table_for_jvp</span>
+
 
 <span class="kn">from</span> <span class="nn">functorch._C</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">_wrap_for_grad</span><span class="p">,</span>
@@ -273,15 +277,28 @@
     <span class="n">_func_increment_nesting</span><span class="p">,</span>
     <span class="n">_assert_wrapped_functional</span><span class="p">,</span>
     <span class="n">_propagate_functional_input_mutation</span><span class="p">,</span>
+    <span class="n">set_inplace_requires_grad_allowed</span><span class="p">,</span>
+    <span class="n">get_inplace_requires_grad_allowed</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="n">argnums_t</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]</span>
 
 
+<span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
+<span class="k">def</span> <span class="nf">enable_inplace_requires_grad</span><span class="p">(</span><span class="n">enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="n">prev_state</span> <span class="o">=</span> <span class="n">get_inplace_requires_grad_allowed</span><span class="p">()</span>
+    <span class="n">set_inplace_requires_grad_allowed</span><span class="p">(</span><span class="n">enabled</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">set_inplace_requires_grad_allowed</span><span class="p">(</span><span class="n">prev_state</span><span class="p">)</span>
+
+
 <span class="k">def</span> <span class="nf">_create_differentiable</span><span class="p">(</span><span class="n">inps</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">create_differentiable</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">x</span><span class="o">.</span><span class="n">requires_grad_</span><span class="p">()</span>
+            <span class="k">with</span> <span class="n">enable_inplace_requires_grad</span><span class="p">():</span>
+                <span class="k">return</span> <span class="n">x</span><span class="o">.</span><span class="n">requires_grad_</span><span class="p">()</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Thing passed to transform API must be Tensor, &#39;</span>
                          <span class="sa">f</span><span class="s1">&#39;got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">tree_map</span><span class="p">(</span><span class="n">create_differentiable</span><span class="p">,</span> <span class="n">inps</span><span class="p">)</span>
@@ -394,7 +411,7 @@
 
 
 <span class="c1"># How do we increment and decrement the nesting? I don&#39;t think we can.</span>
-<div class="viewcode-block" id="vjp"><a class="viewcode-back" href="../../../generated/functorch.vjp.html#functorch.vjp">[docs]</a><span class="k">def</span> <span class="nf">vjp</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="o">*</span><span class="n">primals</span><span class="p">,</span> <span class="n">has_aux</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="vjp"><a class="viewcode-back" href="../../../generated/functorch.vjp.html#functorch.experimental.vjp">[docs]</a><span class="k">def</span> <span class="nf">vjp</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="o">*</span><span class="n">primals</span><span class="p">,</span> <span class="n">has_aux</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Standing for the vector-Jacobian product, returns a tuple containing the</span>
 <span class="sd">    results of :attr:`func` applied to :attr:`primals` and a function that, when</span>
@@ -547,7 +564,7 @@
     <span class="k">return</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
 
-<div class="viewcode-block" id="jacrev"><a class="viewcode-back" href="../../../generated/functorch.jacrev.html#functorch.jacrev">[docs]</a><span class="k">def</span> <span class="nf">jacrev</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">argnums</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="jacrev"><a class="viewcode-back" href="../../../generated/functorch.jacrev.html#functorch.experimental.jacrev">[docs]</a><span class="k">def</span> <span class="nf">jacrev</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">argnums</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Computes the Jacobian of :attr:`func` with respect to the arg(s) at index</span>
 <span class="sd">    :attr:`argnum` using reverse mode autodiff</span>
@@ -952,7 +969,7 @@
     <span class="k">return</span> <span class="n">primal</span><span class="p">,</span> <span class="n">tangent</span>
 
 
-<div class="viewcode-block" id="jvp"><a class="viewcode-back" href="../../../generated/functorch.jvp.html#functorch.jvp">[docs]</a><span class="k">def</span> <span class="nf">jvp</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">primals</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">tangents</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">strict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">has_aux</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="jvp"><a class="viewcode-back" href="../../../generated/functorch.jvp.html#functorch.experimental.jvp">[docs]</a><span class="k">def</span> <span class="nf">jvp</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">primals</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">tangents</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">strict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">has_aux</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Standing for the Jacobian-vector product, returns a tuple containing</span>
 <span class="sd">    the output of `func(*primals)` and the &quot;Jacobian of ``func`` evaluated at</span>
@@ -1067,7 +1084,7 @@
     <span class="k">return</span> <span class="n">tensor</span><span class="o">.</span><span class="n">unflatten</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="jacfwd"><a class="viewcode-back" href="../../../generated/functorch.jacfwd.html#functorch.jacfwd">[docs]</a><span class="k">def</span> <span class="nf">jacfwd</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">argnums</span><span class="p">:</span> <span class="n">argnums_t</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">has_aux</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="jacfwd"><a class="viewcode-back" href="../../../generated/functorch.jacfwd.html#functorch.experimental.jacfwd">[docs]</a><span class="k">def</span> <span class="nf">jacfwd</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">argnums</span><span class="p">:</span> <span class="n">argnums_t</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">has_aux</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Computes the Jacobian of :attr:`func` with respect to the arg(s) at index</span>
 <span class="sd">    :attr:`argnum` using forward-mode autodiff</span>
@@ -1170,6 +1187,7 @@
 <span class="sd">        &gt;&gt;&gt; assert torch.allclose(jacobian[1], expectedY)</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">wrapper_fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
         <span class="n">f_wrapper</span><span class="p">,</span> <span class="n">primals</span> <span class="o">=</span> <span class="n">_argnums_partial</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">argnums</span><span class="p">)</span>
         <span class="n">flat_primals</span><span class="p">,</span> <span class="n">primals_spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">primals</span><span class="p">)</span>
@@ -1217,7 +1235,7 @@
     <span class="k">return</span> <span class="n">wrapper_fn</span></div>
 
 
-<div class="viewcode-block" id="hessian"><a class="viewcode-back" href="../../../generated/functorch.hessian.html#functorch.hessian">[docs]</a><span class="k">def</span> <span class="nf">hessian</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+<div class="viewcode-block" id="hessian"><a class="viewcode-back" href="../../../generated/functorch.hessian.html#functorch.experimental.hessian">[docs]</a><span class="k">def</span> <span class="nf">hessian</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Computes the Hessian of :attr:`func` with respect to the arg(s) at index</span>
 <span class="sd">    :attr:`argnum` via a forward-over-reverse strategy.</span>
@@ -1259,7 +1277,7 @@
     <span class="k">return</span> <span class="n">jacfwd</span><span class="p">(</span><span class="n">jacrev</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">argnums</span><span class="p">),</span> <span class="n">argnums</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="grad_and_value"><a class="viewcode-back" href="../../../generated/functorch.grad_and_value.html#functorch.grad_and_value">[docs]</a><span class="k">def</span> <span class="nf">grad_and_value</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">argnums</span><span class="p">:</span> <span class="n">argnums_t</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">has_aux</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+<div class="viewcode-block" id="grad_and_value"><a class="viewcode-back" href="../../../generated/functorch.grad_and_value.html#functorch.experimental.grad_and_value">[docs]</a><span class="k">def</span> <span class="nf">grad_and_value</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">argnums</span><span class="p">:</span> <span class="n">argnums_t</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">has_aux</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns a function to compute a tuple of the gradient and primal, or</span>
 <span class="sd">    forward, computation.</span>
@@ -1337,7 +1355,7 @@
     <span class="k">return</span> <span class="n">wrapper</span></div>
 
 
-<div class="viewcode-block" id="grad"><a class="viewcode-back" href="../../../generated/functorch.grad.html#functorch.grad">[docs]</a><span class="k">def</span> <span class="nf">grad</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">argnums</span><span class="p">:</span> <span class="n">argnums_t</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">has_aux</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+<div class="viewcode-block" id="grad"><a class="viewcode-back" href="../../../generated/functorch.grad.html#functorch.experimental.grad">[docs]</a><span class="k">def</span> <span class="nf">grad</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">argnums</span><span class="p">:</span> <span class="n">argnums_t</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">has_aux</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;``grad`` operator helps computing gradients of :attr:`func` with respect to the</span>
 <span class="sd">    input(s) specified by :attr:`argnums`. This operator can be nested to</span>
 <span class="sd">    compute higher-order gradients.</span>
@@ -1450,21 +1468,192 @@
     <span class="k">return</span> <span class="n">tree_map</span><span class="p">(</span><span class="n">partial</span><span class="p">(</span><span class="n">_maybe_wrap_functional_tensor</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">),</span> <span class="n">tensor_pytree</span><span class="p">)</span>
 
 
-<span class="k">def</span> <span class="nf">_maybe_unwrap_functional_tensor</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_maybe_unwrap_functional_tensor</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">reapply_views</span><span class="p">:</span> <span class="nb">bool</span><span class="p">):</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">maybe_tensor</span>
-    <span class="k">return</span> <span class="n">_unwrap_functional_tensor</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">_is_functional_tensor</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">):</span>
+        <span class="c1"># If it&#39;s not a functional tensor, just return it.</span>
+        <span class="c1"># This can happen if we functionalize a fn that returns a global,</span>
+        <span class="c1"># which was never wrapped properly.</span>
+        <span class="k">return</span> <span class="n">maybe_tensor</span>
+    <span class="k">return</span> <span class="n">_unwrap_functional_tensor</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">,</span> <span class="n">reapply_views</span><span class="p">)</span>
 
 
-<span class="k">def</span> <span class="nf">_unwrap_all_tensors_from_functional</span><span class="p">(</span><span class="n">tensor_pytree</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">tree_map</span><span class="p">(</span><span class="n">_maybe_unwrap_functional_tensor</span><span class="p">,</span> <span class="n">tensor_pytree</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_unwrap_all_tensors_from_functional</span><span class="p">(</span><span class="n">tensor_pytree</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">reapply_views</span><span class="p">:</span> <span class="nb">bool</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">tree_map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="n">_maybe_unwrap_functional_tensor</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">reapply_views</span><span class="o">=</span><span class="n">reapply_views</span><span class="p">),</span> <span class="n">tensor_pytree</span><span class="p">)</span>
 
 
-<span class="k">def</span> <span class="nf">functionalize</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+<div class="viewcode-block" id="functionalize"><a class="viewcode-back" href="../../../generated/functorch.experimental.functionalize.html#functorch.experimental.functionalize">[docs]</a><span class="k">def</span> <span class="nf">functionalize</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">remove</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;mutations&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    functionalize is a transform that can be used to remove (intermediate)</span>
+<span class="sd">    mutations and aliasing from a function, while preserving the function&#39;s</span>
+<span class="sd">    semantics.</span>
+
+<span class="sd">    ``functionalize(func)`` returns a new function with the same semantics</span>
+<span class="sd">    as ``func``, but with all intermediate mutations removed.</span>
+<span class="sd">    Every inplace operation performed on an intermediate tensor:</span>
+<span class="sd">    ``intermediate.foo_()``</span>
+<span class="sd">    gets replaced by its out-of-place equivalent:</span>
+<span class="sd">    ``intermediate_updated = intermediate.foo()``.</span>
+
+<span class="sd">    functionalize is useful for shipping a pytorch program off to</span>
+<span class="sd">    backends or compilers that aren&#39;t able to easily represent</span>
+<span class="sd">    mutations or aliasing operators.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        func (Callable): A Python function that takes one or more arguments.</span>
+<span class="sd">        remove (str): An optional string argument, that takes on either</span>
+<span class="sd">            the value &#39;mutations&#39; or &#39;mutations_and_views&#39;.</span>
+<span class="sd">            If &#39;mutations&#39; is passed in then all mutating operators</span>
+<span class="sd">            will be replaced with their non-mutating equivalents.</span>
+<span class="sd">            If &#39;mutations_and_views&#39; is passed in, then additionally, all aliasing</span>
+<span class="sd">            operators will be replaced with their non-aliasing equivalents.</span>
+<span class="sd">            Default: &#39;mutations&#39;.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Returns a new &quot;functionalized&quot; function. It takes the same inputs as</span>
+<span class="sd">        :attr:`func`, and has the same behavior, but any mutations</span>
+<span class="sd">        (and optionally aliasing) performed on intermeidate tensors</span>
+<span class="sd">        in the function will be removed.</span>
+
+<span class="sd">    functionalize will also remove mutations (and views) that were performed on function inputs.</span>
+<span class="sd">    However to preserve semantics, functionalize will &quot;fix up&quot; the mutations after</span>
+<span class="sd">    the transform has finished running, by detecting if any tensor inputs &quot;should have&quot;</span>
+<span class="sd">    been mutated, and copying the new data back to the inputs if necessary.</span>
+
+
+<span class="sd">    Example::</span>
+
+<span class="sd">        &gt;&gt;&gt; import torch</span>
+<span class="sd">        &gt;&gt;&gt; from functorch import make_fx</span>
+<span class="sd">        &gt;&gt;&gt; from functorch.experimental import functionalize</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; A function that uses mutations and views, but only on intermediate tensors.</span>
+<span class="sd">        &gt;&gt;&gt; def f(a):</span>
+<span class="sd">        ...     b = a + 1</span>
+<span class="sd">        ...     c = b.view(-1)</span>
+<span class="sd">        ...     c.add_(1)</span>
+<span class="sd">        ...     return b</span>
+<span class="sd">        ...</span>
+<span class="sd">        &gt;&gt;&gt; inpt = torch.randn(2)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; out1 = f(inpt)</span>
+<span class="sd">        &gt;&gt;&gt; out2 = functionalize(f)(inpt)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # semantics are the same (outputs are equivalent)</span>
+<span class="sd">        &gt;&gt;&gt; print(torch.allclose(out1, out2))</span>
+<span class="sd">        True</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; f_traced = make_fx(f)(inpt)</span>
+<span class="sd">        &gt;&gt;&gt; f_no_mutations_traced = make_fx(functionalize(f))(inpt)</span>
+<span class="sd">        &gt;&gt;&gt; f_no_mutations_and_views_traced = make_fx(functionalize(f, remove=&#39;mutations_and_views&#39;))(inpt)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; print(f_traced.code)</span>
+
+
+
+<span class="sd">        def forward(self, a_1):</span>
+<span class="sd">            add = torch.ops.aten.add(a_1, 1);  a_1 = None</span>
+<span class="sd">            view = torch.ops.aten.view(add, [-1])</span>
+<span class="sd">            add_ = torch.ops.aten.add_(view, 1);  view = None</span>
+<span class="sd">            return add</span>
+
+<span class="sd">        &gt;&gt;&gt; print(f_no_mutations_traced.code)</span>
+
+
+
+<span class="sd">        def forward(self, a_1):</span>
+<span class="sd">            add = torch.ops.aten.add(a_1, 1);  a_1 = None</span>
+<span class="sd">            view = torch.ops.aten.view(add, [-1]);  add = None</span>
+<span class="sd">            add_1 = torch.ops.aten.add(view, 1);  view = None</span>
+<span class="sd">            view_1 = torch.ops.aten.view(add_1, [2]);  add_1 = None</span>
+<span class="sd">            return view_1</span>
+
+<span class="sd">        &gt;&gt;&gt; print(f_no_mutations_and_views_traced.code)</span>
+
+
+
+<span class="sd">        def forward(self, a_1):</span>
+<span class="sd">            add = torch.ops.aten.add(a_1, 1);  a_1 = None</span>
+<span class="sd">            view_copy = torch.ops.aten.view_copy(add, [-1]);  add = None</span>
+<span class="sd">            add_1 = torch.ops.aten.add(view_copy, 1);  view_copy = None</span>
+<span class="sd">            view_copy_1 = torch.ops.aten.view_copy(add_1, [2]);  add_1 = None</span>
+<span class="sd">            return view_copy_1</span>
+
+
+<span class="sd">        &gt;&gt;&gt; A function that mutates its input tensor</span>
+<span class="sd">        &gt;&gt;&gt; def f(a):</span>
+<span class="sd">        ...     b = a.view(-1)</span>
+<span class="sd">        ...     b.add_(1)</span>
+<span class="sd">        ...     return a</span>
+<span class="sd">        ...</span>
+<span class="sd">        &gt;&gt;&gt; f_no_mutations_and_views_traced = make_fx(functionalize(f, remove=&#39;mutations_and_views&#39;))(inpt)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; All mutations and views have been removed,</span>
+<span class="sd">        &gt;&gt;&gt; but there is an extra copy_ in the graph to correctly apply the mutation to the input</span>
+<span class="sd">        &gt;&gt;&gt; after the function has completed.</span>
+<span class="sd">        &gt;&gt;&gt; print(f_no_mutations_and_views_traced.code)</span>
+
+
+
+<span class="sd">        def forward(self, a_1):</span>
+<span class="sd">            view_copy = torch.ops.aten.view_copy(a_1, [-1])</span>
+<span class="sd">            add = torch.ops.aten.add(view_copy, 1);  view_copy = None</span>
+<span class="sd">            view_copy_1 = torch.ops.aten.view_copy(add, [2]);  add = None</span>
+<span class="sd">            copy_ = torch.ops.aten.copy_(a_1, view_copy_1);  a_1 = None</span>
+<span class="sd">            return view_copy_1</span>
+
+
+<span class="sd">    There are a few &quot;failure modes&quot; for functionalize that are worth calling out:</span>
+<span class="sd">      (1) Like other functorch transforms, `functionalize()` doesn&#39;t work with functions</span>
+<span class="sd">          that directly use `.backward()`. The same is true for torch.autograd.grad.</span>
+<span class="sd">          If you want to use autograd, you can compute gradients directly</span>
+<span class="sd">          with `functionalize(grad(f))`.</span>
+<span class="sd">      (2) Like other functorch transforms, `functionalize()` doesn&#39;t work with global state.</span>
+<span class="sd">          If you call `functionalize(f)` on a function that takes views / mutations of</span>
+<span class="sd">          non-local state, functionalization will simply no-op and pass the view/mutation</span>
+<span class="sd">          calls directly to the backend.</span>
+<span class="sd">          One way to work around this is is to ensure that any non-local state creation</span>
+<span class="sd">          is wrapped into a larger function, which you then call functionalize on.</span>
+<span class="sd">      (3) `resize_()` has some limitations: functionalize will only work on programs</span>
+<span class="sd">          that use resize_()` as long as the tensor being resized is not a view.</span>
+<span class="sd">      (4) `as_strided()` has some limitations: functionalize will not work on</span>
+<span class="sd">          `as_strided()` calls that result in tensors with overlapping memory.</span>
+
+
+<span class="sd">    Finally, a helpful mental model for understanding functionalization is that</span>
+<span class="sd">    most user pytorch programs are writting with the public torch API.</span>
+<span class="sd">    When executed, torch operators are generally decomposed into</span>
+<span class="sd">    our internal C++ &quot;ATen&quot; API.</span>
+<span class="sd">    The logic for functionalization happens entirely at the level of ATen.</span>
+<span class="sd">    Functionalization knows how to take every aliasing operator in ATen,</span>
+<span class="sd">    and map it to its non-aliasing equivalent</span>
+<span class="sd">    (e.g. ``tensor.view({-1})`` -&gt; ``at::view_copy(tensor, {-1})``),</span>
+<span class="sd">    and how to take every mutating operator in ATen,</span>
+<span class="sd">    and map it to its non-mutating equivalent</span>
+<span class="sd">    (e.g. ``tensor.add_(1)`` -&gt; ``at::add(tensor, -1)``),</span>
+<span class="sd">    while tracking aliases and mutations out-of-line to know when to fix things up.</span>
+<span class="sd">    Information about which ATen operators are aliasing or mutating all comes from</span>
+<span class="sd">    https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/native/native_functions.yaml.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">remove</span> <span class="o">==</span> <span class="s1">&#39;mutations&#39;</span><span class="p">:</span>
+        <span class="n">reapply_views</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">elif</span> <span class="n">remove</span> <span class="o">==</span> <span class="s1">&#39;mutations_and_views&#39;</span><span class="p">:</span>
+        <span class="n">reapply_views</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;functionalize(f, remove=&#39;mutations&#39;): received invalid argument for remove=</span><span class="si">{</span><span class="n">remove</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="s2">&quot; Valid options are:</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;     remove=&#39;mutations&#39;: all inplace and out= operators will be removed from the program, and replaced&quot;</span>
+            <span class="s2">&quot; with their out-of-place equivalents.</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;     remove=&#39;mutations_and_views&#39;: In addition to the above, all aliasing operators </span><span class="si">{view}</span><span class="s2"> will be&quot;</span>
+            <span class="s2">&quot; replaced with their non-aliasing counterparts, </span><span class="si">{view}</span><span class="s2">_copy.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
     <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">wrapped</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">func_level</span> <span class="o">=</span> <span class="n">_func_increment_nesting</span><span class="p">()</span>
+            <span class="n">func_level</span> <span class="o">=</span> <span class="n">_func_increment_nesting</span><span class="p">(</span><span class="n">reapply_views</span><span class="p">)</span>
             <span class="n">func_args</span> <span class="o">=</span> <span class="n">_wrap_all_tensors_to_functional</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">func_level</span><span class="p">)</span>
             <span class="n">func_kwargs</span> <span class="o">=</span> <span class="n">_wrap_all_tensors_to_functional</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">func_level</span><span class="p">)</span>
 
@@ -1474,7 +1663,7 @@
             <span class="n">flattened_wrapped_kwargs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">func_kwargs</span><span class="p">)</span>
 
             <span class="n">func_outputs</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">func_args</span><span class="p">,</span> <span class="o">**</span><span class="n">func_kwargs</span><span class="p">)</span>
-            <span class="n">outputs</span> <span class="o">=</span> <span class="n">_unwrap_all_tensors_from_functional</span><span class="p">(</span><span class="n">func_outputs</span><span class="p">)</span>
+            <span class="n">outputs</span> <span class="o">=</span> <span class="n">_unwrap_all_tensors_from_functional</span><span class="p">(</span><span class="n">func_outputs</span><span class="p">,</span> <span class="n">reapply_views</span><span class="o">=</span><span class="n">reapply_views</span><span class="p">)</span>
             <span class="n">flat_outputs</span><span class="p">,</span> <span class="n">func_out_spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
 
             <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">flattened_wrapped_args</span> <span class="o">+</span> <span class="n">flattened_wrapped_kwargs</span><span class="p">:</span>
@@ -1493,7 +1682,64 @@
             <span class="k">return</span> <span class="n">outputs</span>
         <span class="k">finally</span><span class="p">:</span>
             <span class="n">_func_decrement_nesting</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">wrapped</span>
+    <span class="k">return</span> <span class="n">wrapped</span></div>
+
+
+<span class="k">def</span> <span class="nf">_register_jit_decomposition</span><span class="p">(</span><span class="n">decomp</span><span class="p">,</span> <span class="n">use_python</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">decomp</span> <span class="ow">in</span> <span class="n">decomposition_table_for_jvp</span><span class="p">:</span>
+        <span class="n">decomposition_table_used</span> <span class="o">=</span> <span class="n">decomposition_table_for_jvp</span>
+    <span class="k">elif</span> <span class="n">decomp</span> <span class="ow">in</span> <span class="n">decomposition_table</span><span class="p">:</span>
+        <span class="n">decomposition_table_used</span> <span class="o">=</span> <span class="n">decomposition_table</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;could not find decomposition for </span><span class="si">{</span><span class="n">decomp</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">decomp_fn</span> <span class="o">=</span> <span class="n">decomposition_table_used</span><span class="p">[</span><span class="n">decomp</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">use_python</span><span class="p">:</span>
+        <span class="n">decomp_fn</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">ignore</span><span class="p">(</span><span class="n">decomp_fn</span><span class="p">)</span>
+        <span class="n">sig</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">decomp_fn</span><span class="p">)</span>
+
+        <span class="c1"># Create a string wrapping the function from the signature</span>
+        <span class="c1"># example output:</span>
+        <span class="c1"># def wrapped_decomp(x: torch.Tensor, y: int, z: int):</span>
+        <span class="c1">#   return decomp_fn(x, y, z)</span>
+        <span class="c1"># Thanks copilot!</span>
+        <span class="k">def</span> <span class="nf">get_function_def</span><span class="p">(</span><span class="n">sig</span><span class="p">):</span>
+            <span class="n">param_def</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">param_str</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">param_str</span> <span class="ow">in</span> <span class="n">sig</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+            <span class="n">param_use</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">param_str</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">param_str</span> <span class="ow">in</span> <span class="n">sig</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;def wrapped_decomp(</span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">param_def</span><span class="p">)</span><span class="si">}</span><span class="s2">):</span><span class="se">\n</span><span class="s2">  return decomp_fn(</span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">param_use</span><span class="p">)</span><span class="si">}</span><span class="s2">)</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+        <span class="n">f_str</span> <span class="o">=</span> <span class="n">get_function_def</span><span class="p">(</span><span class="n">sig</span><span class="p">)</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">CompilationUnit</span><span class="p">(</span><span class="n">f_str</span><span class="p">)</span><span class="o">.</span><span class="n">wrapped_decomp</span><span class="o">.</span><span class="n">graph</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">script</span><span class="p">(</span><span class="n">decomp_fn</span><span class="p">)</span><span class="o">.</span><span class="n">graph</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">_register_decomposition</span><span class="p">(</span><span class="n">decomp</span><span class="p">,</span> <span class="n">graph</span><span class="p">)</span>
+
+
+<span class="c1"># use an alternate way to register an operator into the decomposition table</span>
+<span class="c1"># _register_jit_decomposition doesn&#39;t work for some operators, e.g. addr,</span>
+<span class="c1">#  because the Tensor types generated cannot be unioned by torchscript</span>
+<span class="c1"># decomp should be type OpOverload</span>
+<span class="n">vmap_decompositions_lib</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">library</span><span class="o">.</span><span class="n">Library</span><span class="p">(</span><span class="s2">&quot;aten&quot;</span><span class="p">,</span> <span class="s2">&quot;IMPL&quot;</span><span class="p">,</span> <span class="s2">&quot;FuncTorchBatched&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_register_python_decomposition_vmap</span><span class="p">(</span><span class="n">decomp</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">decomp</span> <span class="ow">in</span> <span class="n">decomposition_table</span><span class="p">:</span>
+        <span class="n">vmap_decompositions_lib</span><span class="o">.</span><span class="n">impl</span><span class="p">(</span><span class="n">decomp</span><span class="p">,</span> <span class="n">decomposition_table</span><span class="p">[</span><span class="n">decomp</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;could not find decomposition for </span><span class="si">{</span><span class="n">decomp</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">trace</span><span class="o">.</span><span class="n">default</span><span class="p">,</span> <span class="n">use_python</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">nll_loss_backward</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">nll_loss2d_backward</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">_log_softmax_backward_data</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">_softmax_backward_data</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">log_sigmoid_forward</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">native_layer_norm_backward</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">native_batch_norm_backward</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">cudnn_batch_norm_backward</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_python_decomposition_vmap</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">mse_loss_backward</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_python_decomposition_vmap</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">addr</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
 </pre></div>
 
              </article>

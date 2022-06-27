@@ -124,7 +124,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.2.0a0+386a541) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.3.0a0+0e08bf5) &#x25BC</a>
                 </div>
               
             
@@ -161,6 +161,7 @@
 <p class="caption"><span class="caption-text">API Reference and Notes</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../functorch.html">functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../experimental.html">functorch.experimental</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
@@ -251,6 +252,7 @@
 <span class="kn">from</span> <span class="nn">.aot_autograd</span> <span class="kn">import</span> <span class="n">aot_function</span><span class="p">,</span> <span class="n">aot_module</span>
 <span class="kn">from</span> <span class="nn">.decompositions</span> <span class="kn">import</span> <span class="n">get_decompositions</span>
 <span class="kn">from</span> <span class="nn">.partitioners</span> <span class="kn">import</span> <span class="n">draw_graph</span><span class="p">,</span> <span class="n">min_cut_rematerialization_partition</span>
+<span class="kn">from</span> <span class="nn">.compile_utils</span> <span class="kn">import</span> <span class="n">strip_overloads</span>
 <span class="kn">import</span> <span class="nn">time</span>
 
 
@@ -277,18 +279,10 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        Torch scripted model.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="ow">in</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">new_zeros</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">new_empty</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="p">[]:</span>
-                <span class="n">args</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">)</span>
-                <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-                <span class="n">node</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="ow">is</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">masked_fill</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;-inf&quot;</span><span class="p">):</span>
-            <span class="c1"># Fx graph to torchscript fails for -inf</span>
-            <span class="n">args</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">)</span>
-            <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">3.403</span> <span class="o">*</span> <span class="mi">10</span><span class="o">**</span><span class="mi">37</span>
-            <span class="n">node</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="o">==</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">_to_copy</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+           <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="s1">&#39;dtype&#39;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">to</span>
 
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
         <span class="n">new_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
@@ -298,16 +292,9 @@
             <span class="n">new_kwargs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
         <span class="n">node</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">new_kwargs</span>
 
-    <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">lint</span><span class="p">()</span>
+    <span class="n">strip_overloads</span><span class="p">(</span><span class="n">fx_g</span><span class="p">)</span>
 
-    <span class="c1"># print(set([i.target for i in fx_g.graph.nodes if i.op == &#39;call_function&#39;]))</span>
-    <span class="c1"># Works around this NVFuser issue: https://github.com/csarofeen/pytorch/issues/1311</span>
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1000</span><span class="p">):</span>
-        <span class="n">attr</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;_tensor_constant</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">fx_g</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
-            <span class="nb">setattr</span><span class="p">(</span><span class="n">fx_g</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">fx_g</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span><span class="o">.</span><span class="n">cuda</span><span class="p">())</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">break</span>
+    <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">lint</span><span class="p">()</span>
 
     <span class="n">fx_g</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
 
@@ -322,11 +309,11 @@
 
 <span class="k">def</span> <span class="nf">tensorexpr_compile</span><span class="p">(</span><span class="n">fx_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Compiles the given fx_module using TensorExpr Kernel&quot;&quot;&quot;</span>
-    <span class="n">inp_devices</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="n">i</span><span class="o">.</span><span class="n">device</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">flat_args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)])</span>
+    <span class="n">inp_devices</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="o">.</span><span class="n">device</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">flat_args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)}</span>
     <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">inp_devices</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
     <span class="n">inp_device</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">inp_devices</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
-    <span class="n">output_refs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+    <span class="n">inputs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">output_refs</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fx_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span><span class="p">:</span>
             <span class="n">inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
@@ -491,6 +478,7 @@
 
 
 <span class="k">def</span> <span class="nf">simple_ts_compile</span><span class="p">(</span><span class="n">fx_g</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
+    <span class="n">strip_overloads</span><span class="p">(</span><span class="n">fx_g</span><span class="p">)</span>
     <span class="n">f</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">script</span><span class="p">(</span><span class="n">fx_g</span><span class="p">)</span>
     <span class="n">f</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">freeze</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">eval</span><span class="p">())</span>
     <span class="k">return</span> <span class="n">f</span>
@@ -501,23 +489,29 @@
 
 
 <span class="n">aten</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span>
-<span class="n">default_decompositions</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span>
-    <span class="p">[</span>
-        <span class="n">aten</span><span class="o">.</span><span class="n">detach</span><span class="p">,</span>
-        <span class="n">aten</span><span class="o">.</span><span class="n">gelu_backward</span><span class="p">,</span>
-        <span class="n">aten</span><span class="o">.</span><span class="n">_log_softmax_backward_data</span><span class="p">,</span>
-        <span class="n">aten</span><span class="o">.</span><span class="n">leaky_relu_backward</span><span class="p">,</span>
-        <span class="n">aten</span><span class="o">.</span><span class="n">sigmoid_backward</span><span class="p">,</span>
-        <span class="n">aten</span><span class="o">.</span><span class="n">threshold_backward</span><span class="p">,</span>
-        <span class="n">aten</span><span class="o">.</span><span class="n">hardtanh_backward</span><span class="p">,</span>
-        <span class="n">aten</span><span class="o">.</span><span class="n">hardsigmoid_backward</span><span class="p">,</span>
-        <span class="n">aten</span><span class="o">.</span><span class="n">hardswish_backward</span><span class="p">,</span>
-        <span class="n">aten</span><span class="o">.</span><span class="n">tanh_backward</span><span class="p">,</span>
-        <span class="n">aten</span><span class="o">.</span><span class="n">silu_backward</span><span class="p">,</span>
-        <span class="n">aten</span><span class="o">.</span><span class="n">cudnn_batch_norm</span><span class="p">,</span>
-        <span class="n">aten</span><span class="o">.</span><span class="n">cudnn_batch_norm_backward</span><span class="p">,</span>
-    <span class="p">]</span>
-<span class="p">)</span>
+<span class="n">default_decompositions</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">detach</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">gelu_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">leaky_relu_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">sigmoid_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">threshold_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">hardtanh_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">hardsigmoid_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">hardswish_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">tanh_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">silu_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">elu_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">cudnn_batch_norm</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">cudnn_batch_norm_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">masked_fill</span><span class="o">.</span><span class="n">Scalar</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">masked_fill</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">elu</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">leaky_relu</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">hardtanh</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">hardswish</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">hardsigmoid</span><span class="p">,</span>
+<span class="p">}</span>
+
 <span class="n">default_decompositions</span> <span class="o">=</span> <span class="n">get_decompositions</span><span class="p">(</span><span class="n">default_decompositions</span><span class="p">)</span>
 
 

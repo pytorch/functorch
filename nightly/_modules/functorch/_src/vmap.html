@@ -124,7 +124,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.2.0a0+386a541) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.3.0a0+0e08bf5) &#x25BC</a>
                 </div>
               
             
@@ -161,6 +161,7 @@
 <p class="caption"><span class="caption-text">API Reference and Notes</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../functorch.html">functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../experimental.html">functorch.experimental</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
@@ -256,7 +257,6 @@
 <span class="kn">from</span> <span class="nn">torch.utils._pytree</span> <span class="kn">import</span> <span class="n">tree_flatten</span><span class="p">,</span> <span class="n">tree_unflatten</span><span class="p">,</span> <span class="n">_broadcast_to_and_flatten</span><span class="p">,</span> <span class="n">TreeSpec</span><span class="p">,</span> <span class="n">_register_pytree_node</span>
 <span class="kn">from</span> <span class="nn">.pytree_hacks</span> <span class="kn">import</span> <span class="n">tree_map_</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
-<span class="kn">import</span> <span class="nn">inspect</span>
 
 <span class="kn">from</span> <span class="nn">functorch._C</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">_add_batch_dim</span><span class="p">,</span>
@@ -267,23 +267,6 @@
 
 <span class="n">in_dims_t</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">]</span>
 <span class="n">out_dims_t</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]</span>
-
-
-<span class="k">def</span> <span class="nf">register_torch_return_types</span><span class="p">():</span>
-    <span class="c1"># Register torch.return_types as pytree node.</span>
-    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">return_types</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;__&#39;</span><span class="p">):</span>
-            <span class="k">continue</span>
-        <span class="n">attr</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">return_types</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">inspect</span><span class="o">.</span><span class="n">isclass</span><span class="p">(</span><span class="n">attr</span><span class="p">):</span>
-            <span class="n">return_type_class</span> <span class="o">=</span> <span class="n">attr</span>
-            <span class="c1"># Note: We capture the current `return_type_class` with default argument `constructor`</span>
-            <span class="c1"># in the lambda otherwise we will point to the last value of `return_type_class` for all lambdas</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">_pytree</span><span class="o">.</span><span class="n">_register_pytree_node</span><span class="p">(</span><span class="n">return_type_class</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span>
-                <span class="nb">list</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="kc">None</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">constructor</span><span class="o">=</span><span class="n">return_type_class</span><span class="p">:</span> <span class="n">constructor</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
-
-
-<span class="n">register_torch_return_types</span><span class="p">()</span>
 
 
 <span class="c1"># Temporary OrderedDict registration as pytree</span>
@@ -305,7 +288,7 @@
         <span class="n">flat_args</span><span class="p">:</span> <span class="n">List</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
     <span class="n">batch_sizes</span> <span class="o">=</span> <span class="p">[</span><span class="n">arg</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">in_dim</span><span class="p">)</span> <span class="k">for</span> <span class="n">in_dim</span><span class="p">,</span> <span class="n">arg</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">flat_in_dims</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">)</span>
                    <span class="k">if</span> <span class="n">in_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
-    <span class="k">if</span> <span class="n">batch_sizes</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">([</span><span class="n">size</span> <span class="o">!=</span> <span class="n">batch_sizes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="n">batch_sizes</span><span class="p">]):</span>
+    <span class="k">if</span> <span class="n">batch_sizes</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">size</span> <span class="o">!=</span> <span class="n">batch_sizes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="n">batch_sizes</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s1">&#39;vmap: Expected all tensors to have the same size in the mapped &#39;</span>
             <span class="sa">f</span><span class="s1">&#39;dimension, got sizes </span><span class="si">{</span><span class="n">batch_sizes</span><span class="si">}</span><span class="s1"> for the mapped dimension&#39;</span><span class="p">)</span>
@@ -614,21 +597,142 @@
 <span class="sd">        vmap does not provide general autobatching or handle variable-length</span>
 <span class="sd">        sequences out of the box.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">randomness</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;error&#39;</span><span class="p">,</span> <span class="s1">&#39;different&#39;</span><span class="p">,</span> <span class="s1">&#39;same&#39;</span><span class="p">]:</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Only allowed values for randomness are &#39;error&#39;, &#39;different&#39;, or &#39;same&#39;. Got </span><span class="si">{</span><span class="n">randomness</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">_check_randomness_arg</span><span class="p">(</span><span class="n">randomness</span><span class="p">)</span>
 
     <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">wrapped</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">_check_out_dims_is_int_or_int_pytree</span><span class="p">(</span><span class="n">out_dims</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span>
         <span class="n">batch_size</span><span class="p">,</span> <span class="n">flat_in_dims</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">,</span> <span class="n">args_spec</span> <span class="o">=</span> <span class="n">_process_batched_inputs</span><span class="p">(</span><span class="n">in_dims</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span>
-        <span class="n">vmap_level</span> <span class="o">=</span> <span class="n">_vmap_increment_nesting</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">randomness</span><span class="p">)</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">batched_inputs</span> <span class="o">=</span> <span class="n">_create_batched_inputs</span><span class="p">(</span><span class="n">flat_in_dims</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">,</span> <span class="n">vmap_level</span><span class="p">,</span> <span class="n">args_spec</span><span class="p">)</span>
-            <span class="n">batched_outputs</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">batched_inputs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">_unwrap_batched</span><span class="p">(</span><span class="n">batched_outputs</span><span class="p">,</span> <span class="n">out_dims</span><span class="p">,</span> <span class="n">vmap_level</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span>
-        <span class="k">finally</span><span class="p">:</span>
-            <span class="n">_vmap_decrement_nesting</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">_flat_vmap</span><span class="p">(</span>
+            <span class="n">func</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">flat_in_dims</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">,</span> <span class="n">args_spec</span><span class="p">,</span> <span class="n">out_dims</span><span class="p">,</span> <span class="n">randomness</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+
     <span class="k">return</span> <span class="n">wrapped</span></div>
+
+
+<span class="k">def</span> <span class="nf">chunk_vmap</span><span class="p">(</span>
+        <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+        <span class="n">in_dims</span><span class="p">:</span> <span class="n">in_dims_t</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">out_dims</span><span class="p">:</span> <span class="n">out_dims_t</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">randomness</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;error&#39;</span><span class="p">,</span>
+        <span class="n">chunks</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    chunk_vmap is the vectorizing map (vmap) using chunks of input data. It is a mix of vmap (which vectorizes</span>
+<span class="sd">    everything) and map (which executes things sequentially). ``chunk_vmap`` vectorizes the input with number of</span>
+<span class="sd">    chunks at a time. For more details about vectorizing map, see :func:`vmap`.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        func (function): A Python function that takes one or more arguments.</span>
+<span class="sd">            Must return one or more Tensors.</span>
+<span class="sd">        in_dims (int or nested structure): Specifies which dimension of the</span>
+<span class="sd">            inputs should be mapped over. :attr:`in_dims` should have a</span>
+<span class="sd">            structure like the inputs. If the :attr:`in_dim` for a particular</span>
+<span class="sd">            input is None, then that indicates there is no map dimension.</span>
+<span class="sd">            Default: 0.</span>
+<span class="sd">        out_dims (int or Tuple[int]): Specifies where the mapped dimension</span>
+<span class="sd">            should appear in the outputs. If :attr:`out_dims` is a Tuple, then</span>
+<span class="sd">            it should have one element per output. Default: 0.</span>
+<span class="sd">        randomness (str): Specifies whether the randomness in this</span>
+<span class="sd">            vmap should be the same or different across batches. If &#39;different&#39;,</span>
+<span class="sd">            the randomness for each batch will be different. If &#39;same&#39;, the</span>
+<span class="sd">            randomness will be the same across batches. If &#39;error&#39;, any calls to</span>
+<span class="sd">            random functions will error. Default: &#39;error&#39;. WARNING: this flag</span>
+<span class="sd">            only applies to random PyTorch operations and does not apply to</span>
+<span class="sd">            Python&#39;s random module or numpy randomness.</span>
+<span class="sd">        chunks (int): Number of chunks to use to split the input data. Default is 2.</span>
+<span class="sd">            If equals to 1 then :func:`vmap` is called.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Returns a new &quot;batched&quot; function. It takes the same inputs as</span>
+<span class="sd">        :attr:`func`, except each input has an extra dimension at the index</span>
+<span class="sd">        specified by :attr:`in_dims`. It takes returns the same outputs as</span>
+<span class="sd">        :attr:`func`, except each output has an extra dimension at the index</span>
+<span class="sd">        specified by :attr:`out_dims`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_check_randomness_arg</span><span class="p">(</span><span class="n">randomness</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">chunks</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">vmap</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">in_dims</span><span class="o">=</span><span class="n">in_dims</span><span class="p">,</span> <span class="n">out_dims</span><span class="o">=</span><span class="n">out_dims</span><span class="p">,</span> <span class="n">randomness</span><span class="o">=</span><span class="n">randomness</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_chunk_flat_args</span><span class="p">(</span><span class="n">flat_args_</span><span class="p">,</span> <span class="n">flat_in_dims_</span><span class="p">,</span> <span class="n">chunks_</span><span class="p">):</span>
+        <span class="n">flat_args_chunks</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="n">chunks_</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="n">in_dim</span><span class="p">)</span> <span class="k">if</span> <span class="n">in_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[</span><span class="n">t</span><span class="p">,</span> <span class="p">]</span> <span class="o">*</span> <span class="n">chunks_</span>
+            <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">in_dim</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">flat_args_</span><span class="p">,</span> <span class="n">flat_in_dims_</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="c1"># transpose chunk dim and flatten structure</span>
+        <span class="c1"># chunks_flat_args is a list of flatten args</span>
+        <span class="n">chunks_flat_args</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">flat_args_chunks</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">chunks_flat_args</span>
+
+    <span class="k">def</span> <span class="nf">_flatten_chunks_output</span><span class="p">(</span><span class="n">chunks_output_</span><span class="p">):</span>
+        <span class="c1"># chunks_output is a list of chunked outputs</span>
+        <span class="c1"># flatten chunked outputs:</span>
+        <span class="n">flat_chunks_output</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">arg_spec_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">output</span> <span class="ow">in</span> <span class="n">chunks_output_</span><span class="p">:</span>
+            <span class="n">flat_output</span><span class="p">,</span> <span class="n">arg_specs</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+            <span class="n">flat_chunks_output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">flat_output</span><span class="p">)</span>
+            <span class="n">arg_spec_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg_specs</span><span class="p">)</span>
+
+        <span class="n">arg_spec</span> <span class="o">=</span> <span class="n">arg_spec_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># all specs should be the same</span>
+        <span class="c1"># transpose chunk dim and flatten structure</span>
+        <span class="c1"># flat_output_chunks is flat list of chunks</span>
+        <span class="n">flat_output_chunks</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">flat_chunks_output</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">flat_output_chunks</span><span class="p">,</span> <span class="n">arg_spec</span>
+
+    <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">wrapped_with_chunks</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">_check_out_dims_is_int_or_int_pytree</span><span class="p">(</span><span class="n">out_dims</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">flat_in_dims</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">,</span> <span class="n">args_spec</span> <span class="o">=</span> <span class="n">_process_batched_inputs</span><span class="p">(</span><span class="n">in_dims</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span>
+        <span class="c1"># Chunk flat arguments</span>
+        <span class="n">chunks_flat_args</span> <span class="o">=</span> <span class="n">_get_chunk_flat_args</span><span class="p">(</span><span class="n">flat_args</span><span class="p">,</span> <span class="n">flat_in_dims</span><span class="p">,</span> <span class="n">chunks</span><span class="p">)</span>
+
+        <span class="c1"># Apply vmap on chunks</span>
+        <span class="n">chunks_output</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">rs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">get_rng_state</span><span class="p">()</span> <span class="k">if</span> <span class="n">randomness</span> <span class="o">==</span> <span class="s2">&quot;same&quot;</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">flat_args</span> <span class="ow">in</span> <span class="n">chunks_flat_args</span><span class="p">:</span>
+            <span class="n">batch_size</span> <span class="o">=</span> <span class="n">_validate_and_get_batch_size</span><span class="p">(</span><span class="n">flat_in_dims</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">rs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">set_rng_state</span><span class="p">(</span><span class="n">rs</span><span class="p">)</span>
+            <span class="n">chunks_output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">_flat_vmap</span><span class="p">(</span>
+                    <span class="n">func</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">flat_in_dims</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">,</span> <span class="n">args_spec</span><span class="p">,</span> <span class="n">out_dims</span><span class="p">,</span> <span class="n">randomness</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="n">flat_output_chunks</span><span class="p">,</span> <span class="n">arg_spec</span> <span class="o">=</span> <span class="n">_flatten_chunks_output</span><span class="p">(</span><span class="n">chunks_output</span><span class="p">)</span>
+        <span class="c1"># Removing temporary variables helps to reduce memory usage on device like CUDA</span>
+        <span class="k">del</span> <span class="n">chunks_output</span>
+
+        <span class="c1"># concat chunks on out_dim</span>
+        <span class="n">flat_out_dims</span> <span class="o">=</span> <span class="n">_broadcast_to_and_flatten</span><span class="p">(</span><span class="n">out_dims</span><span class="p">,</span> <span class="n">arg_spec</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">flat_out_dims</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">flat_output_chunks</span><span class="p">)</span>
+        <span class="n">flat_output</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">out_dim</span> <span class="ow">in</span> <span class="n">flat_out_dims</span><span class="p">:</span>
+            <span class="n">flat_output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">flat_output_chunks</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="n">out_dim</span><span class="p">))</span>
+            <span class="c1"># release source data</span>
+            <span class="k">del</span> <span class="n">flat_output_chunks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">del</span> <span class="n">flat_output_chunks</span>
+
+        <span class="c1"># finally unflatten the output</span>
+        <span class="k">return</span> <span class="n">tree_unflatten</span><span class="p">(</span><span class="n">flat_output</span><span class="p">,</span> <span class="n">arg_spec</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">wrapped_with_chunks</span>
+
+
+<span class="c1"># Vmap refactored helper funcions:</span>
+<span class="k">def</span> <span class="nf">_check_randomness_arg</span><span class="p">(</span><span class="n">randomness</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">randomness</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;error&#39;</span><span class="p">,</span> <span class="s1">&#39;different&#39;</span><span class="p">,</span> <span class="s1">&#39;same&#39;</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Only allowed values for randomness are &#39;error&#39;, &#39;different&#39;, or &#39;same&#39;. Got </span><span class="si">{</span><span class="n">randomness</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_flat_vmap</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">flat_in_dims</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">,</span> <span class="n">args_spec</span><span class="p">,</span> <span class="n">out_dims</span><span class="p">,</span> <span class="n">randomness</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">vmap_level</span> <span class="o">=</span> <span class="n">_vmap_increment_nesting</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">randomness</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">batched_inputs</span> <span class="o">=</span> <span class="n">_create_batched_inputs</span><span class="p">(</span><span class="n">flat_in_dims</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">,</span> <span class="n">vmap_level</span><span class="p">,</span> <span class="n">args_spec</span><span class="p">)</span>
+        <span class="n">batched_outputs</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">batched_inputs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_unwrap_batched</span><span class="p">(</span><span class="n">batched_outputs</span><span class="p">,</span> <span class="n">out_dims</span><span class="p">,</span> <span class="n">vmap_level</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">_vmap_decrement_nesting</span><span class="p">()</span>
 </pre></div>
 
              </article>

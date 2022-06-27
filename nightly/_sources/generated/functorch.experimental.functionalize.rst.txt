@@ -1,0 +1,6 @@
+﻿functorch.experimental.functionalize
+====================================
+
+.. currentmodule:: functorch.experimental
+
+.. autofunction:: functionalize
