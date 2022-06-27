@@ -123,13 +123,24 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
         if node.op == "output":
             old_args = get_output_node_args(node)
             loc = 0
-            breakpoint()
-            for user in node_pair[0].users: #TODO: can only do this for getitem users. might have a single add node that have two users
+            for user in node_pair[0].users: #can only do this for getitem users. might have a single add node that have two users
+                if user.target != operator.getitem:
+                    break
                 if isinstance(old_args[loc], torch.fx.node.Node):
                     user_name = old_args[loc].name
                     dest_placeholder_map[user_name] = user # add new arg to dest placeholder map
                 loc += 1
             module_origin_new_outputs = list(module_origin_new_outputs.difference(set(old_args)))
+            
+            # need to change the user to use getitem if origin only has 1 output but now has more
+            if(len(old_args)==1 and len(module_origin_new_outputs) > 0):
+                with fused_graph.graph.inserting_after(node_pair[0]):
+                    new_node = fused_graph.graph.call_function(operator.getitem, args=(node_pair[0], 0,))
+                node_pair[0].replace_all_uses_with(new_node)
+                new_node.args=(node_pair[0], 0,)
+                name_to_node[node_pair[0].name] = new_node # add new arg to dest placeholder map
+                dest_placeholder_map[old_args[0].name]=new_node
+
             if len(module_origin_new_outputs) > 0:  # need to add new ouputs to module_origin and new inputs to module_dest
                 with fused_graph.graph.inserting_after(node_pair[0]):
                     for i in range(len(module_origin_new_outputs )):
@@ -140,6 +151,7 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
                 module_origin.graph.output(new_args[0] if len(new_args) == 1 else tuple(new_args)) # TODO: test a single output
             break
     
+
     module_origin.recompile()
     fused_graph.recompile()
 
@@ -338,7 +350,6 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
     # print(cut_at_sink, cut_value)
     global memory_reduced 
     memory_reduced = cut_at_sink - cut_value
-
     # for edge in nx_graph.edges.data():
     #     print(edge)
     # print(cut_value, partition)
