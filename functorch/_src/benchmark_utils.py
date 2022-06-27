@@ -18,36 +18,38 @@ folder_name = ""
 def _save_fx(gm, example_inputs):
     from functorch.compile import aot_module_simplified
 
-    def graph_saver_forward(gm, fw_args):
+    def get_input_meta(args):
         input_meta = []
-        for arg in fw_args:
+        for arg in args:
             if(type(arg) == int or type(arg) == float):
                 input_meta.append((type(arg),))
             else:
                 input_meta.append((type(arg), arg.shape, arg.stride(), arg.dtype))
+        return input_meta
+
+    def graph_saver_helper(gm, args, type_name):
+        input_meta =  get_input_meta(args)
         global current_name
         global graph_index
         global folder_name
         isExist = os.path.exists(f"{folder_name}/{current_name}")
         if not isExist:
             os.makedirs(f"{folder_name}/{current_name}")
-        gm.to_folder(f"{folder_name}/{current_name}/{current_name}_forward_{graph_index}")
-        pickle.dump(input_meta, open( f"{folder_name}/{current_name}/{current_name}_forward_{graph_index}/{current_name}_forward_{graph_index}.input", "wb" ))
+        gm.to_folder(f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}")
+        pickle.dump(input_meta, open( f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}/{current_name}_{type_name}_{graph_index}.input", "wb" ))
+
+    def graph_saver_forward(gm, fw_args):
+        graph_saver_helper(gm, fw_args, "forward")
         return gm
 
     def graph_saver_backward(gm, bw_args):
-        input_meta = []
-        for arg in bw_args:
-            if(type(arg) == int or type(arg) == float):
-                input_meta.append((type(arg),))
-            else:
-                input_meta.append((type(arg), arg.shape, arg.stride(), arg.dtype))
-        global current_name
-        global graph_index
-        gm.to_folder(f"{folder_name}/{current_name}/{current_name}_backward_{graph_index}")
-        pickle.dump(input_meta, open( f"{folder_name}/{current_name}/{current_name}_backward_{graph_index}/{current_name}_backward_{graph_index}.input", "wb" ))
-        graph_index = graph_index + 1
+        graph_saver_helper(gm, bw_args, "backward")
         return gm
+
+    # def graph_saver_joint(gm, joint_args):
+    #     graph_saver_helper(gm, joint_args, "joint")
+    #     graph_index = graph_index + 1
+    #     return gm
 
     return aot_module_simplified(gm, fw_compiler=graph_saver_forward, bw_compiler=graph_saver_backward)
 
