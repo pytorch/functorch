@@ -15,6 +15,9 @@ from functorch._src.compile_utils import strip_overloads, fx_graph_cse
 random.seed(1)
 
 
+
+
+
 def benchmark_GPU_time(f, inp, list_inp, itr = 5):
     if list_inp:
         for _ in range(5):
@@ -29,11 +32,12 @@ def benchmark_GPU_time(f, inp, list_inp, itr = 5):
             cuda_time_total = cuda_time_total + e.cuda_time_total
         return cuda_time_total / itr
 
-    for _ in range(5):
-        f(inp)
-    with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
-        for _ in range(itr):
+    with torch.no_grad():
+        for _ in range(5):
             f(inp)
+        with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
+            for _ in range(itr):
+                f(inp)
 
     # print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=10))
 
@@ -52,11 +56,23 @@ def profile_graph(traced_graph, inp, list_inp):
     return avg_cuda_time_f
 
 def profile_fused_graph(fused_graph, inp, list_inp):
+    fused_graph.__disable_jit_function_caching__ = True
     num_fused_group = 0
     for node in fused_graph.graph.nodes:
         if "fused_" in node.name:
             module = getattr(fused_graph, node.name)
-            setattr(fused_graph, node.name, torch.jit.script(module) )
+            module.__disable_jit_function_caching__ = True
+            
+            # for node in module.graph.nodes:
+            #     if node.target == torch.ops.aten.cos:
+            #         node.target = torch.ops.aten.sin
+            module.recompile()
+            print(module.graph)
+            print(module.code)
+            script_f =  torch.jit.script(module) 
+            print(script_f.graph)
+
+            setattr(fused_graph, node.name, script_f)
             num_fused_group += 1
 
     if num_fused_group == 0: # no fused group
@@ -138,15 +154,15 @@ inp = torch.randn(2**20, device='cuda', generator=g_gpu)
 
 print("name, scripted_cuda_time, fused_cuda_time, remat_cuda_time, num_fused_group")
 
-profile_function("f", f, inp)
+# profile_function("f", f, inp)
 
-for i in range(10):
-    profile_function(f"rand_test_{i}", frandom, inp)
+# for i in range(10):
+#     profile_function(f"rand_test_{i}", frandom, inp)
 
 def f2(y):
     x = y
     for _ in range(5):
-        x = x.cos()
+        x = x.relu()
     b = x.sum()
     b.backward()
     
@@ -156,4 +172,4 @@ def f2(y):
 inp = torch.randn(2**20, device='cuda', generator=g_gpu, requires_grad=True)
 
 
-# profile_function("joint-f2", f2, inp)
+profile_function("joint-f2", f2, inp)

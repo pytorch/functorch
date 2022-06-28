@@ -258,7 +258,7 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
                 if i in used_inds:
                     new_args.append(node.args[0][i]) # still useful
                 else:
-                    new_args.append(0) # no need to write out
+                    new_args.append(None) # no need to write out
             node.args = tuple([tuple(new_args),])
             break
     module_origin.recompile() 
