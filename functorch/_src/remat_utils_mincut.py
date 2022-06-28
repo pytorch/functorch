@@ -12,6 +12,7 @@ from .utilities import _size_of, draw_nx_graph
 
 num_group_remat = 0  # used for analytical purpose
 memory_reduced = 0
+num_node_pairs = 0
 # no_weight_nodes = {}
 
 def is_fused_node(node):
@@ -329,6 +330,19 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
     orig_node_names = set(node.name for node in module_origin.graph.nodes if node.op != "placeholder" and node.op != "output")
 
 
+    # track the users of each node in traced_graph
+    getitem_users = {}
+    for node in module_origin.graph.nodes:
+        if node.op == "output":
+            output_args = get_output_node_args(node)
+    loc = 0
+    for user in node_origin.users: #can only do this for getitem users. might have a single add node that have two users
+        if user.target != operator.getitem:
+            break
+        if isinstance(output_args[loc], torch.fx.node.Node):
+            user_name = output_args[loc].name
+            getitem_users[user_name] = user.name # add new arg to dest placeholder map
+        loc += 1
 
     def get_capacity(node):
         # if rematerialize an internal node, need to read and write
@@ -373,7 +387,8 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
             capacity = get_capacity(node)
 
         
-        if node.name in dest_placeholder_names:
+        if (node.name in dest_placeholder_names or 
+          (node.name in getitem_users and getitem_users[node.name] in dest_placeholder_names)): # usage over getitem in fused graph
             nx_graph.add_edge(node.name+"_out", 'sink', capacity=capacity)
         
         nx_graph.add_edge(node.name+"_in", node.name+"_out", capacity=capacity)
@@ -412,10 +427,11 @@ def get_fused_graph(traced_graph):
 
 
 def rematerialize_fused_graph(fused_graph, node_users_map):
-    global num_group_remat
+    global num_group_remat, num_node_pairs
     name_to_node = {node.name:node for node in fused_graph.graph.nodes}
 
     fused_node_pairs = get_fused_node_pairs(fused_graph)
+    num_node_pairs = len(fused_node_pairs)
     for node_pair in fused_node_pairs:
         partition, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
         if check_remat(partition):
@@ -433,7 +449,7 @@ def rematerialize(traced_graph):
     return rematerialize_fused_graph(fused_graph, node_users_map)
 
 def rematerialize_stat(traced_graph, stat):
-    global num_group_remat, memory_reduced
+    global num_group_remat, memory_reduced, num_node_pairs
     # global no_weight_nodes
     # no_weight_nodes = {}
 
@@ -448,5 +464,6 @@ def rematerialize_stat(traced_graph, stat):
     
     stat["num_group_remat"] = num_group_remat
     stat["memory_reduced"] = memory_reduced
+    stat["num_node_pairs"] = num_node_pairs
     # print(no_weight_nodes)
     return fused_graph
