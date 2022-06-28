@@ -156,7 +156,7 @@ using custom_function_t = std::vector<Tensor> (at::TensorList);
 
 void copy_range(variable_list& out, torch::autograd::IndexRange range, at::ArrayRef<Tensor> t) {
   AT_ASSERT(range.second <= out.size());
-  std::cout << range.second << ", " << range.first << ", " << t.size() << std::endl;
+  // std::cout << range.second << ", " << range.first << ", " << t.size() << std::endl;
   AT_ASSERTM(range.second - range.first == t.size(), "inconsistent range for TensorList output");
   std::copy(t.begin(), t.end(), out.begin() + range.first);
 }

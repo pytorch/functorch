@@ -52,11 +52,11 @@ void TensorWrapper::refreshMetadata() {
   refresh_contiguous();
 }
 
-void dumpTensorCout(const Tensor& tensor) {
-  dumpTensor(std::cout, tensor);
-
-  std::cout << std::endl;
-}
+//void dumpTensorCout(const Tensor& tensor) {
+//  dumpTensor(std::cout, tensor);
+//
+//  std::cout << std::endl;
+//}
 
 c10::intrusive_ptr<TensorWrapper> makeTensorWrapperPtr(const Tensor& tensor, int64_t level, bool should_be_alive) {
   auto keys_to_propagate = kKeysToPropagateToWrapper | DispatchKeySet({

@@ -16,7 +16,9 @@
 #include <torch/csrc/autograd/variable.h>
 #include <c10/util/irange.h>
 #include <ATen/FuncTorchTLS.h>
+#ifdef HAS_TORCH_SHOW_DISPATCH_TRACE
 #include <iostream>
+#endif
 
 namespace at {
 namespace functorch {

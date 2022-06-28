@@ -62,7 +62,7 @@ struct FUNCTORCH_API TensorWrapper : public c10::TensorImpl {
 FUNCTORCH_API Tensor makeTensorWrapper(const Tensor& tensor, int64_t level);
 FUNCTORCH_API TensorWrapper* maybeGetTensorWrapper(const Tensor& tensor);
 FUNCTORCH_API void dumpTensor(std::ostream & ss, const Tensor& tensor);
-FUNCTORCH_API void dumpTensorCout(const Tensor& tensor);
+// FUNCTORCH_API void dumpTensorCout(const Tensor& tensor);
 
 }
 } // namespace at

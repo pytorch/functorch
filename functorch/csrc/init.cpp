@@ -186,10 +186,10 @@ int64_t dlevel(const Tensor& tensor) {
   return wrapped->level().value();
 }
 
-bool dump_tensor(const Tensor& self) {
-  dumpTensorCout(self);
-  return true;
-}
+// bool dump_tensor(const Tensor& self) {
+//   dumpTensorCout(self);
+//   return true;
+// }
 
 RandomnessType get_randomness_enum(const std::string& randomness) {
     if (randomness == "error") {
@@ -343,15 +343,15 @@ static void _set_dynamic_layer_keys_included(bool value) {
   return setDynamicLayerFrontBackKeysIncluded(value);
 }
 
-static void dump_dls() {
-  std::cout << getDynamicLayerStack() << std::endl;
-}
-
-static void dump_local_tls() {
-  auto tls = c10::impl::tls_local_dispatch_key_set();
-  std::cout << "[Local Include] " << tls.included_ << std::endl;
-  std::cout << "[Local Exclude] " << tls.excluded_ << std::endl;
-}
+// static void dump_dls() {
+//   std::cout << getDynamicLayerStack() << std::endl;
+// }
+//
+// static void dump_local_tls() {
+//   auto tls = c10::impl::tls_local_dispatch_key_set();
+//   std::cout << "[Local Include] " << tls.included_ << std::endl;
+//   std::cout << "[Local Exclude] " << tls.excluded_ << std::endl;
+// }
 
 } // namespace functorch
 }
@@ -382,7 +382,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("set_inplace_requires_grad_allowed", &at::functorch::setInplaceRequiresGradAllowed);
   m.def("get_inplace_requires_grad_allowed", &at::functorch::getInplaceRequiresGradAllowed);
   m.def("dlevel", &at::functorch::dlevel, "dlevel");
-  m.def("dump_tensor", &at::functorch::dump_tensor, "dump_tensor");
+  // m.def("dump_tensor", &at::functorch::dump_tensor, "dump_tensor");
   m.def("reshape_dim_into", &at::functorch::reshape_dim_into);
   m.def("reshape_dim_outof", &at::functorch::reshape_dim_outof);
   m.def("are_transforms_active", &at::functorch::areTransformsActive);
@@ -399,8 +399,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("tls_set_vmap_excluded", &at::functorch::tls_set_vmap_excluded);
   m.def("tls_set_is_included", &at::functorch::tls_set_is_included);
   m.def("_set_dynamic_layer_keys_included", &at::functorch::_set_dynamic_layer_keys_included);
-  m.def("dump_dls", &at::functorch::dump_dls);
-  m.def("dump_local_tls", &at::functorch::dump_local_tls);
+  // m.def("dump_dls", &at::functorch::dump_dls);
+  // m.def("dump_local_tls", &at::functorch::dump_local_tls);
   m.def("set_fwd_grad_enabled", &at::functorch::set_fwd_grad_enabled);
   m.def("get_fwd_grad_enabled", &at::functorch::get_fwd_grad_enabled);
   at::functorch::initCompileCacheBindings(m.ptr());
