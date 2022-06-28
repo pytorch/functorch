@@ -271,6 +271,22 @@ jobs:
       - store_test_results:
           path: build_results/
 
+  binary_linux_wheel:
+    <<: *binary_common
+    docker:
+      - image: "pytorch/manylinux-cuda102"
+    resource_class: 2xlarge+
+    steps:
+      - checkout
+      - designate_upload_channel
+      - run: packaging/build_wheel.sh
+      - store_artifacts:
+          path: dist
+      - persist_to_workspace:
+          root: dist
+          paths:
+            - "*"
+
 workflows:
   unittest:
     jobs:
@@ -310,6 +326,13 @@ workflows:
 
       - binary_win_wheel:
           name: binary_win_wheel_<< matrix.cu_version >>_py<< matrix.python_version >>
+          matrix:
+            parameters:
+              python_version: ["3.7", "3.8", "3.9", "3.10"]
+              cu_version: ["cpu"]
+
+      - binary_linux_wheel:
+          name: binary_linux_wheel_<< matrix.cu_version >>_py<< matrix.python_version >>
           matrix:
             parameters:
               python_version: ["3.7", "3.8", "3.9", "3.10"]
