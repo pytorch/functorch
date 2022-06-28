@@ -20,7 +20,7 @@ jobs:
       - name: Install PyTorch 1.12 RC
         run: |
           export PATH="/opt/python/${{ matrix.python_version[1] }}/bin:$PATH"
-          python3 -mpip install --pre torch~=1.12 -f https://download.pytorch.org/whl/test/cpu/torch_test.html
+          python3 -mpip install torch==1.12 --extra-index-url https://download.pytorch.org/whl/cpu
       - name: Build wheel
         run: |
           export PATH="/opt/python/${{ matrix.python_version[1] }}/bin:$PATH"
@@ -77,50 +77,50 @@ jobs:
           name: functorch-batch.whl
           path: dist/*.whl
 
-  test-wheel:
-    needs: [build-wheel-linux, build-wheel-mac]
-    strategy:
-      matrix:
-        os: [["linux", "ubuntu-18.04"], ["mac", "macos-latest"]]
-        python_version: [ "3.7", "3.8", "3.9", "3.10" ]
-    runs-on: ${{ matrix.os[1] }}
-    steps:
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python_version }}
-          architecture: x64
-      - name: Checkout functorch
-        uses: actions/checkout@v2
-      - name: Install PyTorch 1.12 RC
-        run: |
-          python3 -mpip install --pre torch~=1.12 -f https://download.pytorch.org/whl/test/cpu/torch_test.html
-      - name: Upgrade pip
-        run: |
-          python3 -mpip install --upgrade pip
-      - name: Install test dependencies
-        run: |
-          python3 -mpip install numpy pytest pytest-cov codecov unittest-xml-reporting pillow>=4.1.1 scipy av networkx expecttest pyyaml
-      - name: Download built wheels
-        uses: actions/download-artifact@v2
-        with:
-          name: functorch-${{ matrix.os[0] }}-${{ matrix.python_version }}.whl
-          path: /tmp/wheels
-      - name: Install built wheels
-        run: |
-          python3 -mpip install /tmp/wheels/*
-      - name: Log version string
-        run: |
-          # Avoid ambiguity of "import functorch" by deleting the source files.
-          rm -rf functorch/
-          python -c "import functorch; print(functorch.__version__)"
-      - name: Run tests
-        run: |
-          set -e
-          export IN_CI=1
-          mkdir test-reports
-          python -m torch.utils.collect_env
-          python -c "import functorch; print(functorch.__version__)"
-          EXIT_STATUS=0
-          find test \( -name test\*.py ! -name test_functorch_lagging_op_db.py \) | xargs -I {} -n 1 python {} -v || EXIT_STATUS=$?
-          exit $EXIT_STATUS
+          #   test-wheel:
+          #     needs: [build-wheel-linux, build-wheel-mac]
+          #     strategy:
+          #       matrix:
+          #         os: [["linux", "ubuntu-18.04"], ["mac", "macos-latest"]]
+          #         python_version: [ "3.7", "3.8", "3.9", "3.10" ]
+          #     runs-on: ${{ matrix.os[1] }}
+          #     steps:
+          #       - name: Setup Python
+          #         uses: actions/setup-python@v2
+          #         with:
+          #           python-version: ${{ matrix.python_version }}
+          #           architecture: x64
+          #       - name: Checkout functorch
+          #         uses: actions/checkout@v2
+          #       - name: Install PyTorch 1.12 RC
+          #         run: |
+          #           python3 -mpip install --pre torch~=1.12 -f https://download.pytorch.org/whl/test/cpu/torch_test.html
+          #       - name: Upgrade pip
+          #         run: |
+          #           python3 -mpip install --upgrade pip
+          #       - name: Install test dependencies
+          #         run: |
+          #           python3 -mpip install numpy pytest pytest-cov codecov unittest-xml-reporting pillow>=4.1.1 scipy av networkx expecttest pyyaml
+          #       - name: Download built wheels
+          #         uses: actions/download-artifact@v2
+          #         with:
+          #           name: functorch-${{ matrix.os[0] }}-${{ matrix.python_version }}.whl
+          #           path: /tmp/wheels
+          #       - name: Install built wheels
+          #         run: |
+          #           python3 -mpip install /tmp/wheels/*
+          #       - name: Log version string
+          #         run: |
+          #           # Avoid ambiguity of "import functorch" by deleting the source files.
+          #           rm -rf functorch/
+          #           python -c "import functorch; print(functorch.__version__)"
+          #       - name: Run tests
+          #         run: |
+          #           set -e
+          #           export IN_CI=1
+          #           mkdir test-reports
+          #           python -m torch.utils.collect_env
+          #           python -c "import functorch; print(functorch.__version__)"
+          #           EXIT_STATUS=0
+          #           find test \( -name test\*.py ! -name test_functorch_lagging_op_db.py \) | xargs -I {} -n 1 python {} -v || EXIT_STATUS=$?
+          #           exit $EXIT_STATUS
