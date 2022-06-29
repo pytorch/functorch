@@ -6,6 +6,7 @@ import torch.fx as fx
 import operator
 import math
 import copy
+from functorch.compile import draw_graph
 
 from .utilities import _size_of, draw_nx_graph
 
@@ -15,9 +16,63 @@ memory_reduced = 0
 num_node_pairs = 0
 # no_weight_nodes = {}
 
+
+    
+
+aten = torch.ops.aten
+
+pointwise_ops = [aten.add, aten.sub, aten.div, aten.atan2, aten.mul, aten.max, aten.min, aten.pow, aten.remainder, aten.fmod, aten.__and__, aten.__or__, aten.__xor__, aten.__lshift__, aten.__rshift__, aten.eq, aten.ne, aten.ge, aten.gt, aten.le, aten.lt, aten.abs, aten.bitwise_not, aten.ceil, aten.floor, aten.frac, aten.neg, aten.relu, aten.round, aten.silu, aten.trunc, aten.log, aten.log10, aten.log1p, aten.log2, aten.lgamma, aten.exp, aten.expm1, aten.erf, aten.erfc, aten.cos, aten.acos, aten.cosh, aten.sin, aten.asin, aten.sinh, aten.tan, aten.atan, aten.tanh, aten.atanh, aten.sqrt, aten.rsqrt,  aten.reciprocal, aten.sigmoid, aten.softplus, aten.threshold, aten.threshold_backward, aten.clamp, aten.where, aten.lerp, aten.addcmul, aten.gelu, aten.gelu_backward]  # noqa: E501
+misc_ops = [aten.to, aten.type_as, operator.getitem]
+reduction_ops = [aten.softmax, aten._softmax, aten._softmax_backward_data, aten.sum, aten.mean, aten._grad_sum_to_size, aten.sum_to_size, aten.amax]  # noqa: E501
+
+
+norm_ops = [aten.instance_norm, aten._batch_norm_impl_index, aten.native_batch_norm, aten.batch_norm, aten._batch_norm_impl_index_backward, aten.native_layer_norm, aten.layer_norm, aten.native_layer_norm_backward]  # noqa: E501
+view_ops = [aten.squeeze, aten.unsqueeze]
+random_ops = [aten.native_dropout, aten.rand_like, aten.randn_like]
+compute_intensive_ops = [aten.mm, aten.convolution, aten.convolution_backward, aten.bmm, aten.addmm, aten.upsample_bilinear2d]  # noqa: E501
+unrecomputable_ops = random_ops + compute_intensive_ops + norm_ops
+
+recomputable_ops = set(
+    pointwise_ops
+    + misc_ops
+    + reduction_ops
+    + view_ops
+)
+fusible_ops = recomputable_ops | set(random_ops)
+
+AGGRESSIVE_RECOMPUTATION = False
+
+def ban_recomputation(node):
+    if AGGRESSIVE_RECOMPUTATION:
+        return (node.op == 'call_function' and node.target in unrecomputable_ops)
+    else:
+        if node.op != 'call_function':
+            return False
+        if node.target not in recomputable_ops:
+            return True
+        # If the output of the reduction is 4x smaller (arbitrary choice),
+        # then we don't allow recomputation.
+        if node.target in reduction_ops:
+            input_tensors_size = sum(_size_of(i.meta['tensor_meta']) for i in node.args if isinstance(i, fx.Node))
+            output_size = _size_of(node.meta['tensor_meta'])
+            return (output_size * 4 < input_tensors_size)
+        return False
+
+
 def is_fused_node(node):
     return node.op == "call_module" and "fused_" in node.target
 
+def has_remat_node(node, fused_graph):
+    module = getattr(fused_graph, node.name)
+    try_remat = False
+    for node in module.graph.nodes:
+        if node.target != operator.getitem and node.op == "call_function" and not ban_recomputation(node):
+            try_remat = True
+            break
+    return try_remat
+
+def try_remat(node, fused_graph):
+    return is_fused_node(node) and has_remat_node(node, fused_graph)
 
 def get_users(node):
     # get the users of a node in fused graph
@@ -36,9 +91,9 @@ def get_fused_node_pairs(fused_graph):
     # the two (parent, children) nodes might have an getitem node between them
     fused_node_pairs = []
     for node in fused_graph.graph.nodes:
-        if(is_fused_node(node)):
+        if(try_remat(node, fused_graph)):
             users = get_users(node)
-            pairs = [(node, user_node) for user_node in users if (is_fused_node(user_node))]
+            pairs = [(node, user_node) for user_node in users if (try_remat(user_node, fused_graph))]
             fused_node_pairs.extend(pairs)
     return fused_node_pairs
 
@@ -268,46 +323,7 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
     # print(module_dest.graph)
     # # print(fused_graph.graph)
     # exit(0)
-    
 
-aten = torch.ops.aten
-
-pointwise_ops = [aten.add, aten.sub, aten.div, aten.atan2, aten.mul, aten.max, aten.min, aten.pow, aten.remainder, aten.fmod, aten.__and__, aten.__or__, aten.__xor__, aten.__lshift__, aten.__rshift__, aten.eq, aten.ne, aten.ge, aten.gt, aten.le, aten.lt, aten.abs, aten.bitwise_not, aten.ceil, aten.floor, aten.frac, aten.neg, aten.relu, aten.round, aten.silu, aten.trunc, aten.log, aten.log10, aten.log1p, aten.log2, aten.lgamma, aten.exp, aten.expm1, aten.erf, aten.erfc, aten.cos, aten.acos, aten.cosh, aten.sin, aten.asin, aten.sinh, aten.tan, aten.atan, aten.tanh, aten.atanh, aten.sqrt, aten.rsqrt,  aten.reciprocal, aten.sigmoid, aten.softplus, aten.threshold, aten.threshold_backward, aten.clamp, aten.where, aten.lerp, aten.addcmul, aten.gelu, aten.gelu_backward]  # noqa: E501
-misc_ops = [aten.to, aten.type_as, operator.getitem]
-reduction_ops = [aten.softmax, aten._softmax, aten._softmax_backward_data, aten.sum, aten.mean, aten._grad_sum_to_size, aten.sum_to_size, aten.amax]  # noqa: E501
-
-
-norm_ops = [aten.instance_norm, aten._batch_norm_impl_index, aten.native_batch_norm, aten.batch_norm, aten._batch_norm_impl_index_backward, aten.native_layer_norm, aten.layer_norm, aten.native_layer_norm_backward]  # noqa: E501
-view_ops = [aten.squeeze, aten.unsqueeze]
-random_ops = [aten.native_dropout, aten.rand_like, aten.randn_like]
-compute_intensive_ops = [aten.mm, aten.convolution, aten.convolution_backward, aten.bmm, aten.addmm, aten.upsample_bilinear2d]  # noqa: E501
-unrecomputable_ops = random_ops + compute_intensive_ops + norm_ops
-
-recomputable_ops = set(
-    pointwise_ops
-    + misc_ops
-    + reduction_ops
-    + view_ops
-)
-fusible_ops = recomputable_ops | set(random_ops)
-
-AGGRESSIVE_RECOMPUTATION = False
-
-def ban_recomputation(node):
-    if AGGRESSIVE_RECOMPUTATION:
-        return (node.op == 'call_function' and node.target in unrecomputable_ops)
-    else:
-        if node.op != 'call_function':
-            return False
-        if node.target not in recomputable_ops:
-            return True
-        # If the output of the reduction is 4x smaller (arbitrary choice),
-        # then we don't allow recomputation.
-        if node.target in reduction_ops:
-            input_tensors_size = sum(_size_of(i.meta['tensor_meta']) for i in node.args if isinstance(i, fx.Node))
-            output_size = _size_of(node.meta['tensor_meta'])
-            return (output_size * 4 < input_tensors_size)
-        return False
 
 def find_min_cut(node_pair, node_users_map, fused_graph):
     """
@@ -410,6 +426,7 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
     # for edge in nx_graph.edges.data():
     #     print(edge)
     # print(cut_value, partition)
+    # breakpoint()
     cut_nodes = get_cut_nodes_from_partition(partition, nx_graph)
     # print(cut_nodes)
     return partition, cut_nodes

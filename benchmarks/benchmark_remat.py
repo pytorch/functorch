@@ -97,21 +97,6 @@ def profile_rematerialize(traced_graph, inp, list_inp):
     return profile_fused_graph(fused_graph, inp, list_inp)
 
 
-# TODO: need to add CSE pass
-# def profile_module(name, m, inp):
-#     traced_graph = symbolic_trace(m)
-#     avg_cuda_time_f = profile_graph(traced_graph, inp, True)
-
-#     traced_graph = symbolic_trace(m)
-#     fused_graph = get_fused_graph(traced_graph)
-#     avg_cuda_time_g, num_fused_group = profile_fused_graph(fused_graph, inp, True)
-
-#     traced_graph = symbolic_trace(m)
-#     fused_graph = rematerialize(traced_graph)
-#     avg_cuda_time_h, _ = profile_fused_graph(fused_graph, inp, True)
-#     print(f"{name}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fused_group}")
-
-
 def profile_function(name, f, inp, list_inp = False):
     traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(inp)
     strip_overloads(traced_graph)
