@@ -12,7 +12,8 @@ from torch.profiler import profile, ProfilerActivity
 from functorch._src.compile_utils import strip_overloads, fx_graph_cse
 from torch.nn.utils.stateless import functional_call
 from functorch.compile import draw_graph, ts_compile
-
+from functorch.compile import default_decompositions
+import torch.utils._pytree as pytree
 
 test_cases = [
     "torch_bench_graphs/resnext50_32x4d/resnext50_32x4d_forward_0", 
@@ -291,7 +292,7 @@ def benchmark_GPU_time(f, inp, list_inp, itr = 5):
         cuda_time_total = cuda_time_total + e.cuda_time_total
     return cuda_time_total / itr
 
-def profile_graph(traced_graph, inp, list_inp):
+def profile_scripted_graph(traced_graph, inp, list_inp):
     traced_graph.graph.eliminate_dead_code()
     traced_graph.recompile()
     # script_f = torch.jit.script(traced_graph)
@@ -324,24 +325,19 @@ def profile_fused_graph(fused_graph, inp, list_inp):
     return avg_cuda_time_g, num_fusion_group
 
 
-def profile_module(name, m, inp):
+def profile_graph(name, traced_graph, inp, eager_inp=False):
+    traced_graph_copy = copy.deepcopy(traced_graph)
+    eager_time = benchmark_GPU_time(traced_graph, inp, eager_inp) # can't strup overloads here
 
-    def fake_fn(args):
-        return m(*args)
-    
-    traced_graph = make_fx(fake_fn)(inp)
-    traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
-    eager_time = benchmark_GPU_time(traced_graph, inp, False)
 
-    # strip_overloads(traced_graph)
     traced_graph.recompile()
+    inp, spec  = pytree.tree_flatten(inp)
+    avg_cuda_time_f = profile_scripted_graph(traced_graph, inp, True)
 
-    avg_cuda_time_f = profile_graph(traced_graph, inp, True)
-
-    traced_graph = make_fx(fake_fn)(inp)
+    traced_graph = traced_graph_copy 
     strip_overloads(traced_graph)
     traced_graph.recompile()
-    traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
+    # traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
     csed = fx_graph_cse(traced_graph.graph)
     csed_graph =  fx.GraphModule(traced_graph, csed)
     csed_graph_copy = copy.deepcopy(csed_graph)
@@ -357,6 +353,68 @@ def profile_module(name, m, inp):
     avg_cuda_time_h, _ = profile_fused_graph(fused_graph, inp, True)
 
     print(f"{name}, {eager_time}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fusion_group}, {num_remat_group}, {memory_reduced}, {num_node_pairs}", flush=True)
+
+
+
+def profile_module(name, m, inp):
+
+    def fake_fn(args):
+        return m(*args)
+   
+    traced_graph = make_fx(fake_fn)(inp)
+    traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
+    profile_graph(name, traced_graph, inp)
+
+
+def trace_model(model, inputs):
+    def f(params, inp):
+        out = functional_call(model, params, inp)
+        # out.sum().backward()
+        result = 0
+        if isinstance(out, tuple):
+            for i in out:
+                result += i.sum()
+        else:
+            result = out.sum()
+        result.sum().backward()
+        return [param.grad for param in params.values()]
+    
+    params = dict(model.named_parameters())
+    traced_graph = make_fx(f, decomposition_table=default_decompositions)(params, inputs)
+    return traced_graph, params
+
+def profile_model(name, model, inputs):
+    traced_graph, params = trace_model(model, inputs)
+    traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
+    script_f = ts_compile(traced_graph, (params, inputs))
+    arg_list, spec  = pytree.tree_flatten([params, inputs])
+    traced_graph_copy = copy.deepcopy(traced_graph)
+    eager_time = benchmark_GPU_time(traced_graph, arg_list, True) # can't strip overloads here
+
+    avg_cuda_time_f = benchmark_GPU_time(script_f, arg_list, True)# profile_scripted_graph(traced_graph, inp, True)
+
+    traced_graph = traced_graph_copy 
+    strip_overloads(traced_graph)
+    traced_graph.recompile()
+    # traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
+    csed = fx_graph_cse(traced_graph.graph)
+    csed_graph =  fx.GraphModule(traced_graph, csed)
+    csed_graph_copy = copy.deepcopy(csed_graph)
+    
+    fused_graph = get_fused_graph(csed_graph)
+    avg_cuda_time_g, num_fusion_group = profile_fused_graph(fused_graph, arg_list, True)
+
+    stat = {}
+    fused_graph = rematerialize_stat(csed_graph_copy, stat)
+    num_remat_group = stat["num_group_remat"]
+    memory_reduced = stat["memory_reduced"]
+    num_node_pairs = stat["num_node_pairs"]
+    avg_cuda_time_h, _ = profile_fused_graph(fused_graph, arg_list, True)
+
+    print(f"{name}, {eager_time}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fusion_group}, {num_remat_group}, {memory_reduced}, {num_node_pairs}", flush=True)
+
+
+
 
 def check_num_remat(name, traced_graph, inputs):
 
@@ -385,23 +443,8 @@ def check_num_remat_gm(name, gm, inputs):
     traced_graph = make_fx(fake_fn)(inputs)
     check_num_remat(name, traced_graph, inputs)
 
-from functorch.compile import default_decompositions
 def check_num_remat_model(name, model, inputs):
-    def f(params, inp):
-        out = functional_call(model, params, inp)
-        # out.sum().backward()
-        result = 0
-        if isinstance(out, tuple):
-            for i in out:
-                result += i.sum()
-        else:
-            result = out.sum()
-        result.sum().backward()
-        return [param.grad for param in params.values()]
-    
-    params = dict(model.named_parameters())
-    breakpoint()
-    traced_graph = make_fx(f, decomposition_table=default_decompositions)(params, inputs)
+    traced_graph, params = trace_model(model, inputs)
     check_num_remat(name, traced_graph, inputs)
 
 

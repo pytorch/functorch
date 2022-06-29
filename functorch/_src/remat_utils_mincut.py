@@ -427,6 +427,8 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
     #     print(edge)
     # print(cut_value, partition)
     # breakpoint()
+    # if(memory_reduced > 0):
+    #     breakpoint()
     cut_nodes = get_cut_nodes_from_partition(partition, nx_graph)
     # print(cut_nodes)
     return partition, cut_nodes

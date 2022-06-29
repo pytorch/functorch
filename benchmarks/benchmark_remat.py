@@ -47,7 +47,7 @@ def benchmark_GPU_time(f, inp, list_inp, itr = 5):
         cuda_time_total = cuda_time_total + e.cuda_time_total
     return cuda_time_total / itr
 
-def profile_graph(traced_graph, inp, list_inp):
+def profile_scripted_graph(traced_graph, inp, list_inp):
     traced_graph.graph.eliminate_dead_code()
     traced_graph.recompile()
     script_f = ts_compile(traced_graph, inp)
@@ -56,22 +56,13 @@ def profile_graph(traced_graph, inp, list_inp):
     return avg_cuda_time_f
 
 def profile_fused_graph(fused_graph, inp, list_inp):
-    fused_graph.__disable_jit_function_caching__ = True
+    # fused_graph.__disable_jit_function_caching__ = True
     num_fused_group = 0
     for node in fused_graph.graph.nodes:
         if "fused_" in node.name:
             module = getattr(fused_graph, node.name)
-            module.__disable_jit_function_caching__ = True
-            
-            # for node in module.graph.nodes:
-            #     if node.target == torch.ops.aten.cos:
-            #         node.target = torch.ops.aten.sin
-            module.recompile()
-            print(module.graph)
-            print(module.code)
+            # module.__disable_jit_function_caching__ = True
             script_f =  torch.jit.script(module) 
-            print(script_f.graph)
-
             setattr(fused_graph, node.name, script_f)
             num_fused_group += 1
 
@@ -101,7 +92,7 @@ def profile_function(name, f, inp, list_inp = False):
     traced_graph = make_fx(f, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(inp)
     strip_overloads(traced_graph)
 
-    avg_cuda_time_f = profile_graph(traced_graph, inp, list_inp)
+    avg_cuda_time_f = profile_scripted_graph(traced_graph, inp, list_inp)
 
     csed = fx_graph_cse(traced_graph.graph)
     csed_graph =  fx.GraphModule(traced_graph, csed)
