@@ -285,7 +285,7 @@ workflows:
           matrix:
             parameters:
               python_version: ["3.7", "3.8", "3.9", "3.10"]
-              cu_version: ["cu102"]
+              cu_version: ["cu113"]
 
       - unittest_macos_cpu:
           name: unittest_macos_<< matrix.cu_version >>_py<< matrix.python_version >>

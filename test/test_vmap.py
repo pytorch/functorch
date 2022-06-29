@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from typing import OrderedDict
-from unittest.case import skipIf, skip
+from unittest.case import skipIf
 from torch.testing._internal.common_utils import TestCase, run_tests
 import torch
 import torch.nn.functional as F
@@ -29,6 +29,7 @@ from functorch_additional_op_db import additional_op_db
 from common_utils import (
     get_fallback_and_vmap_exhaustive,
     xfail,
+    skip,
     skipOps,
     check_vmap_fallback,
     tol1,
@@ -1066,7 +1067,7 @@ class TestVmapAPI(TestCase):
 
         assert expected.allclose(out)
 
-    @skip("Somehow, vmap and autocast do not work on CPU")
+    @unittest.case.skip("Somehow, vmap and autocast do not work on CPU")
     def test_vmap_autocast_cpu(self):
         self._test_vmap_autocast("cpu")
 
@@ -3130,6 +3131,9 @@ class TestVmapOperatorsOpInfo(TestCase):
         xfail('int'),
         xfail('long'),
         xfail('short'),
+
+        # flakey
+        skip('linalg.eigh'),
     }
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
