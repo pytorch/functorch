@@ -77,7 +77,7 @@ single_graph_models = set([
 ])
 
 models_to_run = [
-    'timm_nfnet',  # RuntimeError: CUDA out of memory
+    # 'timm_nfnet',  # RuntimeError: CUDA out of memory
     # 'BERT_pytorch',
     # 'pytorch_struct',
 ]
