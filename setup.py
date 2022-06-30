@@ -31,12 +31,20 @@ package_name = 'functorch'
 # elif sha != 'Unknown':
 #     version += '+' + sha[:7]
 
+if os.getenv('VERSION_TAG'):
+    version_tag = os.getenv('VERSION_TAG')
+    version = f'{version}{version_tag}'
+
+pytorch_cuda_restrictions = None
+if os.getenv('PYTORCH_CUDA_RESTRICTIONS'):
+    pytorch_cuda_restrictions = os.getenv('PYTORCH_CUDA_RESTRICTIONS')
 
 def write_version_file():
     version_path = os.path.join(cwd, 'functorch', 'version.py')
     with open(version_path, 'w') as f:
         f.write("__version__ = '{}'\n".format(version))
         f.write("git_version = {}\n".format(repr(sha)))
+        f.write("pytorch_cuda_restrictions = {}\n".format(pytorch_cuda_restrictions))
 
 
 # pytorch_dep = 'torch'

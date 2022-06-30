@@ -5,15 +5,31 @@
 # LICENSE file in the root directory of this source tree.
 import torch
 
-if torch.version.cuda == '10.2':
-    raise RuntimeError(
-        "We've detected an installation of PyTorch 1.12 with CUDA 10.2 support. "
-        "The official functorch 0.2.0 binaries are not compatible with the "
-        "PyTorch 1.12 CUDA 10.2 binaries. "
-        "Please install PyTorch with support for a different version of CUDA "
-        "(either cpu-only, 11.3, or 11.6; see pytorch.org for instructions) or "
-        "file an issue on GitHub to discuss more.")
+try:
+    from .version import __version__  # noqa: F401
+    from .version import pytorch_cuda_restrictions  # noqa: F401
 
+    if pytorch_cuda_restrictions is not None:
+        if torch.version.cuda is None:
+            torch_cuda_version = 'cpu'
+            verbose_torch_cuda_version = f'cpuonly'
+        else:
+            torch_cuda_version = torch.version.cuda
+            verbose_torch_cuda_version = f'CUDA {torch.version.cuda}'
+
+        if torch_cuda_version not in pytorch_cuda_restrictions:
+            raise RuntimeError(
+                f"We've detected an installation of PyTorch 1.12 with {verbose_torch_cuda_version} support. "
+                "This functorch 0.2.0 binary is not compatible with the PyTorch installation. "
+                "Please see our install page for suggestions on how to resolve this: "
+                "https://pytorch.org/functorch/stable/install.html")
+
+        # don't leak variables
+        del torch_cuda_version
+        del verbose_torch_cuda_version
+    del pytorch_cuda_restrictions
+except ImportError:
+    pass
 
 from . import _C
 
@@ -43,7 +59,3 @@ from ._src.make_functional import (
     FunctionalModuleWithBuffers,
 )
 
-try:
-    from .version import __version__  # noqa: F401
-except ImportError:
-    pass
