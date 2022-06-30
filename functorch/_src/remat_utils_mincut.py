@@ -421,17 +421,20 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
             cut_at_sink += e[2]["capacity"]
 
     # print(cut_at_sink, cut_value)
-    global memory_reduced 
-    memory_reduced = cut_at_sink - cut_value
+    local_memory_reduced = cut_at_sink - cut_value
     # for edge in nx_graph.edges.data():
     #     print(edge)
     # print(cut_value, partition)
     # breakpoint()
+    # print(module_origin)
     # if(memory_reduced > 0):
-    #     breakpoint()
+    #     for node in module_origin.graph.nodes:
+    #         print(node)
+    #         print(node.meta)
+    #     # exit(0)
     cut_nodes = get_cut_nodes_from_partition(partition, nx_graph)
     # print(cut_nodes)
-    return partition, cut_nodes
+    return partition, cut_nodes,local_memory_reduced
 
 
 def check_remat(partition):
@@ -446,15 +449,16 @@ def get_fused_graph(traced_graph):
 
 
 def rematerialize_fused_graph(fused_graph, node_users_map):
-    global num_group_remat, num_node_pairs
+    global num_group_remat, num_node_pairs, memory_reduced
     name_to_node = {node.name:node for node in fused_graph.graph.nodes}
 
     fused_node_pairs = get_fused_node_pairs(fused_graph)
     num_node_pairs = len(fused_node_pairs)
     for node_pair in fused_node_pairs:
-        partition, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
-        if check_remat(partition):
+        partition, cut_nodes, local_memory_reduced = find_min_cut(node_pair, node_users_map, fused_graph)
+        if local_memory_reduced > 0: # and check_remat(partition)
             num_group_remat += 1
+            memory_reduced += local_memory_reduced
             copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes)
     return fused_graph
 
@@ -479,6 +483,10 @@ def rematerialize_stat(traced_graph, stat):
     node_users_map = {node.name: set(node.users.keys()) for node in traced_graph.graph.nodes }
 
     fused_graph = get_fused_graph(traced_graph)
+    # print(fused_graph)
+    # for node in fused_graph.graph.nodes:
+    #     if is_fused_node(node):
+    #         breakpoint()
     fused_graph = rematerialize_fused_graph(fused_graph, node_users_map)
     
     stat["num_group_remat"] = num_group_remat
