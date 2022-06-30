@@ -39,7 +39,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: functorch-linux-${{ matrix.python_version[0] }}.whl
-          path: dist/*.whl
+          path: dist/functorch-0.2.0-*.whl
       - name: Upload wheel for download
         uses: actions/upload-artifact@v2
         with:
