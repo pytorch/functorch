@@ -2,6 +2,7 @@ import os
 import copy
 import importlib
 import pickle
+from typing import overload
 
 import torch
 import torch.fx as fx
@@ -263,6 +264,21 @@ def get_test_cases():
 def get_skip_cases():
     return SKIP_CASES
 
+def strip_overloads_save(gm):
+    """
+    Modifies the target of graph nodes in :attr:`gm` to strip overloads.
+
+    Args:
+        gm(fx.GraphModule): The input Fx graph module to be modified
+    """
+    overload_dict = {}
+    for node in gm.graph.nodes:
+        if isinstance(node.target, torch._ops.OpOverload):
+            overload_dict[node.name] = node.target
+            node.target = node.target.overloadpacket
+    gm.recompile()
+    return overload_dict
+
 
 
 def benchmark_GPU_time(f, inp, list_inp, itr = 5):
@@ -309,16 +325,19 @@ def get_num_fused_group(gm):
     return num_fusion_group
 
 
-def profile_fused_graph(fused_graph, inp, list_inp):
+def profile_fused_graph(fused_graph, inp, list_inp, overload_dict = None):
     num_fusion_group = 0
     for node in fused_graph.graph.nodes:
         if is_fused_node(node):
             module = getattr(fused_graph, node.name)
-            setattr(fused_graph, node.name, torch.jit.script(module) )
+            setattr(fused_graph, node.name, ts_compile(module, 0) )
             num_fusion_group += 1
+        elif isinstance(node.target, torch._ops.OpOverloadPacket) and overload_dict is not None:
+            node.target = overload_dict[node.name]
 
+    fused_graph.recompile()
     if num_fusion_group == 0: # no fused group
-        script_f = torch.jit.script(fused_graph)
+        script_f = ts_compile(fused_graph, 0)#torch.jit.script(fused_graph)
         return benchmark_GPU_time(script_f, inp, list_inp), 0
 
     avg_cuda_time_g = benchmark_GPU_time(fused_graph, inp, list_inp)
@@ -386,30 +405,30 @@ def trace_model(model, inputs):
 def profile_model(name, model, inputs):
     traced_graph, params = trace_model(model, inputs)
     traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
-    script_f = ts_compile(traced_graph, (params, inputs))
-    arg_list, spec  = pytree.tree_flatten([params, inputs])
     traced_graph_copy = copy.deepcopy(traced_graph)
-    eager_time = benchmark_GPU_time(traced_graph, arg_list, True) # can't strip overloads here
+    
+    eager_time = benchmark_GPU_time(traced_graph, (params, inputs), True) # can't strip overloads here
 
+    arg_list, spec  = pytree.tree_flatten([params, inputs])
+    script_f = ts_compile(traced_graph, 0)
     avg_cuda_time_f = benchmark_GPU_time(script_f, arg_list, True)# profile_scripted_graph(traced_graph, inp, True)
 
-    traced_graph = traced_graph_copy 
-    strip_overloads(traced_graph)
-    traced_graph.recompile()
-    # traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
+    traced_graph = traced_graph_copy
+    traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
     csed = fx_graph_cse(traced_graph.graph)
     csed_graph =  fx.GraphModule(traced_graph, csed)
+    overload_dict = strip_overloads_save(csed_graph)
     csed_graph_copy = copy.deepcopy(csed_graph)
     
     fused_graph = get_fused_graph(csed_graph)
-    avg_cuda_time_g, num_fusion_group = profile_fused_graph(fused_graph, arg_list, True)
+    avg_cuda_time_g, num_fusion_group = profile_fused_graph(fused_graph, arg_list, True, overload_dict = overload_dict)
 
     stat = {}
     fused_graph = rematerialize_stat(csed_graph_copy, stat)
     num_remat_group = stat["num_group_remat"]
     memory_reduced = stat["memory_reduced"]
     num_node_pairs = stat["num_node_pairs"]
-    avg_cuda_time_h, _ = profile_fused_graph(fused_graph, arg_list, True)
+    avg_cuda_time_h, _ = profile_fused_graph(fused_graph, arg_list, True, overload_dict = overload_dict)
 
     print(f"{name}, {eager_time}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fusion_group}, {num_remat_group}, {memory_reduced}, {num_node_pairs}", flush=True)
 
