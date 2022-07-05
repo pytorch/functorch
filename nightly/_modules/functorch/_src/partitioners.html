@@ -124,7 +124,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.3.0a0+0e08bf5) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.3.0a0+42757c2) &#x25BC</a>
                 </div>
               
             
@@ -252,7 +252,7 @@
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">from</span> <span class="nn">torch.fx.passes</span> <span class="kn">import</span> <span class="n">graph_drawer</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Tuple</span>
-<span class="kn">from</span> <span class="nn">.compile_utils</span> <span class="kn">import</span> <span class="n">fx_graph_cse</span><span class="p">,</span> <span class="n">strip_overloads</span>
+<span class="kn">from</span> <span class="nn">.compile_utils</span> <span class="kn">import</span> <span class="n">fx_graph_cse</span><span class="p">,</span> <span class="n">get_aten_target</span>
 
 
 <span class="k">class</span> <span class="nc">InvalidNodeBase</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -472,7 +472,6 @@
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Need networkx installed to perform smart recomputation heuristics&quot;</span><span class="p">)</span>
 
-    <span class="n">strip_overloads</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
     <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">eliminate_dead_code</span><span class="p">()</span>
     <span class="n">joint_module</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
     <span class="n">fx_g</span> <span class="o">=</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span>
@@ -544,22 +543,22 @@
 
     <span class="k">def</span> <span class="nf">ban_recomputation</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">AGGRESSIVE_RECOMPUTATION</span><span class="p">:</span>
-            <span class="k">return</span> <span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="ow">in</span> <span class="n">unrecomputable_ops</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span> <span class="ow">and</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">in</span> <span class="n">unrecomputable_ops</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s1">&#39;call_function&#39;</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">False</span>
-            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">recomputable_ops</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">recomputable_ops</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">True</span>
             <span class="c1"># If the output of the reduction is 4x smaller (arbitrary choice),</span>
             <span class="c1"># then we don&#39;t allow recomputation.</span>
-            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="ow">in</span> <span class="n">reduction_ops</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">in</span> <span class="n">reduction_ops</span><span class="p">:</span>
                 <span class="n">input_tensors_size</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">_size_of</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;tensor_meta&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">))</span>
                 <span class="n">output_size</span> <span class="o">=</span> <span class="n">_size_of</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;tensor_meta&#39;</span><span class="p">])</span>
                 <span class="k">return</span> <span class="p">(</span><span class="n">output_size</span> <span class="o">*</span> <span class="mi">4</span> <span class="o">&lt;</span> <span class="n">input_tensors_size</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">False</span>
 
     <span class="k">def</span> <span class="nf">is_fusible</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">a</span><span class="o">.</span><span class="n">target</span> <span class="ow">in</span> <span class="n">fusible_ops</span> <span class="ow">and</span> <span class="n">b</span><span class="o">.</span><span class="n">target</span> <span class="ow">in</span> <span class="n">fusible_ops</span>
+        <span class="k">return</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="ow">in</span> <span class="n">fusible_ops</span> <span class="ow">and</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="ow">in</span> <span class="n">fusible_ops</span>
 
     <span class="k">def</span> <span class="nf">is_materialized</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;placeholder&#39;</span><span class="p">:</span>
