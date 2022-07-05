@@ -760,6 +760,7 @@ class TestOperators(TestCase):
         xfail('nn.functional.feature_alpha_dropout', 'without_train'),
         xfail('linalg.lu_factor', ''),
         xfail('nn.functional.dropout2d', ''),
+        skip('nn.functional.kl_div', ''),  # will pass when linux cpu binaries update
         xfail('pca_lowrank', ''),
         xfail('svd_lowrank', ''),
         xfail('linalg.lu_factor_ex', ''),
@@ -780,6 +781,8 @@ class TestOperators(TestCase):
         xfail('nn.functional.bilinear'),  # trilinear doesn't have batching rule
         xfail('linalg.eigh'),  # _linalg_eigh doesn't have batching rule
         xfail('linalg.eigvalsh'),  # _linalg_eigh doesn't have batching rule
+        xfail('logdet'), # _linalg_slogdet doesn't have batching rule
+        xfail('linalg.slogdet'), # _linalg_slogdet doesn't have batching rule
     }))
     @toleranceOverride({torch.float32: tol(atol=1e-04, rtol=1e-04)})
     def test_vmapjvpall_has_batch_rule(self, device, dtype, op):
@@ -878,6 +881,7 @@ class TestOperators(TestCase):
         xfail('linalg.tensorsolve'),
         xfail('linalg.lu_factor', ''),
         xfail('nn.functional.feature_alpha_dropout', 'with_train'),
+        skip('nn.functional.kl_div', ''),  # will pass when linux cpu binaries update
         xfail('pca_lowrank', ''),
         xfail('nn.functional.dropout2d', ''),
         xfail('nn.functional.feature_alpha_dropout', 'without_train'),
@@ -1051,6 +1055,7 @@ class TestOperators(TestCase):
         xfail('renorm', ''),
         xfail('symeig', ''),
         xfail('nn.functional.feature_alpha_dropout', 'with_train'),
+        skip('nn.functional.kl_div', ''),  # will pass when linux cpu binaries update
         xfail('pca_lowrank', ''),
         xfail('nn.functional.dropout2d', ''),
         xfail('nn.functional.feature_alpha_dropout', 'without_train'),
