@@ -258,6 +258,16 @@ and then run the following command:</p>
 </div>
 <p>We currently support manylinux, x86 MacOS, and Windows, please reach out on
 <a class="reference external" href="https://github.com/pytorch/functorch">GitHub</a> for other platforms.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>functorch’s Linux binaries are compatible with all PyTorch 1.12.0 binaries
+aside from the PyTorch 1.12.0 cu102 binary; functorch will raise an error
+if it is used with an incompatible PyTorch binary. This is due to a bug in
+PyTorch (<a class="reference external" href="https://github.com/pytorch/pytorch/issues/80489">pytorch/pytorch#80489</a>)
+and will be fixed in the next PyTorch minor release.</p>
+<p>As a workaround, please install functorch from source:
+<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">--user</span> <span class="pre">git+https://github.com/pytorch/functorch&#64;v0.2.0</span></code></p>
+</div>
 </div>
 <div class="section" id="colab">
 <h2>Colab<a class="headerlink" href="#colab" title="Permalink to this headline">¶</a></h2>
