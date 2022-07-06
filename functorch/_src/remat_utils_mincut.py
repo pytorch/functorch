@@ -38,6 +38,7 @@ fusible_ops = recomputable_ops | set(random_ops)
 
 AGGRESSIVE_RECOMPUTATION = False
 
+
 def ban_recomputation(node):
     if AGGRESSIVE_RECOMPUTATION:
         return (node.op == 'call_function' and node.target in unrecomputable_ops)
@@ -57,6 +58,7 @@ def ban_recomputation(node):
 
 def is_fused_node(node):
     return node.op == "call_module" and "fused_" in node.target
+
 
 def has_remat_node(node, fused_graph):
     module = getattr(fused_graph, node.name)
@@ -130,6 +132,7 @@ def get_cut_nodes_from_partition(partition, nx_graph):
         cut_nodes.add(get_nx_node_name(node_in))
     return cut_nodes
 
+
 def order_topologically(nodes, gm):
     node_order_dict = {}
     rank = 0
@@ -140,8 +143,9 @@ def order_topologically(nodes, gm):
     nodes = sorted(nodes, key=lambda x: node_order_dict[x])
     return nodes
 
+
 def get_output_node_args(node):
-    if type(node.args[0]) is not tuple: # TODO: test a single output
+    if type(node.args[0]) is not tuple:  # TODO: test a single output
         return node.args
     return node.args[0]
 
@@ -330,7 +334,7 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
         if node.op == "output":
             output_args = get_output_node_args(node)
     loc = 0
-    for user in node_origin.users: #can only do this for getitem users. might have a single add node that have two users
+    for user in node_origin.users:  # can only do this for getitem users. might have a single add node that have two users
         if user.target != operator.getitem:
             break
         if isinstance(output_args[loc], torch.fx.node.Node):
@@ -346,7 +350,7 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
         user_names_outside_set = user_names_set.difference(orig_node_names)
         write_cost = 0 # cost for both read and write because only dest_module is using it
         if weight and user_names_outside_set.issubset(set(dest_node_names)):
-            write_cost = weight  
+            write_cost = weight
         
         read_cost = weight
 
@@ -361,10 +365,10 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
         weight = get_weight(node)
 
         if ban_recomputation(node):
-            nx_graph.add_edge("source",  node.name+"_out", capacity=math.inf)   
+            nx_graph.add_edge("source",  node.name+"_out", capacity=math.inf)
 
         # some ops like cuda_batch_norm return tuples, and they cannot be returned as output
-        # because torch.jit.script does not accept 
+        # because torch.jit.script does not accept
         # need to return getitem, these getitems might already in the graph
         # neeed to change the capacity between _in and _out of these ndoes to inf
         for user in node.users:
@@ -373,14 +377,14 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
             break
 
         if node.op == 'placeholder':
-            capacity=weight
-            nx_graph.add_edge("source", node.name+"_in", capacity=math.inf)   
-        elif node.op ==  'call_function':
+            capacity = weight
+            nx_graph.add_edge("source", node.name+"_in", capacity=math.inf)
+        elif node.op == 'call_function':
             capacity = get_capacity(node)
 
         
         if (node.name in dest_placeholder_names or 
-          (node.name in getitem_users and getitem_users[node.name] in dest_placeholder_names)): # usage over getitem in fused graph
+          (node.name in getitem_users and getitem_users[node.name] in dest_placeholder_names)):
             nx_graph.add_edge(node.name+"_out", 'sink', capacity=capacity)
         
         nx_graph.add_edge(node.name+"_in", node.name+"_out", capacity=capacity)
@@ -405,6 +409,7 @@ def check_remat(partition):
     _, non_reachable = partition
     return non_reachable != {"sink"}
 
+
 def get_fused_graph(traced_graph):
     supported_ops = NvFuserOperatorSupport()
     partitioner = CapabilityBasedPartitioner(traced_graph, supported_ops)
@@ -414,13 +419,13 @@ def get_fused_graph(traced_graph):
 
 def rematerialize_fused_graph(fused_graph, node_users_map):
     global num_group_remat, num_node_pairs, memory_reduced
-    name_to_node = {node.name:node for node in fused_graph.graph.nodes}
+    name_to_node = {node.name: node for node in fused_graph.graph.nodes}
 
     fused_node_pairs = get_fused_node_pairs(fused_graph)
     num_node_pairs = len(fused_node_pairs)
     for node_pair in fused_node_pairs:
         partition, cut_nodes, local_memory_reduced = find_min_cut(node_pair, node_users_map, fused_graph)
-        if local_memory_reduced > 0: # and check_remat(partition)
+        if local_memory_reduced > 0:
             num_group_remat += 1
             memory_reduced += local_memory_reduced
             copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes)
@@ -430,22 +435,23 @@ def rematerialize_fused_graph(fused_graph, node_users_map):
 def rematerialize(traced_graph):
     traced_graph.graph.eliminate_dead_code()
     traced_graph.recompile()
-    node_users_map = {node.name: set(node.users.keys()) for node in traced_graph.graph.nodes }
+    node_users_map = {node.name: set(node.users.keys()) for node in traced_graph.graph.nodes}
 
     fused_graph = get_fused_graph(traced_graph)
     return rematerialize_fused_graph(fused_graph, node_users_map)
 
+
 def rematerialize_stat(traced_graph, stat):
     global num_group_remat, memory_reduced, num_node_pairs
-    num_group_remat = 0 
+    num_group_remat = 0
     memory_reduced = 0
     traced_graph.graph.eliminate_dead_code()
     traced_graph.recompile()
-    node_users_map = {node.name: set(node.users.keys()) for node in traced_graph.graph.nodes }
+    node_users_map = {node.name: set(node.users.keys()) for node in traced_graph.graph.nodes}
 
     fused_graph = get_fused_graph(traced_graph)
     fused_graph = rematerialize_fused_graph(fused_graph, node_users_map)
-    
+
     stat["num_group_remat"] = num_group_remat
     stat["memory_reduced"] = memory_reduced
     stat["num_node_pairs"] = num_node_pairs

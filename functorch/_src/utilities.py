@@ -1,5 +1,6 @@
 import torch
 
+
 def _prod(x):
     s = 1
     for i in x:
@@ -30,13 +31,3 @@ def _size_of(metadata):
         raise NotImplementedError("Don't know the size of dtype ", dtype)
 
     return numel * sizes[dtype]
-
-
-def draw_nx_graph(nx_graph, filename = "fig.svg"):
-    import matplotlib.pyplot as pyplot  # pylint: disable=import-error
-    import networkx as nx 
-    labels = nx.get_edge_attributes(nx_graph,'capacity')
-    pos=nx.planar_layout(nx_graph)
-    nx.draw(nx_graph, pos, with_labels = True)
-    nx.draw_networkx_edge_labels(nx_graph,pos,edge_labels=labels)
-    pyplot.savefig(filename)    
