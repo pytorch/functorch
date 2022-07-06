@@ -577,7 +577,3 @@ def check_remat_info_model(name, model, inputs):
     """
     traced_graph, params = trace_model(model, inputs)
     check_remat_info(name, traced_graph, inputs)
-
-
-
-

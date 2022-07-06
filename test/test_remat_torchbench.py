@@ -1,15 +1,34 @@
 import os
-import copy
+from os.path import exists, abspath
 import importlib
 import pickle
-
+import sys
+import logging
 import torch
 from torch.fx._symbolic_trace import symbolic_trace
-from functorch._src.remat_utils_weighted import rematerialize, get_fused_graph, rematerialize_fused_graph
-from torch.profiler import profile, ProfilerActivity
+from functorch._src.remat_utils_mincut import rematerialize, get_fused_graph, rematerialize_fused_graph
+import traceback
+from functorch import make_fx
+# # directory reach
+# directory = path.path(__file__).abspath()
+  
+# # setting path
+# sys.path.append(directory.parent.parent)
+current_dir = os.getcwd()
+torch.backends.cuda.matmul.allow_tf32 = True
 
-graphs_dir = "/scratch/shangdiy/work/torchbenchmark/"
-os.chdir(graphs_dir)
+os.environ["KALDI_ROOT"] = "/tmp"  # avoids some spam
+for torchbench_dir in (
+    "../torch_bench_graphs",
+):
+    if exists(torchbench_dir):
+        break
+assert exists(torchbench_dir), "../torch_bench_graphs does not exist"
+torchbench_dir = abspath("../")
+os.chdir(torchbench_dir)
+sys.path.append(torchbench_dir)
+log = logging.getLogger(__name__)
+
 
 test_cases = [
     "torch_bench_graphs/resnext50_32x4d/resnext50_32x4d_forward_0", 
@@ -216,19 +235,15 @@ for dir in test_cases:
     module_path = '.'.join(path)
     input_data_path = f'{dir}/{model_name}.input'
 
-    print(f"====== {model_name} ======")
+    # print(f"====== {model_name} ======")
     module = importlib.import_module(module_path)
 
     m = module.FxModule()
-    traced = symbolic_trace(m)
-    node_users_map = {node.name: set(node.users.keys()) for node in traced.graph.nodes }
+    
     try:
         # print("Generating testing data...")
         with (open(input_data_path, 'rb')) as f:
             inputs_meta = pickle.load(f)
-            # print(len(inputs_meta))
-            # print(inputs_meta)
-
             inputs = []
             for meta in inputs_meta:
                 type, shape, stride, dtype = meta
@@ -242,20 +257,27 @@ for dir in test_cases:
 
         m.to(device)
 
-        print("Running original model...")
+        # print("Running original model...")
         expected = m(*inputs)
+
+        def fake_fn(args):
+            return m(*args)
+        traced = make_fx(fake_fn)(inputs)
+
+        node_users_map = {node.name: set(node.users.keys()) for node in traced.graph.nodes }
 
         fused_graph = get_fused_graph(traced)
         fused_graph.to(device)
-        print("Running fused model...")
+        # print("Running fused model...")
         result = fused_graph(*inputs)   
-        torch.testing.assert_close(expected, result, equal_nan=True, rtol=1e-5, atol=1e-5)
-        print("Running remat model...")
+        torch.testing.assert_close(expected, result, equal_nan=True, rtol=1e-5, atol=1e-5, msg=f"{model_name} fused graph failed")
+        # print("Running remat model...")
         fused_graph = rematerialize_fused_graph(fused_graph, node_users_map)
         fused_graph.to(device)
         result = fused_graph(*inputs)   
-        torch.testing.assert_close(expected, result, equal_nan=True, rtol=1e-5, atol=1e-5)
-        # print("Passed!")
+        torch.testing.assert_close(expected, result, equal_nan=True, rtol=1e-5, atol=1e-5, msg=f"{model_name} remat graph failed")
+        print(model_name, "Passed!")
 
     except Exception as e:
         print(f"{model_name} failed!", e)
+        traceback.print_exc()
