@@ -6,17 +6,13 @@ import torch.fx as fx
 import operator
 import math
 import copy
-from functorch.compile import draw_graph
 
-from .utilities import _size_of, draw_nx_graph
+from .utilities import _size_of
 
 
 num_group_remat = 0  # used for analytical purpose
 memory_reduced = 0
 num_node_pairs = 0
-# no_weight_nodes = {}
-
-
     
 
 aten = torch.ops.aten
@@ -130,10 +126,7 @@ def get_cut_nodes_from_partition(partition, nx_graph):
         cutset.update((u, v) for v in nbrs if v in non_reachable)
 
     cut_nodes = set()
-    for node_in, node_out in cutset:
-        # assert node_in[:-3] == node_out[:-4]
-        # node_name = node_in[:-3]
-        # cut_nodes.add(node_name)
+    for node_in, _ in cutset:
         cut_nodes.add(get_nx_node_name(node_in))
     return cut_nodes
 
@@ -162,11 +155,6 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
     reachable, non_reachable = partition
     module_origin = getattr(fused_graph, node_pair[0].name)
     module_dest = getattr(fused_graph, node_pair[1].name)
-
-    # print("============")
-    # module_origin.graph.eliminate_dead_code()
-    # print(module_origin.graph)
-    # print(module_dest.graph)
 
     dest_placeholder_map = get_name_to_args_map(node_pair[1], module_dest)
     origin_placeholder_map = get_name_to_args_map(node_pair[0], module_origin)
@@ -268,9 +256,6 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
     # change the args of dest node in fused_graph
     # use origin_placeholder_map because the active place_holders 
     # might be in another module, and thus need get_item
-    # breakpoint()
-    # for node in fused_graph.graph.nodes:
-    #     if(node.name == module_dest.name):
     node = node_pair[1]  # dest node
     new_args = []
     for name in active_placeholders:
@@ -281,10 +266,8 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
         else: # name is a placeholder in dest's module or a newly added input
             new_args.append(dest_placeholder_map[name])
     node.args = tuple(new_args)
-            # break
-    # breakpoint()
     fused_graph.recompile()
-    # legalize_graph(fused_graph)  # TODO:why this hang sometimes?
+
     fused_graph.graph.eliminate_dead_code()
     fused_graph.graph.lint()
     module_dest.recompile()
@@ -318,11 +301,6 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
             break
     module_origin.recompile() 
     fused_graph.recompile()
-    # print("============")
-    # print(module_origin.graph)
-    # print(module_dest.graph)
-    # # print(fused_graph.graph)
-    # exit(0)
 
 
 def find_min_cut(node_pair, node_users_map, fused_graph):
@@ -364,7 +342,6 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
         # if rematerialize an internal node, need to read and write
         # might not need to add the write cost, because it might be read by other
         # might not need to add the read cost, if already reading it - no need the cost
-        # TODO: test case for both
         user_names_set = set({n.name for n in node_users_map[node.name]})
         user_names_outside_set = user_names_set.difference(orig_node_names)
         write_cost = 0 # cost for both read and write because only dest_module is using it
@@ -383,7 +360,6 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
 
         weight = get_weight(node)
 
-        # breakpoint()
         if ban_recomputation(node):
             nx_graph.add_edge("source",  node.name+"_out", capacity=math.inf)   
 
@@ -412,7 +388,6 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
             if user.op != "output":
                 nx_graph.add_edge(node.name+"_out", user.name+"_in", capacity=math.inf)
 
-    # draw_nx_graph(nx_graph)
     cut_value, partition = nx.minimum_cut(nx_graph, "source", "sink")
 
     cut_at_sink = 0
@@ -420,21 +395,10 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
         if e[1] == "sink":
             cut_at_sink += e[2]["capacity"]
 
-    # print(cut_at_sink, cut_value)
     local_memory_reduced = cut_at_sink - cut_value
-    # for edge in nx_graph.edges.data():
-    #     print(edge)
-    # print(cut_value, partition)
-    # breakpoint()
-    # print(module_origin)
-    # if(memory_reduced > 0):
-    #     for node in module_origin.graph.nodes:
-    #         print(node)
-    #         print(node.meta)
-    #     # exit(0)
     cut_nodes = get_cut_nodes_from_partition(partition, nx_graph)
-    # print(cut_nodes)
-    return partition, cut_nodes,local_memory_reduced
+
+    return partition, cut_nodes, local_memory_reduced
 
 
 def check_remat(partition):
@@ -473,9 +437,6 @@ def rematerialize(traced_graph):
 
 def rematerialize_stat(traced_graph, stat):
     global num_group_remat, memory_reduced, num_node_pairs
-    # global no_weight_nodes
-    # no_weight_nodes = {}
-
     num_group_remat = 0 
     memory_reduced = 0
     traced_graph.graph.eliminate_dead_code()
@@ -483,14 +444,9 @@ def rematerialize_stat(traced_graph, stat):
     node_users_map = {node.name: set(node.users.keys()) for node in traced_graph.graph.nodes }
 
     fused_graph = get_fused_graph(traced_graph)
-    # print(fused_graph)
-    # for node in fused_graph.graph.nodes:
-    #     if is_fused_node(node):
-    #         breakpoint()
     fused_graph = rematerialize_fused_graph(fused_graph, node_users_map)
     
     stat["num_group_remat"] = num_group_remat
     stat["memory_reduced"] = memory_reduced
     stat["num_node_pairs"] = num_node_pairs
-    # print(no_weight_nodes)
     return fused_graph
