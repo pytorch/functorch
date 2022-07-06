@@ -283,22 +283,23 @@ def strip_overloads_save(gm):
 
 def benchmark_GPU_time(f, inp, list_inp, itr = 5):
     if list_inp:
-        for _ in range(5):
-            f(*inp)
-        with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
-            for _ in range(itr):
+        with torch.no_grad():
+            for _ in range(5):
                 f(*inp)
+            with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
+                for _ in range(itr):
+                    f(*inp)
         timing = prof.key_averages()
         cuda_time_total = 0
         for e in timing:
             cuda_time_total = cuda_time_total + e.cuda_time_total
         return cuda_time_total / itr
-
-    for _ in range(5):
-        f(inp)
-    with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
-        for _ in range(itr):
+    with torch.no_grad():
+        for _ in range(5):
             f(inp)
+        with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
+            for _ in range(itr):
+                f(inp)
 
     # print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=10))
 
@@ -407,7 +408,7 @@ def profile_model(name, model, inputs):
     traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
     traced_graph_copy = copy.deepcopy(traced_graph)
     
-    eager_time = benchmark_GPU_time(traced_graph, (params, inputs), True) # can't strip overloads here
+    eager_time = 0 #benchmark_GPU_time(traced_graph, (params, inputs), True) # can't strip overloads here
 
     arg_list, spec  = pytree.tree_flatten([params, inputs])
     script_f = ts_compile(traced_graph, 0)
