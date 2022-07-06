@@ -9,7 +9,7 @@ import subprocess
 import warnings
 
 import torch
-from benchmark_remat_utils import get_test_cases, get_skip_cases, check_remat_info_gm, profile_module
+from benchmark_remat_utils import get_test_cases, get_skip_cases, check_remat_info_gm, profile_module, get_non_zero_mincut_memory_graphs
 
 
 """
@@ -20,8 +20,10 @@ Example:
 
 python benchmarks/benchmark_remat_torchbench.py --isolate --devices='cuda' 
 
+This command will benchmark on graphs that have rematerialization opportunities.
 
-If you only want to see how much memory will be reduced by the mincut optimization, WITHOUT actually benchmarking the performance, you can use the --info flag.
+If you only want to see how much memory will be reduced by the mincut optimization, WITHOUT actually benchmarking the performance, 
+you can use the --info flag. With --info flag, all graphs are benchmarked. 
 """
 
 current_dir = os.getcwd()
@@ -42,44 +44,7 @@ log = logging.getLogger(__name__)
 
 test_cases = get_test_cases()
 SKIP_CASES = get_skip_cases()
-# device = 'cuda'
-
-# # print("name, eager_time, scripted_cuda_time, fused_cuda_time, remat_cuda_time, num_fusion_group, num_remat_group, memory_reduced")
-
-# for dir in test_cases:
-#     path = dir.split('/')
-#     model_name = path[-1]
-#     module_path = '.'.join(path)
-#     input_data_path = f'{dir}/{model_name}.input'
-#     if model_name in SKIP_CASES:
-#         continue
-    
-#     # if model_name not in non_zero_mincut_memory_group:
-#     #     continue
-#     # print(f"====== {model_name} ======")
-#     module = importlib.import_module(module_path)
-
-#     m = module.FxModule()
-#     try:
-#         inputs = []
-#         with (open(input_data_path, 'rb')) as f:
-            
-#             inputs_meta = pickle.load(f)
-#             for meta in inputs_meta:
-#                 type, shape, stride, dtype = meta
-#                 if dtype in {torch.int, torch.int32, torch.int64, torch.bool, torch.int, torch.uint8}:
-#                     input = torch.randint(0, 1, shape, dtype=dtype, device=device)
-#                 else:
-#                     input = torch.rand(shape, dtype=dtype, device=device)
-#                 inputs.append(input)
-#         m.to(device)
-#         # profile_module(model_name, m, inputs)
-#         check_num_remat_gm(model_name, m, inputs)
-
-#     except Exception as e:
-#         # pass
-#         print(f"{model_name}, failed,")
-#         print(e)
+non_zero_mincut_memory_graphs = get_non_zero_mincut_memory_graphs()
 
 
 def main():
@@ -115,9 +80,9 @@ def main():
             if model_name in SKIP_CASES:
                 continue
 
-            # if model_name not in non_zero_mincut_memory_group:
-            #     continue
-            # print(f"====== {model_name} ======")
+            if (not args.info) and (model_name not in non_zero_mincut_memory_graphs):
+                continue
+
             module = importlib.import_module(module_path)
 
             m = module.FxModule()
@@ -135,16 +100,16 @@ def main():
                     inputs.append(input)
             m.to(device)
 
-        if args.info:
-            check_remat_info_gm(model_name, m, inputs)
-        else:
-            profile_module(model_name, m, inputs)
+            if args.info:
+                check_remat_info_gm(model_name, m, inputs)
+            else:
+                profile_module(model_name, m, inputs)
 
     elif args.isolate:
         if args.info:
             print("name, num_fusion_group, num_remat_group, memory_reduced, num_node_pairs", flush=True)
         else:
-            print("name, eager_time, scripted_cuda_time, fused_cuda_time, remat_cuda_time, num_fusion_group, num_remat_group, memory_reduced", flush=True)
+            print("name, eager_time, scripted_cuda_time, fused_cuda_time, remat_cuda_time, num_fusion_group, num_remat_group, memory_reduced, num_node_pairs_touching", flush=True)
         os.chdir(current_dir)
         for name in test_cases:
             try:

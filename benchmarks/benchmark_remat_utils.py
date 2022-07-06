@@ -283,6 +283,26 @@ single_graph_models = set([
 ])
 
 
+non_zero_mincut_memory_graphs = set([
+    'timm_nfnet_backward_0',
+    'BERT_pytorch_backward_0',
+    'mobilenet_v2_quantized_qat_backward_0',
+    'hf_T5_backward_11',
+    'hf_T5_backward_9',
+    'hf_T5_backward_12',
+    'hf_T5_backward_10',
+    'hf_T5_backward_13',
+    'hf_T5_backward_8',
+    'hf_T5_backward_0',
+    'hf_T5_backward_3',
+    'hf_T5_backward_4',
+    'hf_T5_backward_6',
+    'hf_T5_backward_1',
+    'hf_T5_backward_5',
+    'hf_T5_backward_14',
+    'hf_T5_backward_2',
+])
+
 
 SKIP_CASES = set(zero_fusion_group).union(set(one_fusion_group))
 
@@ -293,6 +313,10 @@ def get_test_cases():
 
 def get_skip_cases():
     return SKIP_CASES
+
+
+def get_non_zero_mincut_memory_graphs():
+    return non_zero_mincut_memory_graphs
 
 
 def strip_overloads_save(gm):

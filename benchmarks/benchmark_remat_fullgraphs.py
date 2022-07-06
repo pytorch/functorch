@@ -106,7 +106,7 @@ def main():
         if args.info:
             print("name, num_fusion_group, num_remat_group, memory_reduced, num_node_pairs", flush=True)
         else:
-            print("name, eager_time, scripted_cuda_time, fused_cuda_time, remat_cuda_time, num_fusion_group, num_remat_group, memory_reduced", flush=True)
+            print("name, eager_time, scripted_cuda_time, fused_cuda_time, remat_cuda_time, num_fusion_group, num_remat_group, memory_reduced, num_node_pairs_touching", flush=True)
         os.chdir(current_dir)
         for name in iter_model_names(args):
             if len(models_to_run) > 0 and name not in models_to_run:
