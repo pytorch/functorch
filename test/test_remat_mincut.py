@@ -249,42 +249,42 @@ class GetCutNodesPointwiseTestCase(TestCase):
         node_users_map, fused_graph = get_fused_graph_for_num_changes(f)
         name_to_node = {node.name:node for node in fused_graph.graph.nodes}
         node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
-        _, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
+        _, cut_nodes, _ = find_min_cut(node_pair, node_users_map, fused_graph)
         self.assertEqual(cut_nodes, {"a_1"}, f"cut_nodes is {cut_nodes}")  
 
     def test_multiple_fused_groups(self):
         node_users_map, fused_graph = get_fused_graph_for_num_changes(f3)
         name_to_node = {node.name:node for node in fused_graph.graph.nodes}
         node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
-        _, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
+        _, cut_nodes, _  = find_min_cut(node_pair, node_users_map, fused_graph)
         self.assertEqual(cut_nodes, {"add_tensor_2"}, f"cut_nodes is {cut_nodes}")  
 
     def test_share_placeholders(self):
         node_users_map, fused_graph = get_fused_graph_for_num_changes(f4)
         name_to_node = {node.name:node for node in fused_graph.graph.nodes}
         node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
-        _, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
+        _, cut_nodes, _  = find_min_cut(node_pair, node_users_map, fused_graph)
         self.assertEqual(cut_nodes, {"add_tensor_2", "cos_default"}, f"cut_nodes is {cut_nodes}")  
 
     def test_write_to_non_fusable_and_other_groups(self):
         node_users_map, fused_graph = get_fused_graph_for_num_changes(f4)
         name_to_node = {node.name:node for node in fused_graph.graph.nodes}
         node_pair = (name_to_node["fused_2"], name_to_node["fused_1"])
-        _, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
+        _, cut_nodes, _  = find_min_cut(node_pair, node_users_map, fused_graph)
         self.assertTrue(cut_nodes == {"a_1"} or cut_nodes == {"cos_default"}, f"cut_nodes is {cut_nodes}")  
 
     def test_write_to_other_groups(self):
         node_users_map, fused_graph = get_fused_graph_for_num_changes(f5)
         name_to_node = {node.name:node for node in fused_graph.graph.nodes}
         node_pair = (name_to_node["fused_2"], name_to_node["fused_1"])
-        _, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
+        _, cut_nodes, _  = find_min_cut(node_pair, node_users_map, fused_graph)
         self.assertTrue(cut_nodes == {"a_1"} or cut_nodes == {"cos_default"}, f"cut_nodes is {cut_nodes}")  
 
     def test_multiple_users_in_origin_group(self):
         node_users_map, fused_graph = get_fused_graph_for_num_changes(f6)
         name_to_node = {node.name:node for node in fused_graph.graph.nodes}
         node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
-        _, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
+        _, cut_nodes, _  = find_min_cut(node_pair, node_users_map, fused_graph)
         self.assertEqual(cut_nodes, {"a_1"}, f"cut_nodes is {cut_nodes}")  
 
 
@@ -294,7 +294,7 @@ class GetCutNodesTestCase(TestCase):
         node_users_map, fused_graph = get_fused_graph_for_num_changes(f10, 3)
         name_to_node = {node.name:node for node in fused_graph.graph.nodes}
         node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
-        _, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
+        _, cut_nodes, _  = find_min_cut(node_pair, node_users_map, fused_graph)
         self.assertEqual(cut_nodes, {"max_default"}, f"cut_nodes is {cut_nodes}")  
 
 
@@ -310,7 +310,7 @@ def get_num_input_outpus(gm):
             if type(node.args[0]) is not tuple:
                 count_out = 1 
             else:
-                count_out = len(node.args[0]) - node.args[0].count(0)
+                count_out = len(node.args[0]) - node.args[0].count(None)
 
     return count_inp, count_out
 
@@ -370,18 +370,6 @@ class CopyNodesTestCase(TestCase):
         count_inp, count_out = get_num_input_outpus(fused_graph.fused_1)
         self.assertEqual(count_inp, 1, f"count_inp is {count_inp}")
         self.assertEqual(count_out, 1, f"count_out is {count_out}")
-
-    # def test_input_arg_in_module(self):
-    #     fused_graph = get_fused_graph(f3)
-    #     name_to_node = {node.name:node for node in fused_graph.graph.nodes}
-    #     node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
-    #     copy_all_nodes(node_pair, fused_graph, name_to_node)
-    #     fused_graph.recompile()
-
-    #     a = torch.rand(5)
-    #     expected = f3(a)
-    #     result = fused_graph(a)
-    #     self.assertEqual(expected, result, "result is not correct")
 
     def test_one_merge_one_skip(self):
         traced_graph = make_fx(f3, decomposition_table={torch.ops.aten.detach.default: lambda x: x})(torch.randn(2))
@@ -487,7 +475,7 @@ class CopyNodesTestCase(TestCase):
         node_users_map, fused_graph = get_fused_graph_for_num_changes(f9)
         name_to_node = {node.name:node for node in fused_graph.graph.nodes}
         node_pair = (name_to_node["fused_1"], name_to_node["fused_0"])
-        partition, cut_nodes = find_min_cut(node_pair, node_users_map, fused_graph)
+        partition, cut_nodes, _  = find_min_cut(node_pair, node_users_map, fused_graph)
         copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes)
         result = fused_graph(a)
         self.assertEqual(expected, result, f"result is not correct, {expected}, {result}")

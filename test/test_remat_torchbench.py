@@ -9,11 +9,10 @@ from torch.fx._symbolic_trace import symbolic_trace
 from functorch._src.remat_utils_mincut import rematerialize, get_fused_graph, rematerialize_fused_graph
 import traceback
 from functorch import make_fx
-# # directory reach
-# directory = path.path(__file__).abspath()
-  
-# # setting path
-# sys.path.append(directory.parent.parent)
+
+# test the correctness of rematerialization algorithm on torchbench model forward and backward graphs
+
+
 current_dir = os.getcwd()
 torch.backends.cuda.matmul.allow_tf32 = True
 
@@ -235,7 +234,6 @@ for dir in test_cases:
     module_path = '.'.join(path)
     input_data_path = f'{dir}/{model_name}.input'
 
-    # print(f"====== {model_name} ======")
     module = importlib.import_module(module_path)
 
     m = module.FxModule()
