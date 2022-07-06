@@ -13,7 +13,7 @@ from .utilities import _size_of
 num_group_remat = 0  # used for analytical purpose
 memory_reduced = 0
 num_node_pairs = 0
-    
+
 
 aten = torch.ops.aten
 
@@ -69,8 +69,10 @@ def has_remat_node(node, fused_graph):
             break
     return try_remat
 
+
 def try_remat(node, fused_graph):
     return is_fused_node(node) and has_remat_node(node, fused_graph)
+
 
 def get_users(node):
     # get the users of a node in fused graph
@@ -96,7 +98,6 @@ def get_fused_node_pairs(fused_graph):
     return fused_node_pairs
 
 
-
 def get_weight(node):
     weight = 0
     if 'tensor_meta' in node.meta:
@@ -106,19 +107,20 @@ def get_weight(node):
 
 def get_name_to_args_map(node_orig, gm):
     placeholder_map = {}  # map from placeholder name in module_origin.graph to node_pair[0].args
-    loc = 0 
+    loc = 0
     for node in gm.graph.nodes:
         if node.op == "placeholder":
             placeholder_map[node.name] = node_orig.args[loc]
             loc += 1
-    return placeholder_map 
+    return placeholder_map
+
 
 def get_nx_node_name(node_name):
     if node_name.endswith("_in"):
         return node_name[:-3]
     elif node_name.endswith("_out"):
         return node_name[:-4]
-    raise Exception("node name is not _in or _out, "+ node_name)
+    raise Exception("node name is not _in or _out, " + node_name)
 
 
 def get_cut_nodes_from_partition(partition, nx_graph):
@@ -139,7 +141,7 @@ def order_topologically(nodes, gm):
     for n in gm.graph.nodes:
         node_order_dict[n.name] = rank
         rank += 1
-    
+
     nodes = sorted(nodes, key=lambda x: node_order_dict[x])
     return nodes
 
@@ -163,8 +165,8 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
     dest_placeholder_map = get_name_to_args_map(node_pair[1], module_dest)
     origin_placeholder_map = get_name_to_args_map(node_pair[0], module_origin)
 
-    name_to_node_origin = {node.name:node for node in module_origin.graph.nodes}
-    name_to_node_dest = {node.name:node for node in module_dest.graph.nodes}
+    name_to_node_origin = {node.name: node for node in module_origin.graph.nodes}
+    name_to_node_dest = {node.name: node for node in module_dest.graph.nodes}
 
     # add outputs of origin_module to dest_placheolder_map
     module_origin_new_outputs = {name_to_node_origin[name] for name in cut_nodes}
@@ -172,34 +174,37 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
         if node.op == "output":
             old_args = get_output_node_args(node)
             loc = 0
-            for user in node_pair[0].users: #can only do this for getitem users. might have a single add node that have two users
+            for user in node_pair[0].users:
+                # can only do this for getitem users. might have a single add node that have two users
                 if user.target != operator.getitem:
                     break
                 if isinstance(old_args[loc], torch.fx.node.Node):
                     user_name = old_args[loc].name
-                    dest_placeholder_map[user_name] = user # add new arg to dest placeholder map
+                    dest_placeholder_map[user_name] = user  # add new arg to dest placeholder map
                 loc += 1
             module_origin_new_outputs = list(module_origin_new_outputs.difference(set(old_args)))
-            
-            # need to change the user to use getitem if origin only has 1 output but now has more
-            if(len(old_args)==1 and len(module_origin_new_outputs) > 0):
-                with fused_graph.graph.inserting_after(node_pair[0]):
-                    new_node = fused_graph.graph.call_function(operator.getitem, args=(node_pair[0], 0,))
-                node_pair[0].replace_all_uses_with(new_node)
-                new_node.args=(node_pair[0], 0,)
-                name_to_node[node_pair[0].name] = new_node # add new arg to dest placeholder map
-                dest_placeholder_map[old_args[0].name]=new_node
 
-            if len(module_origin_new_outputs) > 0:  # need to add new ouputs to module_origin and new inputs to module_dest
+            # need to change the user to use getitem if origin only has 1 output but now has more
+            if(len(old_args) == 1 and len(module_origin_new_outputs) > 0):
                 with fused_graph.graph.inserting_after(node_pair[0]):
-                    for i in range(len(module_origin_new_outputs )):
-                        new_node = fused_graph.graph.call_function(operator.getitem, args=(node_pair[0], i + len(old_args),))
-                        dest_placeholder_map[module_origin_new_outputs[i].name] = new_node # add new arg to dest placeholder map
+                    new_node = fused_graph.graph.call_function(operator.getitem, args=(node_pair[0], 0, ))
+                node_pair[0].replace_all_uses_with(new_node)
+                new_node.args = (node_pair[0], 0, )
+                name_to_node[node_pair[0].name] = new_node  # add new arg to dest placeholder map
+                dest_placeholder_map[old_args[0].name] = new_node
+
+            if len(module_origin_new_outputs) > 0:
+                # need to add new ouputs to module_origin and new inputs to module_dest
+                with fused_graph.graph.inserting_after(node_pair[0]):
+                    for i in range(len(module_origin_new_outputs)):
+                        new_node = fused_graph.graph.call_function(
+                            operator.getitem, args=(node_pair[0], i + len(old_args), ))
+                        # add new arg to dest placeholder map
+                        dest_placeholder_map[module_origin_new_outputs[i].name] = new_node
                 new_args = list(old_args) + module_origin_new_outputs
                 module_origin.graph.erase_node(node)
-                module_origin.graph.output(new_args[0] if len(new_args) == 1 else tuple(new_args)) # TODO: test a single output
+                module_origin.graph.output(new_args[0] if len(new_args) == 1 else tuple(new_args))
             break
-    
 
     module_origin.recompile()
     fused_graph.recompile()
@@ -217,8 +222,6 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
         first_node_dest = node
         break
 
-
-
     env = {}  # map from node in origin to node in dest
     # new placeholders, TODO: check if there are existing placeholders
     for node_name in cut_nodes:
@@ -226,19 +229,19 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
         if node_name in name_to_node_dest:
             # already has a placeholder for it in dest
             env[node] = name_to_node_dest[node_name]
-            continue  
+            continue
         with module_dest.graph.inserting_before(first_node_dest):
             new_node = module_dest.graph.placeholder(node.name, type_expr=node.type)
             new_node.meta = copy.copy(node.meta)
             env[node] = new_node
 
     # copy internal nodes
-    node_to_copy = order_topologically(node_to_copy , module_origin)
+    node_to_copy = order_topologically(node_to_copy, module_origin)
     for node_name in node_to_copy:
         node = name_to_node_origin[node_name]
         with module_dest.graph.inserting_before(first_node_dest):
             new_node = module_dest.graph.node_copy(node, lambda x: env[x])
-            new_node.name = node.name # use the same name such that node can be referenced back to original graph
+            new_node.name = node.name  # use the same name such that node can be referenced back to original graph
             env[node] = new_node
             # change the args of nodes in dest to use the new node
             if node.name in name_to_node_dest:
@@ -258,16 +261,16 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
     module_dest.graph.lint()
 
     # change the args of dest node in fused_graph
-    # use origin_placeholder_map because the active place_holders 
+    # use origin_placeholder_map because the active place_holders
     # might be in another module, and thus need get_item
     node = node_pair[1]  # dest node
     new_args = []
     for name in active_placeholders:
-        if name in name_to_node: # name is a node in fused graph
+        if name in name_to_node:  # name is a node in fused graph
             new_args.append(name_to_node[name])
-        elif name in origin_placeholder_map: # name is a placeholder in origin's module
+        elif name in origin_placeholder_map:  # name is a placeholder in origin's module
             new_args.append(origin_placeholder_map[name])
-        else: # name is a placeholder in dest's module or a newly added input
+        else:  # name is a placeholder in dest's module or a newly added input
             new_args.append(dest_placeholder_map[name])
     node.args = tuple(new_args)
     fused_graph.recompile()
@@ -293,17 +296,17 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
 
     for node in module_origin.graph.nodes:
         if node.op == "output":
-            if (len(used_inds) == 0 and type(node.args[0] is not tuple)): # only has a single output
+            if (len(used_inds) == 0 and type(node.args[0] is not tuple)):  # only has a single output
                 break
             new_args = []
             for i in range(len(node.args[0])):
                 if i in used_inds:
-                    new_args.append(node.args[0][i]) # still useful
+                    new_args.append(node.args[0][i])  # still useful
                 else:
-                    new_args.append(None) # no need to write out
-            node.args = tuple([tuple(new_args),])
+                    new_args.append(None)  # no need to write out
+            node.args = ([tuple(new_args), ])
             break
-    module_origin.recompile() 
+    module_origin.recompile()
     fused_graph.recompile()
 
 
@@ -313,7 +316,7 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
     """
 
     try:
-        import networkx as nx 
+        import networkx as nx
     except ImportError:
         raise RuntimeError("Need networkx installed to perform smart recomputation heuristics")
     nx_graph = nx.DiGraph()
@@ -322,11 +325,11 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
     module_origin = getattr(fused_graph, node_origin.name)
     module_dest = getattr(fused_graph, node_dest.name)
 
-    dest_placeholder_names = set(node.name for node in module_dest.graph.nodes if node.op == "placeholder")
-    # used to check if a node has users in dest. The user node in the original graph has the same name as the call_func nodes in dest.
-    dest_node_names = set(node.name for node in module_dest.graph.nodes if node.op != "placeholder" and node.op != "output")
-    orig_node_names = set(node.name for node in module_origin.graph.nodes if node.op != "placeholder" and node.op != "output")
-
+    dest_placeholder_names = {node.name for node in module_dest.graph.nodes if node.op == "placeholder"}
+    # used to check if a node has users in dest.
+    # The user node in the original graph has the same name as the call_func nodes in dest.
+    dest_node_names = {node.name for node in module_dest.graph.nodes if node.op != "placeholder" and node.op != "output"}  # noqa: E501
+    orig_node_names = {node.name for node in module_origin.graph.nodes if node.op != "placeholder" and node.op != "output"}  # noqa: E501
 
     # track the users of each node in traced_graph
     getitem_users = {}
@@ -334,12 +337,13 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
         if node.op == "output":
             output_args = get_output_node_args(node)
     loc = 0
-    for user in node_origin.users:  # can only do this for getitem users. might have a single add node that have two users
+    for user in node_origin.users:
+        # can only do this for getitem users. might have a single add node that have two users
         if user.target != operator.getitem:
             break
         if isinstance(output_args[loc], torch.fx.node.Node):
             user_name = output_args[loc].name
-            getitem_users[user_name] = user.name # add new arg to dest placeholder map
+            getitem_users[user_name] = user.name  # add new arg to dest placeholder map
         loc += 1
 
     def get_capacity(node):
@@ -348,15 +352,14 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
         # might not need to add the read cost, if already reading it - no need the cost
         user_names_set = set({n.name for n in node_users_map[node.name]})
         user_names_outside_set = user_names_set.difference(orig_node_names)
-        write_cost = 0 # cost for both read and write because only dest_module is using it
+        write_cost = 0  # cost for both read and write because only dest_module is using it
         if weight and user_names_outside_set.issubset(set(dest_node_names)):
             write_cost = weight
-        
+
         read_cost = weight
 
         capacity = write_cost+read_cost
         return capacity
-
 
     for node in module_origin.graph.nodes:
         if node.op == 'output':
@@ -382,11 +385,10 @@ def find_min_cut(node_pair, node_users_map, fused_graph):
         elif node.op == 'call_function':
             capacity = get_capacity(node)
 
-        
-        if (node.name in dest_placeholder_names or 
-          (node.name in getitem_users and getitem_users[node.name] in dest_placeholder_names)):
+        if (node.name in dest_placeholder_names or
+           (node.name in getitem_users and getitem_users[node.name] in dest_placeholder_names)):
             nx_graph.add_edge(node.name+"_out", 'sink', capacity=capacity)
-        
+
         nx_graph.add_edge(node.name+"_in", node.name+"_out", capacity=capacity)
         for user in node.users:
             if user.op != "output":
