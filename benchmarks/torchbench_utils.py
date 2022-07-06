@@ -1,10 +1,7 @@
 import re
-import subprocess
 import os
 import gc
 import importlib
-from torch.utils._pytree import tree_map
-import torch
 
 SKIP = {
     # non-deterministic output / cant check correctness
@@ -97,67 +94,3 @@ def load_model(device, model_name, is_training, use_eval_mode):
     # current_device = device
     # current_name = benchmark.name
     return device, benchmark.name, model, example_inputs
-
-# def cast_to_fp16(model, inputs):
-#     # cast model and inputs to fp16
-#     model = model.half()
-
-#     inputs = tuple(
-#         tree_map(
-#             lambda x: x.to(torch.float16)
-#             if getattr(x, "dtype", None) == torch.float32
-#             or getattr(x, "dtype", None) == torch.float64
-#             else x,
-#             inputs,
-#         )
-#     )
-#     # Disable this part temporarily. Further evaluation needed
-#     # TRT does not support int64. Some model does need it like Super_SloMo
-#     # if current_name != "Super_SloMo" and current_name != "fastNLP_Bert":
-#     #     inputs = tuple(
-#     #         tree_map(
-#     #             lambda x: x.to(torch.int32)
-#     #             if getattr(x, "dtype", None) == torch.int64
-#     #             else x,
-#     #             inputs,
-#     #         )
-#     #     )
-#     return model, inputs
-
-
-# def cast_to_fp32(model, inputs):
-#     # cast model and inputs to fp16
-#     model = model.to(torch.float32)
-
-#     inputs = tuple(
-#         tree_map(
-#             lambda x: x.to(torch.float32)
-#             if getattr(x, "dtype", None) == torch.float16
-#             or getattr(x, "dtype", None) == torch.float64
-#             else x,
-#             inputs,
-#         )
-#     )
-#     return model, inputs
-
-# @torchdynamo.skip
-# def forward_pass(mod, inputs, collect_outputs=True):
-#     return mod(*inputs)
-
-
-# @torchdynamo.skip
-# def forward_and_backward_pass(mod, inputs, collect_outputs=True):
-#     cloned_inputs = clone_inputs(inputs)
-#     mod.zero_grad(True)
-#     pred = mod(*cloned_inputs)
-#     loss = reduce_to_scalar_loss(pred)
-#     loss.backward()
-#     if collect_outputs:
-#         return collect_results(mod, pred, loss, cloned_inputs)
-#     return None
-
-# def pick_grad(name, is_training):
-#     if is_training or name in ("maml",):
-#         return torch.enable_grad()
-#     else:
-#         return torch.no_grad() 

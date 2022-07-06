@@ -4,29 +4,26 @@ import sys
 import logging
 import argparse
 import subprocess
-import itertools
-import copy
 import warnings
-from shutil import rmtree
 
 import torch
-# import torchdynamo
 from torchbench_utils import *
-# from torchdynamo.testing import same
-import pickle            
-from functorch import make_fx
-import functools
-from torch.nn.utils.stateless import functional_call
-from functorch._src.compile_utils import strip_overloads, fx_graph_cse
-from functorch._src.remat_utils_mincut import rematerialize, rematerialize_stat, get_fused_graph, rematerialize_fused_graph, is_fused_node
-from benchmark_remat_utils import profile_model, check_num_remat_model, trace_model
-from functorch.compile import draw_graph, ts_compile
-from functorch.compile import default_decompositions
-import torch.utils._pytree as pytree
+from benchmark_remat_utils import profile_model, check_remat_info_model
 
-current_name = ""
-graph_index = 0
-folder_name = "torch_bench_graphs_partition"
+
+"""
+Benchmark rematerialization algorithm on full graphs of torchbench models
+
+Example:
+
+python benchmarks/benchmark_remat_fullgraphs.py --isolate --devices='cuda' -k 'timm_nfnet'
+
+You can also use the -k flag to append other models to run. If no -k models are specified, it will run all models (some will fail due to more than 1 graph in the model).
+
+If you only want to see how much memory will be reduced by the mincut optimization, WITHOUT actually benchmarking the performance, you can use the --info flag.
+"""
+
+
 current_dir = os.getcwd()
 torch.backends.cuda.matmul.allow_tf32 = True
 
@@ -46,47 +43,17 @@ sys.path.append(torchbench_dir)
 log = logging.getLogger(__name__)
 
 
-single_graph_models = set([
-    # "alexnet",  # no fusion group
-    "Background_Matting",
-    "BERT_pytorch",
-    # "dcgan",  # no fusion group
-    "densenet121",
-    # "dlrm",   # 1 fusion group
-    "LearningToPaint",
-    "maml_omniglot",
-    "mnasnet1_0",
-    "mobilenet_v2",
-    "mobilenet_v2_quantized_qat",
-    # 'nvidia_deeprecommender',   # no fusion group
-    "pytorch_struct",
-    "pytorch_unet",
-    "resnet18",
-    "resnet50",
-    "resnext50_32x4d",
-    "shufflenet_v2_x1_0",
-    "squeezenet1_1",
-    # "Super_SloMo", # problem tracing, RuntimeError: indices should be either on cpu or on the same device as the indexed tensor (cpu)
-    "timm_efficientnet",
-    "timm_nfnet",
-    "timm_regnet",
-    "timm_resnet",
-    "timm_vision_transformer",
-    "timm_vovnet",
-    # "vgg16" # no fusion group
-])
-
 models_to_run = [
-   'timm_nfnet',
-    # 'BERT_pytorch',
-    'resnet50',
-    'timm_regnet',
-    'resnext50_32x4d',
-    'mobilenet_v2_quantized_qat',
-    'LearningToPaint',
-    'resnet18',
-    'timm_efficientnet',
-    'pytorch_struct',
+#    'timm_nfnet',
+#     # 'BERT_pytorch',
+#     'resnet50',
+#     'timm_regnet',
+#     'resnext50_32x4d',
+#     'mobilenet_v2_quantized_qat',
+#     'LearningToPaint',
+#     'resnet18',
+#     'timm_efficientnet',
+#     'pytorch_struct',
 
 ]
 
@@ -127,19 +94,13 @@ def main():
                 device, name, model, example_inputs = load_model(
                     device, args.only, args.training, True  # use_eval_mode=True
                 )
-                global current_name, current_device
-                current_device = device
-                current_name = name
             except NotImplementedError:
                 continue  # bad benchmark implementation
 
             if args.info:
-                check_num_remat_model(name, model, example_inputs)
+                check_remat_info_model(name, model, example_inputs)
             else:
                 profile_model(name, model, example_inputs)
-
-            # breakpoint()
-            
 
     elif args.isolate:
         if args.info:

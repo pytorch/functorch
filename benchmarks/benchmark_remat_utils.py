@@ -1,14 +1,9 @@
-import os
 import copy
-import importlib
-import pickle
-from typing import overload
 
 import torch
 import torch.fx as fx
 from functorch import make_fx
-from torch.fx._symbolic_trace import symbolic_trace
-from functorch._src.remat_utils_mincut import rematerialize, rematerialize_stat, get_fused_graph, rematerialize_fused_graph, is_fused_node
+from functorch._src.remat_utils_mincut import rematerialize, rematerialize_stat, get_fused_graph, is_fused_node
 from torch.profiler import profile, ProfilerActivity
 from functorch._src.compile_utils import strip_overloads, fx_graph_cse
 from torch.nn.utils.stateless import functional_call
@@ -256,13 +251,49 @@ one_fusion_group = [
     "hf_T5_forward_6",
 ]
 
+
+single_graph_models = set([
+    # "alexnet",  # no fusion group
+    "Background_Matting",
+    "BERT_pytorch",
+    # "dcgan",  # no fusion group
+    "densenet121",
+    # "dlrm",   # 1 fusion group
+    "LearningToPaint",
+    "maml_omniglot",
+    "mnasnet1_0",
+    "mobilenet_v2",
+    "mobilenet_v2_quantized_qat",
+    # 'nvidia_deeprecommender',   # no fusion group
+    "pytorch_struct",
+    "pytorch_unet",
+    "resnet18",
+    "resnet50",
+    "resnext50_32x4d",
+    "shufflenet_v2_x1_0",
+    "squeezenet1_1",
+    # "Super_SloMo", # problem tracing, RuntimeError: indices should be either on cpu or on the same device as the indexed tensor (cpu)
+    "timm_efficientnet",
+    "timm_nfnet",
+    "timm_regnet",
+    "timm_resnet",
+    "timm_vision_transformer",
+    "timm_vovnet",
+    # "vgg16" # no fusion group
+])
+
+
+
 SKIP_CASES = set(zero_fusion_group).union(set(one_fusion_group))
+
 
 def get_test_cases():
     return test_cases
 
+
 def get_skip_cases():
     return SKIP_CASES
+
 
 def strip_overloads_save(gm):
     """
@@ -280,43 +311,67 @@ def strip_overloads_save(gm):
     return overload_dict
 
 
+def get_cuda_time(timing):
+    """
+    Get the total cuda time from torch profiler timings
+    """
+    cuda_time_total = 0
+    for e in timing:
+        cuda_time_total = cuda_time_total + e.cuda_time_total
+    return cuda_time_total
+
 
 def benchmark_GPU_time(f, inp, list_inp, itr = 5):
+    """
+    Return the average CUDA time of an iteration of ``f`` on inputs ``inp``
+    Using `with torch.no_grad`.
+
+    Args:
+        f: The function to profile
+        inp: The input
+        list_inp(bool): if True, profile f(*inp), otherwise f(inp)
+        itr(int): The number of iterations to run, default to 5
+    """
     if list_inp:
         with torch.no_grad():
             for _ in range(5):
                 f(*inp)
-            with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
+                torch.cuda.synchronize()
+            with profile(activities=[ProfilerActivity.CUDA]) as prof:
                 for _ in range(itr):
                     f(*inp)
-        timing = prof.key_averages()
-        cuda_time_total = 0
-        for e in timing:
-            cuda_time_total = cuda_time_total + e.cuda_time_total
-        return cuda_time_total / itr
+                    torch.cuda.synchronize()
+        return get_cuda_time(prof.key_averages()) / itr
+
     with torch.no_grad():
         for _ in range(5):
             f(inp)
-        with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
+            torch.cuda.synchronize()
+        with profile(activities=[ProfilerActivity.CUDA]) as prof:
             for _ in range(itr):
                 f(inp)
+                torch.cuda.synchronize()
 
-    # print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=10))
+        # print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=10))
+        return get_cuda_time(prof.key_averages()) / itr
 
-    timing = prof.key_averages()
-    cuda_time_total = 0
-    for e in timing:
-        cuda_time_total = cuda_time_total + e.cuda_time_total
-    return cuda_time_total / itr
 
-def profile_scripted_graph(traced_graph, inp, list_inp):
+def profile_scripted_graph(traced_graph, inp, list_inp, itr = 5):
+    """
+    Return the average cuda time of the jit.scripted version of `traced_graph` on input `inp`
+
+    Args:
+        traced_graph(fx.GraphModule): The graph to profile
+        inp: The input
+        list_inp(bool): if True, profile f(*inp), otherwise f(inp)
+        itr(int): The number of iterations to run, default to 5
+    """
     traced_graph.graph.eliminate_dead_code()
     traced_graph.recompile()
-    # script_f = torch.jit.script(traced_graph)
     script_f = ts_compile(traced_graph, inp)
-    avg_cuda_time_f = benchmark_GPU_time(script_f, inp, list_inp)
-
+    avg_cuda_time_f = benchmark_GPU_time(script_f, inp, list_inp, itr = itr)
     return avg_cuda_time_f
+
 
 def get_num_fused_group(gm):
     num_fusion_group = 0
@@ -326,7 +381,22 @@ def get_num_fused_group(gm):
     return num_fusion_group
 
 
-def profile_fused_graph(fused_graph, inp, list_inp, overload_dict = None):
+def profile_fused_graph(fused_graph, inp, list_inp, overload_dict = None, itr = 5):
+    """
+    Return the average cuda time of the jit.scripted version of `fused_graph` on input `inp`, 
+    and the number of fusion groups in `fused_graph`
+    Speficically, each fused group of `fused_graph` is scriptedif there is at least one fusion group.
+    Otherwise, the whole graph is scripted.
+
+    Args:
+        fused_graph(fx.GraphModule): The graph to profile
+        inp: The input
+        list_inp(bool): if True, profile f(*inp), otherwise f(inp)
+        itr(int): The number of iterations to run, default to 5
+        overload_dict(Dict[torch._ops.OpOverloadPacket -> torch._ops.OpOverload]): If not None, all
+                overloadPacket-op nodes' target in fused_graph will be replaced by overload ops
+                in `overload_dict`, which is keyed by node.name.
+    """
     num_fusion_group = 0
     for node in fused_graph.graph.nodes:
         if is_fused_node(node):
@@ -334,37 +404,41 @@ def profile_fused_graph(fused_graph, inp, list_inp, overload_dict = None):
             setattr(fused_graph, node.name, ts_compile(module, 0) )
             num_fusion_group += 1
         elif isinstance(node.target, torch._ops.OpOverloadPacket) and overload_dict is not None:
-            node.target = overload_dict[node.name]
+            if node.name in overload_dict:
+                node.target = overload_dict[node.name]
 
     fused_graph.recompile()
     if num_fusion_group == 0: # no fused group
         script_f = ts_compile(fused_graph, 0)#torch.jit.script(fused_graph)
-        return benchmark_GPU_time(script_f, inp, list_inp), 0
+        return benchmark_GPU_time(script_f, inp, list_inp, itr = itr), 0
 
-    avg_cuda_time_g = benchmark_GPU_time(fused_graph, inp, list_inp)
+    avg_cuda_time_g = benchmark_GPU_time(fused_graph, inp, list_inp, itr = itr)
     return avg_cuda_time_g, num_fusion_group
 
 
 def profile_graph(name, traced_graph, inp, eager_inp=False):
+    # Profile eager time
     traced_graph_copy = copy.deepcopy(traced_graph)
     eager_time = benchmark_GPU_time(traced_graph, inp, eager_inp) # can't strup overloads here
 
-
+    # Profile jit.scripted time
     traced_graph.recompile()
     inp, spec  = pytree.tree_flatten(inp)
     avg_cuda_time_f = profile_scripted_graph(traced_graph, inp, True)
 
+    # CSE pass
     traced_graph = traced_graph_copy 
     strip_overloads(traced_graph)
     traced_graph.recompile()
-    # traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
     csed = fx_graph_cse(traced_graph.graph)
     csed_graph =  fx.GraphModule(traced_graph, csed)
     csed_graph_copy = copy.deepcopy(csed_graph)
     
+    # Profile fused graph time
     fused_graph = get_fused_graph(csed_graph)
     avg_cuda_time_g, num_fusion_group = profile_fused_graph(fused_graph, inp, True)
 
+    # Profile rematerialized graph time
     stat = {}
     fused_graph = rematerialize_stat(csed_graph_copy, stat)
     num_remat_group = stat["num_group_remat"]
@@ -377,7 +451,6 @@ def profile_graph(name, traced_graph, inp, eager_inp=False):
 
 
 def profile_module(name, m, inp):
-
     def fake_fn(args):
         return m(*args)
    
@@ -387,9 +460,12 @@ def profile_module(name, m, inp):
 
 
 def trace_model(model, inputs):
+    """
+    Get the full graph (both forward and backward) of `model` on `inputs`
+    The moddel should have a single forward and a single backward graph
+    """
     def f(params, inp):
         out = functional_call(model, params, inp)
-        # out.sum().backward()
         result = 0
         if isinstance(out, tuple):
             for i in out:
@@ -403,12 +479,16 @@ def trace_model(model, inputs):
     traced_graph = make_fx(f, decomposition_table=default_decompositions)(params, inputs)
     return traced_graph, params
 
+
 def profile_model(name, model, inputs):
+    """
+    Profile a model on inputs
+    """
     traced_graph, params = trace_model(model, inputs)
     traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
     traced_graph_copy = copy.deepcopy(traced_graph)
     
-    eager_time = 0 #benchmark_GPU_time(traced_graph, (params, inputs), True) # can't strip overloads here
+    eager_time = benchmark_GPU_time(traced_graph, (params, inputs), True) # can't strip overloads here
 
     arg_list, spec  = pytree.tree_flatten([params, inputs])
     script_f = ts_compile(traced_graph, 0)
@@ -436,9 +516,10 @@ def profile_model(name, model, inputs):
 
 
 
-def check_num_remat(name, traced_graph, inputs):
-
-    # traced_graph = symbolic_trace(m)
+def check_remat_info(name, traced_graph, inputs):
+    """
+    Print the information about rematerialization on `traced_graph` (fx.Graph)
+    """
     strip_overloads(traced_graph)
     traced_graph.recompile()
 
@@ -447,25 +528,31 @@ def check_num_remat(name, traced_graph, inputs):
 
     stat = {}
     fused_graph = rematerialize_stat(csed_graph, stat)
-    # draw_graph(fused_graph, name)
     num_remat_group = stat["num_group_remat"]
     memory_reduced = stat["memory_reduced"]
     num_node_pairs = stat["num_node_pairs"]
     num_fusion_group = get_num_fused_group(fused_graph)
-    # if(num_remat_group != 0):
     print(f" '{name}',  {num_fusion_group}, {num_remat_group}, {memory_reduced}, {num_node_pairs}", flush=True)
 
 
-def check_num_remat_gm(name, gm, inputs):
+def check_remat_info_gm(name, gm, inputs):
+    """
+    Print the information about rematerialization on `gm`(fx.GraphModule)
+    """
     def fake_fn(args):
         return gm(*args)
     
     traced_graph = make_fx(fake_fn)(inputs)
-    check_num_remat(name, traced_graph, inputs)
+    check_remat_info(name, traced_graph, inputs)
 
-def check_num_remat_model(name, model, inputs):
+
+def check_remat_info_model(name, model, inputs):
+    """
+    Print the information about rematerialization on `model` (torchbench models)
+    The moddel should have a single forward and a single backward graph
+    """
     traced_graph, params = trace_model(model, inputs)
-    check_num_remat(name, traced_graph, inputs)
+    check_remat_info(name, traced_graph, inputs)
 
 
 
