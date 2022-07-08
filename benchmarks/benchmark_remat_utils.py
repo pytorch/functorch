@@ -10,6 +10,30 @@ from torch.nn.utils.stateless import functional_call
 from functorch.compile import draw_graph, ts_compile
 from functorch.compile import default_decompositions
 import torch.utils._pytree as pytree
+from functorch.experimental import functionalize
+
+
+from torchdynamo.testing import reduce_to_scalar_loss
+# def reduce_to_scalar_loss(out):
+#     """Reduce the output of a model to get scalar loss"""
+#     if isinstance(out, torch.Tensor):
+#         # Mean does not work on integer tensors
+#         return out.sum() / out.numel()
+#     elif isinstance(out, (list, tuple)):
+#         return sum([reduce_to_scalar_loss(x) for x in out]) / len(out)
+#     elif type(out).__name__ in (
+#         "MaskedLMOutput",
+#         "Seq2SeqLMOutput",
+#         "CausalLMOutputWithCrossAttentions",
+#     ):
+#         return reduce_to_scalar_loss(out.logits)
+#     elif type(out).__name__ == "SquashedNormal":
+#         return out.mean.sum()
+#     elif isinstance(out, dict):
+#         return sum([reduce_to_scalar_loss(value) for value in out.values()]) / len(
+#             out.keys()
+#         )
+#     raise NotImplementedError("Don't know how to reduce")
 
 test_cases = [
     "torch_bench_graphs/resnext50_32x4d/resnext50_32x4d_forward_0", 
@@ -251,6 +275,39 @@ one_fusion_group = [
     "hf_T5_forward_6",
 ]
 
+zero_fusion_group_functionalization = [
+    'hf_DistilBert_backward_0',
+    'hf_Albert_backward_1',
+    'hf_Albert_backward_0',
+    'hf_Albert_forward_1',
+    'dlrm_forward_0',
+    'drq_forward_1',
+    'hf_Bert_backward_0',
+    'squeezenet1_1_forward_0',
+    'alexnet_forward_0',
+    'soft_actor_critic_forward_1',
+    'vgg16_forward_0',
+    'hf_T5_backward_7'
+]
+
+
+one_fusion_group_functionalization = [
+    'hf_DistilBert_forward_0',
+    'hf_Albert_forward_3',
+    'hf_Albert_forward_0',
+    'hf_Bert_backward_2',
+    'hf_Bert_forward_2',
+    'hf_Bert_forward_0',
+    'hf_Bart_backward_0',
+    'hf_Bart_backward_7',
+    'hf_Bart_forward_7',
+    'hf_Bart_forward_0',
+    'soft_actor_critic_forward_0',
+    'hf_T5_forward_7',
+    'hf_T5_forward_14',
+    'hf_T5_forward_6'
+]
+
 
 single_graph_models = set([
     # "alexnet",  # no fusion group
@@ -303,8 +360,35 @@ non_zero_mincut_memory_graphs = set([
     'hf_T5_backward_2',
 ])
 
+non_zero_mincut_memory_graphs_functionalization = set([
+    'timm_nfnet_backward_0',
+    'BERT_pytorch_backward_0',
+    'resnet50_backward_0',
+    'timm_regnet_backward_0',
+    'resnext50_32x4d_backward_0',
+    'mobilenet_v2_quantized_qat_backward_0',
+    'hf_T5_backward_8',
+    'hf_T5_backward_11',
+    'hf_T5_backward_9',
+    'hf_T5_backward_12',
+    'hf_T5_backward_10',
+    'hf_T5_backward_13',
+    'LearningToPaint_backward_0',
+    'hf_T5_backward_0',
+    'hf_T5_backward_3',
+    'hf_T5_backward_4',
+    'hf_T5_backward_1',
+    'hf_T5_backward_5',
+    'hf_T5_backward_2',
+    'hf_T5_backward_6',
+    'hf_T5_backward_14',
+    'resnet18_backward_0'
+])
 
-SKIP_CASES = set(zero_fusion_group).union(set(one_fusion_group))
+
+# SKIP_CASES = set(zero_fusion_group).union(set(one_fusion_group))
+SKIP_CASES = set(zero_fusion_group_functionalization).union(set(one_fusion_group_functionalization))
+
 
 
 def get_test_cases():
@@ -316,7 +400,8 @@ def get_skip_cases():
 
 
 def get_non_zero_mincut_memory_graphs():
-    return non_zero_mincut_memory_graphs
+    # return non_zero_mincut_memory_graphs
+    return non_zero_mincut_memory_graphs_functionalization
 
 
 def strip_overloads_save(gm):
@@ -452,15 +537,17 @@ def profile_graph(name, traced_graph, inp, eager_inp=False):
 
     # CSE pass
     traced_graph = traced_graph_copy 
-    strip_overloads(traced_graph)
-    traced_graph.recompile()
+    # strip_overloads(traced_graph)
+    # traced_graph.recompile()
     csed = fx_graph_cse(traced_graph.graph)
     csed_graph =  fx.GraphModule(traced_graph, csed)
+    overload_dict = strip_overloads_save(csed_graph)
+    csed_graph.recompile()
     csed_graph_copy = copy.deepcopy(csed_graph)
     
     # Profile fused graph time
     fused_graph = get_fused_graph(csed_graph)
-    avg_cuda_time_g, num_fusion_group = profile_fused_graph(fused_graph, inp, True)
+    avg_cuda_time_g, num_fusion_group = profile_fused_graph(fused_graph, inp, True, overload_dict = overload_dict)
 
     # Profile rematerialized graph time
     stat = {}
@@ -468,7 +555,7 @@ def profile_graph(name, traced_graph, inp, eager_inp=False):
     num_remat_group = stat["num_group_remat"]
     memory_reduced = stat["memory_reduced"]
     num_node_pairs = stat["num_node_pairs"]
-    avg_cuda_time_h, _ = profile_fused_graph(fused_graph, inp, True)
+    avg_cuda_time_h, _ = profile_fused_graph(fused_graph, inp, True, overload_dict = overload_dict)
 
     print(f"{name}, {eager_time}, {avg_cuda_time_f}, {avg_cuda_time_g}, {avg_cuda_time_h}, {num_fusion_group}, {num_remat_group}, {memory_reduced}, {num_node_pairs}", flush=True)
 
@@ -478,7 +565,7 @@ def profile_module(name, m, inp):
     def fake_fn(args):
         return m(*args)
    
-    traced_graph = make_fx(fake_fn)(inp)
+    traced_graph = make_fx(functionalize(fake_fn), decomposition_table=default_decompositions)(inp)
     traced_graph.graph.set_codegen(torch.fx.graph.CodeGen())  # avoid recursive pytree
     profile_graph(name, traced_graph, inp)
 
@@ -490,18 +577,32 @@ def trace_model(model, inputs):
     """
     def f(params, inp):
         out = functional_call(model, params, inp)
-        result = 0
-        if isinstance(out, tuple):
-            for i in out:
-                result += i.sum()
-        else:
-            result = out.sum()
-        result.sum().backward()
+        loss = reduce_to_scalar_loss(out)
+        loss.backward()
         return [param.grad for param in params.values()]
     
     params = dict(model.named_parameters())
     traced_graph = make_fx(f, decomposition_table=default_decompositions)(params, inputs)
     return traced_graph, params
+
+
+def trace_model_functionalization(model, inputs):
+    """
+    Get the full graph (both forward and backward) of `model` on `inputs`
+    The moddel should have a single forward and a single backward graph
+    """
+    def f(params, inp):
+        out = functional_call(model, params, inp)
+        loss = reduce_to_scalar_loss(out)
+        loss.backward()
+        return [param.grad for param in params.values()]
+    
+    params = dict(model.named_parameters())
+    traced_graph = make_fx(f, decomposition_table=default_decompositions)(params, inputs)
+    def fake_fn(params, inputs):
+        return traced_graph(params, inputs)
+    fx_g = make_fx(functionalize(fake_fn))(params, inputs)
+    return fx_g, params
 
 
 def profile_model(name, model, inputs):
@@ -523,6 +624,7 @@ def profile_model(name, model, inputs):
     csed = fx_graph_cse(traced_graph.graph)
     csed_graph =  fx.GraphModule(traced_graph, csed)
     overload_dict = strip_overloads_save(csed_graph)
+    csed_graph.recompile()
     csed_graph_copy = copy.deepcopy(csed_graph)
     
     fused_graph = get_fused_graph(csed_graph)
@@ -566,7 +668,7 @@ def check_remat_info_gm(name, gm, inputs):
     def fake_fn(args):
         return gm(*args)
     
-    traced_graph = make_fx(fake_fn)(inputs)
+    traced_graph = make_fx(functionalize(fake_fn), decomposition_table=default_decompositions)(inputs)
     check_remat_info(name, traced_graph, inputs)
 
 
