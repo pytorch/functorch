@@ -79,7 +79,7 @@ def get_users(node):
     # the user might use the output of node through getitem
     users = set()
     for user_node in node.users:
-        if user_node.target == operator.getitem:  # TODO: any other possible skips?
+        if user_node.target == operator.getitem:
             users = users.union(set(user_node.users.keys()))
         elif user_node.op != 'output':
             users.add(user_node)
@@ -304,7 +304,7 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
                     new_args.append(node.args[0][i])  # still useful
                 else:
                     new_args.append(None)  # no need to write out
-            node.args = ([tuple(new_args), ])
+            node.args = (tuple(new_args), )
             break
     module_origin.recompile()
     fused_graph.recompile()
