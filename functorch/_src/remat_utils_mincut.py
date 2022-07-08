@@ -164,6 +164,7 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
 
     dest_placeholder_map = get_name_to_args_map(node_pair[1], module_dest)
     origin_placeholder_map = get_name_to_args_map(node_pair[0], module_origin)
+    origin_placeholders = set(node for node in module_origin.graph.nodes if node.op == "placeholder")
 
     name_to_node_origin = {node.name: node for node in module_origin.graph.nodes}
     name_to_node_dest = {node.name: node for node in module_dest.graph.nodes}
@@ -182,7 +183,7 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
                     user_name = old_args[loc].name
                     dest_placeholder_map[user_name] = user  # add new arg to dest placeholder map
                 loc += 1
-            module_origin_new_outputs = list(module_origin_new_outputs.difference(set(old_args)))
+            module_origin_new_outputs = list(module_origin_new_outputs.difference(set(old_args)).difference(origin_placeholders))
 
             # need to change the user to use getitem if origin only has 1 output but now has more
             if(len(old_args) == 1 and len(module_origin_new_outputs) > 0):
@@ -444,6 +445,10 @@ def rematerialize(traced_graph):
 
 
 def rematerialize_stat(traced_graph, stat):
+    """
+    Modify traced_graph to a graph with rematerialization. 
+    ``stat`` is a dictionary and the stats of rematerialization will be stored in it.
+    """
     global num_group_remat, memory_reduced, num_node_pairs
     num_group_remat = 0
     memory_reduced = 0
