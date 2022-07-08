@@ -10,17 +10,22 @@ jobs:
 
   build-wheel-linux:
     runs-on: ubuntu-18.04
-    container: pytorch/manylinux-cpu
+    container: pytorch/manylinux-cuda113
     strategy:
       matrix:
-        python_abi: [ "cp37-cp37m", "cp38-cp38", "cp39-cp39" ]
+        python_abi: [ "cp39-cp39" ]
     steps:
       - name: Checkout functorch
         uses: actions/checkout@v2
       - name: Install PyTorch Nightly
         run: |
           export PATH="/opt/python/${{ matrix.python_abi }}/bin:$PATH"
-          python3 -mpip install --pre torch>=1.12.0.dev -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
+          mkdir functorch-whl
+          cd functorch-whl
+          wget https://gha-artifacts.s3.amazonaws.com/pytorch/pytorch/2632326420/manywheel-py3_9-cuda11_3/torch-1.13.0.dev20220707%2Bcu113-cp39-cp39-linux_x86_64.whl
+          cd ../
+          python3 -mpip install functorch-whl/*
+          # python3 -mpip install --pre torch>=1.12.0.dev -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
       - name: Build wheel
         run: |
           export PATH="/opt/python/${{ matrix.python_abi }}/bin:$PATH"
@@ -33,29 +38,29 @@ jobs:
           name: functorch-linux.whl
           path: dist/*.whl
 
-  build-wheel-mac:
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        python_version: [ "3.7", "3.8", "3.9" ]
-    steps:
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python_version }}
-          architecture: x64
-      - name: Checkout functorch
-        uses: actions/checkout@v2
-      - name: Install PyTorch Nightly
-        run: |
-          python3 -mpip install --pre torch>=1.12.0.dev -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
-      - name: Build wheel
-        run: |
-          export CC=clang CXX=clang++
-          python3 -mpip install wheel
-          python3 setup.py bdist_wheel
-      - name: Upload wheel as GHA artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: functorch-mac.whl
-          path: dist/*.whl
+          #   build-wheel-mac:
+          #     runs-on: macos-latest
+          #     strategy:
+          #       matrix:
+          #         python_version: [ "3.7", "3.8", "3.9" ]
+          #     steps:
+          #       - name: Setup Python
+          #         uses: actions/setup-python@v2
+          #         with:
+          #           python-version: ${{ matrix.python_version }}
+          #           architecture: x64
+          #       - name: Checkout functorch
+          #         uses: actions/checkout@v2
+          #       - name: Install PyTorch Nightly
+          #         run: |
+          #           python3 -mpip install --pre torch>=1.12.0.dev -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
+          #       - name: Build wheel
+          #         run: |
+          #           export CC=clang CXX=clang++
+          #           python3 -mpip install wheel
+          #           python3 setup.py bdist_wheel
+          #       - name: Upload wheel as GHA artifact
+          #         uses: actions/upload-artifact@v2
+          #         with:
+          #           name: functorch-mac.whl
+          #           path: dist/*.whl
