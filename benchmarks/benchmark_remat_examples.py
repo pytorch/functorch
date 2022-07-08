@@ -47,8 +47,7 @@ def f(a):
     c = torch.relu(b)
     d = torch.clone(c)
     e = torch.relu(d)
-    f = torch.relu(e)
-    return b + c + e + f
+    return b + c + e
 
 
 def frandom(x):
