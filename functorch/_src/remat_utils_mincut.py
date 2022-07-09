@@ -159,15 +159,14 @@ def get_user_name_to_user_map(output_node_in_module, fused_node):
 
     user_name_to_user_map = {}
     output_args = get_output_node_args(output_node_in_module)
-    loc = 0
     for user in fused_node.users:
         # can only do this for getitem users. might have a single add node that have two users
         if user.target != operator.getitem:
             break
+        loc = user.args[1]
         if isinstance(output_args[loc], torch.fx.node.Node):
             user_name = output_args[loc].name
             user_name_to_user_map[user_name] = user
-        loc += 1
     return user_name_to_user_map
 
 
@@ -252,6 +251,7 @@ def copy_nodes(node_pair, fused_graph, name_to_node, partition, cut_nodes):
 
     name_to_node is a mapping from name to nodes in fused graph
     """
+    # breakpoint()
     reachable, non_reachable = partition
     module_origin = getattr(fused_graph, node_pair[0].name)
     module_dest = getattr(fused_graph, node_pair[1].name)
