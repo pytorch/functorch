@@ -385,9 +385,30 @@ non_zero_mincut_memory_graphs_functionalization = set([
     'resnet18_backward_0'
 ])
 
+error_on_tracing_models = set([
+    'demucs',  # NotImplementedError: argument of type: <class 'torch.storage._UntypedStorage'>
+    'detectron2_fasterrcnn_r_101_c4',   # TypeError: pad(): argument 'pad' must be tuple of ints, but found element of type ProxyTensor at pos 2
+    'detectron2_fasterrcnn_r_101_dc5',  
+    'detectron2_fasterrcnn_r_101_fpn',  
+    'detectron2_fasterrcnn_r_50_c4',  
+    'detectron2_fasterrcnn_r_50_dc5',  
+    'detectron2_fasterrcnn_r_50_fpn',  
+    'detectron2_maskrcnn_r_101_c4',  
+    'detectron2_maskrcnn_r_101_fpn',  
+    'detectron2_maskrcnn_r_50_c4',  
+    'detectron2_maskrcnn_r_50_fpn',  
+    'dlrm',   # RuntimeError: Tensors of type SparseTensorImpl do not have strides
+    'drq',  # RuntimeError: It appears that you're trying to get value out of a tracing tensor - erroring out! It's likely that this is caused by data-dependent control flow or similar.Try torch.fx.experimental.proxy_tensor.enable_strict(False) to disable this check
+    'fambench_dlrm',  # RuntimeError: Tensors of type SparseTensorImpl do not have strides
+    'hf_Longformer',   # RuntimeError: It appears that you're trying to get value out of a tracing tenso
+    'hf_Reformer',   # RuntimeError: It appears that you're trying to get value out of a tracing tenso
+    'moco', # RuntimeError: Expected temporary cpp type wrapper of type at::RecordFunction
+    'soft_actor_critic',  # RuntimeError: It appears that you're trying to get value out of a tracing tenso
+    'tts_angular', # AttributeError: 'list' object has no attribute 'dim'
+])
 
 # SKIP_CASES = set(zero_fusion_group).union(set(one_fusion_group))
-SKIP_CASES = set(zero_fusion_group_functionalization).union(set(one_fusion_group_functionalization))
+SKIP_CASES = set(zero_fusion_group_functionalization).union(set(one_fusion_group_functionalization)).union(error_on_tracing_models)
 
 
 
