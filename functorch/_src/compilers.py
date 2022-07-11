@@ -10,6 +10,9 @@ from .partitioners import draw_graph, min_cut_rematerialization_partition, defau
 from .compile_utils import strip_overloads
 import time
 
+import os
+import pickle
+
 
 # These canonicalizations are needed here (and not decompositions), as the ops
 # we're trying to canonicalize to CompositeImplicitAutograd.
@@ -346,10 +349,8 @@ with torch.jit.fuser("fuser2"):
     return ts_compile(fx_g, inps)
 
 
-import os
-import pickle
-
 graph_index = 0
+
 
 def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_inputs):
     """
@@ -358,11 +359,15 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
     {folder_name}/{current_name}/{current_name}_backward_{graph_index}, and
     {folder_name}/{current_name}/{current_name}_joint_{graph_index} respectively.
 
-    The input shape of the graphs will be stored in the .input files. These files can be loaded with pickle,
-    and is a list of format (type, shape, stride, dtype, device). In the case of type = int or float, it is just (type,).
-    For joint graph input, it is a nested list [[],[]] where the two inner lists have the same format.
+    The input shape of the graphs will be stored in the .input files.
+    These files can be loaded with pickle,
+    and is a list of format (type, shape, stride, dtype, device).
+    In the case of type = int or float, it is just (type,).
+    For joint graph input, it is a nested list [[],[]]
+    where the two inner lists have the same format.
 
-    Since each function might produce multiple graphs, the graph_index is used to distinguish difference graphs
+    Since each function might produce multiple graphs,
+    the graph_index is used to distinguish difference graphs
     """
     from functorch.compile import aot_module_simplified
 
@@ -378,19 +383,17 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
             else:
                 input_meta.append((type(arg), arg.shape, arg.stride(), arg.dtype, arg.device))
         return input_meta
-        
 
     def graph_saver_helper(gm, args, type_name):
-        input_meta =  get_input_meta(args)
+        input_meta = get_input_meta(args)
         global graph_index
         isExist = os.path.exists(f"{folder_name}/{current_name}")
         if not isExist:
             os.makedirs(f"{folder_name}/{current_name}")
         gm.to_folder(f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}")
-        pickle.dump(input_meta, open( f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}/{current_name}_{type_name}_{graph_index}.input", "wb" ))
+        pickle.dump(input_meta, open(f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}/{current_name}_{type_name}_{graph_index}.input", "wb"))  # noqa: E501
         if dump_example_input:
-            torch.save(args,  f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}/{current_name}_{type_name}_{graph_index}.pt")
-
+            torch.save(args, f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}/{current_name}_{type_name}_{graph_index}.pt")  # noqa: E501
 
     def graph_saver_forward(gm, fw_args):
         graph_saver_helper(gm, fw_args, "forward")
@@ -406,10 +409,11 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
         graph_saver_helper(gm, joint_args, "joint")
         return default_partition(gm, joint_args)
 
-    return aot_module_simplified(gm, fw_compiler=graph_saver_forward, bw_compiler=graph_saver_backward, partition_fn=graph_saver_joint)
+    return aot_module_simplified(gm, fw_compiler=graph_saver_forward,
+                                 bw_compiler=graph_saver_backward, partition_fn=graph_saver_joint)
 
 
-def get_save_fx_default_func(current_name, folder_name, dump_example_input = False):
+def get_save_fx_default_func(current_name, folder_name, dump_example_input=False):
     global graph_index
     graph_index = 0
     return partial(_save_fx_default, current_name, folder_name, dump_example_input)
