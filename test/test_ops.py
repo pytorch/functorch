@@ -665,7 +665,9 @@ class TestOperators(TestCase):
         xfail('put'),  # calls put_ during vmap with only vmaps over other, not self
         xfail('nn.functional.prelu'),  # Call Tensor.as_strided
 
-        xfail('nn.functional.batch_norm')  # erroring because running_mean and running_var aren't differentiable
+        # erroring because running_mean and running_var aren't differentiable
+        xfail('nn.functional.batch_norm'),
+        xfail('nn.functional.batch_norm', 'without_cudnn'),
     }
 
     @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))

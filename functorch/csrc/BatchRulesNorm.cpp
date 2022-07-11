@@ -86,11 +86,17 @@ batch_norm_batch_rule(
       running_mean_ = moveBatchDimToFront(running_mean, running_mean_bdim);
       running_mean_ = ensure_has_bdim(*running_mean_, running_mean_bdim.has_value(), bdim_size.value());
       running_mean_ = reshape_dim_into(0, 0, *running_mean_);
+      if (training) {
+        running_mean_ = running_mean_->contiguous();
+      }
     }
     if (running_var.defined()) {
       running_var_ = moveBatchDimToFront(running_var, running_var_bdim);
       running_var_ = ensure_has_bdim(*running_var_, running_var_bdim.has_value(), bdim_size.value());
       running_var_ = reshape_dim_into(0, 0, *running_var_);
+      if (training) {
+        running_var_ = running_var_->contiguous();
+      }
     }
 
     const auto dummy_weight = at::ones(input_.size(1), input_.options());  // cudnn and miopen require a weight
