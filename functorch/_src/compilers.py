@@ -6,7 +6,7 @@ from typing import Callable, Iterable, Optional, Tuple, Union
 
 from .aot_autograd import aot_function, aot_module
 from .decompositions import get_decompositions
-from .partitioners import draw_graph, min_cut_rematerialization_partition
+from .partitioners import draw_graph, min_cut_rematerialization_partition, default_partition
 from .compile_utils import strip_overloads
 import time
 
@@ -344,3 +344,71 @@ with torch.jit.fuser("fuser2"):
     FxModule().cuda()(*inps)
 
     return ts_compile(fx_g, inps)
+
+
+import os
+import pickle
+
+graph_index = 0
+
+def _save_fx_default(current_name, folder_name, gm, example_inputs):
+    """
+    The forward, backward, and joint computation graph will be stored in
+    {folder_name}/{current_name}/{current_name}_forward_{graph_index},
+    {folder_name}/{current_name}/{current_name}_backward_{graph_index}, and
+    {folder_name}/{current_name}/{current_name}_joint_{graph_index} respectively.
+
+    The input shape of the graphs will be stored in the .input files. These files can be loaded with pickle,
+    and is a list of format (type, shape, stride, dtype, device). In the case of type = int or float, it is just (type,).
+    For joint graph input, it is a nested list [[],[]] where the two inner lists have the same format.
+
+    Since each function might produce multiple graphs, the graph_index is used to distinguish difference graphs
+    """
+    from functorch.compile import aot_module_simplified
+
+    def get_input_meta(args):
+        input_meta = []
+        if isinstance(args[0], tuple):  # joint input
+            input_meta.append(get_input_meta(args[0]))
+            input_meta.append(get_input_meta(args[1]))
+            return input_meta
+        for arg in args:
+            if(type(arg) == int or type(arg) == float):
+                input_meta.append((type(arg),))
+            else:
+                input_meta.append((type(arg), arg.shape, arg.stride(), arg.dtype, arg.device))
+        return input_meta
+        
+
+    def graph_saver_helper(gm, args, type_name):
+        input_meta =  get_input_meta(args)
+        global graph_index
+        isExist = os.path.exists(f"{folder_name}/{current_name}")
+        if not isExist:
+            os.makedirs(f"{folder_name}/{current_name}")
+        gm.to_folder(f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}")
+        pickle.dump(input_meta, open( f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}/{current_name}_{type_name}_{graph_index}.input", "wb" ))
+        pickle.dump(args, open( f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}/{current_name}_{type_name}_{graph_index}.inputexample", "wb" ))
+
+
+    def graph_saver_forward(gm, fw_args):
+        graph_saver_helper(gm, fw_args, "forward")
+        return gm
+
+    def graph_saver_backward(gm, bw_args):
+        graph_saver_helper(gm, bw_args, "backward")
+        global graph_index
+        graph_index += 1
+        return gm
+
+    def graph_saver_joint(gm, joint_args):
+        graph_saver_helper(gm, joint_args, "joint")
+        return default_partition(gm, joint_args)
+
+    return aot_module_simplified(gm, fw_compiler=graph_saver_forward, bw_compiler=graph_saver_backward, partition_fn=graph_saver_joint)
+
+
+def get_save_fx_default_func(current_name, folder_name):
+    global graph_index
+    graph_index = 0
+    return partial(_save_fx_default, current_name, folder_name)
