@@ -389,7 +389,7 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
         gm.to_folder(f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}")
         pickle.dump(input_meta, open( f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}/{current_name}_{type_name}_{graph_index}.input", "wb" ))
         if dump_example_input:
-            pickle.dump(args, open( f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}/{current_name}_{type_name}_{graph_index}.inputexample", "wb" ))
+            torch.save(args,  f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}/{current_name}_{type_name}_{graph_index}.pt")
 
 
     def graph_saver_forward(gm, fw_args):
