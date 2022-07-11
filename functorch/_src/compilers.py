@@ -368,7 +368,7 @@ def _save_fx_default(current_name, folder_name, gm, example_inputs):
 
     def get_input_meta(args):
         input_meta = []
-        if isinstance(args[0], tuple):  # joint input
+        if len(args) > 0 and isinstance(args[0], tuple):  # joint input
             input_meta.append(get_input_meta(args[0]))
             input_meta.append(get_input_meta(args[1]))
             return input_meta
