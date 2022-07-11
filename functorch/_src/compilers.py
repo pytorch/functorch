@@ -366,6 +366,8 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
     For joint graph input, it is a nested list [[],[]]
     where the two inner lists have the same format.
 
+    If dump_example_input is True, example_inputs will be stored in .pt file.
+
     Since each function might produce multiple graphs,
     the graph_index is used to distinguish difference graphs
     """
@@ -414,6 +416,18 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
 
 
 def get_save_fx_default_func(current_name, folder_name, dump_example_input=False):
+    """
+    Dump the forward, backward, and joint computation graph.
+
+    Example Usage:
+    save_fx_func = get_save_fx_default_func(current_name, folder_name, dump_example_input = False)
+    optimize_ctx = torchdynamo.optimize(
+        save_fx_func
+    )
+    with torch.enable_grad():
+        with optimize_ctx:
+            result = forward_and_backward_pass(model, example_inputs)
+    """
     global graph_index
     graph_index = 0
     return partial(_save_fx_default, current_name, folder_name, dump_example_input)
