@@ -351,7 +351,7 @@ import pickle
 
 graph_index = 0
 
-def _save_fx_default(current_name, folder_name, gm, example_inputs):
+def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_inputs):
     """
     The forward, backward, and joint computation graph will be stored in
     {folder_name}/{current_name}/{current_name}_forward_{graph_index},
@@ -388,7 +388,8 @@ def _save_fx_default(current_name, folder_name, gm, example_inputs):
             os.makedirs(f"{folder_name}/{current_name}")
         gm.to_folder(f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}")
         pickle.dump(input_meta, open( f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}/{current_name}_{type_name}_{graph_index}.input", "wb" ))
-        pickle.dump(args, open( f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}/{current_name}_{type_name}_{graph_index}.inputexample", "wb" ))
+        if dump_example_input:
+            pickle.dump(args, open( f"{folder_name}/{current_name}/{current_name}_{type_name}_{graph_index}/{current_name}_{type_name}_{graph_index}.inputexample", "wb" ))
 
 
     def graph_saver_forward(gm, fw_args):
@@ -408,7 +409,7 @@ def _save_fx_default(current_name, folder_name, gm, example_inputs):
     return aot_module_simplified(gm, fw_compiler=graph_saver_forward, bw_compiler=graph_saver_backward, partition_fn=graph_saver_joint)
 
 
-def get_save_fx_default_func(current_name, folder_name):
+def get_save_fx_default_func(current_name, folder_name, dump_example_input = False):
     global graph_index
     graph_index = 0
-    return partial(_save_fx_default, current_name, folder_name)
+    return partial(_save_fx_default, current_name, folder_name, dump_example_input)
