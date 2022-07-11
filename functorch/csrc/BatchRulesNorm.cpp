@@ -75,7 +75,7 @@ batch_norm_batch_rule(
     mean = std::get<1>(result);
     rstd = std::get<2>(result);
   } else {
-    bdim_size = get_bdim_size3(input, input_bdim, running_mean, running_mean_bdim, running_var, running_mean_bdim);
+    bdim_size = get_bdim_size3(input, input_bdim, running_mean, running_mean_bdim, running_var, running_var_bdim);
     auto input_ = moveBatchDimToFront(input, input_bdim);
     input_ = ensure_has_bdim(input_, input_bdim.has_value(), bdim_size.value());
     input_ = reshape_dim_into(0, /*channels dim*/1, input_);
