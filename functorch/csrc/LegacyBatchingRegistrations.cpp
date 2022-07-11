@@ -267,15 +267,14 @@ std::vector<Tensor> split_batching_rule(const Tensor& self, int64_t split_size, 
   return result;
 }
 
-template <typename F, F Func>
 std::vector<Tensor> split_with_sizes_batching_rule(const Tensor& self, IntArrayRef split_sizes, int64_t dim) {
   if (!participatesInCurrentLevel(self)) {
     c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-    return Func(self, split_sizes, dim);
+    return split_with_sizes(self, split_sizes, dim);
   }
   auto self_physical = MultiBatchVmapTransform::logicalToPhysical(self);
   auto dim_physical = self_physical.getPhysicalDim(dim);
-  auto result = Func(self_physical.tensor(), split_sizes, dim_physical);
+  auto result = split_with_sizes(self_physical.tensor(), split_sizes, dim_physical);
   self_physical.getPhysicalToLogicalMap().applyInplace(result);
   return result;
 }
@@ -696,8 +695,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   m.impl("tensor_split.sections", tensor_split_sections_batching_rule);
   m.impl("tensor_split.indices", tensor_split_indices_batching_rule);
   m.impl("split.Tensor", split_batching_rule);
-  m.impl("split.sizes", split_with_sizes_batching_rule<decltype(&ATEN_FN2(split, sizes)), &ATEN_FN2(split, sizes)>);
-  m.impl("split_with_sizes", split_with_sizes_batching_rule<decltype(&ATEN_FN(split_with_sizes)), &ATEN_FN(split_with_sizes)>);
+  m.impl("split_with_sizes", split_with_sizes_batching_rule);
   m.impl("unbind.int", unbind_batching_rule);
   m.impl("cat", cat_batching_rule);
   m.impl("block_diag", block_diag_batching_rule);
