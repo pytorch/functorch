@@ -19,6 +19,7 @@ from functorch_additional_op_db import additional_op_db
 from common_utils import (
     get_fallback_and_vmap_exhaustive,
     get_exhaustive_batched_inputs,
+    get_exhaustive_batched_inputs_for_batch_norm,
     xfail,
     skip,
     skipOps,
@@ -746,14 +747,11 @@ class TestOperators(TestCase):
 
         # The following are bugs that we should fix
         skip('nn.functional.max_pool1d'),  # fails on cpu, runs on cuda
-        xfail('nn.functional.batch_norm', device_type='cuda'),
-        xfail('nn.functional.batch_norm', 'without_cudnn', device_type='cuda'),
         xfail('nn.functional.hinge_embedding_loss', device_type='cuda'),
         xfail('_masked.mean'),
         xfail('_masked.prod'),
 
         # Causing issues with multiple cpu levels of forward mode AD
-        xfail('nn.functional.batch_norm', device_type='cpu'),
         xfail('nn.functional.hinge_embedding_loss', device_type='cpu'),
 
         xfail('nn.functional.soft_margin_loss', ''),
@@ -788,6 +786,10 @@ class TestOperators(TestCase):
         xfail('nn.functional.embedding'),  # embedding_renorm_ does not support fwd AD
         xfail('put'),  # calls put_ during vmap with only vmaps over other, not self
         xfail('nn.functional.prelu'),  # Call Tensor.as_strided
+
+        # erroring because running_mean and running_var aren't differentiable
+        xfail('nn.functional.batch_norm'),
+        xfail('nn.functional.batch_norm', 'without_cudnn'),
     }
 
     @ops(functorch_lagging_op_db, allowed_dtypes=(torch.float,))
@@ -1082,7 +1084,10 @@ class TestOperators(TestCase):
         for sample in samples:
             args = [sample.input] + list(sample.args)
             kwargs = sample.kwargs
-            generator = get_exhaustive_batched_inputs(args, kwargs, for_batch_norm=is_batch_norm)
+            if is_batch_norm:
+                generator = get_exhaustive_batched_inputs_for_batch_norm(args, kwargs)
+            else:
+                generator = get_exhaustive_batched_inputs(args, kwargs)
 
             for batched_args, in_dims, kwargs in generator:
                 vmapped_op = vmap(op, in_dims)
