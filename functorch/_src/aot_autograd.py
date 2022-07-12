@@ -15,6 +15,9 @@ from .partitioners import default_partition
 from .named_members_polyfill import _named_parameters, _named_buffers
 from typing import Callable, List, Dict, Any, Tuple, Optional
 from functools import wraps
+import os
+
+AOT_PARTITIONER_DEBUG = 'AOT_PARTITIONER_DEBUG' in os.environ
 
 try:
     from torchdynamo import disable as disable_torchdynamo
@@ -202,6 +205,12 @@ def create_aot_autograd_function(
                 compiled_fw = fw_compiler(fw_module, flat_tensor_args)
                 fw_outs = normalize_as_list(compiled_fw(*flat_tensor_args))
 
+                if AOT_PARTITIONER_DEBUG:
+                    activation_sizes = 0
+                    for out in fw_outs[num_outs:]:
+                        if isinstance(out, torch.Tensor):
+                            activation_sizes += out.storage().nbytes()
+                    print(f"Real Activations Stored(GB): {activation_sizes/1e9}")
                 bw_args = fw_outs[num_outs:] + fw_outs[0:num_outs]
                 compiled_bw = bw_compiler(bw_module, bw_args)
             else:
