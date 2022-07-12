@@ -308,7 +308,7 @@ class TestAOTAutograd(TestCase):
         if isinstance(f, nn.Module):
             compiled_f = aot_module(f, nop)
         else:
-            compiled_f = aot_function(f, nop)
+            compiled_f = aot_function(f, nop, partition_fn=min_cut_rematerialization_partition)
         ref_out, ref_grad, ref_grad_grad = _outs_and_grads_and_grad_grads(f, inp)
         test_out, test_grad, test_grad_grad = _outs_and_grads_and_grad_grads(compiled_f, inp)
         self.assertEqual(ref_out, test_out)
@@ -333,9 +333,9 @@ class TestAOTAutograd(TestCase):
         inp = [torch.randn(3, 3, requires_grad=True), torch.randn(3, 3)]
         self.verify_aot_autograd(f, inp)
 
-    def test_cube(self):
+    def test_sin_bla(self):
         def f(a):
-            return a ** 3
+            return torch.sin(a)
         inp = [torch.tensor(2.3, requires_grad=True)]
         self.verify_aot_autograd_with_double_backward(f, inp)
         # self.verify_aot_autograd(f, inp)
@@ -436,7 +436,7 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('trapz'),
         skip('nn.functional.binary_cross_entropy_with_logits'),  # seems to fail sometimes?
         skip('nn.functional.margin_ranking_loss'),  # seems flaky
-        skip('linalg.det'),  # fails
+        # skip('linalg.det'),  # fails
     })
     def test_aot_autograd_exhaustive(self, device, dtype, op):
         def f(args, kwargs):
@@ -599,6 +599,7 @@ class TestPartitioning(TestCase):
             return x.cos().cos()
 
         fw_graph, bw_graph = get_fw_bw_graph(f, [torch.randn(3, requires_grad=True) for _ in range(4)])
+
         self.assertEqual(get_num_ins_outs(fw_graph), (4, 2))
         self.assertEqual(get_num_ins_outs(bw_graph), (2, 4))
 

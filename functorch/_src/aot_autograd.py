@@ -8,7 +8,7 @@ import torch.utils.dlpack
 from torch.nn.utils import _stateless
 from functorch._C import CompileCache
 from .decompositions import register_decomposition
-from .partitioners import default_partition, _get_saved_values, _extract_fwd_bwd_modules
+from .partitioners import default_partition, _get_saved_values, _extract_fwd_bwd_modules, _extract_fwd_bwd_modules_db
 from .named_members_polyfill import _named_parameters, _named_buffers
 from typing import Callable, List, Dict, Any, Tuple, Optional
 from functools import wraps
@@ -138,8 +138,8 @@ def create_aot_autograd_function(
     joint_forward_backward = create_joint_forward_backward(flat_fn)
 
     compiled_fw = None
-    fw_module = None
     bw_modules = []
+    fw_module = None
     num_outs = None
     saved_value_names = None
     aot_decompositions = {**aot_autograd_decompositions, **decompositions}
@@ -149,7 +149,7 @@ def create_aot_autograd_function(
         @disable_torchdynamo
         def forward(ctx, *flat_tensor_args):
             ctx.set_materialize_grads(False)
-            nonlocal compiled_fw, num_outs, fw_module, saved_value_names
+            nonlocal compiled_fw, num_outs, saved_value_names, fw_module
             if compiled_fw is None:
                 with torch.set_grad_enabled(grad_state):
                     out = flat_fn(*flat_tensor_args)
@@ -177,6 +177,7 @@ def create_aot_autograd_function(
             else:
                 fw_outs = normalize_as_list(compiled_fw(*flat_tensor_args))
 
+            # print(fw_module.code)
             ctx.num_intermediate = len(fw_outs[num_outs:])
             ctx.num_inputs = len(flat_tensor_args)
             to_be_saved = fw_outs[num_outs:] + list(flat_tensor_args) + fw_outs[0:num_outs]
@@ -186,11 +187,10 @@ def create_aot_autograd_function(
         @staticmethod
         @disable_torchdynamo
         def backward(ctx, *flat_grad_outs):
-            nonlocal fw_module, bw_modules, saved_value_names
+            nonlocal bw_modules, saved_value_names, fw_module, num_outs
             intermediates = ctx.saved_tensors[:ctx.num_intermediate]
             inputs = ctx.saved_tensors[ctx.num_intermediate:ctx.num_intermediate+ctx.num_inputs]
             is_grad_enabled = torch.is_grad_enabled()
-
             if not is_grad_enabled:
                 input_flat_grad_outs = []
                 for grad in flat_grad_outs:
@@ -212,14 +212,35 @@ def create_aot_autograd_function(
                         new_intermediates.append(intermediates[j])
                         j+=1
                     intermediates = new_intermediates
-            else:
-                input_flat_grad_outs = flat_grad_outs
-                j_b = create_joint_forward_backward(fw_module)
-                with torch.set_grad_enabled(grad_state):
-                    fx_g_b = make_fx(j_b, aot_decompositions)(inputs, input_flat_grad_outs)
-                fw_module_b, bw_module_b, _ = partition_fn(fx_g_b, (inputs, input_flat_grad_outs))
+            # else:
+            #     input_flat_grad_outs = flat_grad_outs
+            #     # create_joint_forward_backward takes inputs and cotangents as inps
+            #     # inps: inputs, cotangents: flat_grad_outs
+            #     j_b = create_joint_forward_backward(ctx.fw_module)
+            #     # setting grad is not needed
+            #     with torch.set_grad_enabled(grad_state):
+            #         fx_g_b = make_fx(j_b, aot_decompositions)(inputs, input_flat_grad_outs)
+            #     saved_value_nodes = _get_saved_values(fx_g_b, saved_value_names)
+            #     # print(saved_value_nodes)
+            #     # print(saved_value_names)
+            #     # assert len(saved_value_nodes) == len(saved_value_names)
+            #     fw_module_b, bw_module_b, saved_values_new = _extract_fwd_bwd_modules_db(fx_g_b, saved_value_nodes)
+            #     # print(fx_g_b.code, ctx.fw_module.code, fw_module_b.code, bw_module_b.code)
+            #     # assert fw_module_b.code == fw_module.code
+            #     # print(len(sew), len(saved_value_names))
+            #     if len(saved_values_new) != len(saved_value_names):
+            #         new_intermediates = []
+            #         # Forward saves more intermediates than needed
+            #         assert len(saved_values_new) < len(saved_value_names)
+            #         for node in saved_values_new:
+            #             j = 0
+            #             while node.name != saved_value_names[j]:
+            #                 j+=1
+            #             new_intermediates.append(intermediates[j])
+            #             j+=1
+            #         intermediates = new_intermediates
 
-
+            # This is needed because aot function caching uses function id right now
             bw_module_fn = None
             for elem in bw_modules:
                 if elem.code == bw_module_b.code:
@@ -230,7 +251,6 @@ def create_aot_autograd_function(
                 bw_module_fn = bw_module_b
 
             f = aot_function(bw_module_fn, bw_compiler, bw_compiler, partition_fn, aot_decompositions)
-
             out = f(*intermediates, *input_flat_grad_outs)
             return tuple(normalize_as_list(out))
 
