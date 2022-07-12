@@ -92,7 +92,6 @@ def get_exhaustive_batched_inputs(arg_values, kwarg_values, batch_size=3, bdims=
 
             if all([i is None for i in in_dims]):
                 continue
-
             yield pytree.tree_unflatten(batched_args, arg_spec), pytree.tree_unflatten(in_dims, arg_spec), kwarg_values
 
         if for_batch_norm and len(orig_flat_args) >= 2:
@@ -110,7 +109,6 @@ def get_exhaustive_batched_inputs(arg_values, kwarg_values, batch_size=3, bdims=
                 batched_args_tuple = pytree.tree_unflatten(batched_args, arg_spec)
                 in_dims_tuple = pytree.tree_unflatten(in_dims, arg_spec)
                 yield batched_args_tuple, in_dims_tuple, kwarg_values
-
 
 def get_exhaustive_batched_inputs_for_batch_norm(arg_values, kwarg_values, batch_size=3, bdims=(0, -1)):
     return get_exhaustive_batched_inputs(arg_values, kwarg_values,
