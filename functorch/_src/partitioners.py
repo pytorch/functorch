@@ -109,7 +109,24 @@ def _extract_fwd_bwd_modules(joint_module: fx.GraphModule, saved_values):
 
     fwd_module = fx.GraphModule(joint_module, fwd_graph)
     bwd_module = fx.GraphModule(joint_module, bwd_graph)
-    return fwd_module, bwd_module
+    return fwd_module, bwd_module, saved_values
+
+
+def _get_saved_values(new_module: fx.GraphModule, saved_value_names):
+    saved_values = []
+    for node in new_module.graph.nodes:
+        if node.name in saved_value_names:
+            if 'tensor_meta' not in node.meta and node.op == 'call_function':
+                users = node.users
+                assert all(user.target == operator.getitem for user in users)
+                for user in users:
+                    saved_values.append(user)
+            else:
+                saved_values.append(node)
+
+    saved_values = list(saved_values)
+
+    return saved_values
 
 
 def default_partition(
@@ -154,8 +171,8 @@ def default_partition(
                 saved_values.append(user)
         else:
             saved_values.append(node)
-    saved_values = list(set(saved_values))
 
+    saved_values = list(saved_values)
     return _extract_fwd_bwd_modules(joint_module, saved_values)
 
 
