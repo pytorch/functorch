@@ -3003,8 +3003,8 @@ class TestFunctionalize(TestCase):
 
 
 def forward(self, x_1, indices_1) -> torch.Tensor:
-    index = torch.ops.aten.index(x_1, [indices_1]);  x_1 = indices_1 = None
-    return index
+    index_tensor = torch.ops.aten.index.Tensor(x_1, [indices_1]);  x_1 = indices_1 = None
+    return index_tensor
     """)
 
     # Ensure grad(functionalize(f)) works
