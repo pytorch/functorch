@@ -43,7 +43,8 @@ jobs:
           # test_functorch_lagging_op_db.py: Only run this locally because it checks
           # the functorch lagging op db vs PyTorch's op db.
           EXIT_STATUS=0
-          conda run -p ${ENV_NAME} find test \( -name test\*.py ! -name test_functorch_lagging_op_db.py \) | xargs -I {} -n 1 python {} -v || EXIT_STATUS=$?
+         
+          find test \( -name test\*.py ! -name test_functorch_lagging_op_db.py \) | xargs -I {} -n 1 conda run -p ${ENV_NAME} python3 {} -v || EXIT_STATUS=$?
           
           conda env remove -p ${ENV_NAME}
           
