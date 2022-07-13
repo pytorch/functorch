@@ -20,18 +20,32 @@ jobs:
         uses: actions/checkout@v2
       - name: Install PyTorch Nightly
         shell: arch -arch arm64 bash {0}
+        env:
+          ENV_NAME: conda-env-${{ github.run_id }}
+          PY_VERS: ${{ matrix.py_vers }}        
         run: |
-          python3 -mpip install --pre torch>=1.12.0.dev -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
+          . ~/miniconda3/etc/profile.d/conda.sh
+          export PATH=~/miniconda3/bin:$PATH
+          set -ex
+          conda create -yp ${ENV_NAME} python=${PY_VERS}
+          conda run -p ${ENV_NAME} python3 -mpip install --pre torch>=1.12.0.dev -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
       - name: Build Functorch and run tests
         shell: arch -arch arm64 bash {0}
+        env:
+          ENV_NAME: conda-env-${{ github.run_id }}
+          PY_VERS: ${{ matrix.py_vers }}
         run: |
-          python3 setup.py develop
+          . ~/miniconda3/etc/profile.d/conda.sh
+          set -ex        
 
-          python3 -m torch.utils.collect_env
-
+          conda run -p ${ENV_NAME} python3 setup.py develop
+          conda run -p ${ENV_NAME} python3 -m torch.utils.collect_env
           # test_functorch_lagging_op_db.py: Only run this locally because it checks
           # the functorch lagging op db vs PyTorch's op db.
           EXIT_STATUS=0
-          find test \( -name test\*.py ! -name test_functorch_lagging_op_db.py \) | xargs -I {} -n 1 python {} -v || EXIT_STATUS=$?
+          conda run -p ${ENV_NAME} find test \( -name test\*.py ! -name test_functorch_lagging_op_db.py \) | xargs -I {} -n 1 python {} -v || EXIT_STATUS=$?
+          
+          conda env remove -p ${ENV_NAME}
+          
           exit $EXIT_STATUS
 
