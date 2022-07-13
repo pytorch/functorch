@@ -387,6 +387,20 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
         return input_meta
 
     def graph_saver_helper(gm, args, type_name):
+        if len(gm.graph.nodes) == 0:
+            return
+
+        # change device = device(type='cuda', index=0)
+        # to device = 'cuda'
+        for node in gm.graph.nodes:
+            new_kwargs = {}
+            for k, v in node.kwargs.items():
+                if isinstance(v, torch.device):
+                    v = v.type
+                new_kwargs[k] = v
+            node.kwargs = new_kwargs
+        gm.recompile()
+
         input_meta = get_input_meta(args)
         global graph_index
         isExist = os.path.exists(f"{folder_name}/{current_name}")
@@ -412,7 +426,8 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
         return default_partition(gm, joint_args)
 
     return aot_module_simplified(gm, fw_compiler=graph_saver_forward,
-                                 bw_compiler=graph_saver_backward, partition_fn=graph_saver_joint)
+                                 bw_compiler=graph_saver_backward, partition_fn=graph_saver_joint,
+                                 decompositions=default_decompositions)
 
 
 def get_save_fx_default_func(current_name, folder_name, dump_example_input=False):
