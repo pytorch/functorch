@@ -42,16 +42,17 @@ jobs:
           conda run -p ${ENV_NAME} python3 -m torch.utils.collect_env
           # test_functorch_lagging_op_db.py: Only run this locally because it checks
           # the functorch lagging op db vs PyTorch's op db.
-          EXIT_STATUS=0
+          # EXIT_STATUS=0
           
           export IN_CI=1
           mkdir test-reports
-          eval "$(conda shell.bash hook)"
-          conda activate ${ENV_NAME}
          
-          find test \( -name test\*.py ! -name test_functorch_lagging_op_db.py \) | xargs -I {} -n 1 python3 {} -v || EXIT_STATUS=$?
+          # find test \( -name test\*.py ! -name test_functorch_lagging_op_db.py \) | xargs -I {} -n 1 python3 {} -v || EXIT_STATUS=$?
           
-          conda env remove -p ${ENV_NAME}
-          
-          exit $EXIT_STATUS
+          # Just check vmap, ops and other eager ops
+          conda run -p ${ENV_NAME} python3 -mpip install pytest
+          conda run -p ${ENV_NAME} --no-capture-output python3 -u -mpytest -vvv test/test_vmap.py test/test_ops.py test/test_eager_transforms.py
+
+          conda env remove -p ${ENV_NAME}          
+          # exit $EXIT_STATUS
 
