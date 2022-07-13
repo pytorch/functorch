@@ -21,7 +21,7 @@ from functorch._src.aot_autograd import aot_module_simplified
 from functorch.compile import (
     nnc_jit, compiled_function, compiled_module,
     min_cut_rematerialization_partition, aot_function, aot_module, decomposition_table, nop,
-    num_of_recompilations, default_partition, default_decompositions
+    num_of_recompilations, default_partition, default_decompositions, memory_efficient_fusion,
 )
 
 from torch.testing._internal.common_device_type import ops
@@ -113,6 +113,7 @@ class TestPythonKey(TestCase):
     def test_make_fx_no_decompose(self, device):
         # FIXME
         return self.skipTest("error: maximum recursion reached")
+
         def f(x):
             return torch.tanh(x).sum()
 
@@ -189,59 +190,6 @@ class TestPythonKey(TestCase):
         mod(inp).sum().backward()
         grads2 = [a.grad for a in mod.parameters()]
         self.assertEqual(grads, grads2)
-
-
-make_fx_failures = {
-    xfail('allclose'),
-    xfail('nn.functional.dropout'),
-    xfail('linalg.eigvals'),
-    xfail('nn.functional.max_pool1d', device_type='cpu'),  # precision problems?
-    xfail('randn_like'),  # randomness
-    xfail('rand_like'),  # randomness
-    xfail('randint_like'),  # randomness
-    skip('new_empty'),  # nondeterministic
-    skip('empty_like'),  # nondeterministic
-    skip('linalg.lstsq', 'grad_oriented'),  # flaky
-    xfail('normal', '', device_type='cpu'),
-    xfail('normal', 'number_mean', device_type='cpu'),
-    xfail('multinomial', device_type='cpu'),
-    xfail('nn.functional.feature_alpha_dropout', 'with_train', device_type='cpu'),
-    xfail('bernoulli', device_type='cpu'),
-    xfail('nn.functional.dropout2d', device_type='cpu'),
-    skip('nn.functional.max_unpool1d', '', device_type='cpu'),  # flaky
-    skip('nn.functional.max_unpool2d', '', device_type='cpu'),  # flaky
-    skip('nn.functional.max_unpool3d', '', device_type='cpu'),  # flaky
-    skip('linalg.lstsq'),  # flaky, probably just a precision issue
-    xfail('histogram'),
-    xfail('scatter')
-}
-
-
-class TestPythonKeyOperatorsOpInfo(TestCase):
-    @ops(functorch_lagging_op_db + additional_op_db, allowed_dtypes=(torch.float,))
-    @skipOps('TestPythonKeyOperatorsOpInfo', 'test_make_fx_exhaustive', make_fx_failures
-             )
-    def test_make_fx_exhaustive(self, device, dtype, op):
-
-        def f(args, kwargs):
-            return op.op(*args, **kwargs)
-        sample_inputs_itr = op.sample_inputs(device, dtype, requires_grad=False)
-        new_f = None
-        for sample_input in sample_inputs_itr:
-            args = [sample_input.input] + list(sample_input.args)
-            kwargs = sample_input.kwargs
-
-            new_f = make_fx(f)(args, kwargs)
-            for arg in args:
-                if isinstance(arg, torch.Tensor) and arg.dtype == torch.float:
-                    arg.uniform_(0, 1)
-            try:
-                old_out = f(args, kwargs)
-            except Exception:
-                continue
-            new_out = new_f(args, kwargs)
-            self.assertEqual(new_out, old_out)
-            pass
 
 
 def _outs_and_grads(fn, inps):
@@ -367,7 +315,6 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('linalg.cholesky'),
         skip('msort'),
         xfail('nn.functional.dropout'),
-        xfail('polar'),
         xfail('to_sparse'),
         xfail('addcdiv'),
         xfail('cholesky'),
@@ -378,6 +325,8 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('matrix_exp'),
         xfail('trapezoid'),
         xfail('trapz'),
+        xfail('corrcoef'),
+        xfail('cov'),
         skip('nn.functional.binary_cross_entropy_with_logits'),  # seems to fail sometimes?
         skip('nn.functional.margin_ranking_loss'),  # seems flaky
     })
@@ -548,10 +497,10 @@ class TestPartitioning(TestCase):
         def f(x):
             return torch.mm(x, torch.ones(x.shape)).tanh().tanh()
         fw_graph, bw_graph = get_fw_bw_graph(f, [torch.randn(5, 5, requires_grad=True)])
-        self.assertEqual(get_num_ins_outs(fw_graph), (1, 2))
+        self.assertEqual(get_num_ins_outs(fw_graph), (1, 3))
 
         ins, outs = get_ins_outs(fw_graph)
-        self.assertEqual(outs[1].target, torch.ops.aten.mm)
+        self.assertEqual(outs[1].target, torch.ops.aten.mm.default)
 
 
 class TestContiguous(TestCase):
@@ -598,13 +547,46 @@ class TestAOTModuleSimplified(TestCase):
         assert torch.allclose(inputs[1].grad, cloned_inputs[1].grad)
 
 
+class TestRandom(TestCase):
+    def test_preserve_random(self):
+        def fn(x):
+            return torch.nn.functional.dropout(x, 0.5) + x
+
+
+        x = torch.randn(4)
+
+        torch.manual_seed(0)
+        ref = fn(x)
+
+        torch.manual_seed(0)
+        aot_fn = aot_function(fn, nop)
+        res = aot_fn(x)
+
+        assert torch.allclose(ref, res)
+
+
+class TestAutocast(TestCase):
+    @unittest.skipIf(not torch.cuda.is_available(), "CUDA is unavailable")
+    @unittest.skipIf(not USE_TORCHVISION, "test requires torchvision")
+    def test_autocast(self):
+        mod = torchvision.models.resnet18().cuda()
+        mod.train()
+
+        x = torch.randn(16, 3, 32, 32, device="cuda")
+        aot_mod = memory_efficient_fusion(mod)
+
+        # Ensure that AOT Autograd works with AMP
+        with torch.cuda.amp.autocast(True):
+            res = aot_mod(x)
+        res.sum().backward()
+
+
 only_for = ("cpu")
 instantiate_device_type_tests(
     TestPythonKey,
     globals(),
     only_for=only_for,
 )
-instantiate_device_type_tests(TestPythonKeyOperatorsOpInfo, globals(), only_for=only_for)
 instantiate_device_type_tests(TestEagerFusionOpInfo, globals(), only_for=only_for)
 
 

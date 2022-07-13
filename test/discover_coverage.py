@@ -183,7 +183,7 @@ factory_fns = {
 }
 
 
-def get_top_ops(torch_threshold, nn_fn_threshold):
+def get_top_ops(torch_threshold, nn_fn_threshold, with_counts=False):
     denylist = set({
         # These are either not real "operators", factory functions
         # that trivially work, or not-documented ops.
@@ -228,12 +228,17 @@ def get_top_ops(torch_threshold, nn_fn_threshold):
         'fft',  # is namespace
     })
 
-    torch_ops = [op[0] for op in top_ops.top_torch]
-    nn_fn_ops = [op[0] for op in top_ops.get_nn_functional_top_list()]
-    torch_ops = [op for op in torch_ops if op not in denylist]
-    nn_fn_ops = [op for op in nn_fn_ops if op not in denylist]
+    torch_ops = [op for op in top_ops.top_torch]
+    nn_fn_ops = [op for op in top_ops.get_nn_functional_top_list()]
+    torch_ops = [op for op in torch_ops if op[0] not in denylist]
+    nn_fn_ops = [op for op in nn_fn_ops if op[0] not in denylist]
 
     ops = torch_ops[:torch_threshold] + nn_fn_ops[:nn_fn_threshold]
+
+    # Now, sort by priority
+    ops.sort(reverse=True, key=lambda op: op[1])
+    if not with_counts:
+        ops = [op[0] for op in ops]
     return ops
 
 
@@ -340,8 +345,6 @@ def get_skipped_or_xfailed_ops_for(test_name):
                     result.add(opinfo.name)
     return result
 
-
-# import pdb; pdb.set_trace()
 
 def get_statuses(for_subset=None, invert=False):
     overridable_outplace_we_care_about = get_public_overridable_outplace_we_care_about()
@@ -625,7 +628,6 @@ JVP_EXEMPTIONS = {
     'nn.functional.rrelu',  # not actually problem, randomness testing artifact
     'normal',  # not actually problem, randomness testing artifact
     'bernoulli',  # not actually problem, randomness testing artifact
-    # 'multinomial',
 }
 
 
@@ -723,9 +725,10 @@ class Operator:
             return Support.YES
         exemptions = {
             # we have support (see OpInfo), testing artifact
-            'torch.nn.functional.dropout2d',
+            'nn.functional.dropout2d',
+            'nn.functional.dropout',
             # exception: we dont even support double backward for this
-            'torch.nn.functional.hardswish',
+            'nn.functional.hardswish',
             'bernoulli',  # this isn't differentiable
             'normal',  # not differentiable
         }
@@ -736,13 +739,17 @@ class Operator:
     def _supports_vmapjvp_base(self, test):
         if self.name in FACTORY_FNS:
             return Support.YES
-        if self.name in JVP_EXEMPTIONS:
-            return Support.YES
         VMAPJVP_EXEMPTIONS = {
             'prod',  # dynamic (backward)
             'nn.functional.batch_norm',  # testing problem
             'normal',  # not actually problem, randomness testing artifact
             'bernoulli',  # not actually problem, randomness testing artifact
+            'nn.functional.dropout2d',  # not actually problem, randomness testing artifact
+            'nn.functional.dropout',  # not actually problem, randomness testing artifact
+            # Not a problem.
+            # It's just that the max_norm testing mutates inputs...
+            # (we have our own functorch variant of the OpInfo without max_norm)
+            'nn.functional.embedding',
         }
         if self.name in VMAPJVP_EXEMPTIONS:
             return Support.YES
@@ -886,3 +893,8 @@ print(opset.summary())
 # result = opset.query(Operator.supports_jvpvjp, (Support.NO, Support.UNKNOWN))
 # pprint.pprint(result)
 # print(opset.summary())
+
+# Print list of everything in order
+# all_ops = get_top_ops(999999, 999999, with_counts=True)
+# for op, count in all_ops:
+#     print(f'{op}, {count}')
