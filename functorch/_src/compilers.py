@@ -363,7 +363,7 @@ def get_inputs(input_data_path):
         inputs_meta = pickle.load(f)
         inputs = []
         for meta in inputs_meta:
-            if len(meta)==1:
+            if len(meta) == 1:
                 type = meta
                 input = type(random.rand())
             else:
@@ -419,15 +419,6 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
 
         gm = copy.deepcopy(gm_to_save)
         gm.graph.set_codegen(torch.fx.graph.CodeGen())  # remove codegen
-        # change device = device(type='cuda', index=0)
-        # to device = 'cuda'
-        for node in gm.graph.nodes:
-            new_kwargs = {}
-            for k, v in node.kwargs.items():
-                if isinstance(v, torch.device):
-                    v = v.type
-                new_kwargs[k] = v
-            node.kwargs = new_kwargs
         gm.recompile()
 
         input_meta = get_input_meta(args)
