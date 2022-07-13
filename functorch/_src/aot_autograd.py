@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 import torch
 import torch.nn as nn
-from torch import Tensor, is_grad_enabled
+from torch import Tensor
 from functorch import make_fx
 from torch.fx import immutable_collections
 import torch.utils._pytree as pytree
@@ -11,7 +11,7 @@ from functorch._C import CompileCache
 from functorch.experimental import functionalize
 from . import config
 from .decompositions import register_decomposition
-from .partitioners import default_partition, _get_saved_values, _extract_fwd_bwd_modules, _extract_fwd_bwd_modules_db
+from .partitioners import default_partition, _get_saved_values, _extract_fwd_bwd_modules
 from .named_members_polyfill import _named_parameters, _named_buffers
 from typing import Callable, List, Dict, Any, Tuple, Optional
 from functools import wraps
@@ -251,9 +251,9 @@ def create_aot_autograd_function(
                     j = 0
                     for node in saved_values_new:
                         while node.name != saved_value_names[j]:
-                            j+=1
+                            j += 1
                         new_intermediates.append(intermediates[j])
-                        j+=1
+                        j += 1
                     intermediates = new_intermediates
 
                 # This is needed because aot function caching uses function id right now
@@ -275,6 +275,7 @@ def create_aot_autograd_function(
         out = CompiledFunction.apply(*args, **kwargs)
         return out[0:num_outs]
     return return_fn
+
 
 class _CompileCache(CompileCache):
     pass

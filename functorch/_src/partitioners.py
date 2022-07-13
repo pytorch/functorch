@@ -111,34 +111,6 @@ def _extract_fwd_bwd_modules(joint_module: fx.GraphModule, saved_values):
     bwd_module = fx.GraphModule(joint_module, bwd_graph)
     return fwd_module, bwd_module, saved_values
 
-def _extract_fwd_bwd_modules_db(joint_module: fx.GraphModule, saved_values):
-    fwd_outputs, bwd_outputs = _extract_fwd_bwd_outputs(joint_module)
-    print("FWD OUTS: ", fwd_outputs)
-    print("BWD OUTS: ", bwd_outputs)
-    primal_inputs = list(filter(_is_primal, joint_module.graph.nodes))
-    tangent_inputs = list(filter(_is_tangent, joint_module.graph.nodes))
-    print("primal_inputs: ", primal_inputs)
-    print("tangent_inputs: ", tangent_inputs)
-    # Construct the forward module
-    fwd_graph = _extract_graph_with_inputs_outputs(joint_module.graph, primal_inputs, fwd_outputs)
-    bwd_graph = _extract_graph_with_inputs_outputs(joint_module.graph, saved_values + tangent_inputs, bwd_outputs)
-
-    # This is to filter out saved values that don't actually end up being used by the backwards pass
-    for node in bwd_graph.nodes:
-        if node.op == 'placeholder' and not node.users:
-            for saved_value in saved_values:
-                if saved_value.name == node.name:
-                    saved_values.remove(saved_value)
-                    break
-
-    # Now, we re-generate the fwd/bwd graphs.
-    # NB: This might increase compilation time, but I doubt it matters
-    fwd_graph = _extract_graph_with_inputs_outputs(joint_module.graph, primal_inputs, fwd_outputs)
-    bwd_graph = _extract_graph_with_inputs_outputs(joint_module.graph, saved_values + tangent_inputs, bwd_outputs)
-
-    fwd_module = fx.GraphModule(joint_module, fwd_graph)
-    bwd_module = fx.GraphModule(joint_module, bwd_graph)
-    return fwd_module, bwd_module, saved_values
 
 def _get_saved_values(new_module: fx.GraphModule, saved_value_names):
     saved_values = []
@@ -155,6 +127,7 @@ def _get_saved_values(new_module: fx.GraphModule, saved_value_names):
     saved_values = list(saved_values)
 
     return saved_values
+
 
 def default_partition(
     joint_module: fx.GraphModule, _joint_inputs
