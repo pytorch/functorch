@@ -9,10 +9,11 @@ from .decompositions import get_decompositions
 from .partitioners import draw_graph, min_cut_rematerialization_partition, default_partition
 from .compile_utils import strip_overloads
 import time
-
 import os
 import pickle
-
+import random
+import copy
+import logging
 
 # These canonicalizations are needed here (and not decompositions), as the ops
 # we're trying to canonicalize to CompositeImplicitAutograd.
@@ -352,6 +353,29 @@ with torch.jit.fuser("fuser2"):
 graph_index = 0
 
 
+def get_inputs(input_data_path):
+    """
+    Return a random input for the given inputs meta generated from _save_fx_default.
+
+    """
+    inputs = []
+    with (open(input_data_path, 'rb')) as f:
+        inputs_meta = pickle.load(f)
+        inputs = []
+        for meta in inputs_meta:
+            if len(meta)==1:
+                type = meta
+                input = type(random.rand())
+            else:
+                type, shape, stride, dtype, device = meta
+                if dtype in {torch.int, torch.int32, torch.int64, torch.bool, torch.int, torch.uint8, int, float}:
+                    input = torch.randint(0, 1, shape, dtype=dtype, device=device)
+                else:
+                    input = torch.rand(shape, dtype=dtype, device=device)
+            inputs.append(input)
+    return inputs
+
+
 def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_inputs):
     """
     The forward, backward, and joint computation graph will be stored in
@@ -376,8 +400,8 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
     def get_input_meta(args):
         input_meta = []
         if len(args) > 0 and isinstance(args[0], tuple):  # joint input
-            input_meta.append(get_input_meta(args[0]))
-            input_meta.append(get_input_meta(args[1]))
+            input_meta += get_input_meta(args[0])
+            input_meta += get_input_meta(args[1])
             return input_meta
         for arg in args:
             if(type(arg) == int or type(arg) == float):
@@ -386,10 +410,15 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
                 input_meta.append((type(arg), arg.shape, arg.stride(), arg.dtype, arg.device))
         return input_meta
 
-    def graph_saver_helper(gm, args, type_name):
-        if len(gm.graph.nodes) == 0:
+    def graph_saver_helper(gm_to_save, args, type_name):
+        
+        global graph_index
+        if len(gm_to_save.graph.nodes) == 0:
+            logging.log(logging.WARNING, f"No nodes in graph {current_name}_{type_name}_{graph_index}.")
             return
 
+        gm = copy.deepcopy(gm_to_save)
+        gm.graph.set_codegen(torch.fx.graph.CodeGen())  # remove codegen
         # change device = device(type='cuda', index=0)
         # to device = 'cuda'
         for node in gm.graph.nodes:
@@ -402,7 +431,7 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
         gm.recompile()
 
         input_meta = get_input_meta(args)
-        global graph_index
+        
         isExist = os.path.exists(f"{folder_name}/{current_name}")
         if not isExist:
             os.makedirs(f"{folder_name}/{current_name}")
@@ -426,7 +455,8 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
         return default_partition(gm, joint_args)
 
     return aot_module_simplified(gm, fw_compiler=graph_saver_forward,
-                                 bw_compiler=graph_saver_backward, partition_fn=graph_saver_joint,
+                                 bw_compiler=graph_saver_backward, 
+                                 partition_fn=graph_saver_joint,
                                  decompositions=default_decompositions)
 
 
