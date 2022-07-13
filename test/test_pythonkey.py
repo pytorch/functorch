@@ -382,14 +382,11 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('trapz'),
         xfail('corrcoef'),
         xfail('cov'),
-        xfail('polar'),
-        skip('nn.functional.binary_cross_entropy_with_logits'),  # seems to fail sometimes?
-        skip('nn.functional.margin_ranking_loss'),  # seems flaky
         skip('linalg.svdvals'),
         skip('linalg.eigvals'),
         skip('linalg.det'),  # fails
         skip('linalg.cond'),
-        skip('ldexp'),
+        skip('linalg.solve')
     })
     def test_aot_autograd_exhaustive(self, device, dtype, op):
         def f(args, kwargs):
@@ -429,19 +426,19 @@ class TestEagerFusionOpInfo(TestCase):
             orig_grad = get_grads(args)
             self.assertEqual(orig_grad, compiled_grad)
 
-            # def create_new_arg(x):
-            #     return x.detach().uniform_(0, 1).requires_grad_(x.requires_grad)
+            def create_new_arg(x):
+                return x.detach().uniform_(0, 1).requires_grad_(x.requires_grad)
 
-            # args = pytree.tree_map(create_new_arg, args)
+            args = pytree.tree_map(create_new_arg, args)
 
-            # reset_grads()
-            # compiled_f(args, kwargs).sum().backward()
-            # compiled_grad = get_grads(args)
+            reset_grads()
+            compiled_f(args, kwargs).sum().backward()
+            compiled_grad = get_grads(args)
 
-            # reset_grads()
-            # f(args, kwargs).sum().backward()
-            # orig_grad = get_grads(args)
-            # self.assertEqual(orig_grad, compiled_grad)
+            reset_grads()
+            f(args, kwargs).sum().backward()
+            orig_grad = get_grads(args)
+            self.assertEqual(orig_grad, compiled_grad)
 
 
 def extract_graph(fx_g, _, graph_cell):

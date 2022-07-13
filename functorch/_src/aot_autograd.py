@@ -170,9 +170,13 @@ def create_aot_autograd_function(
             # Disable the JIT Autocast flag to prevent re-autocasting of jitted graph.
             # TODO - Remove when https://github.com/pytorch/functorch/pull/794 is fixed.
             old_jit_autocast_flag = torch._C._jit_set_autocast_mode(False)
+            # creating this to save the original inputs since the inputs might be returned as outs
+            # and would then have grad_fn set on them which is incorrect.
+            flat_tensor_args_0 = flat_tensor_args
             if compiled_fw is None:
                 with preserve_rng_state():
                     # Set input tensors that require grad to leaves
+                    # Detach to not accidentally extend the graph
                     flat_tensor_args = pytree.tree_map(
                         lambda x: x.detach().requires_grad_(x.requires_grad)
                         if isinstance(x, Tensor) else x, flat_tensor_args
@@ -210,7 +214,7 @@ def create_aot_autograd_function(
             else:
                 fw_outs = normalize_as_list(compiled_fw(*flat_tensor_args))
             ctx.num_intermediate = len(fw_outs[num_outs:])
-            to_be_saved = fw_outs[num_outs:] + list(flat_tensor_args)
+            to_be_saved = fw_outs[num_outs:] + list(flat_tensor_args_0)
             ctx.save_for_backward(*to_be_saved)
             torch._C._jit_set_autocast_mode(old_jit_autocast_flag)
             return tuple(fw_outs)
@@ -229,18 +233,15 @@ def create_aot_autograd_function(
                     lambda x: x.detach().requires_grad_(x.requires_grad)
                     if isinstance(x, Tensor) else x, flat_tensor_args
                 )
-                inp_grad_outs = pytree.tree_map(
-                    lambda x: x.detach() if isinstance(x, Tensor) else x, flat_grad_outs
-                )
-                # inp_grad_outs = flat_grad_outs
+                inp_grad_outs = flat_grad_outs
                 with torch.set_grad_enabled(grad_state):
                     fx_g_b = make_fx(j_b, aot_decompositions)(flat_tensor_args, inp_grad_outs)
                     if config.use_functionalize:
                         # Functionalize the foward backward graph. First create a
                         # fake fn to make functionalize happy
                         def fake_fn(primals, tangents):
-                            return fx_g(primals, tangents)
-                        fx_g = make_fx(functionalize(fake_fn))(flat_tensor_args, inp_grad_outs)
+                            return fx_g_b(primals, tangents)
+                        fx_g_b = make_fx(functionalize(fake_fn))(flat_tensor_args, inp_grad_outs)
                 saved_value_nodes = _get_saved_values(fx_g_b, saved_value_names)
                 assert len(saved_value_nodes) <= len(saved_value_names)
                 fw_module_b, bw_module_b, saved_values_new = _extract_fwd_bwd_modules(fx_g_b, saved_value_nodes)
@@ -267,7 +268,7 @@ def create_aot_autograd_function(
                     bw_module_fn = bw_module_b
 
                 f = aot_function(bw_module_fn, bw_compiler, bw_compiler, partition_fn, aot_decompositions)
-                out = f(*intermediates, *flat_grad_outs)
+                out = f(*intermediates, *inp_grad_outs)
             torch._C._jit_set_autocast_mode(old_jit_autocast_flag)
             return tuple(normalize_as_list(out))
 
