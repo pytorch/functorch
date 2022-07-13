@@ -706,6 +706,7 @@ class TestOperators(TestCase):
         xfail('nn.functional.huber_loss'),
         xfail('nn.functional.poisson_nll_loss'),
         xfail('lu'),
+        skip('linalg.det', 'singular'),  # https://github.com/pytorch/functorch/issues/961
         xfail('cumprod'),
         xfail('lu_solve'),
         xfail('linalg.det'),
@@ -830,6 +831,7 @@ class TestOperators(TestCase):
         xfail('pinverse'),
         xfail('prod'),
         xfail('put'),
+        skip('linalg.det'),  # https://github.com/pytorch/functorch/issues/961
         xfail('quantile'),
         xfail('renorm'),
         xfail('take'),
