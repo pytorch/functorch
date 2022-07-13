@@ -1281,13 +1281,10 @@ class TestOperators(TestCase):
                 cotangents = torch.randn_like(result, device=device)
                 self._compare_jacobians_of_vjp(fn, (cotangents, input, weight, bias))
 
-
     @skipOps('TestOperators', 'test_vmap_autograd_grad', {
         # call inplace functions
-        xfail('linalg.eigh'),  # inplace
         xfail('linalg.householder_product'),  # inplace
         xfail('matrix_exp'),  # inplace
-        xfail('symeig'),  # inplace
         xfail('take'),  # inplace
 
         xfail('linalg.eig'),  # all close?
@@ -1298,8 +1295,7 @@ class TestOperators(TestCase):
         xfail('to_sparse'),  # dispatch key issue
 
         # numerical inconsistencies, look like bugs
-        xfail('nn.functional.binary_cross_entropy_with_logits', dtypes=(torch.float32, torch.float64)),
-        xfail('ldexp', dtypes=(torch.float32,), device_type='cpu'),
+        skip('ldexp', dtypes=(torch.float32,), device_type='cpu'),  # fails on all but mac
         skip('__rmatmul__', dtypes=(torch.float32,), device_type='cpu'),  # fails on all but windows
         skip('matmul', dtypes=(torch.float32,), device_type='cpu'),  # fails on all but windows
         skip('nn.functional.conv_transpose3d', dtypes=(torch.float32,)),  # only fails on cpu only linux
@@ -1353,6 +1349,7 @@ class TestOperators(TestCase):
                 compute_grad, (cotangents,), {}, is_batch_norm_and_training=is_batch_norm_and_training)
             for loop_out, batched_out in generator:
                 self.assertEqual(loop_out, batched_out)
+
 
 only_for = ("cpu", "cuda")
 instantiate_device_type_tests(TestOperators, globals(), only_for=only_for)
