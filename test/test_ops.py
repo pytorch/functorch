@@ -13,7 +13,7 @@ import functools
 from torch.testing._internal.common_device_type import instantiate_device_type_tests
 from torch.testing._internal.common_device_type import ops
 from torch.testing._internal.common_device_type import \
-     toleranceOverride, tol
+    toleranceOverride, tol
 from functorch_lagging_op_db import functorch_lagging_op_db
 from functorch_additional_op_db import additional_op_db
 from common_utils import (
@@ -28,40 +28,52 @@ from common_utils import (
     opsToleranceOverride,
     check_vmap_fallback,
 )
-import unittest
 from torch.utils._pytree import tree_flatten, tree_unflatten, tree_map
 from functorch import grad, vjp, vmap, jacrev, jacfwd
 import torch.autograd.forward_ad as fwAD
 from functorch._src.eager_transforms import _as_tuple, jvp
 aten = torch.ops.aten
 
-# Version of autograd.grad that handles outputs that don't depend on inputs
 
-
-def _autograd_grad(outputs, inputs, grad_outputs=None, retain_graph=False, create_graph=True):
+# Version of autograd.grad with some differences:
+#   - pytree inputs is allowed (but leaves of the pytree have to all
+#     be tensors)
+#   - if an input is not used as part of derivatives, we will return a
+#     zero-filled tensor for the result
+def _autograd_grad(
+    outputs, inputs, grad_outputs=None, retain_graph=False, create_graph=True
+):
     inputs, inputs_spec = tree_flatten(inputs)
-    result = [torch.zeros_like(inp) for inp in inputs]
-    diff_argnums = tuple(i for i, inp in enumerate(inputs) if inp.requires_grad)
-    inputs = tuple(inputs[i] for i in diff_argnums)
+    diff_inputs = tuple(inp for inp in inputs if inp.requires_grad)
     if grad_outputs is None:
         diff_outputs = tuple(out for out in outputs if out.requires_grad)
     else:
-        something = [(out, go) for out, go in zip(outputs, grad_outputs)
-                     if out.requires_grad]
-        if len(something) == 0:
+        diff_grad_outputs = [
+            (out, go) for out, go in zip(outputs, grad_outputs) if out.requires_grad
+        ]
+        if len(diff_grad_outputs) == 0:
             diff_outputs, grad_outputs = (), ()
         else:
-            diff_outputs, grad_outputs = zip(*something)
-    if len(diff_outputs) == 0:
-        return tuple(torch.zeros_like(inp) for inp in inputs)
-    grad_inputs = torch.autograd.grad(diff_outputs, inputs, grad_outputs,
-                                      retain_graph=retain_graph,
-                                      create_graph=create_graph,
-                                      allow_unused=True)
-    grad_inputs = tuple(torch.zeros_like(inp) if gi is None else gi
-                        for gi, inp in zip(grad_inputs, inputs))
-    for idx, grad_inp in zip(diff_argnums, grad_inputs):
-        result[idx] = grad_inp
+            diff_outputs, grad_outputs = zip(*diff_grad_outputs)
+    grad_inputs = torch.autograd.grad(
+        diff_outputs,
+        diff_inputs,
+        grad_outputs,
+        retain_graph=retain_graph,
+        create_graph=create_graph,
+        allow_unused=True,
+    )
+    result = []
+    grad_inputs_iter = iter(grad_inputs)
+    for inp in inputs:
+        if inp.requires_grad:
+            grad_input = next(grad_inputs_iter)
+            if grad_input is None:
+                result.append(torch.zeros_like(inp))
+            else:
+                result.append(grad_input)
+        else:
+            result.append(torch.zeros_like(inp))
     return tree_unflatten(result, inputs_spec)
 
 
@@ -706,6 +718,7 @@ class TestOperators(TestCase):
         xfail('nn.functional.huber_loss'),
         xfail('nn.functional.poisson_nll_loss'),
         xfail('lu'),
+        skip('linalg.det', 'singular'),  # https://github.com/pytorch/functorch/issues/961
         xfail('cumprod'),
         xfail('lu_solve'),
         xfail('linalg.det'),
@@ -759,8 +772,8 @@ class TestOperators(TestCase):
         xfail('nn.functional.bilinear'),  # trilinear doesn't have batching rule
         xfail('linalg.eigh'),  # _linalg_eigh doesn't have batching rule
         xfail('linalg.eigvalsh'),  # _linalg_eigh doesn't have batching rule
-        xfail('logdet'), # _linalg_slogdet doesn't have batching rule
-        xfail('linalg.slogdet'), # _linalg_slogdet doesn't have batching rule
+        xfail('logdet'),  # _linalg_slogdet doesn't have batching rule
+        xfail('linalg.slogdet'),  # _linalg_slogdet doesn't have batching rule
     }))
     @toleranceOverride({torch.float32: tol(atol=1e-04, rtol=1e-04)})
     def test_vmapjvpall_has_batch_rule(self, device, dtype, op):
@@ -830,6 +843,7 @@ class TestOperators(TestCase):
         xfail('pinverse'),
         xfail('prod'),
         xfail('put'),
+        skip('linalg.det'),  # https://github.com/pytorch/functorch/issues/961
         xfail('quantile'),
         xfail('renorm'),
         xfail('take'),
@@ -1118,6 +1132,7 @@ class TestOperators(TestCase):
                 self.assertFalse(op.supports_fwgrad_bwgrad,
                                  f"{op.name} now supports forward over reverse without a decomposition. " +
                                  "Please remove the decomposition version")
+
                 def is_differentiable(t):
                     return isinstance(t, torch.Tensor) and t.dtype == torch.float32
                 args = (cotangents, *primals)
@@ -1133,7 +1148,7 @@ class TestOperators(TestCase):
                 self.assertEqual(result, expected)
 
     def _make_extremal_inputs(self, shape, device):
-        if shape == None:
+        if shape is None:
             return (None,)
         return (
             torch.full(shape, -1000., device=device),
