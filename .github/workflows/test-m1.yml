@@ -50,7 +50,8 @@ jobs:
           # find test \( -name test\*.py ! -name test_functorch_lagging_op_db.py \) | xargs -I {} -n 1 python3 {} -v || EXIT_STATUS=$?
           
           # Just check vmap, ops and other eager ops
-          conda run -p ${ENV_NAME} python3 -mpip install pytest numpy scipy expecttest
+          conda run -p ${ENV_NAME} conda install pyyaml
+          conda run -p ${ENV_NAME} python3 -mpip install pytest numpy scipy expecttest unittest-xml-reporting networkx av
           conda run -p ${ENV_NAME} --no-capture-output python3 -u -mpytest -vvv test/test_vmap.py test/test_ops.py test/test_eager_transforms.py
 
           conda env remove -p ${ENV_NAME}          
