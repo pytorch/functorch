@@ -11,7 +11,7 @@
 #include <functorch/csrc/TensorWrapper.h>
 #include <functorch/csrc/DynamicLayer.h>
 #include <functorch/csrc/BatchedTensorImpl.h>
-#include <functorch/csrc/VmapTransforms.h>
+#include <functorch/csrc/LegacyVmapTransforms.h>
 #include <functorch/csrc/BatchedFallback.h>
 #include <functorch/csrc/BatchRulesHelper.h>
 #include <functorch/csrc/CompileCache.h>
@@ -380,6 +380,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("_set_vmap_fallback_enabled", &at::functorch::setVmapFallbackEnabled);
   m.def("_is_vmap_fallback_enabled", &at::functorch::isVmapFallbackEnabled);
   m.def("set_inplace_requires_grad_allowed", &at::functorch::setInplaceRequiresGradAllowed);
+  m.def("get_inplace_requires_grad_allowed", &at::functorch::getInplaceRequiresGradAllowed);
   m.def("dlevel", &at::functorch::dlevel, "dlevel");
   m.def("dump_tensor", &at::functorch::dump_tensor, "dump_tensor");
   m.def("reshape_dim_into", &at::functorch::reshape_dim_into);

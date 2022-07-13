@@ -12,7 +12,7 @@
 #include <functorch/csrc/DynamicLayer.h>
 #include <functorch/csrc/TensorWrapper.h>
 #include <functorch/csrc/BatchingMetaprogramming.h>
-#include <functorch/csrc/VmapTransforms.h>
+#include <functorch/csrc/LegacyVmapTransforms.h>
 #include <functorch/csrc/BatchedFallback.h>
 #include <functorch/csrc/Constants.h>
 #include <functorch/csrc/BatchRulesHelper.h>
@@ -22,6 +22,10 @@ namespace functorch {
 
 
 // NOTE: [What is a batching rule?]
+//
+// This files contains batching rules written with the legacy (now-deprecated)
+// batching rule API.
+// Please try to use the new-style batching rule API (see writing_batch_rules.md)
 //
 // A *batching rule* implements the logic of how to call an operator on inputs
 // that have zero or more additional batch dimensions. When one does a vmap, the
@@ -266,11 +270,11 @@ std::vector<Tensor> split_batching_rule(const Tensor& self, int64_t split_size, 
 std::vector<Tensor> split_with_sizes_batching_rule(const Tensor& self, IntArrayRef split_sizes, int64_t dim) {
   if (!participatesInCurrentLevel(self)) {
     c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-    return at::split_with_sizes(self, split_sizes, dim);
+    return split_with_sizes(self, split_sizes, dim);
   }
   auto self_physical = MultiBatchVmapTransform::logicalToPhysical(self);
   auto dim_physical = self_physical.getPhysicalDim(dim);
-  auto result = at::split_with_sizes(self_physical.tensor(), split_sizes, dim_physical);
+  auto result = split_with_sizes(self_physical.tensor(), split_sizes, dim_physical);
   self_physical.getPhysicalToLogicalMap().applyInplace(result);
   return result;
 }

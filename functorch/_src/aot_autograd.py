@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import torch
 import torch.nn as nn
 from torch import Tensor, is_grad_enabled
@@ -7,6 +8,8 @@ import torch.utils._pytree as pytree
 import torch.utils.dlpack
 from torch.nn.utils import _stateless
 from functorch._C import CompileCache
+from functorch.experimental import functionalize
+from . import config
 from .decompositions import register_decomposition
 from .partitioners import default_partition, _get_saved_values, _extract_fwd_bwd_modules, _extract_fwd_bwd_modules_db
 from .named_members_polyfill import _named_parameters, _named_buffers
@@ -50,6 +53,19 @@ def _dict_unflatten(values: List[Any], context: Context) -> Dict[Any, Any]:
 pytree._register_pytree_node(dict, _dict_flatten, _dict_unflatten)
 
 aten = torch.ops.aten
+
+
+@contextmanager
+def preserve_rng_state():
+    rng_state = torch.clone(torch.random.get_rng_state())
+    if torch.cuda.is_available():
+        cuda_rng_state = torch.clone(torch.cuda.get_rng_state())
+    try:
+        yield
+    finally:
+        torch.random.set_rng_state(rng_state)
+        if torch.cuda.is_available():
+            torch.cuda.set_rng_state(cuda_rng_state)
 
 
 def create_joint_forward_backward(fn):
@@ -136,10 +152,11 @@ def create_aot_autograd_function(
     if decompositions is None:
         decompositions = {}
     joint_forward_backward = create_joint_forward_backward(flat_fn)
-
+    # create_joint_forward_backward takes inputs and cotangents as inps
+    # inps: inputs, cotangents: flat_grad_outs
+    j_b = None
     compiled_fw = None
     bw_modules = []
-    fw_module = None
     num_outs = None
     saved_value_names = None
     aot_decompositions = {**aot_autograd_decompositions, **decompositions}
@@ -148,56 +165,82 @@ def create_aot_autograd_function(
         @staticmethod
         @disable_torchdynamo
         def forward(ctx, *flat_tensor_args):
-            ctx.set_materialize_grads(False)
-            nonlocal compiled_fw, num_outs, saved_value_names, fw_module
+            # ctx.set_materialize_grads(False)
+            nonlocal compiled_fw, num_outs, saved_value_names, aot_decompositions, j_b
+            # Disable the JIT Autocast flag to prevent re-autocasting of jitted graph.
+            # TODO - Remove when https://github.com/pytorch/functorch/pull/794 is fixed.
+            old_jit_autocast_flag = torch._C._jit_set_autocast_mode(False)
             if compiled_fw is None:
-                with torch.set_grad_enabled(grad_state):
-                    out = flat_fn(*flat_tensor_args)
-                out = pytree.tree_map(
-                    lambda x: x.detach().contiguous() if isinstance(x, Tensor) else x, out
-                )
-
-                if isinstance(out, (list, tuple)):
-                    num_outs = len(out)
-                else:
-                    num_outs = 1
-
-                joint_inputs = (flat_tensor_args, out)
-                # Need it because autograd.Function disables grad in forward
-                with torch.set_grad_enabled(grad_state):
-                    fx_g = make_fx(joint_forward_backward, aot_decompositions)(
-                        *joint_inputs
+                with preserve_rng_state():
+                    # Set input tensors that require grad to leaves
+                    flat_tensor_args = pytree.tree_map(
+                        lambda x: x.detach().requires_grad_(x.requires_grad)
+                        if isinstance(x, Tensor) else x, flat_tensor_args
                     )
-                # This means the forward and backward graphs are created based on the input fn
-                # However we need to take in grad_out for the saved intermediates as well.
+                    with torch.set_grad_enabled(grad_state):
+                        out = flat_fn(*flat_tensor_args)
+                    out = pytree.tree_map(
+                        lambda x: x.detach().contiguous() if isinstance(x, Tensor) else x, out
+                    )
+
+                    if isinstance(out, (list, tuple)):
+                        num_outs = len(out)
+                    else:
+                        num_outs = 1
+
+                    joint_inputs = (flat_tensor_args, out)
+                    with torch.set_grad_enabled(grad_state):
+                        # This means the forward and backward graphs are created based on the input fn
+                        # However we need to take in grad_out for the saved intermediates as well.
+                        fx_g = make_fx(joint_forward_backward, aot_decompositions)(
+                            *joint_inputs
+                        )
+
+                        if config.use_functionalize:
+                            # Functionalize the foward backward graph. First create a
+                            # fake fn to make functionalize happy
+                            def fake_fn(primals, tangents):
+                                return fx_g(primals, tangents)
+                            fx_g = make_fx(functionalize(fake_fn))(*joint_inputs)
                 fw_module, bw_module, saved_value_nodes = partition_fn(fx_g, joint_inputs)
                 saved_value_names = [node.name for node in saved_value_nodes]
                 compiled_fw = fw_compiler(fw_module, flat_tensor_args)
                 fw_outs = normalize_as_list(compiled_fw(*flat_tensor_args))
+                j_b = create_joint_forward_backward(fw_module)
             else:
                 fw_outs = normalize_as_list(compiled_fw(*flat_tensor_args))
-
-            # print(fw_module.code)
             ctx.num_intermediate = len(fw_outs[num_outs:])
-            ctx.num_inputs = len(flat_tensor_args)
-            to_be_saved = fw_outs[num_outs:] + list(flat_tensor_args) + fw_outs[0:num_outs]
+            to_be_saved = fw_outs[num_outs:] + list(flat_tensor_args)
             ctx.save_for_backward(*to_be_saved)
+            torch._C._jit_set_autocast_mode(old_jit_autocast_flag)
             return tuple(fw_outs)
 
         @staticmethod
         @disable_torchdynamo
         def backward(ctx, *flat_grad_outs):
-            nonlocal bw_modules, saved_value_names, fw_module, num_outs
-            intermediates = ctx.saved_tensors[:ctx.num_intermediate]
-            inputs = ctx.saved_tensors[ctx.num_intermediate:ctx.num_intermediate+ctx.num_inputs]
-            is_grad_enabled = torch.is_grad_enabled()
-            if not is_grad_enabled:
-                input_flat_grad_outs = []
-                for grad in flat_grad_outs:
-                    if grad is not None:
-                        input_flat_grad_outs.append(grad)
+            # Disable the JIT Autocast flag to prevent re-autocasting of jitted graph.
+            # TODO - Remove when https://github.com/pytorch/functorch/pull/794 is fixed.
+            old_jit_autocast_flag = torch._C._jit_set_autocast_mode(False)
+            nonlocal bw_modules, saved_value_names, num_outs, aot_decompositions, j_b
+            with preserve_rng_state():
+                intermediates = ctx.saved_tensors[:ctx.num_intermediate]
+                flat_tensor_args = ctx.saved_tensors[ctx.num_intermediate:]
+                flat_tensor_args = pytree.tree_map(
+                    lambda x: x.detach().requires_grad_(x.requires_grad)
+                    if isinstance(x, Tensor) else x, flat_tensor_args
+                )
+                inp_grad_outs = pytree.tree_map(
+                    lambda x: x.detach() if isinstance(x, Tensor) else x, flat_grad_outs
+                )
+                # inp_grad_outs = flat_grad_outs
                 with torch.set_grad_enabled(grad_state):
-                    fx_g_b = make_fx(joint_forward_backward, aot_decompositions)(inputs, input_flat_grad_outs)
+                    fx_g_b = make_fx(j_b, aot_decompositions)(flat_tensor_args, inp_grad_outs)
+                    if config.use_functionalize:
+                        # Functionalize the foward backward graph. First create a
+                        # fake fn to make functionalize happy
+                        def fake_fn(primals, tangents):
+                            return fx_g(primals, tangents)
+                        fx_g = make_fx(functionalize(fake_fn))(flat_tensor_args, inp_grad_outs)
                 saved_value_nodes = _get_saved_values(fx_g_b, saved_value_names)
                 assert len(saved_value_nodes) <= len(saved_value_names)
                 fw_module_b, bw_module_b, saved_values_new = _extract_fwd_bwd_modules(fx_g_b, saved_value_nodes)
@@ -212,46 +255,20 @@ def create_aot_autograd_function(
                         new_intermediates.append(intermediates[j])
                         j+=1
                     intermediates = new_intermediates
-            # else:
-            #     input_flat_grad_outs = flat_grad_outs
-            #     # create_joint_forward_backward takes inputs and cotangents as inps
-            #     # inps: inputs, cotangents: flat_grad_outs
-            #     j_b = create_joint_forward_backward(ctx.fw_module)
-            #     # setting grad is not needed
-            #     with torch.set_grad_enabled(grad_state):
-            #         fx_g_b = make_fx(j_b, aot_decompositions)(inputs, input_flat_grad_outs)
-            #     saved_value_nodes = _get_saved_values(fx_g_b, saved_value_names)
-            #     # print(saved_value_nodes)
-            #     # print(saved_value_names)
-            #     # assert len(saved_value_nodes) == len(saved_value_names)
-            #     fw_module_b, bw_module_b, saved_values_new = _extract_fwd_bwd_modules_db(fx_g_b, saved_value_nodes)
-            #     # print(fx_g_b.code, ctx.fw_module.code, fw_module_b.code, bw_module_b.code)
-            #     # assert fw_module_b.code == fw_module.code
-            #     # print(len(sew), len(saved_value_names))
-            #     if len(saved_values_new) != len(saved_value_names):
-            #         new_intermediates = []
-            #         # Forward saves more intermediates than needed
-            #         assert len(saved_values_new) < len(saved_value_names)
-            #         for node in saved_values_new:
-            #             j = 0
-            #             while node.name != saved_value_names[j]:
-            #                 j+=1
-            #             new_intermediates.append(intermediates[j])
-            #             j+=1
-            #         intermediates = new_intermediates
 
-            # This is needed because aot function caching uses function id right now
-            bw_module_fn = None
-            for elem in bw_modules:
-                if elem.code == bw_module_b.code:
-                    bw_module_fn = elem
-                    break
-            if bw_module_fn is None:
-                bw_modules.append(bw_module_b)
-                bw_module_fn = bw_module_b
+                # This is needed because aot function caching uses function id right now
+                bw_module_fn = None
+                for elem in bw_modules:
+                    if elem.code == bw_module_b.code:
+                        bw_module_fn = elem
+                        break
+                if bw_module_fn is None:
+                    bw_modules.append(bw_module_b)
+                    bw_module_fn = bw_module_b
 
-            f = aot_function(bw_module_fn, bw_compiler, bw_compiler, partition_fn, aot_decompositions)
-            out = f(*intermediates, *input_flat_grad_outs)
+                f = aot_function(bw_module_fn, bw_compiler, bw_compiler, partition_fn, aot_decompositions)
+                out = f(*intermediates, *flat_grad_outs)
+            torch._C._jit_set_autocast_mode(old_jit_autocast_flag)
             return tuple(normalize_as_list(out))
 
     def return_fn(*args, **kwargs):
@@ -482,9 +499,6 @@ def aot_function(
             hasher_type,
             *flat_args_for_cache,
         )
-        # print("fn_id: ", fn_id)
-        # print("size: ", compile_cache.size())
-        # print("num_tensor_args: ", num_tensor_args)
         # Compile the function and save it in the cache
         if cached_res is None:
             # Save the args_spec for flat_tensor_args to unflatten while tracing
