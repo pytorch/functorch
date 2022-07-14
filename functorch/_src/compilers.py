@@ -15,6 +15,7 @@ import random
 import copy
 import logging
 
+
 # These canonicalizations are needed here (and not decompositions), as the ops
 # we're trying to canonicalize to CompositeImplicitAutograd.
 def _canonicalize(fx_g):
@@ -411,7 +412,6 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
         return input_meta
 
     def graph_saver_helper(gm_to_save, args, type_name):
-        
         global graph_index
         if len(gm_to_save.graph.nodes) == 0:
             logging.log(logging.WARNING, f"No nodes in graph {current_name}_{type_name}_{graph_index}.")
@@ -422,7 +422,7 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
         gm.recompile()
 
         input_meta = get_input_meta(args)
-        
+
         isExist = os.path.exists(f"{folder_name}/{current_name}")
         if not isExist:
             os.makedirs(f"{folder_name}/{current_name}")
@@ -446,7 +446,7 @@ def _save_fx_default(current_name, folder_name, dump_example_input, gm, example_
         return default_partition(gm, joint_args)
 
     return aot_module_simplified(gm, fw_compiler=graph_saver_forward,
-                                 bw_compiler=graph_saver_backward, 
+                                 bw_compiler=graph_saver_backward,
                                  partition_fn=graph_saver_joint,
                                  decompositions=default_decompositions)
 
