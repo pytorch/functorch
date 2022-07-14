@@ -6,6 +6,7 @@
 
 #include <functorch/csrc/BatchRulesHelper.h>
 #include <iostream>
+#include "c10/core/SymIntArrayRef.h"
 #include <ATen/Operators.h>
 #include <functorch/csrc/PlumbingHelper.h>
 #include <functorch/csrc/BatchedFallback.h>
@@ -435,6 +436,13 @@ std::tuple<Tensor, optional<int64_t>> view_batching_rule(
   return std::make_tuple(self_.view(size_), 0);
 }
 
+std::tuple<Tensor, optional<int64_t>> view_symint_batching_rule(
+    const Tensor &self, optional<int64_t> self_bdim, c10::SymIntArrayRef size)
+{
+  return self.view(self_bdim, c10::asIntArrayRefSlow(size));
+}
+
+
 template <typename F, F Func>
 std::tuple<Tensor, optional<int64_t>> expand_batch_rule(
     const Tensor &self, optional<int64_t> self_bdim, IntArrayRef size, bool implicit)
@@ -541,6 +549,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT2(transpose, int, transpose_int_batch_rule);
   VMAP_SUPPORT(diag_embed, diag_embed_batch_rule);
   m.impl("expand.SymInt", expand_symint_decomp_hack);
+  m.impl("view.SymInt", view_symint_batching_rule);
 }
 
 }}
