@@ -3184,8 +3184,8 @@ def forward(self) -> torch.Tensor:
 
 
 def forward(self, a_1, b_1) -> torch.Tensor:
-    index = torch.ops.aten.index(a_1, [b_1]);  a_1 = b_1 = None
-    return index
+    index_tensor = torch.ops.aten.index.Tensor(a_1, [b_1]);  a_1 = b_1 = None
+    return index_tensor
     """)
 
     def test_functionalize_optional_tensorlist2(self, device):
@@ -3202,11 +3202,11 @@ def forward(self, a_1, b_1) -> torch.Tensor:
 
 
 def forward(self, a_1, b_1) -> torch.Tensor:
-    unbind = torch.ops.aten.unbind(b_1);  b_1 = None
-    getitem = unbind[0]
-    getitem_1 = unbind[1];  unbind = None
-    index = torch.ops.aten.index(a_1, [getitem, getitem_1]);  a_1 = getitem = getitem_1 = None
-    return index
+    unbind_int = torch.ops.aten.unbind.int(b_1);  b_1 = None
+    getitem = unbind_int[0]
+    getitem_1 = unbind_int[1];  unbind_int = None
+    index_tensor = torch.ops.aten.index.Tensor(a_1, [getitem, getitem_1]);  a_1 = getitem = getitem_1 = None
+    return index_tensor
     """)
 
 
