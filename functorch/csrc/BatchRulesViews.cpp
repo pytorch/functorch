@@ -11,6 +11,7 @@
 #include <functorch/csrc/PlumbingHelper.h>
 #include <functorch/csrc/BatchedFallback.h>
 #include <ATen/core/dispatch/Dispatcher.h>
+#include <ATen/core/TensorBody.h>
 #include <c10/core/SymIntArrayRef.h>
 #include <c10/util/SmallBuffer.h>
 #include <ATen/InferSize.h>
@@ -439,13 +440,7 @@ std::tuple<Tensor, optional<int64_t>> view_batching_rule(
 
 Tensor view_symint_decomposition(const Tensor& self,
             c10::SymIntArrayRef size) {
-  return at::view(self, c10::asIntArrayRefSlow(size));
-}
-
-std::tuple<Tensor, optional<int64_t>> view_symint_batching_rule(
-    const Tensor &self, optional<int64_t> self_bdim, c10::SymIntArrayRef size)
-{
-  return self.view(self_bdim, c10::asIntArrayRefSlow(size));
+  return self.view( c10::asIntArrayRefSlow(size));
 }
 
 
