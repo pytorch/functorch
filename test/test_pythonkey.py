@@ -113,6 +113,7 @@ class TestPythonKey(TestCase):
     def test_make_fx_no_decompose(self, device):
         # FIXME
         return self.skipTest("error: maximum recursion reached")
+
         def f(x):
             return torch.tanh(x).sum()
 
@@ -321,7 +322,6 @@ class TestEagerFusionOpInfo(TestCase):
         xfail('diag_embed'),
         xfail('linalg.householder_product'),
         xfail('logit'),
-        xfail('logdet'),
         xfail('matrix_exp'),
         xfail('trapezoid'),
         xfail('trapz'),
@@ -500,7 +500,7 @@ class TestPartitioning(TestCase):
         self.assertEqual(get_num_ins_outs(fw_graph), (1, 3))
 
         ins, outs = get_ins_outs(fw_graph)
-        self.assertEqual(outs[1].target, torch.ops.aten.mm)
+        self.assertEqual(outs[1].target, torch.ops.aten.mm.default)
 
 
 class TestContiguous(TestCase):
