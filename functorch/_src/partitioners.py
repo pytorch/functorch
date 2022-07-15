@@ -7,7 +7,7 @@ import copy
 import os
 from torch.fx.passes import graph_drawer
 from typing import Tuple
-from .compile_utils import fx_graph_cse, strip_overloads
+from .compile_utils import fx_graph_cse, get_aten_target
 
 
 class InvalidNodeBase(object):
@@ -227,7 +227,6 @@ def min_cut_rematerialization_partition(
     except ImportError:
         raise RuntimeError("Need networkx installed to perform smart recomputation heuristics")
 
-    strip_overloads(joint_module)
     joint_module.graph.eliminate_dead_code()
     joint_module.recompile()
     fx_g = joint_module.graph
@@ -270,7 +269,7 @@ def min_cut_rematerialization_partition(
 
     aten = torch.ops.aten
 
-    pointwise_ops = [aten.add, aten.sub, aten.div, aten.atan2, aten.mul, aten.max, aten.min, aten.pow, aten.remainder, aten.fmod, aten.__and__, aten.__or__, aten.__xor__, aten.__lshift__, aten.__rshift__, aten.eq, aten.ne, aten.ge, aten.gt, aten.le, aten.lt, aten.abs, aten.bitwise_not, aten.ceil, aten.floor, aten.frac, aten.neg, aten.relu, aten.round, aten.silu, aten.trunc, aten.log, aten.log10, aten.log1p, aten.log2, aten.lgamma, aten.exp, aten.expm1, aten.erf, aten.erfc, aten.cos, aten.acos, aten.cosh, aten.sin, aten.asin, aten.sinh, aten.tan, aten.atan, aten.tanh, aten.atanh, aten.sqrt, aten.rsqrt,  aten.reciprocal, aten.sigmoid, aten.softplus, aten.threshold, aten.threshold_backward, aten.clamp, aten.where, aten.lerp, aten.addcmul, aten.gelu, aten.gelu_backward]  # noqa: E501
+    pointwise_ops = [aten.add, aten.sub, aten.div, aten.atan2, aten.mul, aten.max, aten.min, aten.pow, aten.remainder, aten.fmod, aten.__and__, aten.__or__, aten.__xor__, aten.__lshift__, aten.__rshift__, aten.eq, aten.ne, aten.ge, aten.gt, aten.le, aten.lt, aten.abs, aten.bitwise_not, aten.ceil, aten.floor, aten.frac, aten.neg, aten.relu, aten.round, aten.silu, aten.trunc, aten.log, aten.log10, aten.log1p, aten.log2, aten.lgamma, aten.exp, aten.expm1, aten.erf, aten.erfc, aten.cos, aten.acos, aten.cosh, aten.sin, aten.asin, aten.sinh, aten.tan, aten.atan, aten.tanh, aten.atanh, aten.sqrt, aten.rsqrt, aten.reciprocal, aten.sigmoid, aten.softplus, aten.threshold, aten.threshold_backward, aten.clamp, aten.where, aten.lerp, aten.addcmul, aten.gelu, aten.gelu_backward]  # noqa: E501
     misc_ops = [aten.to, aten.type_as, operator.getitem]
 
     reduction_ops = [aten.softmax, aten._softmax, aten._softmax_backward_data, aten.sum, aten.mean, aten._grad_sum_to_size, aten.sum_to_size, aten.amax]  # noqa: E501
@@ -299,22 +298,22 @@ def min_cut_rematerialization_partition(
 
     def ban_recomputation(node):
         if AGGRESSIVE_RECOMPUTATION:
-            return (node.op == 'call_function' and node.target in unrecomputable_ops)
+            return (node.op == 'call_function' and get_aten_target(node) in unrecomputable_ops)
         else:
             if node.op != 'call_function':
                 return False
-            if node.target not in recomputable_ops:
+            if get_aten_target(node) not in recomputable_ops:
                 return True
             # If the output of the reduction is 4x smaller (arbitrary choice),
             # then we don't allow recomputation.
-            if node.target in reduction_ops:
+            if get_aten_target(node) in reduction_ops:
                 input_tensors_size = sum(_size_of(i.meta['tensor_meta']) for i in node.args if isinstance(i, fx.Node))
                 output_size = _size_of(node.meta['tensor_meta'])
                 return (output_size * 4 < input_tensors_size)
             return False
 
     def is_fusible(a, b):
-        return a.target in fusible_ops and b.target in fusible_ops
+        return get_aten_target(a) in fusible_ops and get_aten_target(b) in fusible_ops
 
     def is_materialized(node):
         if node.op == 'placeholder':
@@ -339,17 +338,17 @@ def min_cut_rematerialization_partition(
             continue
 
         if node in required_bw_nodes:
-            nx_graph.add_edge(node.name+"_in", "sink", capacity=math.inf)
+            nx_graph.add_edge(node.name + "_in", "sink", capacity=math.inf)
             continue
 
         if node.op == 'placeholder' and "primals" in node.target:
-            nx_graph.add_edge("source", node.name+"_in", capacity=math.inf)
+            nx_graph.add_edge("source", node.name + "_in", capacity=math.inf)
 
         # If a node can't be recomputed (too expensive or involves randomness),
         # we prevent it from being recomputed by adding an inf edge to the source
         # We only need to ban nodes in the fw pass, as those are the only ones that would be recomputed.
         if ban_recomputation(node) and node in required_fw_nodes:
-            nx_graph.add_edge("source", node.name+"_in", capacity=math.inf)
+            nx_graph.add_edge("source", node.name + "_in", capacity=math.inf)
 
         if 'tensor_meta' not in node.meta:
             weight = math.inf
@@ -357,9 +356,9 @@ def min_cut_rematerialization_partition(
             weight = get_node_weight(node)
 
         # Creates the weights on the "node" edge
-        nx_graph.add_edge(node.name+"_in", node.name+"_out", capacity=weight)
+        nx_graph.add_edge(node.name + "_in", node.name + "_out", capacity=weight)
         for user in node.users:
-            nx_graph.add_edge(node.name+"_out", user.name+"_in", capacity=math.inf)
+            nx_graph.add_edge(node.name + "_out", user.name + "_in", capacity=math.inf)
 
     cut_value, partition = nx.minimum_cut(nx_graph, "source", "sink")
     reachable, non_reachable = partition

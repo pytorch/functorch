@@ -5,6 +5,7 @@ from torch.testing._internal.common_utils import TestCase, run_tests
 
 
 class TestMinifier(TestCase):
+    # https://github.com/pytorch/functorch/issues/913
     def test_has_mul_minifier(self):
         def failing_f(x, y):
             y = y / 3
@@ -15,7 +16,7 @@ class TestMinifier(TestCase):
         failing_f = make_fx(failing_f)(*inps)
 
         def pass_checker(fx_g, inps):
-            return (torch.ops.aten.mul in set([i.target for i in fx_g.graph.nodes]))
+            return (torch.ops.aten.mul.Tensor in set([i.target for i in fx_g.graph.nodes]))
 
         min_f, inps = minifier(failing_f, inps, pass_checker)
         assert len(min_f.graph.nodes) == 4

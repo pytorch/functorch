@@ -365,7 +365,7 @@ class TestGradTransform(TestCase):
         vjp_fn(result)
 
     def test_conj_bit(self):
-        x = torch.tensor(1+1j)
+        x = torch.tensor(1 + 1j)
 
         def foo(x):
             assert not x.is_conj()
@@ -1647,8 +1647,8 @@ class TestHessian(TestCase):
         A = 0.1 * torch.randn(b, d, d, device=device)
 
         def loss(A, x1, x2):
-            x2_hat = (A@(x1.T)).T
-            res = x2-x2_hat
+            x2_hat = (A @ (x1.T)).T
+            res = x2 - x2_hat
             res_sqr = res**2
             return res_sqr.sum()
 
@@ -2528,7 +2528,7 @@ class TestExamplesCorrectness(TestCase):
             else:
                 loss = inner_loss(params, x1, y1)
                 grads = torch.autograd.grad(loss, params, create_graph=True)
-            new_params = [(params[i] - alpha*grads[i]) for i in range(len(params))]
+            new_params = [(params[i] - alpha * grads[i]) for i in range(len(params))]
 
             v_f = net(new_params, x2)
             return mse_loss(v_f, y2)
@@ -2537,7 +2537,7 @@ class TestExamplesCorrectness(TestCase):
 
         # Compute with vmap+grad
         inner_losses = vmap(partial(get_loss_for_task, True))(task[0], task[1], task[2], task[3])
-        loss2 = sum(inner_losses)/len(inner_losses)
+        loss2 = sum(inner_losses) / len(inner_losses)
         result_grads = torch.autograd.grad(loss2, params)
 
         # Compute without vmap+grad
@@ -2545,7 +2545,7 @@ class TestExamplesCorrectness(TestCase):
             get_loss_for_task(False, task[0][i], task[1][i], task[2][i], task[3][i])
             for i in range(num_tasks)
         ]
-        loss2 = sum(inner_losses)/len(inner_losses)
+        loss2 = sum(inner_losses) / len(inner_losses)
         expected_grads = torch.autograd.grad(loss2, params)
 
         self.assertEqual(result_grads, expected_grads)
@@ -2946,7 +2946,6 @@ class TestFunctionalize(TestCase):
             return x
         self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
 
-
     def test_inplace_view(self, device):
 
         def f(x: torch.Tensor) -> torch.Tensor:
@@ -2985,6 +2984,63 @@ class TestFunctionalize(TestCase):
             z2.add_(tmp)
             return x
         self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
+
+    # Ensure functionalize works with List[Optional[Tensor]] arguments.
+    # See the fix / discussion at https://github.com/pytorch/pytorch/pull/76085
+    def test_functionalize_opt_tensor_list(self, device):
+
+        def f(x: torch.Tensor, indices: torch.Tensor) -> torch.Tensor:
+            return x[indices]
+
+        inpta = torch.ones(4, device=device)
+        inptb = torch.arange(2, device=device)
+        out1 = f(inpta, inptb)
+        out2 = functionalize(f)(inpta, inptb)
+        self.assertEqual(out1, out2)
+        out = make_fx(functionalize(f))(inpta, inptb)
+        self.assertExpectedInline((out.code), """\
+
+
+
+def forward(self, x_1, indices_1) -> torch.Tensor:
+    index_tensor = torch.ops.aten.index.Tensor(x_1, [indices_1]);  x_1 = indices_1 = None
+    return index_tensor
+    """)
+
+    # Ensure grad(functionalize(f)) works
+    def test_functionalize_grad(self, device):
+
+        def f(x: torch.Tensor) -> torch.Tensor:
+            tmp = torch.ones(2, device=device)
+            y = x + x
+            z = y.view(4, 2)
+            y.add_(tmp)
+            return z.sum()
+
+        inpt1 = torch.ones(4, 2, device=device)
+        inpt2 = torch.ones(4, 2, device=device)
+        out1 = grad(f)(inpt1)
+        out2 = grad(functionalize(f))(inpt2)
+        self.assertEqual(out1, out2)
+        self.assertEqual(inpt1, inpt2)
+
+    def test_vmap_functionalize_jvp(self, device):
+
+        def f(x: torch.Tensor) -> torch.Tensor:
+            y = x + x
+            z = y.view(-1)
+            y.add_(1)
+            return z
+
+        def jvp_wrapper(x, t):
+            return jvp(f, (x,), (t,),)
+
+        x = torch.randn(2, 3, device=device)
+        t = torch.randn(2, 3, device=device)
+
+        out1 = vmap(jvp_wrapper)(x, t)
+        out2 = vmap(functionalize(jvp_wrapper))(x, t)
+        self.assertEqual(out1, out2)
 
     def test_functionalize_fx_simple(self, device):
 
@@ -3112,6 +3168,47 @@ def forward(self) -> torch.Tensor:
     _tensor_constant0 = self._tensor_constant0
     return _tensor_constant0
     """)
+
+    def test_functionalize_optional_tensorlist1(self, device):
+
+        def f(a, b) -> torch.Tensor:
+            # at::index has OptionalTensorList arguments,
+            # test that here
+            return a[b]
+
+        a = torch.arange(4).reshape(2, 2)
+        b = torch.ones(2, dtype=torch.long)
+        out = make_fx(functionalize(f))(a, b)
+        self.assertExpectedInline(out.code, """\
+
+
+
+def forward(self, a_1, b_1) -> torch.Tensor:
+    index_tensor = torch.ops.aten.index.Tensor(a_1, [b_1]);  a_1 = b_1 = None
+    return index_tensor
+    """)
+
+    def test_functionalize_optional_tensorlist2(self, device):
+
+        def f(a, b) -> torch.Tensor:
+            # See https://github.com/pytorch/pytorch/pull/77846
+            return torch.ops.aten.index(a, b)
+
+        a = torch.arange(4).reshape(2, 2)
+        b = torch.ones(2, dtype=torch.long)
+        out = make_fx(functionalize(f))(a, b)
+        self.assertExpectedInline(out.code, """\
+
+
+
+def forward(self, a_1, b_1) -> torch.Tensor:
+    unbind_int = torch.ops.aten.unbind.int(b_1);  b_1 = None
+    getitem = unbind_int[0]
+    getitem_1 = unbind_int[1];  unbind_int = None
+    index_tensor = torch.ops.aten.index.Tensor(a_1, [getitem, getitem_1]);  a_1 = getitem = getitem_1 = None
+    return index_tensor
+    """)
+
 
 
 only_for = ("cpu", "cuda")

@@ -141,8 +141,8 @@ class TestMemoryEfficientOpAuthoring(TestCase):
             mean = torch.mean(x, dim, keepdim=True)
             centered = x - mean
             var = torch.sum(centered * centered, dim, keepdim=True) / x.size(-1)
-            rvar = 1./torch.sqrt(var+eps)
-            normed = (x-mean) * rvar
+            rvar = 1. / torch.sqrt(var + eps)
+            normed = (x - mean) * rvar
             return normed * weight + bias
 
         bs = 10
@@ -249,13 +249,11 @@ class NoChangeTestCase(TestCase):
 
     def test_rand_n(self):
         def f(x):
-            g_cpu = torch.Generator()
-            g_cpu.manual_seed(2147483647)
-            a = torch.randn(4, generator=g_cpu)
-            b = torch.randn(4, generator=g_cpu)
+            a = torch.randn(4)
+            b = torch.randn(4)
             return a + b
         t = torch.randn(2, 2)
-        check(f, t, 0)
+        check(f, t, 0, check_val=False)
 
 
 class ReduceTestCase(TestCase):
