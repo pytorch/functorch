@@ -28,6 +28,61 @@ init_command = [
     'pyflakes==2.2.0',
 ]
 
+[[linter]]
+code = 'NEWLINE'
+include_patterns=['**']
+exclude_patterns=[]
+command = [
+    'python3',
+    'tools/lints/newlines_linter.py',
+    '--',
+    '@{{PATHSFILE}}',
+]
+is_formatter = true
+
+[[linter]]
+code = 'SPACES'
+include_patterns = ['**']
+exclude_patterns = []
+command = [
+    'python3',
+    'tools/lint/grep_linter.py',
+    '--pattern=[[:blank:]]$',
+    '--linter-name=SPACES',
+    '--error-name=trailing spaces',
+    '--replace-pattern=s/[[:blank:]]+$//',
+    """--error-description=\
+        This line has trailing spaces; please remove them.\
+    """,
+    '--',
+    '@{{PATHSFILE}}'
+]
+
+[[linter]]
+code = 'TABS'
+include_patterns = ['**']
+exclude_patterns = [
+    '**/*.svg',
+    '**/*Makefile',
+    '**/.gitattributes',
+    '**/.gitmodules',
+    '.lintrunner.toml',
+]
+command = [
+    'python3',
+    'tools/lint/grep_linter.py',
+    # @lint-ignore TXT2
+    '--pattern= ',
+    '--linter-name=TABS',
+    '--error-name=saw some tabs',
+    '--replace-pattern=s/\t/    /',
+    """--error-description=\
+        This line has tabs; please replace them with spaces.\
+    """,
+    '--',
+    '@{{PATHSFILE}}'
+]
+
 # [[linter]]
 # code = 'BLACK'
 # include_patterns = [

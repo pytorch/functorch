@@ -90,6 +90,10 @@ def _wrap_tensor_for_grad(maybe_tensor, level):
 
 
 def _wrap_all_tensors(tensor_pytree, level):
+    # values, spec = tree_flatten(tensor_pytree)
+    # fn = partial(_wrap_tensor_for_grad, level=level)
+    # result = [fn(v) for v in values]
+    # return tree_unflatten(result, spec)
     return tree_map(partial(_wrap_tensor_for_grad, level=level), tensor_pytree)
 
 
