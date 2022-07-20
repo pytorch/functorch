@@ -274,6 +274,7 @@ allowlist = {
     'gcd',
     'igamma',
     'igammac',
+    'linalg_householder_product',
     'logaddexp',
     'logaddexp2',
     'lcm',
@@ -566,6 +567,7 @@ allowlist = {
     'slice.Tensor',
     'transpose.int',
     'diag_embed',
+    'searchsorted.Tensor',
 }
 
 
