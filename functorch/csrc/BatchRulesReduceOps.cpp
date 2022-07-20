@@ -20,6 +20,10 @@ Tensor sum_decomp(
   return at::sum(self, range(0, self.dim()), false, dtype);
 }
 
+Tensor sum_symint_decomp(const Tensor& input_t, c10::SymIntArrayRef dim, bool keepdim, optional<ScalarType> opt_dtype) {
+  return at::sum(input_t, c10::asIntArrayRefSlow(dim), keepdim, opt_dtype);
+}
+
 Tensor mean_decomp(
     const Tensor& self, optional<ScalarType> dtype) {
   return at::mean(self, range(0, self.dim()), false, dtype);
@@ -280,7 +284,96 @@ std::tuple<Tensor, optional<int64_t>, Tensor, optional<int64_t>> aminmax_batchin
   return std::make_tuple(min, 0, max, 0);
 }
 
+std::tuple<Tensor,optional<int64_t>> searchsorted_batch_rule(
+    const Tensor& sorted_sequence,
+    optional<int64_t> sorted_sequence_bdim,
+    const Tensor& self,
+    optional<int64_t> self_bdim,
+    bool out_int32,
+    bool right,
+    c10::optional<c10::string_view> side,
+    const c10::optional<Tensor>& sorter,
+    c10::optional<int64_t> sorter_bdim) {
+  auto buckets_logical_rank = rankWithoutBatchDim(sorted_sequence, sorted_sequence_bdim);
+
+  // Preprocess sorter and sorted_sequence.
+  // If they both exist, and only one has a bdim, then we need to make sure both do.
+  // After this step, we can forget about sorter for a bit.
+  auto buckets = moveBatchDimToFront(sorted_sequence, sorted_sequence_bdim);
+  optional<int64_t> buckets_bdim;
+  if (sorted_sequence_bdim.has_value()) {
+    buckets_bdim = 0;
+  }
+
+  optional<Tensor> sorter_;
+  if (sorter.has_value() && sorter->defined()) {
+    auto sorter__ = moveBatchDimToFront(*sorter, sorter_bdim);
+    if (sorted_sequence_bdim.has_value() != sorter_bdim.has_value()) {
+      auto bdim_size = get_bdim_size2(
+          sorted_sequence, sorted_sequence_bdim,
+          sorter.value(), sorter_bdim);
+      sorter__ = ensure_has_bdim(sorter__, sorter_bdim.has_value(), bdim_size);
+      buckets = ensure_has_bdim(buckets, sorted_sequence_bdim.has_value(), bdim_size);
+      buckets_bdim = 0;
+    }
+    sorter_ = sorter__;
+  }
+
+  // Two cases: buckets_logical_rank is 1, or it is greater than 1.
+  // searchsorted is basically two operators with different semantics jammed
+  // into one
+  if (buckets_logical_rank > 1) {
+    // B<...>D, B<...>V -> no change
+    if (buckets_bdim.has_value() && self_bdim.has_value()) {
+      auto self_ = moveBatchDimToFront(self, self_bdim);
+      auto result = at::searchsorted(buckets, self_, out_int32, right, side, sorter_);
+      return std::make_tuple(result, 0);
+    }
+    // B<...>D, <...>V -> B<...>D, B<...>V
+    if (buckets_bdim.has_value() && !self_bdim.has_value()) {
+      auto self_ = moveBatchDimToFront(self, self_bdim);
+      self_ = ensure_has_bdim(self_, self_bdim.has_value(), buckets.size(0));
+      auto result = at::searchsorted(buckets, self_, out_int32, right, side, sorter_);
+      return std::make_tuple(result, 0);
+    }
+    // <...>D, B<...>V -> <...>D, <...>(BV)
+    if (!buckets_bdim.has_value() && self_bdim.has_value()) {
+      auto bdim_size = self.size(*self_bdim);
+      auto self_ = reshape_dim_into(*self_bdim, -1, self);
+      auto result = at::searchsorted(buckets, self_, out_int32, right, side, sorter_);
+      result = reshape_dim_outof(-1, bdim_size, result);
+      return std::make_tuple(result, result.dim() - 2);
+    }
+    TORCH_INTERNAL_ASSERT(false);
+  }
+  // buckets_logical_rank == 1 case.
+  // BD, B* -> BD, B flat(*)
+  if (buckets_bdim.has_value() && self_bdim.has_value()) {
+    auto self_ = moveBatchDimToFront(self, self_bdim);
+    self_ = self_.flatten(1);
+    auto result = at::searchsorted(buckets, self_, out_int32, right, side, sorter_);
+    result = result.view(self_.sizes());
+    return std::make_tuple(result, 0);
+  }
+  // BD, * -> BD, flat(*) -> BD, B flat(*)
+  if (buckets_bdim.has_value() && !self_bdim.has_value()) {
+    auto bdim_size = buckets.size(*buckets_bdim);
+    auto self_ = ensure_has_bdim(self, false, bdim_size);
+    self_ = self_.flatten(1);
+    auto result = at::searchsorted(buckets, self_, out_int32, right, side, sorter_);
+    result = result.view(self_.sizes());
+    return std::make_tuple(result, 0);
+  }
+  // D, B* -> no change
+  if (!buckets_bdim.has_value() && self_bdim.has_value()) {
+    auto result = at::searchsorted(buckets, self, out_int32, right, side, sorter_);
+    return std::make_tuple(result, self_bdim);
+  }
+  TORCH_INTERNAL_ASSERT(false);
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
+  VMAP_SUPPORT2(searchsorted, Tensor, searchsorted_batch_rule);
   REDUCTION_BOXED(_fft_r2c);
   REDUCTION_BOXED(_fft_c2r);
   REDUCTION_BOXED(_fft_c2c);
@@ -333,7 +426,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   REDUCTION_BOXED(_log_softmax);
   REDUCTION_BOXED_ARGS(rot90, 2);
   VMAP_SUPPORT(aminmax, aminmax_batching_rule);
-
+  m.impl("sum.SymInt", sum_symint_decomp);
   VMAP_SUPPORT(_log_softmax_backward_data, _log_softmax_backward_batch_rule);
   VMAP_SUPPORT(_softmax_backward_data, _softmax_backward_batch_rule);
 }
