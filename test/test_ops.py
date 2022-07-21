@@ -553,7 +553,6 @@ class TestOperators(TestCase):
         skip('linalg.svdvals'),  # # really annoying thing where it passes correctness check but not has_batch_rule
         xfail('__getitem__', ''),  # dynamic error
         xfail('_masked.prod'),  # calls aten::item
-        xfail('eig'),  # calls aten::item
         xfail('linalg.eig'),  # Uses aten::allclose
         xfail('linalg.householder_product'),  # needs select_scatter
         xfail('matrix_exp'),  # would benefit from narrow_scatter
