@@ -48,7 +48,8 @@ def _get_nested_attr(obj: nn.Module, names: List[str]) -> None:
 
 def extract_weights(model):
     for module_name, m in model.named_modules():
-        for param_name, p in m.named_parameters(recurse=False):
+        for param_name, p in list(m.named_parameters(recurse=False)):
+            delattr(m, param_name)
             setattr(m, param_name, None)
             yield (module_name, m, param_name, p)
 
@@ -76,7 +77,8 @@ def _swap_state(mod: nn.Module, split_names: List[str], elems):
 
 def extract_buffers(model):
     for module_name, m in model.named_modules():
-        for buffer_name, b in m.named_buffers(recurse=False):
+        for buffer_name, b in list(m.named_buffers(recurse=False)):
+            delattr(m, buffer_name)
             setattr(m, buffer_name, None)
             yield (module_name, m, buffer_name, b)
 
@@ -218,6 +220,7 @@ class FunctionalModule(nn.Module):
         old_params = []
         for module, param_name, param in zip(self.param_modules, self.param_names, params):
             old_params.append(getattr(module, param_name))
+            delattr(module, param_name)
             setattr(module, param_name, param)
 
         try:
@@ -297,10 +300,12 @@ class FunctionalModuleWithBuffers(nn.Module):
         old_params = []
         for module, param_name, param in zip(self.param_modules, self.param_names, params):
             old_params.append(getattr(module, param_name))
+            delattr(module, param_name)
             setattr(module, param_name, param)
         old_buffers = []
         for module, buffer_name, buffer in zip(self.buffer_modules, self.buffer_names, buffers):
             old_buffers.append(getattr(module, buffer_name))
+            delattr(module, buffer_name)
             setattr(module, buffer_name, buffer)
 
         try:
