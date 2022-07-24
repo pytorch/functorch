@@ -196,67 +196,6 @@ def make_split_names(lst):
     return [name.split('.') for name in lst]
 
 
-class FunctionalModule(nn.Module):
-    """
-    This is the callable object returned by :func:`make_functional_with_buffers`.
-    """
-
-    def __init__(self, stateless_model, param_module_names, modules, param_names):
-        super(FunctionalModule, self).__init__()
-        self.stateless_model = stateless_model
-        self.param_modules = modules
-        self.param_names = param_names
-        self.param_module_names = param_module_names
-
-    @staticmethod
-    def _create_from(model):
-        # TODO: We don't need to copy the model to create a stateless copy
-        model_copy = copy.deepcopy(model)
-        param_container = list(extract_weights(model_copy))
-        if len(param_container):
-            module_names, param_modules, param_names, params = zip(*param_container)
-        else:
-            module_names, param_modules, param_names, params = tuple(), tuple(), tuple(), tuple()
-        if disable_autograd_tracking:
-            for param in params:
-                param.requires_grad_(False)
-
-        return (
-            FunctionalModule(model_copy, module_names, param_modules, param_names),
-            params,
-        )
-
-    def forward(self, params, *args, **kwargs):
-        old_params = _swap_state(self.param_modules, self.param_names, params)
-
-        try:
-            return self.stateless_model(*args, **kwargs)
-        finally:
-            # Remove the loaded state on self.stateless_model
-            for module, param_name, param in zip(self.param_modules, self.param_names, old_params):
-                old_params.append(getattr(module, param_name))
-                setattr(module, param_name, param)
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        state["param_modules"] = None
-        return state
-
-    def __setstate__(self, state):
-        state["param_modules"] = []
-        out = super().__setstate__(state)
-        for module_name in self.param_module_names:
-            found = False
-            for other_name, module in self.stateless_model.named_modules():
-                if other_name == module_name:
-                    found = True
-                    state["param_modules"].append(module)
-                    break
-            if not found:
-                raise RuntimeError(f"module not found: {module_name}")
-        return out
-
-
 class FunctionalModuleWithBuffers(nn.Module):
     """
     This is the callable object returned by :func:`make_functional_with_buffers`.
@@ -357,6 +296,67 @@ class FunctionalModuleWithBuffers(nn.Module):
                 if other_name == module_name:
                     found = True
                     state["buffer_modules"].append(module)
+                    break
+            if not found:
+                raise RuntimeError(f"module not found: {module_name}")
+        return out
+
+
+class FunctionalModule(nn.Module):
+    """
+    This is the callable object returned by :func:`make_functional_with_buffers`.
+    """
+
+    def __init__(self, stateless_model, param_module_names, modules, param_names):
+        super(FunctionalModule, self).__init__()
+        self.stateless_model = stateless_model
+        self.param_modules = modules
+        self.param_names = param_names
+        self.param_module_names = param_module_names
+
+    @staticmethod
+    def _create_from(model):
+        # TODO: We don't need to copy the model to create a stateless copy
+        model_copy = copy.deepcopy(model)
+        param_container = list(extract_weights(model_copy))
+        if len(param_container):
+            module_names, param_modules, param_names, params = zip(*param_container)
+        else:
+            module_names, param_modules, param_names, params = tuple(), tuple(), tuple(), tuple()
+        if disable_autograd_tracking:
+            for param in params:
+                param.requires_grad_(False)
+
+        return (
+            FunctionalModule(model_copy, module_names, param_modules, param_names),
+            params,
+        )
+
+    def forward(self, params, *args, **kwargs):
+        old_params = _swap_state(self.param_modules, self.param_names, params)
+
+        try:
+            return self.stateless_model(*args, **kwargs)
+        finally:
+            # Remove the loaded state on self.stateless_model
+            for module, param_name, param in zip(self.param_modules, self.param_names, old_params):
+                old_params.append(getattr(module, param_name))
+                setattr(module, param_name, param)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["param_modules"] = None
+        return state
+
+    def __setstate__(self, state):
+        state["param_modules"] = []
+        out = super().__setstate__(state)
+        for module_name in self.param_module_names:
+            found = False
+            for other_name, module in self.stateless_model.named_modules():
+                if other_name == module_name:
+                    found = True
+                    state["param_modules"].append(module)
                     break
             if not found:
                 raise RuntimeError(f"module not found: {module_name}")
