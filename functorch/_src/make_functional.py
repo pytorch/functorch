@@ -46,27 +46,11 @@ def _get_nested_attr(obj: nn.Module, names: List[str]) -> None:
         _get_nested_attr(getattr(obj, names[0]), names[1:])
 
 
-def extract_weights(mod: nn.Module) -> Tuple[Tuple[Tensor, ...], List[str]]:
-    """
-    This function removes all the Parameters from the model and
-    return them as a tuple as well as their original attribute names.
-    The weights must be re-loaded with `load_weights` before the model
-    can be used again.
-    Note that this function modifies the model in place and after this
-    call, mod.parameters() will be empty.
-    """
-    orig_params = tuple(mod.parameters())
-    # Remove all the parameters in the model
-    names = []
-    for name, p in list(mod.named_parameters()):
-        replacement = nn.Parameter(torch.empty_like(p, device='meta'))
-        _set_nested_attr(mod, name.split("."), replacement)
-        names.append(name)
-
-    # Make params regular Tensors instead of nn.Parameter
-    params = tuple(p for p in orig_params)
-    return params, names
-
+def extract_weights(model):
+    for module_name, m in model.named_modules():
+        for param_name, p in m.named_parameters(recurse=False):
+            setattr(m, param_name, None)
+            yield (module_name, m, param_name, p)
 
 def load_weights(mod: nn.Module, names: List[str], params: Tuple[Tensor, ...], as_params=False) -> None:
     """
@@ -90,18 +74,11 @@ def _swap_state(mod: nn.Module, split_names: List[str], elems):
     return result
 
 
-def extract_buffers(mod: nn.Module) -> Tuple[Tuple[Tensor, ...], List[str]]:
-    orig_params = tuple(mod.buffers())
-    # Remove all the parameters in the model
-    names = []
-    for name, p in list(mod.named_buffers()):
-        replacement = torch.empty_like(p, device='meta')
-        _set_nested_attr(mod, name.split("."), replacement)
-        names.append(name)
-
-    # Make params regular Tensors instead of nn.Parameter
-    params = tuple(p for p in orig_params)
-    return params, names
+def extract_buffers(model):
+    for module_name, m in model.named_modules():
+        for buffer_name, b in m.named_buffers(recurse=False):
+            setattr(m, buffer_name, None)
+            yield (module_name, m, buffer_name, b)
 
 
 def load_buffers(mod: nn.Module, names: List[str], buffers: Tuple[Tensor, ...], as_params=False) -> None:
@@ -212,12 +189,12 @@ class FunctionalModule(nn.Module):
     This is the callable object returned by :func:`make_functional_with_buffers`.
     """
 
-    def __init__(self, stateless_model, module_names, modules, param_names):
+    def __init__(self, stateless_model, param_module_names, modules, param_names):
         super(FunctionalModule, self).__init__()
         self.stateless_model = stateless_model
         self.param_modules = modules
         self.param_names = param_names
-        self.module_names = module_names
+        self.param_module_names = param_module_names
 
     @staticmethod
     def _create_from(model, disable_autograd_tracking=False):
@@ -258,15 +235,17 @@ class FunctionalModule(nn.Module):
 
     def __setstate__(self, state):
         state["param_modules"] = []
-        for module_name in self.module_names:
+        out = super().__setstate__(state)
+        for module_name in self.param_module_names:
             found = False
-            for other_name, module in self.named_modules():
+            for other_name, module in self.stateless_model.named_modules():
                 if other_name == module_name:
+                    found = True
                     state["param_modules"].append(module)
                     break
             if not found:
-                raise RuntimeError("module not found")
-        return super().__setstate__(state)
+                raise RuntimeError(f"module not found: {module_name}")
+        return out
 
 class FunctionalModuleWithBuffers(nn.Module):
     """
@@ -344,23 +323,26 @@ class FunctionalModuleWithBuffers(nn.Module):
     def __setstate__(self, state):
         state["param_modules"] = []
         state["buffer_modules"] = []
-        for module_name in self.module_names:
+        out = super().__setstate__(state)
+        for module_name in self.param_module_names:
             found = False
-            for other_name, module in self.named_modules():
+            for other_name, module in self.stateless_model.named_modules():
                 if other_name == module_name:
+                    found = True
                     state["param_modules"].append(module)
                     break
             if not found:
-                raise RuntimeError("module not found")
-        for module_name in self.module_names:
+                raise RuntimeError(f"module not found: {module_name}")
+        for module_name in self.buffer_module_names:
             found = False
-            for other_name, module in self.named_modules():
+            for other_name, module in self.stateless_model.named_modules():
                 if other_name == module_name:
-                    state["param_modules"].append(module)
+                    found = True
+                    state["buffer_modules"].append(module)
                     break
             if not found:
-                raise RuntimeError("module not found")
-        return super().__setstate__(state)
+                raise RuntimeError(f"module not found: {module_name}")
+        return out
 
 
 def make_functional(model: nn.Module):
