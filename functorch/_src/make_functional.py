@@ -53,6 +53,7 @@ def extract_weights(model):
             setattr(m, param_name, None)
             yield (module_name, m, param_name, p)
 
+
 def load_weights(mod: nn.Module, names: List[str], params: Tuple[Tensor, ...], as_params=False) -> None:
     """
     Reload a set of weights so that `mod` can be used again to perform a forward pass.
@@ -66,13 +67,21 @@ def load_weights(mod: nn.Module, names: List[str], params: Tuple[Tensor, ...], a
         _set_nested_attr(mod, name.split("."), p)
 
 
-def _swap_state(mod: nn.Module, split_names: List[str], elems):
-    result = []
-    for split_name, elem in zip(split_names, elems):
-        result.append(_get_nested_attr(mod, split_name))
-        _del_nested_attr(mod, split_name)
-        _set_nested_attr(mod, split_name, elem)
-    return result
+# def _swap_state(mod: nn.Module, split_names: List[str], elems):
+#     result = []
+#     for split_name, elem in zip(split_names, elems):
+#         result.append(_get_nested_attr(mod, split_name))
+#         _del_nested_attr(mod, split_name)
+#         _set_nested_attr(mod, split_name, elem)
+#     return result
+
+def _swap_state(param_modules, param_names, params):
+    old_params = []
+    for module, param_name, param in zip(param_modules, param_names, params):
+        old_params.append(getattr(module, param_name))
+        delattr(module, param_name)
+        setattr(module, param_name, param)
+    return old_params
 
 
 def extract_buffers(model):
@@ -217,11 +226,7 @@ class FunctionalModule(nn.Module):
         )
 
     def forward(self, params, *args, **kwargs):
-        old_params = []
-        for module, param_name, param in zip(self.param_modules, self.param_names, params):
-            old_params.append(getattr(module, param_name))
-            delattr(module, param_name)
-            setattr(module, param_name, param)
+        old_params = _swap_state(self.param_modules, self.param_names, params)
 
         try:
             return self.stateless_model(*args, **kwargs)
@@ -250,12 +255,22 @@ class FunctionalModule(nn.Module):
                 raise RuntimeError(f"module not found: {module_name}")
         return out
 
+
 class FunctionalModuleWithBuffers(nn.Module):
     """
     This is the callable object returned by :func:`make_functional_with_buffers`.
     """
 
-    def __init__(self, stateless_model, param_module_names, param_modules, param_names, buffer_module_names, buffer_modules, buffer_names):
+    def __init__(
+        self,
+        stateless_model,
+        param_module_names,
+        param_modules,
+        param_names,
+        buffer_module_names,
+        buffer_modules,
+        buffer_names
+    ):
         super(FunctionalModuleWithBuffers, self).__init__()
         self.stateless_model = stateless_model
         self.param_module_names = param_module_names
@@ -297,16 +312,13 @@ class FunctionalModuleWithBuffers(nn.Module):
         )
 
     def forward(self, params, buffers, *args, **kwargs):
-        old_params = []
-        for module, param_name, param in zip(self.param_modules, self.param_names, params):
-            old_params.append(getattr(module, param_name))
-            delattr(module, param_name)
-            setattr(module, param_name, param)
-        old_buffers = []
-        for module, buffer_name, buffer in zip(self.buffer_modules, self.buffer_names, buffers):
-            old_buffers.append(getattr(module, buffer_name))
-            delattr(module, buffer_name)
-            setattr(module, buffer_name, buffer)
+        old_states = _swap_state(
+            self.param_modules + self.buffer_modules,
+            self.param_names + self.buffer_names,
+            list(params) + list(buffers)
+        )
+        old_params = old_states[:len(self.param_modules)]
+        old_buffers = old_states[len(self.param_modules):]
 
         try:
             return self.stateless_model(*args, **kwargs)
