@@ -46,6 +46,15 @@ def _get_nested_attr(obj: nn.Module, names: List[str]) -> None:
         _get_nested_attr(getattr(obj, names[0]), names[1:])
 
 
+def raise_parameter_tying_error():
+    raise RuntimeError(
+        "make_functional(module): we don't yet support models that "
+        "do parameter tying (also sometimes known as weight sharing). "
+        "Please try to rewrite your model by replacing all instances of the "
+        "tied parameter with another and/or comment your support in "
+        "https://github.com/pytorch/functorch/issues/446")
+
+
 def extract_weights(model):
     for module_name, m in model.named_modules():
         for param_name, p in list(m.named_parameters(recurse=False)):
@@ -66,14 +75,6 @@ def load_weights(mod: nn.Module, names: List[str], params: Tuple[Tensor, ...], a
         _del_nested_attr(mod, name.split("."))
         _set_nested_attr(mod, name.split("."), p)
 
-
-# def _swap_state(mod: nn.Module, split_names: List[str], elems):
-#     result = []
-#     for split_name, elem in zip(split_names, elems):
-#         result.append(_get_nested_attr(mod, split_name))
-#         _del_nested_attr(mod, split_name)
-#         _set_nested_attr(mod, split_name, elem)
-#     return result
 
 def _swap_state(param_modules, param_names, params):
     old_params = []
@@ -179,8 +180,8 @@ def make_functional_with_buffers_deprecated_v1(model: nn.Module):
 
     To put the state back into a model, use `load_state`.
     """
-    weights, weight_descriptors = extract_weights(model)
-    buffers, buf_descriptors = extract_buffers(model)
+    weights, weight_descriptors, _ = extract_weights(model)
+    buffers, buf_descriptors, _ = extract_buffers(model)
 
     def fun(weights, buffers, data):
         mutable_model = copy.deepcopy(model)
@@ -208,7 +209,7 @@ class FunctionalModule(nn.Module):
         self.param_module_names = param_module_names
 
     @staticmethod
-    def _create_from(model, disable_autograd_tracking=False):
+    def _create_from(model):
         # TODO: We don't need to copy the model to create a stateless copy
         model_copy = copy.deepcopy(model)
         param_container = list(extract_weights(model_copy))
@@ -281,7 +282,7 @@ class FunctionalModuleWithBuffers(nn.Module):
         self.buffer_names = buffer_names
 
     @staticmethod
-    def _create_from(model, disable_autograd_tracking=False):
+    def _create_from(model):
         # TODO: We don't need to copy the model to create a stateless copy
         model_copy = copy.deepcopy(model)
         param_container = list(extract_weights(model_copy))
@@ -362,8 +363,8 @@ class FunctionalModuleWithBuffers(nn.Module):
         return out
 
 
-def make_functional(model: nn.Module):
-    """make_functional(model) -> func, params
+def make_functional(model: nn.Module, disable_autograd_tracking: bool = False):
+    """make_functional(model, disable_autograd_tracking=False) -> func, params
 
     Given a ``torch.nn.Module``, :func:`make_functional` extracts the state
     (params) and returns a functional version of the model, ``func``. This
@@ -405,16 +406,29 @@ def make_functional(model: nn.Module):
 
     If the model has any buffers, please use :func:`make_functional_with_buffers` instead.
 
+    Args:
+        model (torch.nn.Module): Input model.
+        disable_autograd_tracking (bool): Flag to disable gradients tracking for output parameters.
+            The returned params are unrelated to the set of params from the original model. If False (default),
+            the params will have ``requires_grad=True`` on them (aka they will be trackable with regular
+            PyTorch autograd), matching the requires_grad-ness of the params from the original model.
+            Otherwise, the returned params will have ``requires_grad=False``. Default, False.
+            If you plan on using regular PyTorch autograd (e.g., if you want to call ``.backward()`` or
+            ``torch.autograd.grad()``, then set ``disable_autograd_tracking=False``.
+            Otherwise, if you're only planning on using functorch's gradient transforms,
+            then please set ``disable_autograd_tracking=True`` to avoid unnecessarily tracking
+            history with PyTorch autograd.
+
     """
     buffers = list(model.buffers())
     if len(buffers) > 0:
         raise RuntimeError('make_functional(model): `model` has buffers. Please use '
                            'make_functional_with_buffers(model) instead.')
-    return FunctionalModule._create_from(model)
+    return FunctionalModule._create_from(model, disable_autograd_tracking=disable_autograd_tracking)
 
 
-def make_functional_with_buffers(model: nn.Module):
-    """make_functional_with_buffers(model) -> func, params, buffers
+def make_functional_with_buffers(model: nn.Module, disable_autograd_tracking: bool = False):
+    """make_functional_with_buffers(model, disable_autograd_tracking=False) -> func, params, buffers
 
     Given a ``torch.nn.Module``, make_functional_with_buffers extracts the
     state (params and buffers) and returns a functional version of the model
@@ -453,8 +467,21 @@ def make_functional_with_buffers(model: nn.Module):
 
         grad_weights = grad(compute_loss)(params, buffers, x, t)
 
+    Args:
+        model (torch.nn.Module): Input model.
+        disable_autograd_tracking (bool): Flag to disable gradients tracking for output parameters.
+            The returned params are unrelated to the set of params from the original model. If False (default),
+            the params will have ``requires_grad=True`` on them (aka they will be trackable with regular
+            PyTorch autograd), matching the requires_grad-ness of the params from the original model.
+            Otherwise, the returned params will have ``requires_grad=False``. Default, False.
+            If you plan on using regular PyTorch autograd (e.g., if you want to call ``.backward()`` or
+            ``torch.autograd.grad()``, then set ``disable_autograd_tracking=False``.
+            Otherwise, if you're only planning on using functorch's gradient transforms,
+            then please set ``disable_autograd_tracking=True`` to avoid unnecessarily tracking
+            history with PyTorch autograd.
+
     """
-    return FunctionalModuleWithBuffers._create_from(model)
+    return FunctionalModuleWithBuffers._create_from(model, disable_autograd_tracking=disable_autograd_tracking)
 
 
 def transpose_stack(tuple_of_tuple_of_tensors):
@@ -493,29 +520,28 @@ def combine_state_for_ensemble(models):
 
         assert output.shape == (num_models, batch_size, out_features)
 
+    .. warning::
+        All of the modules being stacked together must be the same (except for
+        the values of their parameters/buffers). For example, they should be in the
+        same mode (training vs eval).
+
+        This API is subject to change -- we're investigating better ways to
+        create ensembles and would love your feedback how to improve this.
     """
+    if len(models) == 0:
+        raise RuntimeError('combine_state_for_ensemble: Expected at least one model, got 0.')
+    if not (all(m.training for m in models) or all(not m.training for m in models)):
+        raise RuntimeError('combine_state_for_ensemble: Expected all models to '
+                           'have the same training/eval mode.')
+    model0_typ = type(models[0])
+    if not all(type(m) == model0_typ for m in models):
+        raise RuntimeError('combine_state_for_ensemble: Expected all models to '
+                           'be of the same class.')
     funcs, params, buffers = zip(*[make_functional_with_buffers(model)
                                    for model in models])
     params = transpose_stack(params)
     buffers = transpose_stack(buffers)
     return funcs[0], params, buffers
-
-
-# class Ensemble(nn.Module):
-#     def __init__(self, models, in_dims, out_dims=0):
-#         super(Ensemble, self).__init__()
-#         func_model, params, buffers = combine_state_for_ensemble(models)
-#         self.func_model = func_model
-#         self.params = params
-#         self.buffers = buffers if len(buffers) > 0 else None
-#
-#         in_dims_start = (0, 0) if self.buffers is not None else (0,)
-#         self.in_dims = in_dims_start + in_dims
-#         self.out_dims = out_dims
-#         self._vmap_func = vmap(func_model, self.in_dims, self.out_dims)
-#
-#     def forward(self, *args, **kwargs):
-#         return self._vmap_func(self.params, self.buffers, *args, **kwargs)
 
 
 def functional_init(model_class, ensemble_shape=(), device='cpu'):

@@ -156,6 +156,26 @@ Tensor addmm_decomp(const Tensor& self, const Tensor& mat1, const Tensor& mat2, 
   return at::add(self * beta, at::mm(mat1, mat2), alpha);
 }
 
+void _linalg_check_errors_batch_rule(const Tensor& info, optional<int64_t> info_bdim, c10::string_view api_name, bool is_matrix) {
+  auto info_ = moveBatchDimToFront(info, info_bdim);
+  // Not a matrix means this is a batch of matrices
+  at::_linalg_check_errors(info_, api_name, false);
+}
+
+std::tuple<Tensor, c10::optional<int64_t>>
+householder_product_batch_rule(const Tensor &input, c10::optional<int64_t> input_bdim,
+                               const Tensor &tau, c10::optional<int64_t> tau_bdim)
+{
+  auto input_ = moveBatchDimToFront(input, input_bdim);
+  auto tau_ = moveBatchDimToFront(tau, tau_bdim);
+
+  auto batch_size = get_bdim_size2(input, input_bdim, tau, tau_bdim);
+
+  input_ = ensure_has_bdim(input_, input_bdim.has_value(), batch_size);
+  tau_ = ensure_has_bdim(tau_, tau_bdim.has_value(), batch_size);
+  return std::make_tuple(at::linalg_householder_product(input_, tau_), 0);
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT(bmm, bmm_batch_rule);
   m.impl("addmv", addmv_decomp);
@@ -166,6 +186,9 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT(mv, mv_batch_rule);
   VMAP_SUPPORT(mm, mm_batch_rule);
   m.impl("linear", linear_decomp);
+  VMAP_SUPPORT(linalg_householder_product, householder_product_batch_rule);
+
+  VMAP_SUPPORT(_linalg_check_errors, _linalg_check_errors_batch_rule);
 
   VARIADIC_BDIMS_BOXED(cholesky_solve);
   VARIADIC_BDIMS_BOXED(linalg_cholesky_ex);
@@ -189,7 +212,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VARIADIC_BDIMS_BOXED(symeig);
   VARIADIC_BDIMS_BOXED(triangular_solve);
 
-  VARIADIC_BDIMS_BOXED(_det_lu_based_helper);
+  VARIADIC_BDIMS_BOXED(_linalg_det);
   VARIADIC_BDIMS_BOXED(_lu_with_info);
 }
 }}

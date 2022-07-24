@@ -38,17 +38,12 @@ transforms comes from the [JAX framework](https://github.com/google/jax).
 ## Install
 
 There are two ways to install functorch:
-1. functorch main
-2. functorch preview with PyTorch 1.10
+1. functorch from source
+2. functorch beta (compatible with PyTorch 1.11)
 
-We recommend installing the functorch main development branch for the latest and
-greatest. This requires an installation of the latest PyTorch nightly.
+We recommend trying out the functorch beta first.
 
-If you're looking for an older version of functorch that works with a stable
-version of PyTorch (1.10), please install the functorch preview. On the roadmap
-is more stable releases of functorch with future versions of PyTorch.
-
-### Installing functorch main
+### Installing functorch from source
 
 <details><summary>Click to expand</summary>
 <p>
@@ -61,22 +56,22 @@ Follow the instructions [in this Colab notebook](https://colab.research.google.c
 
 First, set up an environment. We will be installing a nightly PyTorch binary
 as well as functorch. If you're using conda, create a conda environment:
-```
+```bash
 conda create --name functorch
 conda activate functorch
 ```
 If you wish to use `venv` instead:
-```
+```bash
 python -m venv functorch-env
 source functorch-env/bin/activate
 ```
 
 Next, install one of the following following PyTorch nightly binaries.
-```
+```bash
 # For CUDA 10.2
 pip install --pre torch -f https://download.pytorch.org/whl/nightly/cu102/torch_nightly.html --upgrade
-# For CUDA 11.1
-pip install --pre torch -f https://download.pytorch.org/whl/nightly/cu111/torch_nightly.html --upgrade
+# For CUDA 11.3
+pip install --pre torch -f https://download.pytorch.org/whl/nightly/cu113/torch_nightly.html --upgrade
 # For CPU-only build
 pip install --pre torch -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html --upgrade
 ```
@@ -84,7 +79,7 @@ If you already have a nightly of PyTorch installed and wanted to upgrade it
 (recommended!), append `--upgrade` to one of those commands.
 
 Install functorch:
-```
+```bash
 pip install ninja  # Makes the build go faster
 pip install --user "git+https://github.com/pytorch/functorch.git"
 ```
@@ -98,7 +93,7 @@ y = vmap(torch.sin)(x)
 assert torch.allclose(y, x.sin())
 ```
 
-#### From Source
+#### functorch development setup
 
 `functorch` is a PyTorch C++ Extension module. To install,
 
@@ -107,28 +102,30 @@ assert torch.allclose(y, x.sin())
 - Run `python setup.py install`. You can use `DEBUG=1` to compile in debug mode.
 
 Then, try to run some tests to make sure all is OK:
-```
+```bash
 pytest test/test_vmap.py -v
 pytest test/test_eager_transforms.py -v
 ```
 
 To do devel install:
 
-```
+```bash
 pip install -e .
 ```
 
 To install with optional dependencies, e.g. for AOTAutograd:
 
-```
+```bash
 pip install -e .[aot]
 ```
+
+To run functorch tests, please install our test dependencies (`expecttest`, `pyyaml`).
 
 
 </p>
 </details>
 
-### Installing functorch preview with PyTorch 1.10
+### Installing functorch beta (compatible with PyTorch 1.11)
 
 <details><summary>Click to expand</summary>
 <p>
@@ -137,14 +134,13 @@ pip install -e .[aot]
 
 Follow the instructions [here](https://colab.research.google.com/drive/1GNfb01W_xf8JRu78ZKoNnLqiwcrJrbYG#scrollTo=HJ1srOGeNCGA)
 
-#### Locally
+#### pip
 
-Prerequisite: [Install PyTorch 1.10](https://pytorch.org/get-started/locally/)
+Prerequisite: [Install PyTorch 1.11](https://pytorch.org/get-started/locally/)
 
-Next, run the following.
-```
-pip install ninja  # Makes the build go faster
-pip install --user "git+https://github.com/pytorch/functorch.git@release/torch_1.10_preview"
+
+```bash
+pip install functorch
 ```
 
 Finally, run a quick sanity check in python:
@@ -176,7 +172,7 @@ Note: `vmap` imposes restrictions on the code that it can be used on.
 For more details, please read its docstring.
 
 `vmap(func)(*inputs)` is a transform that adds a dimension to all Tensor
-operations in `func`. `vmap(func)` returns a few function that maps `func` over
+operations in `func`. `vmap(func)` returns a new function that maps `func` over
 some dimension (default: 0) of each Tensor in `inputs`.
 
 `vmap` is useful for hiding batch dimensions: one can write a function `func`
@@ -390,7 +386,7 @@ Functorch has a BSD-style license, as found in the [LICENSE](LICENSE) file.
 
 If you use functorch in your publication, please cite it by using the following BibTeX entry.
 
-```
+```bibtex
 @Misc{functorch2021,
   author =       {Horace He, Richard Zou},
   title =        {functorch: JAX-like composable function transforms for PyTorch},

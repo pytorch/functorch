@@ -5,11 +5,18 @@
 // LICENSE file in the root directory of this source tree.
 
 #pragma once
+#include <functorch/csrc/Macros.h>
 #include <c10/core/DispatchKey.h>
 #include <ATen/core/function_schema.h>
 #include <c10/util/Optional.h>
+#include <c10/util/variant.h>
 #include <unordered_map>
 #include <mutex>
+#include <c10/core/impl/LocalDispatchKeySet.h>
+#include <functorch/csrc/Interpreter.h>
+#include <functorch/csrc/VmapInterpreter.h>
+#include <functorch/csrc/ADInterpreters.h>
+#include <functorch/csrc/FunctionalizeInterpreter.h>
 
 // Forward declared bc I am lazy
 namespace c10 { struct AutogradMetaInterface; }
@@ -17,58 +24,52 @@ namespace c10 { struct AutogradMetaInterface; }
 namespace at {
 namespace functorch {
 
-enum RandomnessType {
-    Error,      // always errors when calling a random function
-    Same,       // randomness appears the same across batches
-    Different,  // randomness appears different across batches
-    END
-};
-
-struct TORCH_API DynamicLayer {
+// TODO: we can excise DynamicLayer in favor of Interpreter,
+// But I am going to leave it for now as a compatiblity shim to avoid
+// needing to refactor a lot of callsites...
+struct FUNCTORCH_API DynamicLayer {
   explicit DynamicLayer(
-      DispatchKey key,
+      TransformType transform_type,
       int64_t layerId,
       optional<int64_t> batchSize = nullopt,
       optional<RandomnessType> randomness = nullopt,
-      optional<bool> prev_grad_mode = nullopt);
+      optional<bool> prev_grad_mode = nullopt,
+      optional<bool> pre_fwd_grad_mode = nullopt,
+      optional<bool> functionalize_add_back_views = nullopt);
 
-  DispatchKey key() const;
+  TransformType key() const;
   int64_t layerId() const;
+
+  const Interpreter& interpreter() const { return interpreter_; }
+  Interpreter& interpreter() { return interpreter_; }
 
   // Only valid for vmap
   int64_t batchSize() const;
   RandomnessType randomness() const;
 
-  // only valid for grad-based transforms
-  optional<bool> prevGradMode() const;
  private:
-  DispatchKey key_;
-  int64_t layerId_;
-
-  // Honestly these should be a union or some extendable metadata class.
-  // Not doing that for now because I don't think we'll use this mechanism for very long.
-  optional<int64_t> batchSize_;
-  optional<RandomnessType> randomness_;
-  optional<bool> prevGradMode_;
+  Interpreter interpreter_;
 };
 
-TORCH_API int64_t initAndPushDynamicLayer(
-    DispatchKey key,
+FUNCTORCH_API int64_t initAndPushDynamicLayer(
+    TransformType transform_type,
     optional<int64_t> batch_size = nullopt,
     optional<RandomnessType> randomness = nullopt,
-    optional<bool> prev_grad_mode = nullopt);
-TORCH_API DynamicLayer popDynamicLayerAndDeleteMetadata();
-TORCH_API c10::optional<DynamicLayer> maybeCurrentDynamicLayer();
-TORCH_API const std::vector<DynamicLayer>& getDynamicLayerStack();
-TORCH_API void setDynamicLayerStack(const std::vector<DynamicLayer>& stack);
-TORCH_API void setDynamicLayerFrontBackKeysIncluded(bool included);
+    optional<bool> prev_grad_mode = nullopt,
+    optional<bool> prev_fwd_grad_mode = nullopt,
+    optional<bool> functionalize_add_back_views = nullopt);
+FUNCTORCH_API DynamicLayer popDynamicLayerAndDeleteMetadata();
+FUNCTORCH_API c10::optional<DynamicLayer> maybeCurrentDynamicLayer();
+FUNCTORCH_API const std::vector<DynamicLayer>& getDynamicLayerStack();
+FUNCTORCH_API void setDynamicLayerStack(const std::vector<DynamicLayer>& stack);
+FUNCTORCH_API void setDynamicLayerFrontBackKeysIncluded(bool included);
 
 // NB: Not lock safe, you should only call this from Python where the GIL will
 // prevent race conditions.
-TORCH_API bool areTransformsActive();
+FUNCTORCH_API bool areTransformsActive();
 
 // NB: not lock safe. TODO: does it need a lock?
-TORCH_API std::shared_ptr<bool> getLifeHandleForLevel(int64_t level);
+FUNCTORCH_API std::shared_ptr<bool> getLifeHandleForLevel(int64_t level);
 
 // Returns if an operator is in-place. An operator is inplace if:
 // 1. The first argument is a Tensor and it is being written to
@@ -78,15 +79,15 @@ TORCH_API std::shared_ptr<bool> getLifeHandleForLevel(int64_t level);
 // add_(Tensor(a!) self, Tensor other, *, Scalar alpha=1) -> Tensor(a!)
 bool isInplaceOp(const c10::FunctionSchema& schema);
 
-// Applies the following for-loop:
-// for i in range(begin, end):
-//   args[i] = func(args[i])
-void foreachTensorInplace(std::vector<IValue>& args, int64_t begin, int64_t end,
-    std::function<Tensor(const Tensor&)> func);
+Tensor unwrapIfDead(const Tensor& tensor);
 
 // Pretty printers
 std::ostream& operator<<(std::ostream& os, const DynamicLayer& layer);
 std::ostream& operator<<(std::ostream& os, const std::vector<DynamicLayer>& dynamicLayerStack);
+
+void setInplaceRequiresGradAllowed(bool allowed);
+bool getInplaceRequiresGradAllowed();
+
 
 }
 } // namespace at

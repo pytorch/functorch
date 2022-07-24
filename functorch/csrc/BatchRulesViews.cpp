@@ -6,10 +6,13 @@
 
 #include <functorch/csrc/BatchRulesHelper.h>
 #include <iostream>
+
 #include <ATen/Operators.h>
 #include <functorch/csrc/PlumbingHelper.h>
 #include <functorch/csrc/BatchedFallback.h>
 #include <ATen/core/dispatch/Dispatcher.h>
+#include <ATen/core/TensorBody.h>
+#include <c10/core/SymIntArrayRef.h>
 #include <c10/util/SmallBuffer.h>
 #include <ATen/InferSize.h>
 
@@ -151,10 +154,6 @@ std::tuple<Tensor,optional<int64_t>> _unsafe_view_batch_rule(
   return std::make_tuple(at::_unsafe_view(self_, view_size), 0);
 }
 
-Tensor trace_decomp(const Tensor& self) {
-  return at::sum(at::diagonal(self));
-}
-
 std::tuple<Tensor,optional<int64_t>> flip_batch_rule(const Tensor& self, optional<int64_t> self_bdim, IntArrayRef dims) {
   auto self_ = moveBatchDimToFront(self, self_bdim);
   VmapDimVector new_dims;
@@ -175,6 +174,10 @@ const Tensor& resize__plumbing(
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!isBatchedAtLevel(self, cur_level)) {
+    c10::impl::ExcludeDispatchKeyGuard guard2(kBatchedKey);
+    return self.resize_(size, optional_memory_format);
+  }
 
   Tensor self_value;
   optional<int64_t> self_bdim;
@@ -217,10 +220,10 @@ std::tuple<Tensor, optional<int64_t>> squeeze_batch_rule(const Tensor& self, opt
   int64_t new_batch_idx = 0;
   int64_t original_idx = 0;
 
-  for (auto it = shape.begin(); it != shape.end(); ++it) {
+  for (auto it : shape) {
     // Keep only dimensions != 1 and the batch dimension (irrespective of size).
-    if (*it != 1 || original_idx == bdim) {
-      squeezed_sizes.push_back(*it);
+    if (it != 1 || original_idx == bdim) {
+      squeezed_sizes.push_back(it);
       if (original_idx == bdim) {
         before_batch_idx = false;
       }
@@ -435,6 +438,13 @@ std::tuple<Tensor, optional<int64_t>> view_batching_rule(
   return std::make_tuple(self_.view(size_), 0);
 }
 
+Tensor view_symint_decomposition(const Tensor& self,
+            c10::SymIntArrayRef size) {
+  return self.view( c10::asIntArrayRefSlow(size));
+}
+
+
+template <typename F, F Func>
 std::tuple<Tensor, optional<int64_t>> expand_batch_rule(
     const Tensor &self, optional<int64_t> self_bdim, IntArrayRef size, bool implicit)
 {
@@ -466,7 +476,7 @@ std::tuple<Tensor, optional<int64_t>> expand_batch_rule(
   std::copy(self_sizes.cbegin() + 1, self_sizes.cend(),
             view_shape.begin() + 1 + extra_dims);
 
-  return std::make_tuple(self_.view(view_shape).expand(size_, implicit), 0);
+  return std::make_tuple(Func(self_.view(view_shape), size_, implicit), 0);
 }
 
 std::tuple<Tensor, optional<int64_t>> unfold_batch_rule(
@@ -493,12 +503,28 @@ std::tuple<Tensor, optional<int64_t>> movedim_batch_rule(const Tensor& self, opt
   return std::make_tuple(self_.movedim(source_, destination_), 0);
 }
 
+std::tuple<Tensor, optional<int64_t>> diag_embed_batch_rule(const Tensor& self, optional<int64_t> self_bdim, int64_t offset, int64_t dim1, int64_t dim2) {
+  auto logical_rank = rankWithoutBatchDim(self, self_bdim);
+  auto self_ = moveBatchDimToFront(self, self_bdim);
+  dim1 = maybe_wrap_dim(dim1, logical_rank + 1) + 1;
+  dim2 = maybe_wrap_dim(dim2, logical_rank + 1) + 1;
+  return std::make_tuple(at::diag_embed(self_, offset, dim1, dim2), 0);
+}
+
+// We need to write a real batching rule to fully support symint.
+// This requires symint variants of other operations, like `view`,
+// which don't exist yet.
+Tensor expand_symint_decomp_hack(const Tensor& self, SymIntArrayRef packed_size, bool implicit) {
+   auto size = asIntArrayRefSlow(packed_size);
+   return self.expand(size, implicit);
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT(diag, diag_batch_rule);
   VMAP_SUPPORT(chunk, chunk_batching_rule);
   m.impl("flatten.using_ints", static_cast<decltype(&ATEN_FN2(flatten, using_ints))>(native::flatten));
   VMAP_SUPPORT(flip, flip_batch_rule);
-  m.impl("trace", trace_decomp);
+  RUN_JIT_DECOMPOSITION(trace)
   VMAP_SUPPORT(tril, VARIADIC_BDIMS_BATCH_RULE(ATEN_FN(tril)));
   VMAP_SUPPORT(triu, VARIADIC_BDIMS_BATCH_RULE(ATEN_FN(triu)));
   VMAP_SUPPORT(repeat, repeat_batch_rule);
@@ -516,11 +542,15 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT(select_backward, select_backward_batch_rule);
   VMAP_SUPPORT(slice_backward, slice_backward_batch_rule);
   VMAP_SUPPORT(view, view_batching_rule);
-  VMAP_SUPPORT(expand, expand_batch_rule);
+  VMAP_SUPPORT(expand, SINGLE_ARG(expand_batch_rule<decltype(&ATEN_FN(expand)), &ATEN_FN(expand)>));
+  VMAP_SUPPORT(expand_copy, SINGLE_ARG(expand_batch_rule<decltype(&ATEN_FN(expand_copy)), &ATEN_FN(expand_copy)>));
   VMAP_SUPPORT(unfold, unfold_batch_rule);
   VMAP_SUPPORT2(movedim, intlist, movedim_batch_rule);
   VMAP_SUPPORT2(slice, Tensor, slice_batch_rule);
   VMAP_SUPPORT2(transpose, int, transpose_int_batch_rule);
+  VMAP_SUPPORT(diag_embed, diag_embed_batch_rule);
+  m.impl("expand.SymInt", expand_symint_decomp_hack);
+  m.impl("view.SymInt", view_symint_decomposition);
 }
 
 }}

@@ -5,6 +5,11 @@
 #include <ATen/WrapDimUtils.h>
 #include <functorch/csrc/TensorWrapper.h>
 #include <functorch/csrc/BatchedTensorImpl.h>
+#include <ATen/ATen.h>
+#include <ATen/Dispatch.h>
+#include <c10/util/irange.h>
+#include <ATen/NamedTensorUtils.h>
+#include <ATen/native/LinearAlgebraUtils.h>
 
 namespace at { namespace functorch {
 
@@ -113,15 +118,49 @@ Tensor linear_hack(const Tensor& input, const Tensor& weight, const c10::optiona
     // Fused op is marginally faster.
     return at::addmm(*bias, input, weight.t());
   }
+  if (input.dim() == 3 && bias->defined() && input.is_contiguous()) {
+    // Also hit the fused path for contiguous 3D input.
+    const auto input_sizes = input.sizes();
+    const auto result = at::addmm(*bias, input.view({input_sizes[0] * input_sizes[1], input_sizes[2]}), weight.t());
+    return result.view({input_sizes[0], input_sizes[1], result.size(1)});
+  }
   auto output = at::matmul(input, weight.t());
   if (bias->defined()) {
-    // TODO(rzou): I'm a little uncomfortable with this
-    if (can_perform_inplace(output, *bias)) {
-      return output.add_(*bias);
+    const auto& stack = getDynamicLayerStack();
+    bool any_vmap_layers = std::any_of(
+        stack.begin(), stack.end(),
+        [](const DynamicLayer& dl){ return dl.key() == TransformType::Vmap; });
+    if (any_vmap_layers) {
+      return output.add(*bias);
     }
-    return output.add(*bias);
+    return output.add_(*bias);
   }
   return output;
+}
+
+Tensor nuclear_norm_dim_hack(const Tensor& self, IntArrayRef dim, bool keepdim) {
+  TORCH_CHECK(dim.size() == 2, "nuclear norm requires a 'dim' argument of size 2");
+  auto dim_ = dim.vec();
+  maybe_wrap_dims(dim_, self.dim());
+
+  auto permutation = at::native::create_dim_backshift_permutation(dim_[0], dim_[1], self.dim());
+  Tensor p = self.permute(permutation);
+  Tensor result = at::sum(at::linalg_svdvals(p), -1, keepdim);
+  if (keepdim) {
+    result = result.unsqueeze(-1);
+    auto permutation_reverse = at::native::create_reverse_permutation(permutation);
+    result = result.permute(permutation_reverse);
+  }
+  return result;
+}
+
+Tensor nuclear_norm_hack(const Tensor& self, bool keepdim) {
+  TORCH_CHECK(
+    self.dim() == 2,
+    "Expected a tensor with 2 dimensions, but got a tensor with ",
+    self.dim(), " dimension", self.dim()==1 ? "" : "s", " instead.");
+
+  return nuclear_norm_dim_hack(self, {0, 1}, keepdim);
 }
 
 Tensor binary_cross_entropy_with_logits_backward_hack(
@@ -173,7 +212,7 @@ Tensor binary_cross_entropy_with_logits_hack(
   const Tensor& pos_weight = c10::value_or_else(pos_weight_opt, [] {return Tensor();});
 
   Tensor loss;
-  auto max_val = (-input).clamp_min_(0);
+  auto max_val = (-input).clamp_min(0);
   if (pos_weight.defined()) {
     // pos_weight need to be broadcasted, thus mul(target) is not inplace.
     auto log_weight = (pos_weight - 1).mul(target).add_(1);
@@ -189,6 +228,150 @@ Tensor binary_cross_entropy_with_logits_hack(
   return apply_loss_reduction(loss, reduction);
 }
 
+Tensor trace_backward_decomp(const Tensor& grad, IntArrayRef sizes) {
+  if (sizes.size() != 2) {
+    throw std::runtime_error("expected matrix input");
+  }
+  auto grad_input = at::zeros(sizes[0] * sizes[1], grad.options());
+  auto indices = at::arange(0, grad_input.numel(), sizes[1] + 1, grad.options().dtype(at::kLong));
+  // Workaround using index_put instead of yet unsupported index_fill_
+  grad_input = grad_input.index_put({indices}, grad);
+  return grad_input.view(sizes);
+}
+
+// dropout hack
+// TODO: make the following changes in pytorch/pytorch
+namespace dropout_hack {
+
+template<bool inplace>
+using Ctype = typename std::conditional<inplace, Tensor&, Tensor>::type;
+
+Tensor make_feature_noise(const Tensor& input) {
+  auto input_sizes = input.sizes();
+  TORCH_CHECK(input.dim() >= 2, "Feature dropout requires at least 2 dimensions in the input");
+  std::vector<int64_t> sizes;
+  sizes.reserve(input.dim());
+  sizes.push_back(input_sizes[0]);
+  sizes.push_back(input_sizes[1]);
+  for (const auto i : c10::irange(2, input.dim())) {
+    (void)i; //Suppress unused variable warning
+    sizes.push_back(1);
+  }
+  // NB: THIS WAS CHANGED FROM THE ORIGINAL
+  return at::empty(sizes, input.options());
+}
+
+bool is_fused_kernel_acceptable(const Tensor& input, double p) {
+  return (input.is_cuda() || input.is_xpu() || input.is_lazy()) && p > 0 && p < 1 && input.numel() > 0;
+}
+
+// NB: sure, we could have used different overloads here, but I would feel insecure
+// knowing that this dispatch depends only on the constness of the references
+template<bool inplace>
+Tensor& multiply(Tensor& input, const Tensor& noise) {
+  static_assert(inplace, "Wrong multiply overload triggered in Dropout.cpp");
+  return input.mul_(noise);
+}
+
+template<bool inplace>
+Tensor multiply(const Tensor& input, const Tensor& noise) {
+  static_assert(!inplace, "Wrong multiply overload triggered in Dropout.cpp");
+  return input.mul(noise);
+}
+
+template<bool feature_dropout, bool alpha_dropout, bool inplace, typename T>
+Ctype<inplace> _dropout_impl(T& input, double p, bool train) {
+  TORCH_CHECK(p >= 0 && p <= 1, "dropout probability has to be between 0 and 1, but got ", p);
+  if (p == 0 || !train || input.numel() == 0) {
+    return input;
+  }
+
+  if (p == 1) {
+    return multiply<inplace>(input, at::zeros({}, input.options()));
+  }
+
+  at::Tensor b; // used for alpha_dropout only
+
+  // NB: THIS WAS CHANGED FROM THE ORIGINAL
+  Tensor noise;
+  if (feature_dropout) {
+    auto empty = make_feature_noise(input);
+    noise = at::bernoulli(empty, 1 - p);
+  } else {
+    // NB: it is important that this is at::empty and not at::empty_like
+    auto empty = at::empty({}, input.options()).expand(input.sizes());
+    noise = at::bernoulli(empty, 1 - p);
+  }
+
+  if (alpha_dropout) {
+    constexpr double alpha = 1.7580993408473766;
+    double a = 1. / std::sqrt((alpha * alpha * p + 1) * (1 - p));
+    b = noise.add(-1).mul_(alpha * a).add_(alpha * a * p);
+    noise.mul_(a);
+  } else {
+    noise.div_(1 - p);
+  }
+
+  if (!alpha_dropout) {
+    return multiply<inplace>(input, noise);
+  } else {
+    return multiply<inplace>(input, noise).add_(b);
+  }
+}
+
+#define ALIAS_SPECIALIZATION(ALIAS_NAME, IS_FEATURE, IS_ALPHA)                      \
+template <bool inplace, typename... Args>                                           \
+Ctype<inplace> ALIAS_NAME(Args&&... args) {                                         \
+  return _dropout_impl<IS_FEATURE, IS_ALPHA, inplace>(std::forward<Args>(args)...); \
+}
+
+ALIAS_SPECIALIZATION(_dropout,               false, false)
+ALIAS_SPECIALIZATION(_feature_dropout,       true,  false)
+ALIAS_SPECIALIZATION(_alpha_dropout,         false, true )
+ALIAS_SPECIALIZATION(_feature_alpha_dropout, true,  true )
+
+Tensor dropout(const Tensor& input, double p, bool train) {
+  auto result = [&]() {
+    NoNamesGuard guard;
+    if (train && is_fused_kernel_acceptable(input, p)) {
+      return std::get<0>(at::native_dropout(input, p, train));
+    }
+    return _dropout<false>(input, p, train);
+  }();
+  namedinference::propagate_names(result, input);
+  return result;
+}
+
+Tensor& dropout_(Tensor& input, double p, bool train) {
+  return _dropout<true>(input, p, train);
+}
+
+Tensor feature_dropout(const Tensor& input, double p, bool train) {
+  return _feature_dropout<false>(input, p, train);
+}
+
+Tensor& feature_dropout_(Tensor& input, double p, bool train) {
+  return _feature_dropout<true>(input, p, train);
+}
+
+Tensor alpha_dropout(const Tensor& input, double p, bool train) {
+  return _alpha_dropout<false>(input, p, train);
+}
+
+Tensor& alpha_dropout_(Tensor& input, double p, bool train) {
+  return _alpha_dropout<true>(input, p, train);
+}
+
+Tensor feature_alpha_dropout(const Tensor& input, double p, bool train) {
+  return _feature_alpha_dropout<false>(input, p, train);
+}
+
+Tensor& feature_alpha_dropout_(Tensor& input, double p, bool train) {
+  return _feature_alpha_dropout<true>(input, p, train);
+}
+
+} // dropout_hack
+
 TORCH_LIBRARY_IMPL(aten, FT_DYNAMIC_LAYER_FRONT_MODE_KEY, m) {
   m.impl("value_selecting_reduction_backward", value_selecting_reduction_backward_hack);
   m.impl("index_select_backward", index_select_backward_hack);
@@ -196,6 +379,20 @@ TORCH_LIBRARY_IMPL(aten, FT_DYNAMIC_LAYER_FRONT_MODE_KEY, m) {
   m.impl("linear", linear_hack);
   m.impl("binary_cross_entropy_with_logits_backward", binary_cross_entropy_with_logits_backward_hack);
   m.impl("binary_cross_entropy_with_logits", binary_cross_entropy_with_logits_hack);
+  m.impl("trace_backward", trace_backward_decomp);
+
+  m.impl("dropout", dropout_hack::dropout);
+  m.impl("feature_dropout", dropout_hack::feature_dropout);
+  m.impl("alpha_dropout", dropout_hack::alpha_dropout);
+  m.impl("feature_alpha_dropout", dropout_hack::feature_alpha_dropout);
+
+  m.impl("dropout_", dropout_hack::dropout_);
+  m.impl("feature_dropout_", dropout_hack::feature_dropout_);
+  m.impl("alpha_dropout_", dropout_hack::alpha_dropout_);
+  m.impl("feature_alpha_dropout_", dropout_hack::feature_alpha_dropout_);
+
+  m.impl("nuclear_norm", nuclear_norm_hack);
+  m.impl("nuclear_norm.dim", nuclear_norm_dim_hack);
 }
 
 }}

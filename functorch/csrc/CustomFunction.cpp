@@ -1,3 +1,4 @@
+#ifndef _WIN32
 #include <functorch/csrc/CustomFunction.h>
 #include <ATen/ATen.h>
 #include <torch/csrc/autograd/function.h>
@@ -21,13 +22,12 @@ public:
   // py::object destructor.  This is because this object may outlive
   // libtorch_python, so we want to disarm the deallocation if that happens.
   // PyInterpreter does this correctly, pybind11 does not.
-  ~PythonKernelHolder() {
+  ~PythonKernelHolder() override {
     getPyInterpreter()->decref(func_, /*is_tensor*/false);
   }
 
   void operator()(const c10::OperatorHandle& op, c10::DispatchKeySet, torch::jit::Stack* stack) {
     const auto& schema = op.schema();
-    const auto num_returns = schema.returns().size();
 
     const auto num_arguments = schema.arguments().size();
     auto arguments = torch::jit::pop(*stack, num_arguments);
@@ -56,7 +56,7 @@ public:
         // // just gets passed positionally
     py::dict kwargs;
 
-    for (int64_t idx = 0; idx < arguments.size() - default_suffix_len; idx++) {
+    for (int64_t idx = 0; idx < (int64_t)arguments.size() - default_suffix_len; idx++) {
       PyTuple_SET_ITEM(args.ptr(), idx, torch::jit::toPyObject(std::move(arguments[idx])).release().ptr());
     }
 
@@ -131,10 +131,10 @@ std::vector<Tensor> invoke_backward_fn(
   py::gil_scoped_acquire g;
   auto args = py::reinterpret_steal<py::object>(PyTuple_New(grads.size() + intermediates.size()));
   py::dict kwargs;
-  for (int64_t idx = 0; idx < grads.size(); idx++) {
+  for (int64_t idx = 0; idx < (int64_t) grads.size(); idx++) {
     PyTuple_SET_ITEM(args.ptr(), idx, torch::jit::toPyObject(grads[idx]).release().ptr());
   }
-  for (int64_t idx = 0; idx < intermediates.size(); idx++) {
+  for (int64_t idx = 0; idx < (int64_t) intermediates.size(); idx++) {
     PyTuple_SET_ITEM(args.ptr(), idx, torch::jit::toPyObject(intermediates[idx + grads.size()]).release().ptr());
   }
 
@@ -145,7 +145,7 @@ std::vector<Tensor> invoke_backward_fn(
 
   for (unsigned idx = 0; idx < grads.size(); idx++) {
     auto ivalue = torch::jit::toIValue(PyTuple_GetItem(out.ptr(), idx), TensorType::get());
-    result.push_back(ivalue.toTensor());
+    result.emplace_back(ivalue.toTensor());
   }
   return result;
 }
@@ -161,7 +161,7 @@ void copy_range(variable_list& out, torch::autograd::IndexRange range, at::Array
   std::copy(t.begin(), t.end(), out.begin() + range.first);
 }
 
-struct TORCH_API GenericPythonBackward : public torch::autograd::TraceableFunction {
+struct GenericPythonBackward : public torch::autograd::TraceableFunction {
   using TraceableFunction::TraceableFunction;
 
   variable_list apply(variable_list&& grads) override;
@@ -185,11 +185,11 @@ variable_list GenericPythonBackward::apply(variable_list&& grads) {
   variable_list grad_inputs(num_inputs_);
 
   std::vector<Tensor> args;
-  for (const auto& g : grads) {
-    args.push_back(g);
+  for (auto& g : grads) {
+    args.emplace_back(std::move(g));
   }
   for (const auto& saved : saved_tensors_) {
-    args.push_back(saved.unpack(shared_from_this()));
+    args.emplace_back(saved.unpack(shared_from_this()));
   }
 
   if (should_compute_output({ tensors_ix })) {
@@ -201,7 +201,7 @@ variable_list GenericPythonBackward::apply(variable_list&& grads) {
   return grad_inputs;
 }
 
-typedef TensorList (*custom_python_function_t)(TensorList);
+using custom_python_function_t = TensorList (*)(TensorList);
 
 using torch::autograd::compute_requires_grad;
 using torch::autograd::collect_next_edges;
@@ -209,11 +209,6 @@ using torch::autograd::deleteNode;
 using torch::autograd::flatten_tensor_args;
 
 void customFunctionBoxed(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
-  const auto& schema = op.schema();
-  const auto num_returns = schema.returns().size();
-  const auto num_arguments = schema.arguments().size();
-  const auto arguments = torch::jit::last(stack, num_arguments);
-
   auto tensors = torch::jit::pop(stack).toTensorList().vec();
   auto tensors_ = unpack(tensors, "tensors", 0);
   auto _any_requires_grad = compute_requires_grad(tensors);
@@ -221,14 +216,12 @@ void customFunctionBoxed(const c10::OperatorHandle& op, torch::jit::Stack* stack
 
   std::string schema_name = op.schema().name();
   std::string vjp_fn_name = schema_name + "_vjp";
-  auto vjp_fn = c10::Dispatcher::singleton()
-    .findSchemaOrThrow(vjp_fn_name.c_str(), "");
 
   std::shared_ptr<GenericPythonBackward> grad_fn;
   if (_any_requires_grad) {
     grad_fn = std::shared_ptr<GenericPythonBackward>(new GenericPythonBackward(), deleteNode);
     grad_fn->set_next_edges(collect_next_edges(tensors));
-    grad_fn->backward_fn_ = std::move(vjp_fn);
+    grad_fn->backward_fn_ = c10::Dispatcher::singleton().findSchemaOrThrow(vjp_fn_name.c_str(), "");
     grad_fn->num_inputs_ = tensors_.size();
   }
 
@@ -251,7 +244,7 @@ void customFunctionBoxed(const c10::OperatorHandle& op, torch::jit::Stack* stack
       if (!is_input) {
         set_history(tensor, grad_fn);
       }
-      grad_fn->saved_tensors_.push_back(torch::autograd::SavedVariable(tensor, !is_input));
+      grad_fn->saved_tensors_.emplace_back(tensor, !is_input);
     }
   }
   torch::jit::push(stack, result);
@@ -294,3 +287,4 @@ void initDispatchBindings(PyObject* module) {
 
 
 }} // at::functorch
+#endif // #ifndef _WIN32

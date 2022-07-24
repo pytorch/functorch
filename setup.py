@@ -45,7 +45,7 @@ def write_version_file():
 requirements = [
     # This represents a nightly version of PyTorch.
     # It can be installed as a binary or from source.
-    "torch>=1.10.0.dev",
+    "torch>=1.13.0.dev",
 ]
 
 extras = {}
@@ -71,12 +71,12 @@ class clean(distutils.command.clean.clean):
 def get_extensions():
     extension = CppExtension
 
-    define_macros = []
+    # See functorch/csrc/Macros.h
+    define_macros = [('FUNCTORCH_BUILD_MAIN_LIB', None)]
 
     extra_link_args = []
     extra_compile_args = {"cxx": [
         "-O3",
-        "-g",
         "-std=c++14",
         "-fdiagnostics-color=always",
     ]}
@@ -116,10 +116,18 @@ def get_extensions():
     return ext_modules
 
 
+class BuildExtension_(BuildExtension):
+    def build_extensions(self, *args, **kwargs):
+        # It turns out for windows this isn't populated?
+        if hasattr(self.compiler, 'compiler_so'):
+            if '-Wstrict-prototypes' in self.compiler.compiler_so:
+                self.compiler.compiler_so.remove('-Wstrict-prototypes')
+        super().build_extensions(*args, **kwargs)
+
+
 if __name__ == '__main__':
     print("Building wheel {}-{}".format(package_name, version))
     write_version_file()
-
     setup(
         # Metadata
         name=package_name,
@@ -135,6 +143,6 @@ if __name__ == '__main__':
         extras_require=extras,
         ext_modules=get_extensions(),
         cmdclass={
-            "build_ext": BuildExtension.with_options(no_python_abi_suffix=True),
+            "build_ext": BuildExtension_.with_options(no_python_abi_suffix=True),
             'clean': clean,
         })

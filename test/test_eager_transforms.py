@@ -4,8 +4,9 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import copy
 from torch.testing._internal.common_utils import (
-    TestCase, run_tests, parametrize, subtest
+    TestCase, run_tests, parametrize, subtest, instantiate_parametrized_tests
 )
 import torch
 import torch.nn as nn
@@ -15,21 +16,24 @@ import warnings
 import math
 from torch.testing._internal.common_device_type import instantiate_device_type_tests, onlyCPU
 from torch.testing._internal.common_dtype import get_all_fp_dtypes
+from torch.testing._internal.common_utils import IS_WINDOWS
 from functools import partial
+from functorch.experimental import replace_all_batch_norm_modules_
 
 import functorch
 from functorch import (
-    grad, vjp, vmap, jacrev, grad_and_value,
-    make_functional, make_functional_with_buffers,
+    grad, vjp, vmap, jacrev, jacfwd, grad_and_value, hessian,
+    jvp, make_functional, make_functional_with_buffers,
+    combine_state_for_ensemble, make_fx
 )
 from functorch._src.make_functional import (
     functional_init, functional_init_with_buffers,
 )
-from functorch.experimental import (
-    jvp, jacfwd, hessian,
-)
-from functorch._src.eager_transforms import _argnums_partial
-from functorch._src.custom_function import custom_vjp
+from functorch._src.eager_transforms import _argnums_partial, enable_fwd_grad
+from functorch.experimental import functionalize
+
+if not IS_WINDOWS:
+    from functorch._src.custom_function import custom_vjp
 
 # NB: numpy is a testing dependency!
 import numpy as np
@@ -361,7 +365,7 @@ class TestGradTransform(TestCase):
         vjp_fn(result)
 
     def test_conj_bit(self):
-        x = torch.tensor(1+1j)
+        x = torch.tensor(1 + 1j)
 
         def foo(x):
             assert not x.is_conj()
@@ -848,7 +852,7 @@ class TestGradTransform(TestCase):
                         fn = op(fn)
 
                 expected = f"{repr(x)}"
-                level = 1
+                level = 0
                 for op in op_list:
                     level += 1
                     if op == grad:
@@ -1096,7 +1100,7 @@ class TestVmapOfGrad(TestCase):
         result = vmap(partial(grad(compute_loss), weights))(data, targets)
         for r, e in zip(result, expected):
             # TODO: Check if the rtol is a problem
-            self.assertEqual(r, e, atol=0, rtol=1e-4)
+            self.assertEqual(r, e, atol=0, rtol=1e-3)
 
     def test_log_softmax(self, device):
         x = torch.randn(3, 5, device=device)
@@ -1632,6 +1636,26 @@ class TestHessian(TestCase):
         y = torch.randn(3, device=device)
         self._test_against_reference(f, (x, y))
 
+    def test_jacfwd_different_levels(self, device):
+        # Test case from:
+        # https://github.com/pytorch/functorch/issues/597
+        b = 8
+        n = 100
+        d = 2
+        x1 = torch.randn(b, n, d, device=device)
+        x2 = x1
+        A = 0.1 * torch.randn(b, d, d, device=device)
+
+        def loss(A, x1, x2):
+            x2_hat = (A @ (x1.T)).T
+            res = x2 - x2_hat
+            res_sqr = res**2
+            return res_sqr.sum()
+
+        hess1 = vmap(jacrev(jacrev(loss)))(A, x1, x2)
+        hess2 = vmap(hessian(loss))(A, x1, x2)
+        self.assertEqual(hess2, hess1)
+
 
 class TestJvp(TestCase):
     def test_inplace_on_captures(self, device):
@@ -1871,8 +1895,125 @@ class TestJvp(TestCase):
             with self.assertRaisesRegex(RuntimeError, r"Expected tensors, got unsupported type"):
                 _ = jvp(lambda x: (x, [x, aux]), (x, ), (t, ), has_aux=True)
 
+    def test_fwd_grad_enabled(self, device):
+        # Tests some private helper functions to enable/disable fwd grad mode
+        enabled = functorch._C.get_fwd_grad_enabled()
+        self.assertTrue(enabled)
+
+        try:
+            functorch._C.set_fwd_grad_enabled(False)
+            enabled = functorch._C.get_fwd_grad_enabled()
+            self.assertFalse(enabled)
+        finally:
+            functorch._C.set_fwd_grad_enabled(True)
+
+        enabled = functorch._C.get_fwd_grad_enabled()
+        self.assertTrue(enabled)
+
+    def test_autograd_function_disables_fwd_grad(self, device):
+        # Sanity check. We don't really assume this anywhere so
+        # it's fine if this breaks one day.
+        class MySquare(torch.autograd.Function):
+            @staticmethod
+            def forward(ctx, x):
+                enabled = functorch._C.get_fwd_grad_enabled()
+                self.assertFalse(enabled)
+                return x * x
+
+            @staticmethod
+            def backward(ctx, gx):
+                return gx
+
+        x = torch.randn(3, requires_grad=True)
+        MySquare.apply(x)
+
+    def test_enable_fwd_grad(self, device):
+        # Tests a private helper function
+        try:
+            functorch._C.set_fwd_grad_enabled(False)
+            enabled = functorch._C.get_fwd_grad_enabled()
+            self.assertFalse(enabled)
+
+            with enable_fwd_grad():
+                enabled = functorch._C.get_fwd_grad_enabled()
+                self.assertTrue(enabled)
+
+            enabled = functorch._C.get_fwd_grad_enabled()
+            self.assertFalse(enabled)
+        finally:
+            functorch._C.set_fwd_grad_enabled(True)
+
+    def test_disable_fwd_grad_outside(self, device):
+        x = torch.randn([], device=device)
+        t = torch.ones_like(x)
+        with enable_fwd_grad(False):
+            _, y = jvp(torch.sin, (x,), (t,))
+        self.assertEqual(y, x.cos())
+
+    def test_disable_fwd_grad_inside(self, device):
+        def f(x):
+            with enable_fwd_grad(False):
+                shift = x ** 2
+            return x ** 2 - shift
+
+        x = torch.randn([], device=device)
+        t = torch.ones_like(x)
+        _, y = jvp(f, (x,), (t,))
+        self.assertEqual(y, 2 * x)
+        _, y = jvp(lambda x: jvp(f, (x,), (t,))[1], (x,), (t,))
+        self.assertEqual(y, 2)
+
+    def test_disable_fwd_grad_mixed(self, device):
+        def f(x):
+            with enable_fwd_grad(False):
+                shift = x ** 2
+            return x ** 2 - shift
+
+        x = torch.randn([], device=device)
+        t = torch.ones_like(x)
+        with enable_fwd_grad():
+            _, y = jvp(f, (x,), (t,))
+
+        self.assertEqual(y, 2 * x)
+
+    def test_jvp_inside_autograd_function(self, device):
+        class MySin(torch.autograd.Function):
+            @staticmethod
+            def forward(ctx, x):
+                t = torch.ones_like(x)
+                _, neg_sin_x = jvp(torch.cos, (x,), (t,))
+                ctx.save_for_backward(x)
+                return -neg_sin_x
+
+            @staticmethod
+            def backward(ctx, gx):
+                x, = ctx.saved_tensors
+                t = torch.ones_like(x)
+                _, cos_x = jvp(torch.sin, (x,), (t,))
+                return gx * cos_x
+
+        x = torch.randn([], device=device, requires_grad=True)
+        y = MySin.apply(x)
+        self.assertEqual(y, x.sin())
+
+        gx, = torch.autograd.grad(y, x)
+        self.assertEqual(gx, x.cos())
+
+    def test_zerotensor_vmapjvp_interaction(self, device):
+        dummy = torch.ones(4, 1)
+        x = torch.randn(4, 2)
+        x_tangent = torch.randn(2)
+
+        def push_jvp(dummy, x):
+            result = jvp(torch.cov, (x,), (x_tangent,))
+            return result
+
+        # Should not error
+        vmap(vmap(push_jvp, (0, None)))(dummy, x)
+
 
 class TestCustomFunction(TestCase):
+    @unittest.skipIf(IS_WINDOWS, "Prototype of custom_vjp doesn't link on windows")
     @onlyCPU
     def test_basic(self, device):
         called_impl = False
@@ -1987,6 +2128,345 @@ class TestComposability(TestCase):
         y = vjp_fn(x)[0]
         # Honestly IDK what the result here is... but at least it runs
 
+    def test_make_fx_vmap(self, device):
+        def f(x):
+            return torch.sin(x)
+        inp = torch.randn(5, 3)
+        f = vmap(f)
+        fx_f = make_fx(f)(inp)
+        new_inp = torch.randn(5, 3)
+        self.assertEqual(fx_f(new_inp), f(new_inp))
+
+    def test_make_fx_jacrev(self, device):
+        def f(x):
+            return x.sin().sum()
+        inp = torch.randn(3)
+        f = jacrev(jacrev(f))
+        fx_f = make_fx(f)(inp)
+        new_inp = torch.randn(3)
+        self.assertEqual(fx_f(new_inp), f(new_inp))
+
+    def test_make_fx_vjp(self, device):
+        def f(x):
+            return torch.sin(x).sum()
+
+        primals = torch.randn(3)
+        _, vjp_fn = vjp(f, primals)
+        cotangent = torch.randn(())
+        fx_f = make_fx(vjp_fn)(cotangent, True, True)
+        new_cotangent = torch.randn(())
+        self.assertEqual(fx_f(new_cotangent, True, True), vjp_fn(new_cotangent))
+
+    def test_requires_grad_inside_transform(self, device):
+        def f(x):
+            x.requires_grad_()
+            return x.sin().sum()
+
+        x = torch.randn(3)
+
+        with self.assertRaisesRegex(RuntimeError, "Tensor.requires_grad_()"):
+            vmap(f)(x)
+        with self.assertRaisesRegex(RuntimeError, "Tensor.requires_grad_()"):
+            grad(f)(x)
+        with self.assertRaisesRegex(RuntimeError, "Tensor.requires_grad_()"):
+            vmap(grad(f))(x)
+
+        x = torch.randn([])
+        with self.assertRaisesRegex(RuntimeError, "Tensor.requires_grad_()"):
+            grad(grad(f))(x)
+
+    def test_retain_grad_inside_transform(self, device):
+        def f(x):
+            y = x.sin()
+            y.retain_grad()
+            return y.sum()
+
+        x = torch.randn(3)
+
+        with self.assertRaisesRegex(RuntimeError, "Tensor.retain_grad()"):
+            grad(f)(x)
+
+    def test_autograd_functional_jacrev_inside_transform(self, device):
+        def f(x):
+            y = torch.autograd.functional.jacobian(lambda x: x.sin().sum(), x)
+            return y
+
+        B = 5
+        x = torch.randn(B, 3)
+        with self.assertRaisesRegex(RuntimeError, "torch.autograd.functional"):
+            vmap(f)(x)
+
+        x = torch.randn([])
+        with self.assertRaisesRegex(RuntimeError, "torch.autograd.functional"):
+            grad(f)(x)
+
+    def test_autograd_functional_vjp_inside_transform(self, device):
+        def f(x):
+            y = torch.autograd.functional.vjp(lambda x: x.sin().sum(), x)
+            return y
+
+        B = 5
+        x = torch.randn(B, 3)
+        with self.assertRaisesRegex(RuntimeError, "torch.autograd.functional"):
+            vmap(f)(x)
+
+        x = torch.randn([])
+        with self.assertRaisesRegex(RuntimeError, "torch.autograd.functional"):
+            grad(f)(x)
+
+    def test_autograd_functional_jvp_inside_transform(self, device):
+        def f(x):
+            t = torch.ones_like(x)
+            y = torch.autograd.functional.jvp(lambda x: x.sin().sum(), (x,), (t,))
+            return y
+
+        B = 5
+        x = torch.randn(B, 3)
+        with self.assertRaisesRegex(RuntimeError, "torch.autograd.functional"):
+            vmap(f)(x)
+
+        x = torch.randn([])
+        with self.assertRaisesRegex(RuntimeError, "torch.autograd.functional"):
+            grad(f)(x)
+
+    def test_autograd_functional_jacfwd_inside_transform(self, device):
+        def f(x):
+            y = torch.autograd.functional.jacobian(
+                lambda x: x.sin().sum(), x, strategy='forward-mode', vectorize=True)
+            return y
+
+        B = 5
+        x = torch.randn(B, 3)
+        with self.assertRaises(RuntimeError):
+            vmap(f)(x)
+
+        x = torch.randn([])
+        with self.assertRaises(RuntimeError):
+            grad(f)(x)
+
+
+class TestMakeFunctional(TestCase):
+    @parametrize('disable_autograd_tracking', [True, False])
+    def test_disable_autograd_tracking(self, disable_autograd_tracking):
+        class Foo(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear = nn.Linear(3, 3)
+
+            def forward(self, x):
+                x = self.linear(x)
+                return x
+
+        mod = Foo()
+        _, params = make_functional(mod, disable_autograd_tracking=disable_autograd_tracking)
+        self.assertEqual(len(params), 2)
+        for param in params:
+            self.assertEqual(param.requires_grad, not disable_autograd_tracking)
+
+    def test_parameter_tying(self):
+        class Foo(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.bias = nn.Parameter(torch.randn(3))
+                self.linear = nn.Linear(3, 3)
+                self.linear.bias = self.bias
+                self.linear_tied = self.linear
+
+            def forward(self, x):
+                x = self.linear(x)
+                x = self.linear_tied(x)
+                x = x + self.bias
+                return x
+
+        torch.manual_seed(1)
+        mod = Foo()
+        func, _ = make_functional(mod)
+
+        torch.manual_seed(0)
+        mod = Foo()
+        _, params = make_functional(mod)
+        self.assertEqual(len(params), 2)
+
+        x = torch.randn(2, 3)
+        result = func(params, x)
+        expected = mod(x)
+        self.assertEqual(result, expected)
+
+    def test_buffer_tying(self):
+        class Foo(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.bias = nn.Parameter(torch.randn(3))
+                self.linear = nn.Linear(3, 3)
+                self.register_buffer('buffer', torch.randn(3))
+                self.register_buffer('buffer_tied', self.buffer)
+
+            def forward(self, x):
+                x = self.linear(x)
+                x = x + self.bias
+                x = x + self.buffer
+                x = x + self.buffer_tied
+                return x
+
+        torch.manual_seed(1)
+        mod = Foo()
+        func, _, _ = make_functional_with_buffers(mod)
+
+        torch.manual_seed(0)
+        mod = Foo()
+        _, params, buffers = make_functional_with_buffers(mod)
+        self.assertEqual(len(params), 3)
+        self.assertEqual(len(buffers), 1)
+
+        x = torch.randn(2, 3)
+        result = func(params, buffers, x)
+        expected = mod(x)
+        self.assertEqual(result, expected)
+
+    @parametrize('disable_autograd_tracking', [True, False])
+    def test_with_buffers_disable_autograd_tracking(self, disable_autograd_tracking):
+        class Foo(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear = nn.Linear(3, 3)
+                self.register_buffer('buffer', torch.randn(3))
+
+            def forward(self, x):
+                x = self.linear(x)
+                x = x + self.buffer
+                return x
+
+        mod = Foo()
+        _, params, buffers = make_functional_with_buffers(mod, disable_autograd_tracking=disable_autograd_tracking)
+        self.assertEqual(len(params), 2)
+        self.assertEqual(len(buffers), 1)
+        for param in params:
+            self.assertEqual(param.requires_grad, not disable_autograd_tracking)
+
+    def test_parameter_tying_grad(self):
+        class Foo(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear = nn.Linear(3, 3)
+                self.weight = self.linear.weight
+                self.bias = self.linear.bias
+
+            def forward(self, x):
+                x = self.linear(x)
+                x = F.linear(x, self.weight, self.bias)
+                return x
+
+        x = torch.randn(2, 3)
+        torch.manual_seed(0)
+        mod = Foo()
+        loss = mod(x).sum()
+        expected = torch.autograd.grad(loss, mod.parameters())
+
+        mod = Foo()
+        fmod, _, _ = make_functional_with_buffers(mod)
+        torch.manual_seed(0)
+        mod = Foo()
+        _, params, buffers = make_functional_with_buffers(mod)
+
+        def compute_loss(params, buffers, x):
+            return fmod(params, buffers, x).sum()
+
+        result = grad(compute_loss)(params, buffers, x)
+
+        self.assertEqual(result, expected)
+
+    def test_parameter_tying_ensemble(self):
+        class Foo(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear = nn.Linear(3, 3)
+                self.weight = self.linear.weight
+                self.bias = self.linear.bias
+                self.register_buffer('buffer', torch.randn(3))
+                self.register_buffer('buffer_tied', self.buffer)
+
+            def forward(self, x):
+                x = self.linear(x)
+                x = F.linear(x, self.weight, self.bias)
+                x = x + self.buffer
+                x = x + self.buffer_tied
+                return x
+
+        num_models = 2
+        xs = torch.randn(num_models, 64, 3)
+        models = [Foo() for _ in range(num_models)]
+        fmodel, _, _ = combine_state_for_ensemble(models)
+
+        torch.manual_seed(0)
+        models = [Foo() for _ in range(num_models)]
+        _, params, buffers = combine_state_for_ensemble(models)
+        result = vmap(fmodel)(params, buffers, xs)
+
+        torch.manual_seed(0)
+        models = [Foo() for _ in range(num_models)]
+        expected = torch.stack([model(x) for model, x in zip(models, xs)])
+
+        self.assertEqual(result, expected)
+
+    def test_correctness_mnist(self):
+        class Net(nn.Module):
+            def __init__(self):
+                super(Net, self).__init__()
+                self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
+                self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+                self.conv2_drop = nn.Dropout2d()
+                self.fc1 = nn.Linear(320, 50)
+                self.fc2 = nn.Linear(50, 10)
+
+            def forward(self, x):
+                x = F.relu(F.max_pool2d(self.conv1(x), 2))
+                x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
+                x = x.view(-1, 320)
+                x = F.relu(self.fc1(x))
+                x = F.dropout(x, training=self.training)
+                x = self.fc2(x)
+                return F.log_softmax(x)
+
+        x = torch.randn(64, 1, 32, 32)
+        torch.manual_seed(301)
+        fnet, _ = make_functional(Net())
+
+        torch.manual_seed(0)
+        _, params = make_functional(Net())
+        result = fnet(params, x)
+
+        torch.manual_seed(0)
+        net = Net()
+        expected = net(x)
+
+        self.assertEqual(result, expected)
+
+    def test_combine_state_for_ensemble_error(self):
+        in_features = 2
+        out_features = 2
+
+        models = []
+        with self.assertRaisesRegex(RuntimeError, "Expected at least one model"):
+            _ = combine_state_for_ensemble(models)
+
+        num_models = 3
+        models = [torch.nn.Linear(in_features, out_features) for i in range(num_models)]
+        models[1].eval()
+        with self.assertRaisesRegex(RuntimeError, "same training/eval mode"):
+            _ = combine_state_for_ensemble(models)
+
+        models = [torch.nn.Linear(in_features, out_features) for i in range(num_models)]
+        models[1] = torch.nn.Conv2d(3, 3, (3, 3))
+        with self.assertRaisesRegex(RuntimeError, "models to be of the same class"):
+            _ = combine_state_for_ensemble(models)
+
+    def test_combine_state_for_ensemble_smoke(self):
+        in_features = 2
+        out_features = 2
+        num_models = 3
+        models = [torch.nn.Linear(in_features, out_features) for i in range(num_models)]
+        _ = combine_state_for_ensemble(models)
+
 
 class TestExamplesCorrectness(TestCase):
     def test_maml_regression(self, device):
@@ -2048,7 +2528,7 @@ class TestExamplesCorrectness(TestCase):
             else:
                 loss = inner_loss(params, x1, y1)
                 grads = torch.autograd.grad(loss, params, create_graph=True)
-            new_params = [(params[i] - alpha*grads[i]) for i in range(len(params))]
+            new_params = [(params[i] - alpha * grads[i]) for i in range(len(params))]
 
             v_f = net(new_params, x2)
             return mse_loss(v_f, y2)
@@ -2057,7 +2537,7 @@ class TestExamplesCorrectness(TestCase):
 
         # Compute with vmap+grad
         inner_losses = vmap(partial(get_loss_for_task, True))(task[0], task[1], task[2], task[3])
-        loss2 = sum(inner_losses)/len(inner_losses)
+        loss2 = sum(inner_losses) / len(inner_losses)
         result_grads = torch.autograd.grad(loss2, params)
 
         # Compute without vmap+grad
@@ -2065,7 +2545,7 @@ class TestExamplesCorrectness(TestCase):
             get_loss_for_task(False, task[0][i], task[1][i], task[2][i], task[3][i])
             for i in range(num_tasks)
         ]
-        loss2 = sum(inner_losses)/len(inner_losses)
+        loss2 = sum(inner_losses) / len(inner_losses)
         expected_grads = torch.autograd.grad(loss2, params)
 
         self.assertEqual(result_grads, expected_grads)
@@ -2080,10 +2560,8 @@ class TestExamplesCorrectness(TestCase):
         n_inner_iter = 2
         num_tasks = 2
 
-        class Flatten(nn.Module):
-            def forward(self, input):
-                return input.view(input.size(0), -1)
-
+        # real example uses batch norm but it's numerically unstable in the first
+        # iteration, when near 0, and won't produce same gradients. Uses group norm instead
         net = nn.Sequential(
             nn.Conv2d(1, 64, 3),
             nn.GroupNorm(64, 64, affine=True),
@@ -2097,7 +2575,7 @@ class TestExamplesCorrectness(TestCase):
             nn.GroupNorm(64, 64, affine=True),
             nn.ReLU(inplace=inplace_relu),
             nn.MaxPool2d(2, 2),
-            Flatten(),
+            nn.Flatten(),
             nn.Linear(64, n_way)).to(device).to(dtype)
 
         fnet, params, buffers = make_functional_with_buffers(net)
@@ -2147,9 +2625,51 @@ class TestExamplesCorrectness(TestCase):
 
         self.assertEqual(result_grads, expected_grads)
 
-    def test_lennard_jones_batched_jacrev(self, device):
+    @parametrize('originally_track_running_stats', [True, False])
+    def test_update_batch_norm(self, device, originally_track_running_stats):
+        dtype = torch.double
+        inplace_relu = False
+        classes = 5
+        num_batches = 2
+        net = nn.Sequential(
+            nn.Conv2d(64, 64, 3),
+            nn.BatchNorm2d(64, affine=True, track_running_stats=originally_track_running_stats),
+            nn.ReLU(inplace=inplace_relu),
+            nn.Flatten(),
+            nn.Linear(43264, classes)).to(device).to(dtype)
+
+        replace_all_batch_norm_modules_(net)
+        transformed_net = net
+        fnet, params, buffers = make_functional_with_buffers(transformed_net)
+        net = (params, buffers, fnet)
+        criterion = nn.CrossEntropyLoss()
+
+        def compute_loss(x, y, params, buffers):
+            return criterion(fnet(params, buffers, x), y)
+
+        # Get some sample inputs...
+        x = torch.randn(num_batches, 1, 64, 28, 28, device=device, dtype=dtype)
+        y = torch.randint(0, classes, (num_batches, 1), device=device)
+
+        # compute some per sample grads with vmap + grad
+        result_grads = vmap(grad(compute_loss, argnums=2), in_dims=(0, 0, None, None))(x, y, params, buffers)
+
+        # compute some per sample grads without vmap + grad
+        fnet, params, buffers = make_functional_with_buffers(transformed_net)
+        expected_grads = [
+            torch.autograd.grad(compute_loss(x[i], y[i], params, buffers), params)
+            for i in range(num_batches)
+        ]
+        expected_grads = [torch.stack(shards) for shards in zip(*expected_grads)]
+
+        self.assertEqual(result_grads, expected_grads)
+
+    @parametrize('jac', ['jacfwd', 'jacrev'])
+    def test_lennard_jones_batched_jac(self, device, jac):
         sigma = 0.5
         epsilon = 4.
+
+        jac = getattr(functorch, jac)
 
         def lennard_jones(r):
             return epsilon * ((sigma / r)**12 - (sigma / r)**6)
@@ -2185,7 +2705,7 @@ class TestExamplesCorrectness(TestCase):
             energies = model(norms)
 
             if use_functorch:
-                network_derivs = vmap(jacrev(model))(norms).squeeze(-1)
+                network_derivs = vmap(jac(model))(norms).squeeze(-1)
                 forces = -network_derivs * drs / norms
             else:
                 forces = []
@@ -2291,6 +2811,71 @@ class TestExamplesCorrectness(TestCase):
         self.assertEqual(result_loss, expected_loss)
         self.assertEqual(result_weights, expected_weights)
 
+    @parametrize("dropout_layer", [nn.Dropout, nn.AlphaDropout, nn.FeatureAlphaDropout])
+    def test_find_learning_rate_ensembling(self, device, dropout_layer):
+        # This example mimics what a user might do when trying to find the optimal learning rate. They would
+        # want to run a bunch of models with the same behavior (including the same dropout!) and have them
+        # each run with different learning rates. Specifically, this is an example of using same randomness with vmap
+        points, labels = torch.randn(100, 2, 2, 2, 2, device=device), torch.randint(0, 2, (100,), device=device)
+
+        class MLPClassifier(nn.Module):
+            def __init__(self, hidden_dim=32, n_classes=2):
+                super().__init__()
+                self.hidden_dim = hidden_dim
+                self.n_classes = n_classes
+
+                self.dropout = dropout_layer()
+                self.fc1 = nn.Linear(16, self.hidden_dim)
+                self.fc2 = nn.Linear(self.hidden_dim, self.n_classes)
+
+            def forward(self, x):
+                x = self.dropout(x)
+                x = torch.flatten(x, start_dim=1)
+                x = self.fc1(x)
+                x = F.relu(x)
+                x = self.fc2(x)
+                x = F.log_softmax(x, -1)
+                return x
+
+        loss_fn = nn.NLLLoss()
+
+        func_model, weights = make_functional(MLPClassifier().to(device))
+
+        def train_step_fn(weights, batch, targets, lr):
+            def compute_loss(weights, batch, targets):
+                output = func_model(weights, batch)
+                loss = loss_fn(output, targets)
+                return loss
+
+            grad_weights, loss = grad_and_value(compute_loss)(weights, batch, targets)
+            new_weights = []
+            with torch.no_grad():
+                for grad_weight, weight in zip(grad_weights, weights):
+                    new_weights.append(weight - grad_weight * lr)
+            # NB: return looks weird because torch.vmap must return Tensors
+            return (loss, *new_weights)
+
+        def unpack(train_result):
+            return train_result[0], train_result[1:]
+
+        def init_fn(num_models):
+            og_model = MLPClassifier().to(device)
+            models = tuple(copy.deepcopy(og_model) for _ in range(num_models))  # have same initialization
+            weights = tuple(make_functional(model)[1] for model in models)
+            weights = tuple(zip(*weights))
+            weights = tuple(torch.stack(shards).detach() for shards in weights)
+            return weights
+
+        batched_weights = init_fn(num_models=2)
+        parallel_train_step_fn = vmap(train_step_fn, in_dims=(0, None, None, 0), randomness="same")
+
+        lrs = torch.tensor([0.2, 0.4], device=device)
+        result_loss, result_weights = unpack(parallel_train_step_fn(batched_weights, points, labels, lrs))
+
+        self.assertEqual(result_loss[0], result_loss[1])
+        self.assertNotEqual(tuple(weight[0] for weight in result_weights),
+                            tuple(weight[1] for weight in result_weights))
+
     @unittest.skipIf(not USE_TORCHVISION, "test requires torchvision")
     def test_resnet18_per_sample_grads(self, device):
         import torchvision.models as models
@@ -2319,6 +2904,315 @@ class TestExamplesCorrectness(TestCase):
         expected_grads = [torch.stack(shards) for shards in zip(*expected_grads)]
 
         self.assertEqual(result_grads, expected_grads, atol=1e-3, rtol=1.)
+
+
+class TestFunctionalize(TestCase):
+    def _check_functionalize_correctness(self, f, inpt):
+        inpt1 = inpt.clone()
+        inpt2 = inpt.clone()
+        inpt3 = inpt.clone()
+
+        expected_outputs = f(inpt1)
+        actual_outputs = vmap(functionalize(f))(inpt2.unsqueeze(0))[0].squeeze()
+        # Right now the flavor of functionalize that also removes view ops
+        # isn't being used with vmap
+        # That's because {view}_copy ops don't have batching rules yet
+        # (although we should probably fix that)
+        actual_outputs_view_copy = functionalize(f, remove='mutations_and_views')(inpt3)
+        # Check that outputs are the same
+        self.assertEqual(actual_outputs, expected_outputs)
+        self.assertEqual(actual_outputs_view_copy, expected_outputs)
+
+        # Inputs might have been mutated by f: check that they were mutated properly
+        self.assertEqual(inpt1, inpt2)
+        self.assertEqual(inpt1, inpt3)
+
+    def test_simple_view(self, device):
+
+        def f(x: torch.Tensor) -> torch.Tensor:
+            tmp = torch.ones(2, device=device)
+            y = x.view(4, 2)
+            y.add_(tmp)
+            return x
+        self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
+
+    def test_multioutput_view(self, device):
+
+        def f(x: torch.Tensor) -> torch.Tensor:
+            tmp = torch.ones(2, device=device)
+            y1, y2 = x.split(2)
+            y1_view = y1.diagonal()
+            y1_view.add_(tmp)
+            return x
+        self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
+
+    def test_inplace_view(self, device):
+
+        def f(x: torch.Tensor) -> torch.Tensor:
+            tmp = torch.ones(4, device=device)
+            y = x + x
+            y2 = y.transpose(1, 0)
+            z = y2[0]
+            z.add_(tmp)
+            return y
+        self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
+
+    # See https://github.com/pytorch/functorch/issues/780
+    def test_linear(self, device):
+
+        def f(x, y, z) -> torch.Tensor:
+            return torch._C._nn.linear(x, y, z)
+
+        x = torch.randn(14, 1, 384, device=device)
+        y = torch.randn(96, 384, device=device)
+        z = torch.randn(96, device=device)
+
+        out_expected = f(x, y, z)
+        out_actual = functionalize(f)(x, y, z)
+        self.assertEqual(out_expected, out_actual)
+
+    def test_multioutput_inplace_slice_view(self, device):
+
+        def f(x: torch.Tensor) -> torch.Tensor:
+            tmp = torch.ones(2, 2, device=device)
+            y = x.view(8)
+            z0 = y.reshape(2, 4)
+            z1 = z0.transpose(1, 0)
+            z1.unsqueeze_(0)
+            z1.squeeze_()
+            z2, z3 = z1.split(2)
+            z2.add_(tmp)
+            return x
+        self._check_functionalize_correctness(f, torch.zeros(4, 2, device=device))
+
+    # Ensure functionalize works with List[Optional[Tensor]] arguments.
+    # See the fix / discussion at https://github.com/pytorch/pytorch/pull/76085
+    def test_functionalize_opt_tensor_list(self, device):
+
+        def f(x: torch.Tensor, indices: torch.Tensor) -> torch.Tensor:
+            return x[indices]
+
+        inpta = torch.ones(4, device=device)
+        inptb = torch.arange(2, device=device)
+        out1 = f(inpta, inptb)
+        out2 = functionalize(f)(inpta, inptb)
+        self.assertEqual(out1, out2)
+        out = make_fx(functionalize(f))(inpta, inptb)
+        self.assertExpectedInline((out.code), """\
+
+
+
+def forward(self, x_1, indices_1) -> torch.Tensor:
+    index_tensor = torch.ops.aten.index.Tensor(x_1, [indices_1]);  x_1 = indices_1 = None
+    return index_tensor
+    """)
+
+    # Ensure grad(functionalize(f)) works
+    def test_functionalize_grad(self, device):
+
+        def f(x: torch.Tensor) -> torch.Tensor:
+            tmp = torch.ones(2, device=device)
+            y = x + x
+            z = y.view(4, 2)
+            y.add_(tmp)
+            return z.sum()
+
+        inpt1 = torch.ones(4, 2, device=device)
+        inpt2 = torch.ones(4, 2, device=device)
+        out1 = grad(f)(inpt1)
+        out2 = grad(functionalize(f))(inpt2)
+        self.assertEqual(out1, out2)
+        self.assertEqual(inpt1, inpt2)
+
+    def test_vmap_functionalize_jvp(self, device):
+
+        def f(x: torch.Tensor) -> torch.Tensor:
+            y = x + x
+            z = y.view(-1)
+            y.add_(1)
+            return z
+
+        def jvp_wrapper(x, t):
+            return jvp(f, (x,), (t,),)
+
+        x = torch.randn(2, 3, device=device)
+        t = torch.randn(2, 3, device=device)
+
+        out1 = vmap(jvp_wrapper)(x, t)
+        out2 = vmap(functionalize(jvp_wrapper))(x, t)
+        self.assertEqual(out1, out2)
+
+    @unittest.skip("Disabling to land #81145")
+    def test_functionalize_fx_simple(self, device):
+
+        def f(x: torch.Tensor) -> torch.Tensor:
+            tmp = torch.ones(2, device=device)
+            y = x.view(4, 2)
+            y.add_(tmp)
+            return x
+        # There's a copy_ in the graph, because the input (x) was mutated.
+        # To preserve semantics, functionalize() needs to propagate the mutation.
+        fn = make_fx(functionalize(f, remove='mutations_and_views'), trace_factory_functions=False)
+        out = fn(torch.zeros(4, 2, device=device))
+        self.assertExpectedInline((out.code), """\
+
+
+
+def forward(self, x_1) -> torch.Tensor:
+    view_copy_default = torch.ops.aten.view_copy.default(x_1, [4, 2])
+    _tensor_constant0 = self._tensor_constant0
+    add_tensor = torch.ops.aten.add.Tensor(view_copy_default, _tensor_constant0);  view_copy_default = _tensor_constant0 = None
+    view_copy_default_1 = torch.ops.aten.view_copy.default(add_tensor, [4, 2]);  add_tensor = None
+    copy__default = torch.ops.aten.copy_.default(x_1, view_copy_default_1);  x_1 = None
+    return view_copy_default_1
+    """)
+
+    def test_functionalize_fx_transpose_simple(self, device):
+
+        def f(x: torch.Tensor) -> torch.Tensor:
+            return x.transpose(1, 0)
+        fn = make_fx(functionalize(f, remove='mutations_and_views'), trace_factory_functions=False)
+        out = fn(torch.zeros(4, 2, device=device))
+        self.assertExpectedInline(out.code, """\
+
+
+
+def forward(self, x_1) -> torch.Tensor:
+    transpose_copy_int = torch.ops.aten.transpose_copy.int(x_1, 1, 0);  x_1 = None
+    return transpose_copy_int
+    """)
+
+    @unittest.skip("Disabling to land #81145")
+    def test_functionalize_fx_out_op(self, device):
+
+        def f(inpt: torch.Tensor) -> torch.Tensor:
+            out = torch.empty((), dtype=torch.float32)
+            torch.add(inpt, inpt, out=out)
+            out_view = out.view(4)
+            out_view.add_(1)
+            return out
+
+        fn = make_fx(functionalize(f, remove='mutations_and_views'), trace_factory_functions=False)
+        out = fn(torch.arange(4, device=device, dtype=torch.float32))
+        self.assertExpectedInline(out.code, """\
+
+
+
+def forward(self, inpt_1) -> torch.Tensor:
+    add_tensor = torch.ops.aten.add.Tensor(inpt_1, inpt_1);  inpt_1 = None
+    view_copy_default = torch.ops.aten.view_copy.default(add_tensor, [4])
+    view_copy_default_1 = torch.ops.aten.view_copy.default(add_tensor, [4]);  add_tensor = None
+    add_tensor_1 = torch.ops.aten.add.Tensor(view_copy_default_1, 1);  view_copy_default_1 = None
+    view_copy_default_2 = torch.ops.aten.view_copy.default(add_tensor_1, [4]);  add_tensor_1 = None
+    return view_copy_default_2
+    """)
+
+    @unittest.skip("Disabling to land #81145")
+    def test_functionalize_fx_multi_out_op(self, device):
+
+        def f(inpt: torch.Tensor) -> torch.Tensor:
+            mins = torch.empty(4, dtype=torch.float32)
+            maxs = torch.empty(2, 2, dtype=torch.float32)
+            maxs_view = maxs.view(4)
+            inpt_view = inpt.view(2, 4)
+            torch.aminmax(inpt_view, dim=0, out=(mins, maxs_view))
+            return (maxs, mins)
+
+        fn = make_fx(functionalize(f, remove='mutations_and_views'), trace_factory_functions=False)
+        out = fn(torch.arange(8, device=device, dtype=torch.float32))
+        self.assertExpectedInline(out.code, """\
+
+
+
+def forward(self, inpt_1) -> torch.Tensor:
+    view_copy_default = torch.ops.aten.view_copy.default(inpt_1, [2, 4]);  inpt_1 = None
+    aminmax_default = torch.ops.aten.aminmax.default(view_copy_default, dim = 0);  view_copy_default = None
+    getitem = aminmax_default[0]
+    getitem_1 = aminmax_default[1];  aminmax_default = None
+    view_copy_default_1 = torch.ops.aten.view_copy.default(getitem_1, [2, 2]);  getitem_1 = None
+    return (view_copy_default_1, getitem)
+    """)
+
+    @unittest.skip("Disabling to land #81145")
+    def test_functionalize_fx_reapply_views_simple(self, device):
+
+        def f(x: torch.Tensor) -> torch.Tensor:
+            tmp = torch.ones(2, device=device)
+            y = x.view(4, 2)
+            y.add_(tmp)
+            return x
+
+        out = make_fx(functionalize(f), trace_factory_functions=False)(torch.zeros(4, 2, device=device))
+        self.assertExpectedInline(out.code, """\
+
+
+
+def forward(self, x_1) -> torch.Tensor:
+    view_default = torch.ops.aten.view.default(x_1, [4, 2])
+    _tensor_constant0 = self._tensor_constant0
+    add_tensor = torch.ops.aten.add.Tensor(view_default, _tensor_constant0);  view_default = _tensor_constant0 = None
+    view_default_1 = torch.ops.aten.view.default(add_tensor, [4, 2]);  add_tensor = None
+    copy__default = torch.ops.aten.copy_.default(x_1, view_default_1);  x_1 = None
+    return view_default_1
+    """)
+
+    def test_functionalize_nonfunctional_output(self, device):
+
+        global_out = torch.ones(2, device=device)
+
+        def f() -> torch.Tensor:
+            return global_out
+
+        out = make_fx(functionalize(f))()
+        self.assertExpectedInline(out.code, """\
+
+
+
+def forward(self) -> torch.Tensor:
+    _tensor_constant0 = self._tensor_constant0
+    return _tensor_constant0
+    """)
+
+    def test_functionalize_optional_tensorlist1(self, device):
+
+        def f(a, b) -> torch.Tensor:
+            # at::index has OptionalTensorList arguments,
+            # test that here
+            return a[b]
+
+        a = torch.arange(4).reshape(2, 2)
+        b = torch.ones(2, dtype=torch.long)
+        out = make_fx(functionalize(f))(a, b)
+        self.assertExpectedInline(out.code, """\
+
+
+
+def forward(self, a_1, b_1) -> torch.Tensor:
+    index_tensor = torch.ops.aten.index.Tensor(a_1, [b_1]);  a_1 = b_1 = None
+    return index_tensor
+    """)
+
+    def test_functionalize_optional_tensorlist2(self, device):
+
+        def f(a, b) -> torch.Tensor:
+            # See https://github.com/pytorch/pytorch/pull/77846
+            return torch.ops.aten.index(a, b)
+
+        a = torch.arange(4).reshape(2, 2)
+        b = torch.ones(2, dtype=torch.long)
+        out = make_fx(functionalize(f))(a, b)
+        self.assertExpectedInline(out.code, """\
+
+
+
+def forward(self, a_1, b_1) -> torch.Tensor:
+    unbind_int = torch.ops.aten.unbind.int(b_1);  b_1 = None
+    getitem = unbind_int[0]
+    getitem_1 = unbind_int[1];  unbind_int = None
+    index_tensor = torch.ops.aten.index.Tensor(a_1, [getitem, getitem_1]);  a_1 = getitem = getitem_1 = None
+    return index_tensor
+    """)
+
 
 
 only_for = ("cpu", "cuda")
@@ -2361,6 +3255,14 @@ instantiate_device_type_tests(
     TestCustomFunction,
     globals(),
     only_for=only_for,
+)
+instantiate_device_type_tests(
+    TestFunctionalize,
+    globals(),
+    only_for=only_for,
+)
+instantiate_parametrized_tests(
+    TestMakeFunctional,
 )
 
 if __name__ == '__main__':

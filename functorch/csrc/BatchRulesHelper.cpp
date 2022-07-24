@@ -5,6 +5,7 @@
 // LICENSE file in the root directory of this source tree.
 
 #include <functorch/csrc/BatchRulesHelper.h>
+#include <torch/csrc/jit/runtime/decomposition_registry.h>
 #include <ATen/WrapDimUtils.h>
 
 namespace at { namespace functorch {
@@ -63,7 +64,7 @@ VmapDimVector getPhysicalDims(const Tensor& tensor, bool has_batch_dim, IntArray
       result.push_back(maybe_wrap_dim(d, rank)+1);
     } else {
       result.push_back(maybe_wrap_dim(d, rank));
-    } 
+    }
   }
   return result;
 }
@@ -81,6 +82,24 @@ Tensor maybePadToLogicalRank(const Tensor& tensor, optional<int64_t> has_bdim, i
     new_sizes.insert(new_sizes.begin() + 1, 1);
   }
   return tensor.view(new_sizes);
+}
+
+void check_randomness(RandomnessType randomness, bool any_tensor_batched) {
+  TORCH_CHECK(
+    randomness != RandomnessType::Error,
+    "vmap: called random operation while in randomness error mode. Please either use the "
+    "'same' or 'different' randomness flags on vmap or perform the randomness operation out of vmap"
+  );
+
+  TORCH_CHECK(
+    !(randomness == RandomnessType::Same && any_tensor_batched),
+    "Vmap does not currently support same randomness with a batched tensor input. ",
+    "Please file an issue with functorch"
+  )
+}
+
+void check_randomness(RandomnessType randomness) {
+  check_randomness(randomness, false); // for ops that don't take in any tensors, don't hit same error
 }
 
 Tensor reshape_dim_into(int64_t src, int64_t dst, const Tensor& x) {
@@ -112,6 +131,20 @@ void vmapIncompatibleInplaceError(const char* schema_name) {
     "Please try to use out-of-place operators instead of ", schema_name, ". ",
     "If said operator is being called inside the PyTorch framework, ",
     "please file a bug report instead.");
+}
+
+void run_jit_decomposition(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
+  const auto& schema = op.schema();
+  // TODO: templatize based on op and keep static trace_exec
+  auto * trace_exec = torch::jit::GetDecompositionExecutor(schema);
+  trace_exec->run((*stack));
+  if (stack->back().isTuple()) {
+    IValue tup = stack->back();
+    stack->pop_back();
+    for (const auto& elem: tup.toTuple()->elements()) {
+      stack->push_back(elem);
+    }
+  }
 }
 
 }}

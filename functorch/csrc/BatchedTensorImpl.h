@@ -12,6 +12,7 @@
 #include <ATen/SmallVector.h>
 #include <ATen/Tensor.h>
 
+#include <functorch/csrc/Macros.h>
 #include <functorch/csrc/Constants.h>
 
 namespace at {
@@ -65,6 +66,8 @@ struct BatchedTensorImpl : public c10::TensorImpl {
   // bt.actualDim(3) -> Error
   int64_t actualDim(int64_t dim, bool wrap_dim = true) const;
 
+  // We have to override this because we opted into CustomStrides
+  IntArrayRef strides_custom() const override;
   // Override a bunch of methods inherited from TensorImpl to return error messages.
   bool is_contiguous_custom(at::MemoryFormat memory_format=at::MemoryFormat::Contiguous) const override;
   void set_size(int64_t dim, int64_t new_size) override;
@@ -75,7 +78,9 @@ struct BatchedTensorImpl : public c10::TensorImpl {
 #endif
 
   void refreshTensorMetadata();
-
+  void _unsafe_set_level(int64_t level) {
+    level_ = level;
+  }
  private:
   // see NOTE: [BatchedTensorImpl levels invariant]
   void checkInvariants() const;
@@ -121,10 +126,10 @@ inline std::bitset<kVmapNumLevels> createVmapLevelsBitset(int64_t level) {
 }
 
 // Use this to construct a BatchedTensor from a regular Tensor
-TORCH_API Tensor makeBatched(const Tensor& tensor, int64_t dim, int64_t level);
+FUNCTORCH_API Tensor makeBatched(const Tensor& tensor, int64_t dim, int64_t level);
 
 // Adds a batch dim to `tensor`, returning a BatchedTensor
-TORCH_API Tensor addBatchDim(const Tensor& tensor, int64_t dim, int64_t level);
+FUNCTORCH_API Tensor addBatchDim(const Tensor& tensor, int64_t dim, int64_t level);
 
 constexpr DispatchKeySet kKeysToPropagateToWrapper({
   DispatchKey::Negative,

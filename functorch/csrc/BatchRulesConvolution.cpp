@@ -403,12 +403,20 @@ convolution_backward_weight_batch_rule(
 
 std::tuple<Tensor,Tensor,Tensor> convolution_backward_plumbing(
     const Tensor& grad_output_, const Tensor& input_, const Tensor& weight_,
-    const c10::optional<IntArrayRef> bias_sizes_opt,
+    const c10::OptionalArrayRef<int64_t> bias_sizes_opt,
     IntArrayRef stride, IntArrayRef padding, IntArrayRef dilation, bool transposed,
     IntArrayRef output_padding, int64_t groups, std::array<bool, 3> output_mask) {
   const auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+
+  if (!areAnyBatchedAtLevel({grad_output_, input_, weight_}, cur_level)){
+    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
+    return at::convolution_backward(
+        grad_output_, input_, weight_, bias_sizes_opt, stride, padding,
+        dilation, transposed, output_padding, groups, output_mask);
+  }
+
   Tensor grad_output;
   optional<int64_t> grad_output_bdim;
   std::tie(grad_output, grad_output_bdim) = unwrapTensorAtLevel(grad_output_, cur_level);

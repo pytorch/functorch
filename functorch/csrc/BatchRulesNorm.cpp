@@ -58,10 +58,11 @@ batch_norm_batch_rule(
   auto running_mean = *running_mean_maybe_owned;
   c10::MaybeOwned<Tensor> running_var_maybe_owned = at::borrow_from_optional_tensor(running_var_opt);
   auto running_var = *running_var_maybe_owned;
-
-  if (input_bdim && ((running_mean.defined() && !running_mean_bdim) || (running_var.defined() && !running_var_bdim))) {
-    throw std::runtime_error("Batch norm got a batched tensor as input while the running_mean or running_var, which will be updated in place, were not batched.");
-  }
+  TORCH_CHECK(!training || (!input_bdim || ((!running_mean.defined() || running_mean_bdim) && (!running_var.defined() || running_var_bdim))),
+      "Batch norm got a batched tensor as input while the running_mean or running_var, which will be updated in place, ",
+      "were not batched.\nIf you are using a module and do not need eval mode, please set `track_running_stats` to be False.",
+      "If you are using a prebuilt module and do not need eval mode, please see the functorch website for resources on ",
+      "how to patch your module to work with vmap");
   c10::optional<int64_t> bdim_size;
   Tensor result0;
   Tensor mean;
@@ -74,7 +75,7 @@ batch_norm_batch_rule(
     mean = std::get<1>(result);
     rstd = std::get<2>(result);
   } else {
-    bdim_size = get_bdim_size3(input, input_bdim, running_mean, running_mean_bdim, running_var, running_mean_bdim);
+    bdim_size = get_bdim_size3(input, input_bdim, running_mean, running_mean_bdim, running_var, running_var_bdim);
     auto input_ = moveBatchDimToFront(input, input_bdim);
     input_ = ensure_has_bdim(input_, input_bdim.has_value(), bdim_size.value());
     input_ = reshape_dim_into(0, /*channels dim*/1, input_);
@@ -84,12 +85,12 @@ batch_norm_batch_rule(
     if (running_mean.defined()) {
       running_mean_ = moveBatchDimToFront(running_mean, running_mean_bdim);
       running_mean_ = ensure_has_bdim(*running_mean_, running_mean_bdim.has_value(), bdim_size.value());
-      running_mean_ = reshape_dim_into(0, 0, *running_mean_);
+      running_mean_ = reshape_dim_into(0, 0, *running_mean_).contiguous();
     }
     if (running_var.defined()) {
       running_var_ = moveBatchDimToFront(running_var, running_var_bdim);
       running_var_ = ensure_has_bdim(*running_var_, running_var_bdim.has_value(), bdim_size.value());
-      running_var_ = reshape_dim_into(0, 0, *running_var_);
+      running_var_ = reshape_dim_into(0, 0, *running_var_).contiguous();
     }
 
     const auto dummy_weight = at::ones(input_.size(1), input_.options());  // cudnn and miopen require a weight
@@ -223,6 +224,7 @@ std::tuple<at::Tensor,at::Tensor,at::Tensor> batch_norm_backward_plumbing(
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+
   Tensor grad_out_value;
   optional<int64_t> grad_out_bdim;
   std::tie(grad_out_value, grad_out_bdim) = unwrapTensorAtLevel(grad_out, cur_level);
@@ -305,6 +307,11 @@ std::tuple<Tensor,Tensor,Tensor> native_group_norm_plumbing(
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
 
+  if (!areAnyBatchedAtLevel({input, weight_opt, bias_opt}, cur_level)) {
+    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
+    return at::native_group_norm(input, weight_opt, bias_opt, N, C, HxW, group, eps);
+  }
+
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -315,7 +322,7 @@ std::tuple<Tensor,Tensor,Tensor> native_group_norm_plumbing(
   if (input_bdim) {
     const auto input_ = reshape_dim_into(*input_bdim, 0, input_value);
     const auto bdim_size = input_value.size(*input_bdim);
-  
+
     c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
     const auto result = at::native_group_norm(input_, nullopt, nullopt, N * bdim_size, C, HxW, group, eps);
     result0 = makeBatched(reshape_dim_outof(0, bdim_size, std::get<0>(result)), 0, cur_level);
@@ -342,8 +349,41 @@ std::tuple<Tensor,Tensor,Tensor> native_group_norm_plumbing(
   return std::make_tuple(result0, mean, rstd);
 }
 
+std::tuple<at::Tensor,optional<int64_t>> group_norm_backward_no_weight_bias_batch_rule(
+    const at::Tensor & grad_out, optional<int64_t> grad_out_bdim,
+    const at::Tensor & input, optional<int64_t> input_bdim,
+    const at::Tensor & mean, optional<int64_t> mean_bdim,
+    const at::Tensor & rstd, optional<int64_t> rstd_bdim,
+    int64_t N, int64_t C, int64_t HxW, int64_t group) {
+  auto grad_out_ = moveBatchDimToFront(grad_out, grad_out_bdim);
+  auto input_ = moveBatchDimToFront(input, input_bdim);
+  auto mean_ = moveBatchDimToFront(mean, mean_bdim);
+  auto rstd_ = moveBatchDimToFront(rstd, rstd_bdim);
+
+  const auto bdim_size = get_bdim_size2(grad_out, grad_out_bdim, input, input_bdim);
+  grad_out_ = ensure_has_bdim(grad_out, grad_out_bdim.has_value(), bdim_size);
+  input_ = ensure_has_bdim(input_, input_bdim.has_value(), bdim_size);
+  mean_ = ensure_has_bdim(mean_, mean_bdim.has_value(), bdim_size);
+  rstd_ = ensure_has_bdim(rstd_, rstd_bdim.has_value(), bdim_size);
+
+  grad_out_ = reshape_dim_into(0, 0, grad_out_); // [B0 * N, C, *]
+  input_ = reshape_dim_into(0, 0, input_);       // [B0 * N, C, *]
+  mean_ = reshape_dim_into(0, 0, mean_);         // [B0 * N, G]
+  rstd_ = reshape_dim_into(0, 0, rstd_);         // [B0 * N, G]
+
+  const auto result = native_group_norm_backward(
+      grad_out_.contiguous(),
+      input_.contiguous(),
+      mean_.contiguous(),
+      rstd_.contiguous(),
+      nullopt, N * bdim_size, C, HxW, group, {true, false, false});
+  auto result0 = std::get<0>(result);
+  result0 = reshape_dim_outof(0, bdim_size, result0);
+  return std::make_tuple(result0, 0);
+}
+
 std::tuple<Tensor,Tensor,Tensor> native_group_norm_backward_plumbing(
-  const Tensor & grad_out, const Tensor & input, const Tensor & mean, 
+  const Tensor & grad_out, const Tensor & input, const Tensor & mean,
   const Tensor & rstd, const c10::optional<Tensor> & weight_opt,
   int64_t N, int64_t C, int64_t HxW, int64_t group, std::array<bool,3> output_mask
 ) {
@@ -356,9 +396,11 @@ std::tuple<Tensor,Tensor,Tensor> native_group_norm_backward_plumbing(
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
 
-  Tensor grad_out_value;
-  optional<int64_t> grad_out_bdim;
-  std::tie(grad_out_value, grad_out_bdim) = unwrapTensorAtLevel(grad_out, cur_level);
+  if (!areAnyBatchedAtLevel({grad_out, input, mean, rstd, weight_opt}, cur_level)) {
+    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
+    return at::native_group_norm_backward(grad_out, input, mean, rstd, weight_opt, N, C, HxW, group, output_mask);
+  }
+
   Tensor input_value;
   optional<int64_t> input_bdim;
   std::tie(input_value, input_bdim) = unwrapTensorAtLevel(input, cur_level);
@@ -398,32 +440,16 @@ std::tuple<Tensor,Tensor,Tensor> native_group_norm_backward_plumbing(
     optional<int64_t> grad_normalized_input_bdim;
     std::tie(grad_normalized_input_value, grad_normalized_input_bdim) =
         unwrapTensorAtLevel(grad_normalized_input, cur_level);
-    auto grad_out_ = moveBatchDimToFront(grad_normalized_input_value, grad_normalized_input_bdim);
-    auto input_ = moveBatchDimToFront(input_value, input_bdim);
-    auto mean_ = moveBatchDimToFront(mean_value, mean_bdim);
-    auto rstd_ = moveBatchDimToFront(rstd_value, rstd_bdim);
-
-    const auto bdim_size = get_bdim_size3(grad_out_, grad_out_bdim, input_, input_bdim, weight, weight_bdim);
-    grad_out_ = ensure_has_bdim(grad_out_, grad_out_bdim.has_value(), bdim_size);
-    input_ = ensure_has_bdim(input_, input_bdim.has_value(), bdim_size);
-    mean_ = ensure_has_bdim(mean_, mean_bdim.has_value(), bdim_size);
-    rstd_ = ensure_has_bdim(rstd_, rstd_bdim.has_value(), bdim_size);
-
-    grad_out_ = reshape_dim_into(0, 0, grad_out_); // [B0 * N, C, *]
-    input_ = reshape_dim_into(0, 0, input_);       // [B0 * N, C, *]
-    mean_ = reshape_dim_into(0, 0, mean_);         // [B0 * N, G]
-    rstd_ = reshape_dim_into(0, 0, rstd_);         // [B0 * N, G]
 
     c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
-    const auto result = native_group_norm_backward(
-        grad_out_,
-        input_,
-        mean_,
-        rstd_,
-        nullopt, N * bdim_size, C, HxW, group, {true, false, false});
-    auto result0 = std::get<0>(result);
-    result0 = reshape_dim_outof(0, bdim_size, result0);
-    grad_input = makeBatched(result0, 0, cur_level);
+    const auto res = group_norm_backward_no_weight_bias_batch_rule(
+        grad_normalized_input_value, grad_normalized_input_bdim,
+        input_value, input_bdim,
+        mean_value, mean_bdim,
+        rstd_value, rstd_bdim,
+        N, C, HxW, group
+    );
+    grad_input = makeBatched(std::get<0>(res), std::get<1>(res), cur_level);
   }
   return std::make_tuple(grad_input, grad_weight, grad_bias);
 }
@@ -434,7 +460,7 @@ C10_ALWAYS_INLINE bool has_same_shape(
   if (!tensor.defined()) {
     return true;
   }
-  if (rankWithoutBatchDim(tensor, tensor_bdim) != normalized_shape.size()) {
+  if (rankWithoutBatchDim(tensor, tensor_bdim) != (int64_t) normalized_shape.size()) {
     return false;
   }
   const auto tensor_shape = tensor.sizes();
@@ -580,6 +606,11 @@ std::tuple<at::Tensor,at::Tensor,at::Tensor> native_layer_norm_backward_plumbing
   auto maybe_layer = maybeCurrentDynamicLayer();
   TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
   int64_t cur_level = maybe_layer->layerId();
+  if (!areAnyBatchedAtLevel({grad_out, input, mean, rstd, weight_opt, bias_opt}, cur_level)) {
+    c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
+    return at::native_layer_norm_backward(grad_out, input, normalized_shape, mean, rstd,
+        weight_opt, bias_opt, output_mask);
+  }
   Tensor grad_out_value;
   optional<int64_t> grad_out_bdim;
   std::tie(grad_out_value, grad_out_bdim) = unwrapTensorAtLevel(grad_out, cur_level);
@@ -658,7 +689,7 @@ struct NativeBatchNormBatchRuleHelper {
     const c10::optional<Tensor>& running_var_opt, optional<int64_t> running_var_bdim,
     bool training, double momentum, double eps) {
     return batch_norm_batch_rule<F, Func>(
-        input, input_bdim, weight_opt, weight_bdim, bias_opt, bias_bdim, 
+        input, input_bdim, weight_opt, weight_bdim, bias_opt, bias_bdim,
         running_mean_opt, running_mean_bdim, running_var_opt, running_var_bdim, training, momentum, eps);
   }
 };
@@ -674,7 +705,7 @@ struct CudnnBatchNormBatchRuleHelper {
     bool training, double momentum, double eps) {
     auto reserve = at::empty({0}, input.options().dtype(kByte));  // in experiments, reserve was never set to anything other than empty by cuda
     auto res = batch_norm_batch_rule<F, Func>(
-        input, input_bdim, weight_opt, weight_bdim, bias_opt, bias_bdim, 
+        input, input_bdim, weight_opt, weight_bdim, bias_opt, bias_bdim,
         running_mean_opt, running_mean_bdim, running_var_opt, running_var_bdim, training, momentum, eps);
     return std::tuple_cat(res, std::make_tuple(reserve, nullopt));
   }
@@ -690,7 +721,7 @@ struct MiopenBatchNormBatchRuleHelper {
     const c10::optional<Tensor>& running_var_opt, optional<int64_t> running_var_bdim,
     bool training, double momentum, double eps) {
     return batch_norm_batch_rule<F, Func>(
-        input, input_bdim, weight_opt, weight_bdim, bias_opt, bias_bdim, 
+        input, input_bdim, weight_opt, weight_bdim, bias_opt, bias_bdim,
         running_mean_opt, running_mean_bdim, running_var_opt, running_var_bdim, training, momentum, eps);
   }
 };
@@ -723,6 +754,19 @@ struct NativeBatchNormBackwardBatchRuleHelper {
     bool training,
     double eps,
     std::array<bool,3> output_mask) {
+
+    auto maybe_layer = maybeCurrentDynamicLayer();
+    TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
+    int64_t cur_level = maybe_layer->layerId();
+
+    if (!areAnyBatchedAtLevel({grad_out, input, weight_opt, running_mean_opt,
+          running_var_opt, save_mean_opt, save_rstd_opt}, cur_level)) {
+      c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
+      return at::native_batch_norm_backward(grad_out, input, weight_opt,
+          running_mean_opt, running_var_opt, save_mean_opt, save_rstd_opt,
+          training, eps, output_mask);
+    }
+
     return batch_norm_backward_plumbing<F, Func>(
         grad_out, input, weight_opt, running_mean_opt, running_var_opt, save_mean_opt, save_rstd_opt, training, eps, output_mask);
   }
@@ -740,6 +784,18 @@ struct CudnnBatchNormBackwardBatchRuleHelper {
     const c10::optional<at::Tensor> & save_rstd_opt,
     double eps,
     const at::Tensor & reserve) {
+
+    auto maybe_layer = maybeCurrentDynamicLayer();
+    TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
+    int64_t cur_level = maybe_layer->layerId();
+
+    if (!areAnyBatchedAtLevel({input, grad_out, weight, running_mean_opt,
+          running_var_opt, save_mean_opt, save_rstd_opt, reserve}, cur_level)) {
+      c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
+      return at::cudnn_batch_norm_backward(input, grad_out, weight,
+          running_mean_opt, running_var_opt, save_mean_opt, save_rstd_opt, eps, reserve);
+    }
+
     return batch_norm_backward_plumbing<F, Func>(
         grad_out, input, weight, running_mean_opt, running_var_opt, save_mean_opt, save_rstd_opt, true, eps, {true, true, true});
   }
@@ -756,6 +812,18 @@ struct MiopenBatchNormBackwardBatchRuleHelper {
     const c10::optional<at::Tensor> & save_mean_opt,
     const c10::optional<at::Tensor> & save_rstd_opt,
     double eps) {
+
+    auto maybe_layer = maybeCurrentDynamicLayer();
+    TORCH_INTERNAL_ASSERT(maybe_layer.has_value());
+    int64_t cur_level = maybe_layer->layerId();
+
+    if (!areAnyBatchedAtLevel({input, grad_out, weight, running_mean_opt,
+          running_var_opt, save_mean_opt, save_rstd_opt}, cur_level)) {
+      c10::impl::ExcludeDispatchKeyGuard guard(kBatchedKey);
+      return at::miopen_batch_norm_backward(input, grad_out, weight,
+          running_mean_opt, running_var_opt, save_mean_opt, save_rstd_opt, eps);
+    }
+
     return batch_norm_backward_plumbing<F, Func>(
         grad_out, input, weight, running_mean_opt, running_var_opt, save_mean_opt, save_rstd_opt, true, eps, {true, true, true});
   }

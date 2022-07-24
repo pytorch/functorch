@@ -6,7 +6,6 @@
 
 #include <functorch/csrc/BatchRulesHelper.h>
 #include <functorch/csrc/PlumbingHelper.h>
-#include <functorch/csrc/InPlacePlumbing.h>
 
 namespace at { namespace functorch {
 
@@ -72,6 +71,14 @@ view_as_complex_batch_rule(const Tensor& self, optional<int64_t> self_bdim) {
   return std::make_tuple(result, 0);
 }
 
+std::tuple<Tensor,optional<int64_t>>
+to_other_batch_rule(const Tensor& self, optional<int64_t> self_bdim,
+                    const Tensor& other, optional<int64_t> other_bdim,
+                    bool non_blocking,
+                    bool copy, c10::optional<at::MemoryFormat> memory_format) {
+  return std::make_tuple(self.to(other, non_blocking, copy, memory_format), self_bdim);
+}
+
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
 
 #define UNARY_POINTWISE_ALL2(op, overload) \
@@ -90,6 +97,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   VMAP_SUPPORT2(to, device, BASIC_UNARY_BATCH_RULE(ATEN_FN2(to, device)));
   VMAP_SUPPORT2(to, dtype, BASIC_UNARY_BATCH_RULE(ATEN_FN2(to, dtype)));
   VMAP_SUPPORT2(to, dtype_layout, BASIC_UNARY_BATCH_RULE(ATEN_FN2(to, dtype_layout)));
+  VMAP_SUPPORT2(to, other, to_other_batch_rule);
 
   UNARY_POINTWISE(_to_copy);
   UNARY_POINTWISE(alias);
@@ -114,7 +122,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   UNARY_POINTWISE_ALL(expm1);
   UNARY_POINTWISE_ALL(floor);
   UNARY_POINTWISE_ALL(frac);
-  UNARY_POINTWISE(glu);
   UNARY_POINTWISE(isfinite);
   UNARY_POINTWISE(isnan);
   UNARY_POINTWISE(isinf);

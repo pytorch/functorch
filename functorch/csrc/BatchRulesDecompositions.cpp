@@ -5,91 +5,25 @@
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree.
 
-#include <functorch/csrc/BatchRulesHelper.h>
 #include <ATen/Operators.h>
 #include <ATen/FunctionalTensorWrapper.h>
-#include <functorch/csrc/PlumbingHelper.h>
-#include <functorch/csrc/BatchedFallback.h>
 #include <ATen/core/dispatch/Dispatcher.h>
+#include <functorch/csrc/BatchRulesHelper.h>
+#include <functorch/csrc/BatchedFallback.h>
+#include <functorch/csrc/DynamicLayer.h>
+#include <functorch/csrc/PlumbingHelper.h>
 
 namespace at { namespace functorch {
 
-at::Tensor sync_and_unwrap_functional_output(at::Tensor out_functional) {
-  TORCH_INTERNAL_ASSERT(at::functionalization::impl::isFunctionalTensor(out_functional));
-  auto out_wrapper_impl = at::functionalization::impl::unsafeGetFunctionalWrapper(out_functional);
-  out_wrapper_impl->sync_();
-  auto out_unwrapped = out_wrapper_impl->value();
-  return out_unwrapped;
-}
-
-c10::List<at::Tensor> sync_and_unwrap_functional_output(const c10::List<at::Tensor>& t_list) {
-  c10::List<Tensor> outputs;
-  outputs.reserve(t_list.size());
-  for (const auto i : c10::irange(t_list.size())) {
-    outputs.push_back(sync_and_unwrap_functional_output(t_list[i]));
-  }
-  return outputs;
-}
-
-void decompose_functional(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
-  const auto& schema = op.schema();
-
-  const auto num_arguments = schema.arguments().size();
-  const auto arguments = torch::jit::last(stack, num_arguments);
-  const auto arguments_begin = stack->size() - num_arguments;
-  //
-  // Step 1: Wrap any tensor inputs into Functional tensors
-  // and put them on the stack at the correct indices.
-  for (const auto idx : c10::irange(arguments.size())) {
-    const auto& ivalue = arguments[idx];
-    if (ivalue.isTensor()) {
-      auto functional_ivalue = at::functionalization::impl::to_functional_tensor(ivalue.toTensor());
-      (*stack)[arguments_begin + idx] = std::move(functional_ivalue);
-    } else if (ivalue.isTensorList()) {
-      auto functional_ivalue = at::functionalization::impl::to_functional_tensor(ivalue.toTensorList());
-      (*stack)[arguments_begin + idx] = std::move(functional_ivalue);
-    }
-  }
-
-  // Step 2: set up TLS such that we hit the functionalization kernels before the batching rules.
-  // Note: this relies on the fact that Functionalization > BatchMode in DispatchKey.h
-  c10::impl::IncludeDispatchKeyGuard include_guard(c10::DispatchKeySet{c10::DispatchKey::Functionalize});
-
-  // Step 3: redispatch to native kernel
-  // TODO: this is technically kind of sketchy, since we're relying on the fact
-  // that the composite kernel is registered to a particular dispatch key.
-  // In reality, a C++ extension could register their own custom kernels to any dispatch key, which would override
-  // the composite kernel entry.
-  // I'm using CPU because C++ extensions that register custom kernels to existing composite operators are pretty uncommon,
-  // and only really matter for out-of-tree keys like XLA.
-  // I wonder if we should make "alias dispatch key kernels" a runtime-accessible property on the OperatorHandle?
-  op.redispatchBoxed(c10::DispatchKeySet(c10::DispatchKey::CPU), stack);
-
-  const auto& schema_returns = op.schema().returns();
-  const auto& num_returns = schema_returns.size();
-  auto returns = torch::jit::last(stack, num_returns);
-  const auto returns_begin = stack->size() - num_returns;
-
-  // Step 4: Unwrap each functional output tensor, syncing any pending updates
-  for (const auto idx : c10::irange(returns.size())) {
-    if (returns[idx].isTensor()) {
-      const auto& out_functional = returns[idx].toTensor();
-      auto out_unwrapped = sync_and_unwrap_functional_output(out_functional);
-      (*stack)[returns_begin + idx] = c10::IValue(out_unwrapped);
-    } else if (returns[idx].isTensorList()) {
-      const auto& out_functional = returns[idx].toTensorList();
-      auto out_unwrapped = sync_and_unwrap_functional_output(out_functional);
-      (*stack)[returns_begin + idx] = c10::IValue(out_unwrapped);
-    }
-  }
-}
-
-#define DECOMPOSE_FUNCTIONAL(op) \
-  m.impl(#op, torch::CppFunction::makeFromBoxedFunction<&decompose_functional>());
-
-
 #define OP_DECOMPOSE(op)  m.impl(#op, static_cast<decltype(&ATEN_FN(op))>(native::op));
 #define OP_DECOMPOSE2(op, overload)  m.impl(#op"."#overload, static_cast<decltype(&ATEN_FN2(op, overload))>(native::op));
+
+TORCH_LIBRARY_IMPL(aten, FT_VMAP_MODE_KEY, m) {
+  OP_DECOMPOSE(alpha_dropout_);
+  OP_DECOMPOSE(dropout_);
+  OP_DECOMPOSE(feature_alpha_dropout_);
+  OP_DECOMPOSE(feature_dropout_);
+}
 
 TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE2(__and__, Scalar);
@@ -149,7 +83,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(det);
   OP_DECOMPOSE(diag_backward);
   OP_DECOMPOSE(diff);
-  OP_DECOMPOSE2(divide, Tensor );
   OP_DECOMPOSE(dstack);
   OP_DECOMPOSE(einsum);
   OP_DECOMPOSE(embedding_backward);
@@ -197,6 +130,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(inner);
   OP_DECOMPOSE(instance_norm);
   OP_DECOMPOSE(kron);
+  OP_DECOMPOSE(l1_loss);
   OP_DECOMPOSE(layer_norm);
   OP_DECOMPOSE2(ldexp, Tensor);
   OP_DECOMPOSE2(less_equal, Tensor );
@@ -220,7 +154,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE2(movedim, int);
   OP_DECOMPOSE(msort);
   OP_DECOMPOSE(mT);
-  OP_DECOMPOSE2(multiply, Tensor );
   OP_DECOMPOSE(narrow);
   OP_DECOMPOSE(negative);
   OP_DECOMPOSE(nll_loss_nd);
@@ -248,6 +181,7 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(special_multigammaln);
   OP_DECOMPOSE(special_polygamma);
   OP_DECOMPOSE(special_softmax);
+  OP_DECOMPOSE2(split, sizes);
   OP_DECOMPOSE(square);
   OP_DECOMPOSE(numpy_T);
   OP_DECOMPOSE(reshape_as);
@@ -276,7 +210,6 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE2(trapezoid, dx);
   OP_DECOMPOSE2(trapz, x);
   OP_DECOMPOSE2(trapz, dx);
-  OP_DECOMPOSE2(true_divide, Tensor);
   OP_DECOMPOSE(var);
   OP_DECOMPOSE2(var, dim);
   OP_DECOMPOSE(var_mean);
@@ -284,9 +217,9 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE2(vsplit, int);
   OP_DECOMPOSE2(vsplit, array);
   OP_DECOMPOSE(vstack);
-  OP_DECOMPOSE2(where, self);
+  OP_DECOMPOSE(orgqr);
   OP_DECOMPOSE2(unflatten, int);
-
+  OP_DECOMPOSE(_convolution_double_backward);
   OP_DECOMPOSE(conv_transpose1d);
   OP_DECOMPOSE2(conv_transpose2d, input);
   OP_DECOMPOSE2(conv_transpose3d, input);
@@ -300,9 +233,29 @@ TORCH_LIBRARY_IMPL(aten, FT_BATCHED_KEY, m) {
   OP_DECOMPOSE(frobenius_norm);
   OP_DECOMPOSE(type_as);
   OP_DECOMPOSE(linalg_diagonal);
+  OP_DECOMPOSE(pad);
+  OP_DECOMPOSE(_pad_circular);
 
-  DECOMPOSE_FUNCTIONAL(diag_embed);
-  DECOMPOSE_FUNCTIONAL(block_diag);
+  // divide, alias for div
+  OP_DECOMPOSE2(divide, Tensor);
+  OP_DECOMPOSE2(divide_, Tensor);
+  OP_DECOMPOSE2(divide, Scalar);
+  OP_DECOMPOSE2(divide, Tensor_mode);
+  OP_DECOMPOSE2(divide_, Tensor_mode);
+  OP_DECOMPOSE2(divide, Scalar_mode);
+  OP_DECOMPOSE2(divide_, Scalar_mode);
+
+  // divide, alias for div
+  OP_DECOMPOSE2(true_divide, Tensor);
+  OP_DECOMPOSE2(true_divide_, Tensor);
+  OP_DECOMPOSE2(true_divide, Scalar);
+  OP_DECOMPOSE2(true_divide_, Scalar);
+
+  // multiply, alias for mul
+  OP_DECOMPOSE2(multiply, Tensor)
+  OP_DECOMPOSE2(multiply_, Tensor)
+  OP_DECOMPOSE2(multiply, Scalar)
+  OP_DECOMPOSE2(multiply_, Scalar)
 }
 
 }}

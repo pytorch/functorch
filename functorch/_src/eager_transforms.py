@@ -4,8 +4,9 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Any, Callable, Union, Tuple, List
+from typing import Callable, Union, Tuple, List, Any
 import torch
+import inspect
 from functools import partial, wraps
 import contextlib
 from torch.utils._pytree import tree_flatten, tree_unflatten, tree_map
@@ -13,21 +14,46 @@ from .pytree_hacks import tree_map_, treespec_pprint
 import torch.autograd.forward_ad as fwAD
 
 from .vmap import vmap
+from .decompositions import decomposition_table, decomposition_table_for_jvp
+
 
 from functorch._C import (
     _wrap_for_grad,
     _unwrap_for_grad,
     _grad_increment_nesting,
     _grad_decrement_nesting,
+    _jvp_increment_nesting,
+    _jvp_decrement_nesting,
+    set_fwd_grad_enabled,
+    get_fwd_grad_enabled,
+    _wrap_functional_tensor,
+    _unwrap_functional_tensor,
+    _func_decrement_nesting,
+    _func_increment_nesting,
+    _assert_wrapped_functional,
+    _propagate_functional_input_mutation,
+    set_inplace_requires_grad_allowed,
+    get_inplace_requires_grad_allowed,
 )
 
 argnums_t = Union[int, Tuple[int, ...]]
 
 
+@contextlib.contextmanager
+def enable_inplace_requires_grad(enabled=True):
+    prev_state = get_inplace_requires_grad_allowed()
+    set_inplace_requires_grad_allowed(enabled)
+    try:
+        yield
+    finally:
+        set_inplace_requires_grad_allowed(prev_state)
+
+
 def _create_differentiable(inps, level=None):
     def create_differentiable(x):
         if isinstance(x, torch.Tensor):
-            return x.requires_grad_()
+            with enable_inplace_requires_grad():
+                return x.requires_grad_()
         raise ValueError(f'Thing passed to transform API must be Tensor, '
                          f'got {type(x)}')
     return tree_map(create_differentiable, inps)
@@ -134,8 +160,9 @@ def _autograd_grad(outputs, inputs, grad_outputs=None, retain_graph=False, creat
 # NB: vjp has some interesting behavior because the vjp's callable can be called
 # under a different grad_mode than the forward computation...
 #
-# TODO: forward-mode AD: does it also respect no_grad? What does that mean
-# for our jvp transform?
+# NB: forward-mode AD: forward-mode AD doesn't respect torch.no_grad, but
+# it respects c10::AutoFwGradMode. We've implemented the same logic for
+# our jvp transform (it will have special handling if FwGradMode is disabled).
 
 
 # How do we increment and decrement the nesting? I don't think we can.
@@ -324,6 +351,23 @@ def jacrev(func: Callable, argnums: Union[int, Tuple[int]] = 0, *, has_aux=False
         >>> jacobian = jacrev(torch.sin)(x)
         >>> expected = torch.diag(torch.cos(x))
         >>> assert torch.allclose(jacobian, expected)
+
+    If you would like to compute the output of the function as well as the
+    jacobian of the function, use the ``has_aux`` flag to return the output
+    as an auxiliary object:
+
+        >>> from functorch import jacrev
+        >>> x = torch.randn(5)
+        >>>
+        >>> def f(x):
+        >>>   return x.sin()
+        >>>
+        >>> def g(x):
+        >>>   result = f(x)
+        >>>   return result, result
+        >>>
+        >>> jacobian_f, f_x = jacrev(g, has_aux=True)(x)
+        >>> assert torch.allclose(f_x, f(x))
 
     :func:`jacrev` can be composed with vmap to produce batched
     Jacobians:
@@ -591,6 +635,16 @@ def noop():
     yield
 
 
+@contextlib.contextmanager
+def enable_fwd_grad(enabled=True):
+    prev_state = get_fwd_grad_enabled()
+    set_fwd_grad_enabled(enabled)
+    try:
+        yield
+    finally:
+        set_fwd_grad_enabled(prev_state)
+
+
 def assert_flat_tuple_of_tensors(elts: Any, api: str, argname: str) -> None:
     if not isinstance(elts, tuple):
         raise RuntimeError(
@@ -737,47 +791,44 @@ def jvp(func: Callable, primals: Any, tangents: Any, *, strict: bool = False, ha
     assert_non_empty_list_of_tensors(flat_primals, jvp_str, 'primals')
     assert_non_empty_list_of_tensors(flat_tangents, jvp_str, 'tangents')
 
-    level = _grad_increment_nesting()
+    level = _jvp_increment_nesting()
     try:
-        # Some interesting notes:
-        # 1. Can't nested jvp of jvp due to forwardAD restrictions
-        # 2. Seems like we can indeed vmap over this, given some more batch rules
-        # 3. PyTorch doesn't have a lot of jvp rules implemented right now.
         global JVP_NESTING
         JVP_NESTING += 1
-        ctx = fwAD.dual_level if JVP_NESTING == 1 else noop
-        with ctx():
-            flat_duals = tuple(fwAD.make_dual(p, t)
-                               for p, t in zip(flat_primals, flat_tangents))
-            duals = tree_unflatten(flat_duals, primals_spec)
-            result_duals = func(*duals)
-            if has_aux:
-                if not (isinstance(result_duals, tuple) and len(result_duals) == 2):
-                    raise RuntimeError(
-                        f"{jvp_str}: output of function f should be a tuple: (output, aux) "
-                        "if has_aux is True"
-                    )
-                result_duals, aux = result_duals
-                aux = _undo_create_differentiable(aux, level)
+        with enable_fwd_grad():
+            ctx = fwAD.dual_level if JVP_NESTING == 1 else noop
+            with ctx():
+                flat_duals = tuple(fwAD.make_dual(p, t)
+                                   for p, t in zip(flat_primals, flat_tangents))
+                duals = tree_unflatten(flat_duals, primals_spec)
+                result_duals = func(*duals)
+                if has_aux:
+                    if not (isinstance(result_duals, tuple) and len(result_duals) == 2):
+                        raise RuntimeError(
+                            f"{jvp_str}: output of function f should be a tuple: (output, aux) "
+                            "if has_aux is True"
+                        )
+                    result_duals, aux = result_duals
+                    aux = _undo_create_differentiable(aux, level)
 
-            result_duals, spec = tree_flatten(result_duals)
-            assert_non_empty_tensor_output(result_duals, jvp_str)
+                result_duals, spec = tree_flatten(result_duals)
+                assert_non_empty_tensor_output(result_duals, jvp_str)
 
-            primals_out, tangents_out = \
-                zip(*[safe_unpack_dual(dual, strict) for dual in result_duals])
-            primals_out = tree_map(
-                partial(_undo_create_differentiable, level=level), primals_out)
-            tangents_out = tree_map(
-                partial(_undo_create_differentiable, level=level), tangents_out)
+                primals_out, tangents_out = \
+                    zip(*[safe_unpack_dual(dual, strict) for dual in result_duals])
+                primals_out = tree_map(
+                    partial(_undo_create_differentiable, level=level), primals_out)
+                tangents_out = tree_map(
+                    partial(_undo_create_differentiable, level=level), tangents_out)
 
-            primals_out_unflatten = tree_unflatten(primals_out, spec)
-            tangents_out_unflatten = tree_unflatten(tangents_out, spec)
-            if has_aux:
-                return primals_out_unflatten, tangents_out_unflatten, aux
+                primals_out_unflatten = tree_unflatten(primals_out, spec)
+                tangents_out_unflatten = tree_unflatten(tangents_out, spec)
+                if has_aux:
+                    return primals_out_unflatten, tangents_out_unflatten, aux
 
-            return primals_out_unflatten, tangents_out_unflatten
+                return primals_out_unflatten, tangents_out_unflatten
     finally:
-        _grad_decrement_nesting()
+        _jvp_decrement_nesting()
         JVP_NESTING -= 1
 
 
@@ -835,6 +886,23 @@ def jacfwd(func: Callable, argnums: argnums_t = 0, has_aux: bool = False):
         >>> jacobian = vmap(jacfwd(torch.sin))(x)
         >>> assert jacobian.shape == (64, 5, 5)
 
+    If you would like to compute the output of the function as well as the
+    jacobian of the function, use the ``has_aux`` flag to return the output
+    as an auxiliary object:
+
+        >>> from functorch import jacfwd
+        >>> x = torch.randn(5)
+        >>>
+        >>> def f(x):
+        >>>   return x.sin()
+        >>>
+        >>> def g(x):
+        >>>   result = f(x)
+        >>>   return result, result
+        >>>
+        >>> jacobian_f, f_x = jacfwd(g, has_aux=True)(x)
+        >>> assert torch.allclose(f_x, f(x))
+
     Additionally, :func:`jacrev` can be composed with itself or :func:`jacrev`
     to produce Hessians
 
@@ -874,6 +942,7 @@ def jacfwd(func: Callable, argnums: argnums_t = 0, has_aux: bool = False):
         >>> assert torch.allclose(jacobian[1], expectedY)
 
     """
+    @wraps(func)
     def wrapper_fn(*args):
         f_wrapper, primals = _argnums_partial(func, args, argnums)
         flat_primals, primals_spec = tree_flatten(primals)
@@ -1140,3 +1209,289 @@ def grad(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Calla
         grad, _ = results
         return grad
     return wrapper
+
+
+def _maybe_wrap_functional_tensor(maybe_tensor, level):
+    if not isinstance(maybe_tensor, torch.Tensor):
+        return maybe_tensor
+    wrapped = _wrap_functional_tensor(maybe_tensor, level)
+    _assert_wrapped_functional(maybe_tensor, wrapped)
+    return wrapped
+
+
+def _wrap_all_tensors_to_functional(tensor_pytree, level):
+    return tree_map(partial(_maybe_wrap_functional_tensor, level=level), tensor_pytree)
+
+
+def _maybe_unwrap_functional_tensor(maybe_tensor, *, reapply_views: bool):
+    if not isinstance(maybe_tensor, torch.Tensor):
+        return maybe_tensor
+    if not torch._is_functional_tensor(maybe_tensor):
+        # If it's not a functional tensor, just return it.
+        # This can happen if we functionalize a fn that returns a global,
+        # which was never wrapped properly.
+        return maybe_tensor
+    return _unwrap_functional_tensor(maybe_tensor, reapply_views)
+
+
+def _unwrap_all_tensors_from_functional(tensor_pytree, *, reapply_views: bool):
+    return tree_map(lambda t: _maybe_unwrap_functional_tensor(t, reapply_views=reapply_views), tensor_pytree)
+
+
+def functionalize(func: Callable, *, remove: str = 'mutations') -> Callable:
+    """
+    functionalize is a transform that can be used to remove (intermediate)
+    mutations and aliasing from a function, while preserving the function's
+    semantics.
+
+    ``functionalize(func)`` returns a new function with the same semantics
+    as ``func``, but with all intermediate mutations removed.
+    Every inplace operation performed on an intermediate tensor:
+    ``intermediate.foo_()``
+    gets replaced by its out-of-place equivalent:
+    ``intermediate_updated = intermediate.foo()``.
+
+    functionalize is useful for shipping a pytorch program off to
+    backends or compilers that aren't able to easily represent
+    mutations or aliasing operators.
+
+    Args:
+        func (Callable): A Python function that takes one or more arguments.
+        remove (str): An optional string argument, that takes on either
+            the value 'mutations' or 'mutations_and_views'.
+            If 'mutations' is passed in then all mutating operators
+            will be replaced with their non-mutating equivalents.
+            If 'mutations_and_views' is passed in, then additionally, all aliasing
+            operators will be replaced with their non-aliasing equivalents.
+            Default: 'mutations'.
+
+    Returns:
+        Returns a new "functionalized" function. It takes the same inputs as
+        :attr:`func`, and has the same behavior, but any mutations
+        (and optionally aliasing) performed on intermeidate tensors
+        in the function will be removed.
+
+    functionalize will also remove mutations (and views) that were performed on function inputs.
+    However to preserve semantics, functionalize will "fix up" the mutations after
+    the transform has finished running, by detecting if any tensor inputs "should have"
+    been mutated, and copying the new data back to the inputs if necessary.
+
+
+    Example::
+
+        >>> import torch
+        >>> from functorch import make_fx
+        >>> from functorch.experimental import functionalize
+        >>>
+        >>> A function that uses mutations and views, but only on intermediate tensors.
+        >>> def f(a):
+        ...     b = a + 1
+        ...     c = b.view(-1)
+        ...     c.add_(1)
+        ...     return b
+        ...
+        >>> inpt = torch.randn(2)
+        >>>
+        >>> out1 = f(inpt)
+        >>> out2 = functionalize(f)(inpt)
+        >>>
+        >>> # semantics are the same (outputs are equivalent)
+        >>> print(torch.allclose(out1, out2))
+        True
+        >>>
+        >>> f_traced = make_fx(f)(inpt)
+        >>> f_no_mutations_traced = make_fx(functionalize(f))(inpt)
+        >>> f_no_mutations_and_views_traced = make_fx(functionalize(f, remove='mutations_and_views'))(inpt)
+        >>>
+        >>> print(f_traced.code)
+
+
+
+        def forward(self, a_1):
+            add = torch.ops.aten.add(a_1, 1);  a_1 = None
+            view = torch.ops.aten.view(add, [-1])
+            add_ = torch.ops.aten.add_(view, 1);  view = None
+            return add
+
+        >>> print(f_no_mutations_traced.code)
+
+
+
+        def forward(self, a_1):
+            add = torch.ops.aten.add(a_1, 1);  a_1 = None
+            view = torch.ops.aten.view(add, [-1]);  add = None
+            add_1 = torch.ops.aten.add(view, 1);  view = None
+            view_1 = torch.ops.aten.view(add_1, [2]);  add_1 = None
+            return view_1
+
+        >>> print(f_no_mutations_and_views_traced.code)
+
+
+
+        def forward(self, a_1):
+            add = torch.ops.aten.add(a_1, 1);  a_1 = None
+            view_copy = torch.ops.aten.view_copy(add, [-1]);  add = None
+            add_1 = torch.ops.aten.add(view_copy, 1);  view_copy = None
+            view_copy_1 = torch.ops.aten.view_copy(add_1, [2]);  add_1 = None
+            return view_copy_1
+
+
+        >>> A function that mutates its input tensor
+        >>> def f(a):
+        ...     b = a.view(-1)
+        ...     b.add_(1)
+        ...     return a
+        ...
+        >>> f_no_mutations_and_views_traced = make_fx(functionalize(f, remove='mutations_and_views'))(inpt)
+        >>>
+        >>> All mutations and views have been removed,
+        >>> but there is an extra copy_ in the graph to correctly apply the mutation to the input
+        >>> after the function has completed.
+        >>> print(f_no_mutations_and_views_traced.code)
+
+
+
+        def forward(self, a_1):
+            view_copy = torch.ops.aten.view_copy(a_1, [-1])
+            add = torch.ops.aten.add(view_copy, 1);  view_copy = None
+            view_copy_1 = torch.ops.aten.view_copy(add, [2]);  add = None
+            copy_ = torch.ops.aten.copy_(a_1, view_copy_1);  a_1 = None
+            return view_copy_1
+
+
+    There are a few "failure modes" for functionalize that are worth calling out:
+      (1) Like other functorch transforms, `functionalize()` doesn't work with functions
+          that directly use `.backward()`. The same is true for torch.autograd.grad.
+          If you want to use autograd, you can compute gradients directly
+          with `functionalize(grad(f))`.
+      (2) Like other functorch transforms, `functionalize()` doesn't work with global state.
+          If you call `functionalize(f)` on a function that takes views / mutations of
+          non-local state, functionalization will simply no-op and pass the view/mutation
+          calls directly to the backend.
+          One way to work around this is is to ensure that any non-local state creation
+          is wrapped into a larger function, which you then call functionalize on.
+      (3) `resize_()` has some limitations: functionalize will only work on programs
+          that use resize_()` as long as the tensor being resized is not a view.
+      (4) `as_strided()` has some limitations: functionalize will not work on
+          `as_strided()` calls that result in tensors with overlapping memory.
+
+
+    Finally, a helpful mental model for understanding functionalization is that
+    most user pytorch programs are writting with the public torch API.
+    When executed, torch operators are generally decomposed into
+    our internal C++ "ATen" API.
+    The logic for functionalization happens entirely at the level of ATen.
+    Functionalization knows how to take every aliasing operator in ATen,
+    and map it to its non-aliasing equivalent
+    (e.g. ``tensor.view({-1})`` -> ``at::view_copy(tensor, {-1})``),
+    and how to take every mutating operator in ATen,
+    and map it to its non-mutating equivalent
+    (e.g. ``tensor.add_(1)`` -> ``at::add(tensor, -1)``),
+    while tracking aliases and mutations out-of-line to know when to fix things up.
+    Information about which ATen operators are aliasing or mutating all comes from
+    https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/native/native_functions.yaml.
+    """
+    if remove == 'mutations':
+        reapply_views = True
+    elif remove == 'mutations_and_views':
+        reapply_views = False
+    else:
+        raise RuntimeError(
+            f"functionalize(f, remove='mutations'): received invalid argument for remove={remove}."
+            " Valid options are:\n"
+            "     remove='mutations': all inplace and out= operators will be removed from the program, and replaced"
+            " with their out-of-place equivalents.\n"
+            "     remove='mutations_and_views': In addition to the above, all aliasing operators {view} will be"
+            " replaced with their non-aliasing counterparts, {view}_copy.\n"
+        )
+
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        try:
+            func_level = _func_increment_nesting(reapply_views)
+            func_args = _wrap_all_tensors_to_functional(args, func_level)
+            func_kwargs = _wrap_all_tensors_to_functional(kwargs, func_level)
+
+            flattened_unwrapped_args, _ = tree_flatten(args)
+            flattened_wrapped_args, _ = tree_flatten(func_args)
+            flattened_unwrapped_kwargs, _ = tree_flatten(kwargs)
+            flattened_wrapped_kwargs, _ = tree_flatten(func_kwargs)
+
+            func_outputs = func(*func_args, **func_kwargs)
+            outputs = _unwrap_all_tensors_from_functional(func_outputs, reapply_views=reapply_views)
+            flat_outputs, func_out_spec = tree_flatten(outputs)
+
+            for a in flattened_wrapped_args + flattened_wrapped_kwargs:
+                if isinstance(a, torch.Tensor):
+                    # Call sync_() on the inputs, to ensure that any pending mutations have been applied.
+                    torch._sync(a)
+
+            # And if any mutations were applied to the inputs, we need to propagate them back to the user.
+            for unwrapped, wrapped in zip(flattened_unwrapped_args, flattened_wrapped_args):
+                if isinstance(unwrapped, torch.Tensor) and isinstance(wrapped, torch.Tensor):
+                    _propagate_functional_input_mutation(unwrapped, wrapped)
+            for unwrapped, wrapped in zip(flattened_unwrapped_kwargs, flattened_wrapped_kwargs):
+                if isinstance(unwrapped, torch.Tensor) and isinstance(wrapped, torch.Tensor):
+                    _propagate_functional_input_mutation(unwrapped, wrapped)
+
+            return outputs
+        finally:
+            _func_decrement_nesting()
+    return wrapped
+
+
+def _register_jit_decomposition(decomp, use_python=False):
+    if decomp in decomposition_table_for_jvp:
+        decomposition_table_used = decomposition_table_for_jvp
+    elif decomp in decomposition_table:
+        decomposition_table_used = decomposition_table
+    else:
+        raise RuntimeError(f"could not find decomposition for {decomp}")
+    decomp_fn = decomposition_table_used[decomp]
+    if use_python:
+        decomp_fn = torch.jit.ignore(decomp_fn)
+        sig = inspect.signature(decomp_fn)
+
+        # Create a string wrapping the function from the signature
+        # example output:
+        # def wrapped_decomp(x: torch.Tensor, y: int, z: int):
+        #   return decomp_fn(x, y, z)
+        # Thanks copilot!
+        def get_function_def(sig):
+            param_def = [f"{param_str}" for param_str in sig.parameters.values()]
+            param_use = [f"{param_str}" for param_str in sig.parameters.keys()]
+
+            return f"def wrapped_decomp({', '.join(param_def)}):\n  return decomp_fn({', '.join(param_use)})\n"
+
+        f_str = get_function_def(sig)
+        graph = torch.jit.CompilationUnit(f_str).wrapped_decomp.graph
+    else:
+        graph = torch.jit.script(decomp_fn).graph
+    torch.jit._register_decomposition(decomp, graph)
+
+
+# use an alternate way to register an operator into the decomposition table
+# _register_jit_decomposition doesn't work for some operators, e.g. addr,
+#  because the Tensor types generated cannot be unioned by torchscript
+# decomp should be type OpOverload
+vmap_decompositions_lib = torch.library.Library("aten", "IMPL", "FuncTorchBatched")
+
+
+def _register_python_decomposition_vmap(decomp):
+    if decomp in decomposition_table:
+        vmap_decompositions_lib.impl(decomp, decomposition_table[decomp])
+    else:
+        raise RuntimeError(f"could not find decomposition for {decomp}")
+
+
+_register_jit_decomposition(torch.ops.aten.trace.default, use_python=True)
+_register_jit_decomposition(torch.ops.aten.nll_loss_backward.default)
+_register_jit_decomposition(torch.ops.aten.nll_loss2d_backward.default)
+_register_jit_decomposition(torch.ops.aten._log_softmax_backward_data.default)
+_register_jit_decomposition(torch.ops.aten._softmax_backward_data.default)
+_register_jit_decomposition(torch.ops.aten.log_sigmoid_forward.default)
+_register_jit_decomposition(torch.ops.aten.native_layer_norm_backward.default)
+_register_jit_decomposition(torch.ops.aten.native_batch_norm_backward.default)
+_register_jit_decomposition(torch.ops.aten.cudnn_batch_norm_backward.default)
+_register_python_decomposition_vmap(torch.ops.aten.mse_loss_backward.default)
+_register_python_decomposition_vmap(torch.ops.aten.addr.default)
