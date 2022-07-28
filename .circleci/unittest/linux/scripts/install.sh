@@ -53,11 +53,9 @@ gcc --version
 pip install expecttest
 
 if [ "${CU_VERSION:-}" == cpu ] ; then
-    pip install torch==1.12 torchvision --extra-index-url https://download.pytorch.org/whl/cpu
+    python3 -mpip install --pre torch==1.12.1 torchvision -f https://download.pytorch.org/whl/test/cpu/torch_test.html --upgrade
     PYTORCH_VERSION="$(python -c "import torch; print(torch.__version__)")" python setup.py develop bdist_wheel -d $WHEELS_FOLDER
 else
-    # pip install torch~=1.12 torchvision -f https://download.pytorch.org/whl/test/cu102/torch_test.html --pre
-    # Workaround pip wheel cuda linking issue
-    conda install -y pytorch=1.12 torchvision cudatoolkit=11.3 -c pytorch
+    python3 -mpip install --pre torch==1.12.1 torchvision -f https://download.pytorch.org/whl/test/cu113/torch_test.html --upgrade
     PYTORCH_VERSION="$(python -c "import torch; print(torch.__version__)")" python setup.py develop bdist_wheel -d $WHEELS_FOLDER
 fi
