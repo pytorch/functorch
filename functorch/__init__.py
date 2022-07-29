@@ -7,27 +7,6 @@ import torch
 
 try:
     from .version import __version__  # noqa: F401
-    from .version import pytorch_cuda_restrictions  # noqa: F401
-
-    if pytorch_cuda_restrictions is not None:
-        if torch.version.cuda is None:
-            torch_cuda_version = 'cpu'
-            verbose_torch_cuda_version = f'cpuonly'
-        else:
-            torch_cuda_version = torch.version.cuda
-            verbose_torch_cuda_version = f'CUDA {torch.version.cuda}'
-
-        if torch_cuda_version not in pytorch_cuda_restrictions:
-            raise RuntimeError(
-                f"We've detected an installation of PyTorch 1.12 with {verbose_torch_cuda_version} support. "
-                "This functorch 0.2.0 binary is not compatible with the PyTorch installation. "
-                "Please see our install page for suggestions on how to resolve this: "
-                "https://pytorch.org/functorch/stable/install.html")
-
-        # don't leak variables
-        del torch_cuda_version
-        del verbose_torch_cuda_version
-    del pytorch_cuda_restrictions
 except ImportError:
     pass
 
@@ -58,4 +37,3 @@ from ._src.make_functional import (
     FunctionalModule,
     FunctionalModuleWithBuffers,
 )
-
