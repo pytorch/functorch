@@ -42,7 +42,7 @@ def write_version_file():
 # if os.getenv('PYTORCH_VERSION'):
 #     pytorch_dep += "==" + os.getenv('PYTORCH_VERSION')
 requirements = [
-    "torch>=1.12,<1.13",
+    "torch>=1.12.1,<1.13",
 ]
 
 extras = {}
