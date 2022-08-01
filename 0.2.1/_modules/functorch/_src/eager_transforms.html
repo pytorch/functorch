@@ -1,0 +1,1832 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>functorch._src.eager_transforms &mdash; functorch 0.2.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/togglebutton.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/mystnb.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/custom.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+  <!-- Google Analytics -->
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-117752657-2"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'UA-117752657-2');
+    </script>
+  
+  <!-- End Google Analytics -->
+
+  
+
+  
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../../../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://pytorch.org/functorch" aria-label="functorch"></a>
+
+      <div class="main-menu">
+        <ul>
+
+          <li>
+            <a href="https://pytorch.org/functorch">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pytorch/functorch/tree/main/examples">Examples</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pytorch/functorch">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  <a href='https://pytorch.org/functorch/versions.html'>0.2.1 (works with PyTorch 1.12.1) &#x25BC</a>
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../install.html">Install functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/whirlwind_tour.html">Whirlwind Tour</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../ux_limitations.html">UX Limitations</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API Reference and Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../functorch.html">functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../experimental.html">functorch.experimental</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../aot_autograd.html">functorch.compile (experimental)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/jacobians_hessians.html">Jacobians, Hessians, hvp, vhp, and more: composing functorch transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/ensembling.html">Model ensembling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/per_sample_grads.html">Per-sample-gradients</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/neural_tangent_kernels.html">Neural Tangent Kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/aot_autograd_optimizations.html">AOT Autograd - How to use and optimize?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/minifier.html">Using the Minifier</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="../../index.html">Module code</a> &gt;</li>
+        
+      <li>functorch._src.eager_transforms</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <h1>Source code for functorch._src.eager_transforms</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) Facebook, Inc. and its affiliates.</span>
+<span class="c1"># All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># This source code is licensed under the BSD-style license found in the</span>
+<span class="c1"># LICENSE file in the root directory of this source tree.</span>
+
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span><span class="p">,</span> <span class="n">wraps</span>
+<span class="kn">import</span> <span class="nn">contextlib</span>
+<span class="kn">from</span> <span class="nn">torch.utils._pytree</span> <span class="kn">import</span> <span class="n">tree_flatten</span><span class="p">,</span> <span class="n">tree_unflatten</span><span class="p">,</span> <span class="n">tree_map</span>
+<span class="kn">from</span> <span class="nn">.pytree_hacks</span> <span class="kn">import</span> <span class="n">tree_map_</span><span class="p">,</span> <span class="n">treespec_pprint</span>
+<span class="kn">import</span> <span class="nn">torch.autograd.forward_ad</span> <span class="k">as</span> <span class="nn">fwAD</span>
+
+<span class="kn">from</span> <span class="nn">.vmap</span> <span class="kn">import</span> <span class="n">vmap</span>
+<span class="kn">from</span> <span class="nn">.decompositions</span> <span class="kn">import</span> <span class="n">decomposition_table</span><span class="p">,</span> <span class="n">decomposition_table_for_jvp</span>
+
+
+<span class="kn">from</span> <span class="nn">functorch._C</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">_wrap_for_grad</span><span class="p">,</span>
+    <span class="n">_unwrap_for_grad</span><span class="p">,</span>
+    <span class="n">_grad_increment_nesting</span><span class="p">,</span>
+    <span class="n">_grad_decrement_nesting</span><span class="p">,</span>
+    <span class="n">_jvp_increment_nesting</span><span class="p">,</span>
+    <span class="n">_jvp_decrement_nesting</span><span class="p">,</span>
+    <span class="n">set_fwd_grad_enabled</span><span class="p">,</span>
+    <span class="n">get_fwd_grad_enabled</span><span class="p">,</span>
+    <span class="n">_wrap_functional_tensor</span><span class="p">,</span>
+    <span class="n">_unwrap_functional_tensor</span><span class="p">,</span>
+    <span class="n">_func_decrement_nesting</span><span class="p">,</span>
+    <span class="n">_func_increment_nesting</span><span class="p">,</span>
+    <span class="n">_assert_wrapped_functional</span><span class="p">,</span>
+    <span class="n">_propagate_functional_input_mutation</span><span class="p">,</span>
+    <span class="n">set_inplace_requires_grad_allowed</span><span class="p">,</span>
+    <span class="n">get_inplace_requires_grad_allowed</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">argnums_t</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]</span>
+
+
+<span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
+<span class="k">def</span> <span class="nf">enable_inplace_requires_grad</span><span class="p">(</span><span class="n">enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="n">prev_state</span> <span class="o">=</span> <span class="n">get_inplace_requires_grad_allowed</span><span class="p">()</span>
+    <span class="n">set_inplace_requires_grad_allowed</span><span class="p">(</span><span class="n">enabled</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">set_inplace_requires_grad_allowed</span><span class="p">(</span><span class="n">prev_state</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_create_differentiable</span><span class="p">(</span><span class="n">inps</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">create_differentiable</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+            <span class="k">with</span> <span class="n">enable_inplace_requires_grad</span><span class="p">():</span>
+                <span class="k">return</span> <span class="n">x</span><span class="o">.</span><span class="n">requires_grad_</span><span class="p">()</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Thing passed to transform API must be Tensor, &#39;</span>
+                         <span class="sa">f</span><span class="s1">&#39;got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">tree_map</span><span class="p">(</span><span class="n">create_differentiable</span><span class="p">,</span> <span class="n">inps</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_undo_create_differentiable</span><span class="p">(</span><span class="n">inps</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">unwrap_tensors</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">_unwrap_for_grad</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+        <span class="c1"># TODO: Remove the following hack for namedtuples</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">tree_map</span><span class="p">(</span><span class="n">unwrap_tensors</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected tensors, got unsupported type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">tree_map</span><span class="p">(</span><span class="n">unwrap_tensors</span><span class="p">,</span> <span class="n">inps</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_is_differentiable</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="n">maybe_tensor</span><span class="o">.</span><span class="n">requires_grad</span>
+
+
+<span class="k">def</span> <span class="nf">_any_differentiable</span><span class="p">(</span><span class="n">tensor_or_tuple_of_tensors</span><span class="p">):</span>
+    <span class="n">flat_args</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">tree_unflatten</span><span class="p">(</span><span class="n">tensor_or_tuple_of_tensors</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">_is_differentiable</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">)))</span>
+
+
+<span class="k">def</span> <span class="nf">_wrap_tensor_for_grad</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">,</span> <span class="n">level</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">maybe_tensor</span>
+    <span class="k">return</span> <span class="n">_wrap_for_grad</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_wrap_all_tensors</span><span class="p">(</span><span class="n">tensor_pytree</span><span class="p">,</span> <span class="n">level</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">tree_map</span><span class="p">(</span><span class="n">partial</span><span class="p">(</span><span class="n">_wrap_tensor_for_grad</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">),</span> <span class="n">tensor_pytree</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_as_tuple</span><span class="p">(</span><span class="n">val</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">val</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">val</span><span class="p">,)</span>
+
+<span class="c1"># Version of autograd.grad that handles outputs that don&#39;t depend on inputs</span>
+
+
+<span class="k">def</span> <span class="nf">_autograd_grad</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">grad_outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">retain_graph</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">create_graph</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">grad_outputs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">diff_outputs</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">out</span> <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="n">outputs</span> <span class="k">if</span> <span class="n">out</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">((</span><span class="n">out</span><span class="p">,</span> <span class="n">go</span><span class="p">)</span> <span class="k">for</span> <span class="n">out</span><span class="p">,</span> <span class="n">go</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">grad_outputs</span><span class="p">)</span> <span class="k">if</span> <span class="n">out</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">diff_outputs</span><span class="p">,</span> <span class="n">grad_outputs</span> <span class="o">=</span> <span class="p">(),</span> <span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">diff_outputs</span><span class="p">,</span> <span class="n">grad_outputs</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">result</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">diff_outputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">inp</span><span class="p">)</span> <span class="k">for</span> <span class="n">inp</span> <span class="ow">in</span> <span class="n">inputs</span><span class="p">)</span>
+    <span class="n">grad_inputs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">diff_outputs</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">grad_outputs</span><span class="p">,</span>
+                                      <span class="n">retain_graph</span><span class="o">=</span><span class="n">retain_graph</span><span class="p">,</span>
+                                      <span class="n">create_graph</span><span class="o">=</span><span class="n">create_graph</span><span class="p">,</span>
+                                      <span class="n">allow_unused</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">grad_inputs</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">inp</span><span class="p">)</span> <span class="k">if</span> <span class="n">gi</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">gi</span>
+                        <span class="k">for</span> <span class="n">gi</span><span class="p">,</span> <span class="n">inp</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">grad_inputs</span><span class="p">,</span> <span class="n">inputs</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">grad_inputs</span>
+
+<span class="c1"># NOTE [grad and vjp interaction with no_grad]</span>
+<span class="c1">#</span>
+<span class="c1"># def f(x):</span>
+<span class="c1">#   with torch.no_grad():</span>
+<span class="c1">#     c = x ** 2</span>
+<span class="c1">#   return x - c</span>
+<span class="c1">#</span>
+<span class="c1"># The thing to consider is if enable_grad is on/off before grad gets called.</span>
+<span class="c1">#</span>
+<span class="c1"># Case 1: enable_grad is on.</span>
+<span class="c1"># grad(f)(x)</span>
+<span class="c1"># In this case, `grad` should respect the inner torch.no_grad.</span>
+<span class="c1">#</span>
+<span class="c1"># Case 2: enable_grad is off</span>
+<span class="c1"># with torch.no_grad():</span>
+<span class="c1">#   grad(f)(x)</span>
+<span class="c1"># In this case, `grad` should respect the inner torch.no_grad, but not the</span>
+<span class="c1"># outer one. This is because `grad` is a &quot;function transform&quot;: its result</span>
+<span class="c1"># should not depend on the result of a context manager outside of `f`.</span>
+<span class="c1">#</span>
+<span class="c1"># This gives us the following desired behavior:</span>
+<span class="c1"># - (nested) grad transforms must obey torch.no_grad inside them</span>
+<span class="c1"># - (nested) grad transforms should not obey torch.no_grad outside them</span>
+<span class="c1">#</span>
+<span class="c1"># To achieve this behavior, upon entering grad/vjp:</span>
+<span class="c1"># - we save the current (&quot;previous&quot;) is_grad_enabled (*)</span>
+<span class="c1"># - we unconditionally enable grad.</span>
+<span class="c1">#</span>
+<span class="c1"># Inside DynamicLayerBackFallback, when we&#39;re temporarily popping `grad` layer</span>
+<span class="c1"># off the stack:</span>
+<span class="c1"># - if grad_mode is disabled, then we do nothing. (there is a torch.no_grad</span>
+<span class="c1">#   active, all subsequent grad transforms must obey it).</span>
+<span class="c1"># - if grad_mode is enabled, and the previous is_grad_enabled (*) is False,</span>
+<span class="c1">#   then we temporarily restore the previous `is_grad_enabled`. This is</span>
+<span class="c1">#   because we&#39;re crossing the boundary from a `grad` outside the</span>
+<span class="c1">#   no_grad to a `grad` inside the no_grad.</span>
+<span class="c1">#</span>
+<span class="c1"># NB: vjp has some interesting behavior because the vjp&#39;s callable can be called</span>
+<span class="c1"># under a different grad_mode than the forward computation...</span>
+<span class="c1">#</span>
+<span class="c1"># NB: forward-mode AD: forward-mode AD doesn&#39;t respect torch.no_grad, but</span>
+<span class="c1"># it respects c10::AutoFwGradMode. We&#39;ve implemented the same logic for</span>
+<span class="c1"># our jvp transform (it will have special handling if FwGradMode is disabled).</span>
+
+
+<span class="c1"># How do we increment and decrement the nesting? I don&#39;t think we can.</span>
+<div class="viewcode-block" id="vjp"><a class="viewcode-back" href="../../../generated/functorch.vjp.html#functorch.experimental.vjp">[docs]</a><span class="k">def</span> <span class="nf">vjp</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="o">*</span><span class="n">primals</span><span class="p">,</span> <span class="n">has_aux</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Standing for the vector-Jacobian product, returns a tuple containing the</span>
+<span class="sd">    results of :attr:`func` applied to :attr:`primals` and a function that, when</span>
+<span class="sd">    given ``cotangents``, computes the reverse-mode Jacobian of :attr:`func` with</span>
+<span class="sd">    respect to :attr:`primals` times ``cotangents``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        func (Callable): A Python function that takes one or more arguments. Must</span>
+<span class="sd">            return one or more Tensors.</span>
+<span class="sd">        primals (Tensors): Positional arguments to :attr:`func` that must all be</span>
+<span class="sd">            Tensors. The returned function will also be computing the</span>
+<span class="sd">            derivative with respect to these arguments</span>
+<span class="sd">        has_aux (bool): Flag indicating that :attr:`func` returns a</span>
+<span class="sd">            ``(output, aux)`` tuple where the first element is the output of</span>
+<span class="sd">            the function to be differentiated and the second element is</span>
+<span class="sd">            other auxiliary objects that will not be differentiated.</span>
+<span class="sd">            Default: False.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Returns a ``(output, vjp_fn)`` tuple containing the output of :attr:`func`</span>
+<span class="sd">        applied to :attr:`primals` and a function that computes the vjp of</span>
+<span class="sd">        :attr:`func` with respect to all :attr:`primals` using the cotangents passed</span>
+<span class="sd">        to the returned function. If ``has_aux is True``, then instead returns a</span>
+<span class="sd">        ``(output, vjp_fn, aux)`` tuple.</span>
+<span class="sd">        The returned ``vjp_fn`` function will return a tuple of each VJP.</span>
+
+<span class="sd">    When used in simple cases, :func:`vjp` behaves the same as :func:`grad`</span>
+
+<span class="sd">        &gt;&gt;&gt; x = torch.randn([5])</span>
+<span class="sd">        &gt;&gt;&gt; f = lambda x: x.sin().sum()</span>
+<span class="sd">        &gt;&gt;&gt; (_, vjpfunc) = functorch.vjp(f, x)</span>
+<span class="sd">        &gt;&gt;&gt; grad = vjpfunc(torch.tensor(1.))[0]</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(grad, functorch.grad(f)(x))</span>
+
+<span class="sd">    However, :func:`vjp` can support functions with multiple outputs by</span>
+<span class="sd">    passing in the cotangents for each of the outputs</span>
+
+<span class="sd">        &gt;&gt;&gt; x = torch.randn([5])</span>
+<span class="sd">        &gt;&gt;&gt; f = lambda x: (x.sin(), x.cos())</span>
+<span class="sd">        &gt;&gt;&gt; (_, vjpfunc) = functorch.vjp(f, x)</span>
+<span class="sd">        &gt;&gt;&gt; vjps = vjpfunc((torch.ones([5]), torch.ones([5])))</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(vjps[0], x.cos() + -x.sin())</span>
+
+<span class="sd">    :func:`vjp` can even support outputs being Python structs</span>
+
+<span class="sd">        &gt;&gt;&gt; x = torch.randn([5])</span>
+<span class="sd">        &gt;&gt;&gt; f = lambda x: {&#39;first&#39;: x.sin(), &#39;second&#39;: x.cos()}</span>
+<span class="sd">        &gt;&gt;&gt; (_, vjpfunc) = functorch.vjp(f, x)</span>
+<span class="sd">        &gt;&gt;&gt; cotangents = {&#39;first&#39;: torch.ones([5]), &#39;second&#39;: torch.ones([5])}</span>
+<span class="sd">        &gt;&gt;&gt; vjps = vjpfunc(cotangents)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(vjps[0], x.cos() + -x.sin())</span>
+
+<span class="sd">    The function returned by :func:`vjp` will compute the partials with</span>
+<span class="sd">    respect to each of the :attr:`primals`</span>
+
+<span class="sd">        &gt;&gt;&gt; x, y = torch.randn([5, 4]), torch.randn([4, 5])</span>
+<span class="sd">        &gt;&gt;&gt; (_, vjpfunc) = functorch.vjp(torch.matmul, x, y)</span>
+<span class="sd">        &gt;&gt;&gt; cotangents = torch.randn([5, 5])</span>
+<span class="sd">        &gt;&gt;&gt; vjps = vjpfunc(cotangents)</span>
+<span class="sd">        &gt;&gt;&gt; assert len(vjps) == 2</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(vjps[0], torch.matmul(cotangents, y.transpose(0, 1)))</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(vjps[1], torch.matmul(x.transpose(0, 1), cotangents))</span>
+
+<span class="sd">    :attr:`primals` are the positional arguments for :attr:`f`. All kwargs use their</span>
+<span class="sd">    default value</span>
+
+<span class="sd">        &gt;&gt;&gt; x = torch.randn([5])</span>
+<span class="sd">        &gt;&gt;&gt; def f(x, scale=4.):</span>
+<span class="sd">        &gt;&gt;&gt;   return x * 4.</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; (_, vjpfunc) = functorch.vjp(f, x)</span>
+<span class="sd">        &gt;&gt;&gt; vjps = vjpfunc(torch.ones_like(x))</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(vjps[0], torch.full(x.shape, 4.))</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Using PyTorch ``torch.no_grad`` together with ``vjp``.</span>
+<span class="sd">        Case 1: Using ``torch.no_grad`` inside a function:</span>
+
+<span class="sd">            &gt;&gt;&gt; def f(x):</span>
+<span class="sd">            &gt;&gt;&gt;     with torch.no_grad():</span>
+<span class="sd">            &gt;&gt;&gt;         c = x ** 2</span>
+<span class="sd">            &gt;&gt;&gt;     return x - c</span>
+
+<span class="sd">        In this case, ``vjp(f)(x)`` will respect the inner ``torch.no_grad``.</span>
+
+<span class="sd">        Case 2: Using ``vjp`` inside ``torch.no_grad`` context manager:</span>
+
+<span class="sd">            &gt;&gt;&gt; with torch.no_grad():</span>
+<span class="sd">            &gt;&gt;&gt;     vjp(f)(x)</span>
+
+<span class="sd">        In this case, ``vjp`` will respect the inner ``torch.no_grad``, but not the</span>
+<span class="sd">        outer one. This is because ``vjp`` is a &quot;function transform&quot;: its result</span>
+<span class="sd">        should not depend on the result of a context manager outside of ``f``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">level</span> <span class="o">=</span> <span class="n">_grad_increment_nesting</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># See NOTE [grad and vjp interaction with no_grad]</span>
+        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">enable_grad</span><span class="p">():</span>
+            <span class="n">primals</span> <span class="o">=</span> <span class="n">_wrap_all_tensors</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+            <span class="n">diff_primals</span> <span class="o">=</span> <span class="n">_create_differentiable</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+            <span class="n">primals_out</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">diff_primals</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">has_aux</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">primals_out</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">primals_out</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                        <span class="s2">&quot;vjp(f, *primals): output of function f should be a tuple: (output, aux) &quot;</span>
+                        <span class="s2">&quot;if has_aux is True&quot;</span>
+                    <span class="p">)</span>
+                <span class="n">primals_out</span><span class="p">,</span> <span class="n">aux</span> <span class="o">=</span> <span class="n">primals_out</span>
+                <span class="n">aux</span> <span class="o">=</span> <span class="n">_undo_create_differentiable</span><span class="p">(</span><span class="n">aux</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+
+            <span class="n">flat_primals_out</span><span class="p">,</span> <span class="n">primals_out_spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">primals_out</span><span class="p">)</span>
+            <span class="n">assert_non_empty_tensor_output</span><span class="p">(</span><span class="n">flat_primals_out</span><span class="p">,</span> <span class="s1">&#39;vjp(f, *primals)&#39;</span><span class="p">)</span>
+            <span class="n">flat_diff_primals</span><span class="p">,</span> <span class="n">primals_spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">diff_primals</span><span class="p">)</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="n">_undo_create_differentiable</span><span class="p">(</span><span class="n">primals_out</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">primal_out</span> <span class="ow">in</span> <span class="n">flat_primals_out</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">primal_out</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">primal_out</span><span class="o">.</span><span class="n">is_floating_point</span><span class="p">()</span> <span class="ow">or</span> <span class="n">primal_out</span><span class="o">.</span><span class="n">is_complex</span><span class="p">():</span>
+                    <span class="k">continue</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;vjp(f, ...): All outputs of f must be &quot;</span>
+                                   <span class="s2">&quot;floating-point or complex Tensors, got Tensor &quot;</span>
+                                   <span class="sa">f</span><span class="s2">&quot;with dtype </span><span class="si">{</span><span class="n">primal_out</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="n">cotangents</span><span class="p">,</span> <span class="n">retain_graph</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">create_graph</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">create_graph</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">create_graph</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_grad_enabled</span><span class="p">()</span>
+            <span class="n">flat_cotangents</span><span class="p">,</span> <span class="n">cotangents_spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">cotangents</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">primals_out_spec</span> <span class="o">!=</span> <span class="n">cotangents_spec</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;Expected pytree structure of cotangents to be the same &#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;as pytree structure of outputs to the function. &#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;cotangents: </span><span class="si">{</span><span class="n">treespec_pprint</span><span class="p">(</span><span class="n">cotangents_spec</span><span class="p">)</span><span class="si">}</span><span class="s1">, &#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;primal output: </span><span class="si">{</span><span class="n">treespec_pprint</span><span class="p">(</span><span class="n">primals_out_spec</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">_autograd_grad</span><span class="p">(</span><span class="n">flat_primals_out</span><span class="p">,</span> <span class="n">flat_diff_primals</span><span class="p">,</span> <span class="n">flat_cotangents</span><span class="p">,</span>
+                                    <span class="n">retain_graph</span><span class="o">=</span><span class="n">retain_graph</span><span class="p">,</span> <span class="n">create_graph</span><span class="o">=</span><span class="n">create_graph</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">tree_unflatten</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">primals_spec</span><span class="p">)</span>
+
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">_grad_decrement_nesting</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">has_aux</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">results</span><span class="p">,</span> <span class="n">wrapper</span><span class="p">,</span> <span class="n">aux</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">results</span><span class="p">,</span> <span class="n">wrapper</span></div>
+
+
+<span class="k">def</span> <span class="nf">_safe_zero_index</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="jacrev"><a class="viewcode-back" href="../../../generated/functorch.jacrev.html#functorch.experimental.jacrev">[docs]</a><span class="k">def</span> <span class="nf">jacrev</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">argnums</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes the Jacobian of :attr:`func` with respect to the arg(s) at index</span>
+<span class="sd">    :attr:`argnum` using reverse mode autodiff</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        func (function): A Python function that takes one or more arguments,</span>
+<span class="sd">            one of which must be a Tensor, and returns one or more Tensors</span>
+<span class="sd">        argnums (int or Tuple[int]): Optional, integer or tuple of integers,</span>
+<span class="sd">            saying which arguments to get the Jacobian with respect to.</span>
+<span class="sd">            Default: 0.</span>
+<span class="sd">        has_aux (bool): Flag indicating that :attr:`func` returns a</span>
+<span class="sd">            ``(output, aux)`` tuple where the first element is the output of</span>
+<span class="sd">            the function to be differentiated and the second element is</span>
+<span class="sd">            auxiliary objects that will not be differentiated.</span>
+<span class="sd">            Default: False.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Returns a function that takes in the same inputs as :attr:`func` and</span>
+<span class="sd">        returns the Jacobian of :attr:`func` with respect to the arg(s) at</span>
+<span class="sd">        :attr:`argnums`. If ``has_aux is True``, then the returned function</span>
+<span class="sd">        instead returns a ``(jacobian, aux)`` tuple where ``jacobian``</span>
+<span class="sd">        is the Jacobian and ``aux`` is auxiliary objects returned by :attr:`func`.</span>
+
+<span class="sd">    A basic usage with a pointwise, unary operation will give a diagonal array</span>
+<span class="sd">    as the Jacobian</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import jacrev</span>
+<span class="sd">        &gt;&gt;&gt; x = torch.randn(5)</span>
+<span class="sd">        &gt;&gt;&gt; jacobian = jacrev(torch.sin)(x)</span>
+<span class="sd">        &gt;&gt;&gt; expected = torch.diag(torch.cos(x))</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(jacobian, expected)</span>
+
+<span class="sd">    If you would like to compute the output of the function as well as the</span>
+<span class="sd">    jacobian of the function, use the ``has_aux`` flag to return the output</span>
+<span class="sd">    as an auxiliary object:</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import jacrev</span>
+<span class="sd">        &gt;&gt;&gt; x = torch.randn(5)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; def f(x):</span>
+<span class="sd">        &gt;&gt;&gt;   return x.sin()</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; def g(x):</span>
+<span class="sd">        &gt;&gt;&gt;   result = f(x)</span>
+<span class="sd">        &gt;&gt;&gt;   return result, result</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; jacobian_f, f_x = jacrev(g, has_aux=True)(x)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(f_x, f(x))</span>
+
+<span class="sd">    :func:`jacrev` can be composed with vmap to produce batched</span>
+<span class="sd">    Jacobians:</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import jacrev, vmap</span>
+<span class="sd">        &gt;&gt;&gt; x = torch.randn(64, 5)</span>
+<span class="sd">        &gt;&gt;&gt; jacobian = vmap(jacrev(torch.sin))(x)</span>
+<span class="sd">        &gt;&gt;&gt; assert jacobian.shape == (64, 5, 5)</span>
+
+<span class="sd">    Additionally, :func:`jacrev` can be composed with itself to produce</span>
+<span class="sd">    Hessians</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import jacrev</span>
+<span class="sd">        &gt;&gt;&gt; def f(x):</span>
+<span class="sd">        &gt;&gt;&gt;   return x.sin().sum()</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; x = torch.randn(5)</span>
+<span class="sd">        &gt;&gt;&gt; hessian = jacrev(jacrev(f))(x)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(hessian, torch.diag(-x.sin()))</span>
+
+<span class="sd">    By default, :func:`jacrev` computes the Jacobian with respect to the first</span>
+<span class="sd">    input. However, it can compute the Jacboian with respect to a different</span>
+<span class="sd">    argument by using :attr:`argnums`:</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import jacrev</span>
+<span class="sd">        &gt;&gt;&gt; def f(x, y):</span>
+<span class="sd">        &gt;&gt;&gt;   return x + y ** 2</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; x, y = torch.randn(5), torch.randn(5)</span>
+<span class="sd">        &gt;&gt;&gt; jacobian = jacrev(f, argnums=1)(x, y)</span>
+<span class="sd">        &gt;&gt;&gt; expected = torch.diag(2 * y)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(jacobian, expected)</span>
+
+<span class="sd">    Additionally, passing a tuple to :attr:`argnums` will compute the Jacobian</span>
+<span class="sd">    with respect to multiple arguments</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import jacrev</span>
+<span class="sd">        &gt;&gt;&gt; def f(x, y):</span>
+<span class="sd">        &gt;&gt;&gt;   return x + y ** 2</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; x, y = torch.randn(5), torch.randn(5)</span>
+<span class="sd">        &gt;&gt;&gt; jacobian = jacrev(f, argnums=(0, 1))(x, y)</span>
+<span class="sd">        &gt;&gt;&gt; expectedX = torch.diag(torch.ones_like(x))</span>
+<span class="sd">        &gt;&gt;&gt; expectedY = torch.diag(2 * y)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(jacobian[0], expectedX)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(jacobian[1], expectedY)</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Using PyTorch ``torch.no_grad`` together with ``jacrev``.</span>
+<span class="sd">        Case 1: Using ``torch.no_grad`` inside a function:</span>
+
+<span class="sd">            &gt;&gt;&gt; def f(x):</span>
+<span class="sd">            &gt;&gt;&gt;     with torch.no_grad():</span>
+<span class="sd">            &gt;&gt;&gt;         c = x ** 2</span>
+<span class="sd">            &gt;&gt;&gt;     return x - c</span>
+
+<span class="sd">        In this case, ``jacrev(f)(x)`` will respect the inner ``torch.no_grad``.</span>
+
+<span class="sd">        Case 2: Using ``jacrev`` inside ``torch.no_grad`` context manager:</span>
+
+<span class="sd">            &gt;&gt;&gt; with torch.no_grad():</span>
+<span class="sd">            &gt;&gt;&gt;     jacrev(f)(x)</span>
+
+<span class="sd">        In this case, ``jacrev`` will respect the inner ``torch.no_grad``, but not the</span>
+<span class="sd">        outer one. This is because ``jacrev`` is a &quot;function transform&quot;: its result</span>
+<span class="sd">        should not depend on the result of a context manager outside of ``f``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">wrapper_fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="n">f_wrapper</span><span class="p">,</span> <span class="n">primals</span> <span class="o">=</span> <span class="n">_argnums_partial</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">argnums</span><span class="p">)</span>
+        <span class="n">vjp_out</span> <span class="o">=</span> <span class="n">vjp</span><span class="p">(</span><span class="n">f_wrapper</span><span class="p">,</span> <span class="o">*</span><span class="n">primals</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="n">has_aux</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">has_aux</span><span class="p">:</span>
+            <span class="n">output</span><span class="p">,</span> <span class="n">vjp_fn</span><span class="p">,</span> <span class="n">aux</span> <span class="o">=</span> <span class="n">vjp_out</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">output</span><span class="p">,</span> <span class="n">vjp_fn</span> <span class="o">=</span> <span class="n">vjp_out</span>
+
+        <span class="c1"># See NOTE: [Computing jacobian with vmap and vjp for multiple outputs]</span>
+        <span class="n">flat_output</span><span class="p">,</span> <span class="n">output_spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+
+        <span class="c1"># NB: vjp already checks that all outputs are tensors</span>
+        <span class="c1"># Step 1: Construct grad_outputs by splitting the standard basis</span>
+        <span class="n">flat_output_numels</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="n">flat_output</span><span class="p">)</span>
+        <span class="n">flat_basis</span> <span class="o">=</span> <span class="n">_construct_standard_basis_for</span><span class="p">(</span><span class="n">flat_output</span><span class="p">,</span> <span class="n">flat_output_numels</span><span class="p">)</span>
+        <span class="n">basis</span> <span class="o">=</span> <span class="n">tree_unflatten</span><span class="p">(</span><span class="n">flat_basis</span><span class="p">,</span> <span class="n">output_spec</span><span class="p">)</span>
+
+        <span class="n">results</span> <span class="o">=</span> <span class="n">vmap</span><span class="p">(</span><span class="n">vjp_fn</span><span class="p">)(</span><span class="n">basis</span><span class="p">)</span>
+
+        <span class="n">flat_primals</span><span class="p">,</span> <span class="n">primals_spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">primals</span><span class="p">)</span>
+        <span class="n">flat_results</span><span class="p">,</span> <span class="n">results_spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+
+        <span class="c1"># Step 2: The returned jacobian is one big tensor per input. In this step,</span>
+        <span class="c1"># we split each Tensor by output.</span>
+        <span class="n">flat_results</span> <span class="o">=</span> <span class="p">[</span><span class="n">result</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">flat_output_numels</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">flat_results</span><span class="p">]</span>
+        <span class="n">flat_input_flat_output</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="nb">tuple</span><span class="p">(</span><span class="n">split</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">+</span> <span class="n">primal</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+                  <span class="k">for</span> <span class="n">split</span><span class="p">,</span> <span class="n">out</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">splits</span><span class="p">,</span> <span class="n">flat_output</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">splits</span><span class="p">,</span> <span class="n">primal</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">flat_results</span><span class="p">,</span> <span class="n">flat_primals</span><span class="p">)</span>
+        <span class="p">]</span>
+
+        <span class="c1"># Step 3: Right now, `jacobian` is a List[List[Tensor]].</span>
+        <span class="c1"># The outer List corresponds to the number of primals,</span>
+        <span class="c1"># the inner List corresponds to the number of outputs.</span>
+        <span class="c1"># We need to:</span>
+        <span class="c1"># a. Exchange the order of the outer List and inner List</span>
+        <span class="c1"># b. tree_unflatten the inner Lists (which correspond to the primals)</span>
+        <span class="c1"># c. handle the argnums=int case</span>
+        <span class="c1"># d. tree_unflatten the outer List (which corresponds to the outputs)</span>
+        <span class="n">flat_output_flat_input</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">flat_input_flat_output</span><span class="p">))</span>
+
+        <span class="n">flat_output_input</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">tree_unflatten</span><span class="p">(</span><span class="n">flat_input</span><span class="p">,</span> <span class="n">primals_spec</span><span class="p">)</span>
+                                  <span class="k">for</span> <span class="n">flat_input</span> <span class="ow">in</span> <span class="n">flat_output_flat_input</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argnums</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">flat_output_input</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">_safe_zero_index</span><span class="p">(</span><span class="n">flat_input</span><span class="p">)</span>
+                                      <span class="k">for</span> <span class="n">flat_input</span> <span class="ow">in</span> <span class="n">flat_output_input</span><span class="p">)</span>
+        <span class="n">output_input</span> <span class="o">=</span> <span class="n">tree_unflatten</span><span class="p">(</span><span class="n">flat_output_input</span><span class="p">,</span> <span class="n">output_spec</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">has_aux</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">output_input</span><span class="p">,</span> <span class="n">aux</span>
+        <span class="k">return</span> <span class="n">output_input</span>
+    <span class="k">return</span> <span class="n">wrapper_fn</span></div>
+
+<span class="c1"># NOTE: [Computing jacobian with vmap and vjp for multiple outputs]</span>
+<span class="c1">#</span>
+<span class="c1"># Let&#39;s consider f(x) = (x**2, x.sum()) and let x = torch.randn(3).</span>
+<span class="c1"># It turns out we can compute the jacobian of this function with a single</span>
+<span class="c1"># call to autograd.grad by using vmap over the correct grad_outputs.</span>
+<span class="c1">#</span>
+<span class="c1"># Firstly, one way to compute the jacobian is to stack x**2 and x.sum()</span>
+<span class="c1"># into a 4D vector. E.g., use g(x) = torch.stack([x**2, x.sum()])</span>
+<span class="c1">#</span>
+<span class="c1"># To get the first row of the jacobian, we call</span>
+<span class="c1"># &gt;&gt;&gt; autograd.grad(g(x), x, grad_outputs=torch.tensor([1, 0, 0, 0]))</span>
+<span class="c1"># To get the 2nd row of the jacobian, we call</span>
+<span class="c1"># &gt;&gt;&gt; autograd.grad(g(x), x, grad_outputs=torch.tensor([0, 1, 0, 0]))</span>
+<span class="c1"># and so on.</span>
+<span class="c1">#</span>
+<span class="c1"># Using vmap, we can vectorize all 4 of these computations into one by</span>
+<span class="c1"># passing the standard basis for R^4 as the grad_output.</span>
+<span class="c1"># vmap(partial(autograd.grad, g(x), x))(torch.eye(4)).</span>
+<span class="c1">#</span>
+<span class="c1"># Now, how do we compute the jacobian *without stacking the output*?</span>
+<span class="c1"># We can just split the standard basis across the outputs. So to</span>
+<span class="c1"># compute the jacobian of f(x), we&#39;d use</span>
+<span class="c1"># &gt;&gt;&gt; autograd.grad(f(x), x, grad_outputs=_construct_standard_basis_for(...))</span>
+<span class="c1"># The grad_outputs looks like the following:</span>
+<span class="c1"># ( torch.tensor([[1, 0, 0],</span>
+<span class="c1">#                 [0, 1, 0],</span>
+<span class="c1">#                 [0, 0, 1],</span>
+<span class="c1">#                 [0, 0, 0]]),</span>
+<span class="c1">#   torch.tensor([[0],</span>
+<span class="c1">#                 [0],</span>
+<span class="c1">#                 [0],</span>
+<span class="c1">#                 [1]]) )</span>
+<span class="c1">#</span>
+<span class="c1"># But we&#39;re not done yet!</span>
+<span class="c1"># &gt;&gt;&gt; vmap(partial(autograd.grad(f(x), x, grad_outputs=...)))</span>
+<span class="c1"># returns a Tensor of shape [4, 3]. We have to remember to split the</span>
+<span class="c1"># jacobian of shape [4, 3] into two:</span>
+<span class="c1"># - one of shape [3, 3] for the first output</span>
+<span class="c1"># - one of shape [   3] for the second output</span>
+
+
+<span class="k">def</span> <span class="nf">_construct_standard_basis_for</span><span class="p">(</span><span class="n">tensors</span><span class="p">,</span> <span class="n">tensor_numels</span><span class="p">):</span>
+    <span class="c1"># This function:</span>
+    <span class="c1"># - constructs a N=sum(tensor_numels) standard basis. i.e. an NxN identity matrix.</span>
+    <span class="c1"># - Splits the identity matrix into chunks with each chunk size determined by `tensor_numels`.</span>
+    <span class="c1"># - Each chunk corresponds to one tensor. The chunk has the same dtype and</span>
+    <span class="c1">#   device as the tensor</span>
+    <span class="c1">#</span>
+    <span class="c1"># For example, with tensor_numels = [1, 2, 1], this function returns:</span>
+    <span class="c1"># ( tensor([[1],     tensor([[0, 0],      tensor([[0],</span>
+    <span class="c1">#           [0],             [1, 0],              [0],</span>
+    <span class="c1">#           [0],             [0, 1],              [0],</span>
+    <span class="c1">#           [0]])  ,         [0, 0]])  ,          [1]])  )</span>
+    <span class="c1">#</span>
+    <span class="c1"># Precondition: tensor_numels == tuple(tensor.numel() for tensor in tensors)</span>
+    <span class="c1"># Precondition: tensors always has at least one element.</span>
+    <span class="c1">#</span>
+    <span class="c1"># See NOTE: [Computing jacobian with vmap and grad for multiple tensors]</span>
+    <span class="c1"># for context behind this function.</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">tensors</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">tensor_numels</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">tensors</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="n">total_numel</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">tensor_numels</span><span class="p">)</span>
+    <span class="n">diag_start_indices</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">*</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">tensor_numels</span><span class="p">)</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">neg</span><span class="p">()</span><span class="o">.</span><span class="n">unbind</span><span class="p">())</span>
+    <span class="n">chunks</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">tensor</span><span class="o">.</span><span class="n">new_zeros</span><span class="p">(</span><span class="n">total_numel</span><span class="p">,</span> <span class="n">tensor_numel</span><span class="p">)</span>
+                   <span class="k">for</span> <span class="n">tensor</span><span class="p">,</span> <span class="n">tensor_numel</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">tensors</span><span class="p">,</span> <span class="n">tensor_numels</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">chunk</span><span class="p">,</span> <span class="n">diag_start_idx</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">chunks</span><span class="p">,</span> <span class="n">diag_start_indices</span><span class="p">):</span>
+        <span class="n">chunk</span><span class="o">.</span><span class="n">diagonal</span><span class="p">(</span><span class="n">diag_start_idx</span><span class="p">)</span><span class="o">.</span><span class="n">fill_</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">chunks</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">total_numel</span><span class="p">,</span> <span class="o">*</span><span class="n">tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+                   <span class="k">for</span> <span class="n">chunk</span><span class="p">,</span> <span class="n">tensor</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">chunks</span><span class="p">,</span> <span class="n">tensors</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">chunks</span>
+
+
+<span class="k">def</span> <span class="nf">_validate_and_wrap_argnum</span><span class="p">(</span><span class="n">argnum</span><span class="p">,</span> <span class="n">num_args</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argnum</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;argnum must be int, got: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">argnum</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">argnum</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">argnum</span> <span class="o">&lt;</span> <span class="n">num_args</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">argnum</span>
+    <span class="k">if</span> <span class="n">argnum</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">argnum</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="n">num_args</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">argnum</span> <span class="o">+</span> <span class="n">num_args</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Got argnum=</span><span class="si">{</span><span class="n">argnum</span><span class="si">}</span><span class="s1">, but only </span><span class="si">{</span><span class="n">num_args</span><span class="si">}</span><span class="s1"> positional inputs&#39;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_check_unique_non_empty</span><span class="p">(</span><span class="n">argnums</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argnums</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">argnums</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;argnums must be non-empty&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">argnums</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">argnums</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;argnums elements must be unique, got </span><span class="si">{</span><span class="n">argnums</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_replace_args</span><span class="p">(</span><span class="n">old_args</span><span class="p">,</span> <span class="n">new_args</span><span class="p">,</span> <span class="n">argnums</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argnums</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_args</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;new_args should be of size 1, was of size </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">new_args</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">new_args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">argnums</span> <span class="k">else</span> <span class="n">old_args</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">old_args</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argnums</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_args</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">argnums</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;new_args should have the same size as argnums. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Argnums size </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">argnums</span><span class="p">)</span><span class="si">}</span><span class="s2">, new_args size </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">new_args</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">get_right_elem</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">new_args</span><span class="p">[</span><span class="n">argnums</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">argnums</span> <span class="k">else</span> <span class="n">old_args</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">get_right_elem</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">old_args</span><span class="p">)))</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;argnums must be int or Tuple[int, ...], got: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">argnums</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_validate_and_wrap_argnums</span><span class="p">(</span><span class="n">argnums</span><span class="p">,</span> <span class="n">num_args</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argnums</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_validate_and_wrap_argnum</span><span class="p">(</span><span class="n">argnums</span><span class="p">,</span> <span class="n">num_args</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argnums</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">_validate_and_wrap_argnum</span><span class="p">(</span><span class="n">argnum</span><span class="p">,</span> <span class="n">num_args</span><span class="p">)</span> <span class="k">for</span> <span class="n">argnum</span> <span class="ow">in</span> <span class="n">argnums</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s2">&quot;Should never get here&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_slice_argnums</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">argnums</span><span class="p">,</span> <span class="n">as_tuple</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argnums</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argnums</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;argnums must be int or Tuple[int, ...], got: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">argnums</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">argnums</span> <span class="o">=</span> <span class="n">_validate_and_wrap_argnums</span><span class="p">(</span><span class="n">argnums</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">))</span>
+    <span class="n">_check_unique_non_empty</span><span class="p">(</span><span class="n">argnums</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argnums</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">as_tuple</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="n">argnums</span><span class="p">],)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">args</span><span class="p">[</span><span class="n">argnums</span><span class="p">]</span>
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">argnums</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_argnums_partial</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">argnums</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">f_wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">wrapper_args</span><span class="p">):</span>
+        <span class="n">replaced_args</span> <span class="o">=</span> <span class="n">_replace_args</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">wrapper_args</span><span class="p">,</span> <span class="n">argnums</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">f</span><span class="p">(</span><span class="o">*</span><span class="n">replaced_args</span><span class="p">)</span>
+    <span class="n">wrapper_args</span> <span class="o">=</span> <span class="n">_slice_argnums</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">argnums</span><span class="p">)</span>
+    <span class="n">wrapper_args</span> <span class="o">=</span> <span class="n">wrapper_args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">wrapper_args</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="k">else</span> <span class="p">(</span><span class="n">wrapper_args</span><span class="p">,</span> <span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">f_wrapper</span><span class="p">,</span> <span class="n">wrapper_args</span><span class="p">)</span>
+
+
+<span class="n">JVP_NESTING</span> <span class="o">=</span> <span class="mi">0</span>
+
+
+<span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
+<span class="k">def</span> <span class="nf">noop</span><span class="p">():</span>
+    <span class="k">yield</span>
+
+
+<span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
+<span class="k">def</span> <span class="nf">enable_fwd_grad</span><span class="p">(</span><span class="n">enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="n">prev_state</span> <span class="o">=</span> <span class="n">get_fwd_grad_enabled</span><span class="p">()</span>
+    <span class="n">set_fwd_grad_enabled</span><span class="p">(</span><span class="n">enabled</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">set_fwd_grad_enabled</span><span class="p">(</span><span class="n">prev_state</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">assert_flat_tuple_of_tensors</span><span class="p">(</span><span class="n">elts</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">api</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">argname</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">elts</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">api</span><span class="si">}</span><span class="s1">: Expected </span><span class="si">{</span><span class="n">argname</span><span class="si">}</span><span class="s1"> to be a tuple of Tensors, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">elts</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">elt</span> <span class="ow">in</span> <span class="n">elts</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">elt</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">api</span><span class="si">}</span><span class="s1">: Expected </span><span class="si">{</span><span class="n">argname</span><span class="si">}</span><span class="s1"> to be a tuple of Tensors, got &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;a tuple with an element of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">elt</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">elts</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">api</span><span class="si">}</span><span class="s1">: Expected </span><span class="si">{</span><span class="n">argname</span><span class="si">}</span><span class="s1"> to be a non-empty tuple of Tensors.&#39;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">assert_non_empty_tensor_output</span><span class="p">(</span><span class="n">output</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">api</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">output</span> <span class="o">==</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">api</span><span class="si">}</span><span class="s1">: Expected f to be a function that has non-empty output (got output = </span><span class="si">{</span><span class="n">output</span><span class="si">}</span><span class="s1">)&#39;</span>
+        <span class="p">)</span>
+    <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">api</span><span class="si">}</span><span class="s1">: expected f(*primals) to return only tensors&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;, got unsupported type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">o</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">assert_output_is_tensor_or_tensors</span><span class="p">(</span><span class="n">output</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">api</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="k">return</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">api</span><span class="si">}</span><span class="s1">: Expected output of f to be a Tensor or Tensors, got &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">output</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">api</span><span class="si">}</span><span class="s1">: Expected output of f to be a non-empty tuple of Tensors.&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">api</span><span class="si">}</span><span class="s1">: Expected output of f to be a Tensor or Tensors, got &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">out</span><span class="p">)</span><span class="si">}</span><span class="s1"> as an output&#39;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">assert_non_empty_list_of_tensors</span><span class="p">(</span><span class="n">output</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">api</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">argname</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">api</span><span class="si">}</span><span class="s1">: Expected </span><span class="si">{</span><span class="n">argname</span><span class="si">}</span><span class="s1"> to contain at least one Tensor.&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">api</span><span class="si">}</span><span class="s1">: Expected </span><span class="si">{</span><span class="n">argname</span><span class="si">}</span><span class="s1"> to only contain Tensors, got &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">out</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+
+<span class="n">jvp_str</span> <span class="o">=</span> <span class="s1">&#39;jvp(f, primals, tangents)&#39;</span>
+
+
+<span class="k">def</span> <span class="nf">safe_unpack_dual</span><span class="p">(</span><span class="n">dual</span><span class="p">,</span> <span class="n">strict</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dual</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">jvp_str</span><span class="si">}</span><span class="s1">: expected f(*args) to return only tensors&#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;, got unsupported type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">dual</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="p">)</span>
+
+    <span class="n">primal</span><span class="p">,</span> <span class="n">tangent</span> <span class="o">=</span> <span class="n">fwAD</span><span class="o">.</span><span class="n">unpack_dual</span><span class="p">(</span><span class="n">dual</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">tangent</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">strict</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s1">&#39;jvp(f, primals, tangents, strict=True): &#39;</span>
+                <span class="s1">&#39;The output of f is independent of &#39;</span>
+                <span class="s1">&#39;the inputs. This is not allowed with strict=True.&#39;</span><span class="p">)</span>
+        <span class="n">tangent</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">primal</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">primal</span><span class="p">,</span> <span class="n">tangent</span>
+
+
+<div class="viewcode-block" id="jvp"><a class="viewcode-back" href="../../../generated/functorch.jvp.html#functorch.experimental.jvp">[docs]</a><span class="k">def</span> <span class="nf">jvp</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">primals</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">tangents</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">strict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">has_aux</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Standing for the Jacobian-vector product, returns a tuple containing</span>
+<span class="sd">    the output of `func(*primals)` and the &quot;Jacobian of ``func`` evaluated at</span>
+<span class="sd">    ``primals``&quot; times ``tangents``. This is also known as forward-mode autodiff.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        func (function): A Python function that takes one or more arguments,</span>
+<span class="sd">            one of which must be a Tensor, and returns one or more Tensors</span>
+<span class="sd">        primals (Tensors): Positional arguments to :attr:`func` that must all be</span>
+<span class="sd">            Tensors. The returned function will also be computing the</span>
+<span class="sd">            derivative with respect to these arguments</span>
+<span class="sd">        tangents (Tensors): The &quot;vector&quot; for which Jacobian-vector-product is</span>
+<span class="sd">            computed. Must be the same structure and sizes as the inputs to</span>
+<span class="sd">            ``func``.</span>
+<span class="sd">        has_aux (bool): Flag indicating that :attr:`func` returns a</span>
+<span class="sd">            ``(output, aux)`` tuple where the first element is the output of</span>
+<span class="sd">            the function to be differentiated and the second element is</span>
+<span class="sd">            other auxiliary objects that will not be differentiated.</span>
+<span class="sd">            Default: False.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Returns a ``(output, jvp_out)`` tuple containing the output of ``func``</span>
+<span class="sd">        evaluated at ``primals`` and the Jacobian-vector product.</span>
+<span class="sd">        If ``has_aux is True``, then instead returns a ``(output, jvp_out, aux)`` tuple.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        PyTorch&#39;s forward-mode AD coverage on operators is not very good at the</span>
+<span class="sd">        moment. You may see this API error out with &quot;forward-mode AD not</span>
+<span class="sd">        implemented for operator X&quot;. If so, please file us a bug report and we</span>
+<span class="sd">        will prioritize it.</span>
+
+<span class="sd">    jvp is useful when you wish to compute gradients of a function R^1 -&gt; R^N</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import jvp</span>
+<span class="sd">        &gt;&gt;&gt; x = torch.randn([])</span>
+<span class="sd">        &gt;&gt;&gt; f = lambda x: x * torch.tensor([1., 2., 3])</span>
+<span class="sd">        &gt;&gt;&gt; value, grad = jvp(f, (x,), (torch.tensor(1.),))</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(value, f(x))</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(grad, torch.tensor([1., 2, 3]))</span>
+
+<span class="sd">    :func:`jvp` can support functions with multiple inputs by passing in the</span>
+<span class="sd">    tangents for each of the inputs</span>
+
+<span class="sd">         &gt;&gt;&gt; from functorch import jvp</span>
+<span class="sd">         &gt;&gt;&gt; x = torch.randn(5)</span>
+<span class="sd">         &gt;&gt;&gt; y = torch.randn(5)</span>
+<span class="sd">         &gt;&gt;&gt; f = lambda x, y: (x * y)</span>
+<span class="sd">         &gt;&gt;&gt; _, output = jvp(f, (x, y), (torch.ones(5), torch.ones(5)))</span>
+<span class="sd">         &gt;&gt;&gt; assert torch.allclose(output, x + y)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">jvp_str</span><span class="si">}</span><span class="s1">: Expected primals to be a tuple. &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;E.g. it should be valid to call f(*primals).&#39;</span><span class="p">)</span>
+    <span class="n">flat_primals</span><span class="p">,</span> <span class="n">primals_spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">primals</span><span class="p">)</span>
+    <span class="n">flat_tangents</span><span class="p">,</span> <span class="n">tangents_spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">tangents</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">primals_spec</span> <span class="o">!=</span> <span class="n">tangents_spec</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">jvp_str</span><span class="si">}</span><span class="s1">: Expected primals and tangents to have the same python &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;structure. For example, if primals is a tuple of 3 tensors, &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;tangents also must be. Got primals with structure </span><span class="si">{</span><span class="n">primals_spec</span><span class="si">}</span><span class="s1"> &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;and tangents with structure </span><span class="si">{</span><span class="n">tangents_spec</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">assert_non_empty_list_of_tensors</span><span class="p">(</span><span class="n">flat_primals</span><span class="p">,</span> <span class="n">jvp_str</span><span class="p">,</span> <span class="s1">&#39;primals&#39;</span><span class="p">)</span>
+    <span class="n">assert_non_empty_list_of_tensors</span><span class="p">(</span><span class="n">flat_tangents</span><span class="p">,</span> <span class="n">jvp_str</span><span class="p">,</span> <span class="s1">&#39;tangents&#39;</span><span class="p">)</span>
+
+    <span class="n">level</span> <span class="o">=</span> <span class="n">_jvp_increment_nesting</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">global</span> <span class="n">JVP_NESTING</span>
+        <span class="n">JVP_NESTING</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">with</span> <span class="n">enable_fwd_grad</span><span class="p">():</span>
+            <span class="n">ctx</span> <span class="o">=</span> <span class="n">fwAD</span><span class="o">.</span><span class="n">dual_level</span> <span class="k">if</span> <span class="n">JVP_NESTING</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">noop</span>
+            <span class="k">with</span> <span class="n">ctx</span><span class="p">():</span>
+                <span class="n">flat_duals</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">fwAD</span><span class="o">.</span><span class="n">make_dual</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+                                   <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">flat_primals</span><span class="p">,</span> <span class="n">flat_tangents</span><span class="p">))</span>
+                <span class="n">duals</span> <span class="o">=</span> <span class="n">tree_unflatten</span><span class="p">(</span><span class="n">flat_duals</span><span class="p">,</span> <span class="n">primals_spec</span><span class="p">)</span>
+                <span class="n">result_duals</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">duals</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">has_aux</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">result_duals</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">result_duals</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">jvp_str</span><span class="si">}</span><span class="s2">: output of function f should be a tuple: (output, aux) &quot;</span>
+                            <span class="s2">&quot;if has_aux is True&quot;</span>
+                        <span class="p">)</span>
+                    <span class="n">result_duals</span><span class="p">,</span> <span class="n">aux</span> <span class="o">=</span> <span class="n">result_duals</span>
+                    <span class="n">aux</span> <span class="o">=</span> <span class="n">_undo_create_differentiable</span><span class="p">(</span><span class="n">aux</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+
+                <span class="n">result_duals</span><span class="p">,</span> <span class="n">spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">result_duals</span><span class="p">)</span>
+                <span class="n">assert_non_empty_tensor_output</span><span class="p">(</span><span class="n">result_duals</span><span class="p">,</span> <span class="n">jvp_str</span><span class="p">)</span>
+
+                <span class="n">primals_out</span><span class="p">,</span> <span class="n">tangents_out</span> <span class="o">=</span> \
+                    <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">safe_unpack_dual</span><span class="p">(</span><span class="n">dual</span><span class="p">,</span> <span class="n">strict</span><span class="p">)</span> <span class="k">for</span> <span class="n">dual</span> <span class="ow">in</span> <span class="n">result_duals</span><span class="p">])</span>
+                <span class="n">primals_out</span> <span class="o">=</span> <span class="n">tree_map</span><span class="p">(</span>
+                    <span class="n">partial</span><span class="p">(</span><span class="n">_undo_create_differentiable</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">),</span> <span class="n">primals_out</span><span class="p">)</span>
+                <span class="n">tangents_out</span> <span class="o">=</span> <span class="n">tree_map</span><span class="p">(</span>
+                    <span class="n">partial</span><span class="p">(</span><span class="n">_undo_create_differentiable</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">),</span> <span class="n">tangents_out</span><span class="p">)</span>
+
+                <span class="n">primals_out_unflatten</span> <span class="o">=</span> <span class="n">tree_unflatten</span><span class="p">(</span><span class="n">primals_out</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span>
+                <span class="n">tangents_out_unflatten</span> <span class="o">=</span> <span class="n">tree_unflatten</span><span class="p">(</span><span class="n">tangents_out</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">has_aux</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">primals_out_unflatten</span><span class="p">,</span> <span class="n">tangents_out_unflatten</span><span class="p">,</span> <span class="n">aux</span>
+
+                <span class="k">return</span> <span class="n">primals_out_unflatten</span><span class="p">,</span> <span class="n">tangents_out_unflatten</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">_jvp_decrement_nesting</span><span class="p">()</span>
+        <span class="n">JVP_NESTING</span> <span class="o">-=</span> <span class="mi">1</span></div>
+
+
+<span class="k">def</span> <span class="nf">safe_unflatten</span><span class="p">(</span><span class="n">tensor</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">shape</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">tensor</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">tensor</span><span class="o">.</span><span class="n">unflatten</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="jacfwd"><a class="viewcode-back" href="../../../generated/functorch.jacfwd.html#functorch.experimental.jacfwd">[docs]</a><span class="k">def</span> <span class="nf">jacfwd</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">argnums</span><span class="p">:</span> <span class="n">argnums_t</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">has_aux</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes the Jacobian of :attr:`func` with respect to the arg(s) at index</span>
+<span class="sd">    :attr:`argnum` using forward-mode autodiff</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        func (function): A Python function that takes one or more arguments,</span>
+<span class="sd">            one of which must be a Tensor, and returns one or more Tensors</span>
+<span class="sd">        argnums (int or Tuple[int]): Optional, integer or tuple of integers,</span>
+<span class="sd">            saying which arguments to get the Jacobian with respect to.</span>
+<span class="sd">            Default: 0.</span>
+<span class="sd">        has_aux (bool): Flag indicating that :attr:`func` returns a</span>
+<span class="sd">            ``(output, aux)`` tuple where the first element is the output of</span>
+<span class="sd">            the function to be differentiated and the second element is</span>
+<span class="sd">            auxiliary objects that will not be differentiated.</span>
+<span class="sd">            Default: False.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Returns a function that takes in the same inputs as :attr:`func` and</span>
+<span class="sd">        returns the Jacobian of :attr:`func` with respect to the arg(s) at</span>
+<span class="sd">        :attr:`argnums`. If ``has_aux is True``, then the returned function</span>
+<span class="sd">        instead returns a ``(jacobian, aux)`` tuple where ``jacobian``</span>
+<span class="sd">        is the Jacobian and ``aux`` is auxiliary objects returned by :attr:`func`.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        PyTorch&#39;s forward-mode AD coverage on operators is not very good at the</span>
+<span class="sd">        moment. You may see this API error out with &quot;forward-mode AD not</span>
+<span class="sd">        implemented for operator X&quot;. If so, please file us a bug report and we</span>
+<span class="sd">        will prioritize it.</span>
+
+<span class="sd">    A basic usage with a pointwise, unary operation will give a diagonal array</span>
+<span class="sd">    as the Jacobian</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import jacfwd</span>
+<span class="sd">        &gt;&gt;&gt; x = torch.randn(5)</span>
+<span class="sd">        &gt;&gt;&gt; jacobian = jacfwd(torch.sin)(x)</span>
+<span class="sd">        &gt;&gt;&gt; expected = torch.diag(torch.cos(x))</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(jacobian, expected)</span>
+
+<span class="sd">    :func:`jacfwd` can be composed with vmap to produce batched</span>
+<span class="sd">    Jacobians:</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import jacfwd, vmap</span>
+<span class="sd">        &gt;&gt;&gt; x = torch.randn(64, 5)</span>
+<span class="sd">        &gt;&gt;&gt; jacobian = vmap(jacfwd(torch.sin))(x)</span>
+<span class="sd">        &gt;&gt;&gt; assert jacobian.shape == (64, 5, 5)</span>
+
+<span class="sd">    If you would like to compute the output of the function as well as the</span>
+<span class="sd">    jacobian of the function, use the ``has_aux`` flag to return the output</span>
+<span class="sd">    as an auxiliary object:</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import jacfwd</span>
+<span class="sd">        &gt;&gt;&gt; x = torch.randn(5)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; def f(x):</span>
+<span class="sd">        &gt;&gt;&gt;   return x.sin()</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; def g(x):</span>
+<span class="sd">        &gt;&gt;&gt;   result = f(x)</span>
+<span class="sd">        &gt;&gt;&gt;   return result, result</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; jacobian_f, f_x = jacfwd(g, has_aux=True)(x)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(f_x, f(x))</span>
+
+<span class="sd">    Additionally, :func:`jacrev` can be composed with itself or :func:`jacrev`</span>
+<span class="sd">    to produce Hessians</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import jacfwd, jacrev</span>
+<span class="sd">        &gt;&gt;&gt; def f(x):</span>
+<span class="sd">        &gt;&gt;&gt;   return x.sin().sum()</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; x = torch.randn(5)</span>
+<span class="sd">        &gt;&gt;&gt; hessian = jacfwd(jacrev(f))(x)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(hessian, torch.diag(-x.sin()))</span>
+
+<span class="sd">    By default, :func:`jacfwd` computes the Jacobian with respect to the first</span>
+<span class="sd">    input. However, it can compute the Jacboian with respect to a different</span>
+<span class="sd">    argument by using :attr:`argnums`:</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import jacfwd</span>
+<span class="sd">        &gt;&gt;&gt; def f(x, y):</span>
+<span class="sd">        &gt;&gt;&gt;   return x + y ** 2</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; x, y = torch.randn(5), torch.randn(5)</span>
+<span class="sd">        &gt;&gt;&gt; jacobian = jacfwd(f, argnums=1)(x, y)</span>
+<span class="sd">        &gt;&gt;&gt; expected = torch.diag(2 * y)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(jacobian, expected)</span>
+
+<span class="sd">    Additionally, passing a tuple to :attr:`argnums` will compute the Jacobian</span>
+<span class="sd">    with respect to multiple arguments</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import jacfwd</span>
+<span class="sd">        &gt;&gt;&gt; def f(x, y):</span>
+<span class="sd">        &gt;&gt;&gt;   return x + y ** 2</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; x, y = torch.randn(5), torch.randn(5)</span>
+<span class="sd">        &gt;&gt;&gt; jacobian = jacfwd(f, argnums=(0, 1))(x, y)</span>
+<span class="sd">        &gt;&gt;&gt; expectedX = torch.diag(torch.ones_like(x))</span>
+<span class="sd">        &gt;&gt;&gt; expectedY = torch.diag(2 * y)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(jacobian[0], expectedX)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(jacobian[1], expectedY)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">wrapper_fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="n">f_wrapper</span><span class="p">,</span> <span class="n">primals</span> <span class="o">=</span> <span class="n">_argnums_partial</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">argnums</span><span class="p">)</span>
+        <span class="n">flat_primals</span><span class="p">,</span> <span class="n">primals_spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">primals</span><span class="p">)</span>
+        <span class="n">flat_primals_numels</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">flat_primals</span><span class="p">)</span>
+        <span class="n">flat_basis</span> <span class="o">=</span> <span class="n">_construct_standard_basis_for</span><span class="p">(</span><span class="n">flat_primals</span><span class="p">,</span> <span class="n">flat_primals_numels</span><span class="p">)</span>
+        <span class="n">basis</span> <span class="o">=</span> <span class="n">tree_unflatten</span><span class="p">(</span><span class="n">flat_basis</span><span class="p">,</span> <span class="n">primals_spec</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">push_jvp</span><span class="p">(</span><span class="n">basis</span><span class="p">):</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">jvp</span><span class="p">(</span><span class="n">f_wrapper</span><span class="p">,</span> <span class="n">primals</span><span class="p">,</span> <span class="n">basis</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="n">has_aux</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">has_aux</span><span class="p">:</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">jvp_out</span><span class="p">,</span> <span class="n">aux</span> <span class="o">=</span> <span class="n">output</span>
+                <span class="k">return</span> <span class="n">jvp_out</span><span class="p">,</span> <span class="n">aux</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">jvp_out</span> <span class="o">=</span> <span class="n">output</span>
+            <span class="k">return</span> <span class="n">jvp_out</span>
+
+        <span class="n">results</span> <span class="o">=</span> <span class="n">vmap</span><span class="p">(</span><span class="n">push_jvp</span><span class="p">)(</span><span class="n">basis</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">has_aux</span><span class="p">:</span>
+            <span class="n">results</span><span class="p">,</span> <span class="n">aux</span> <span class="o">=</span> <span class="n">results</span>
+            <span class="c1"># aux is in the standard basis format, e.g. NxN matrix</span>
+            <span class="c1"># We need to fetch the first element as original `func` output</span>
+            <span class="n">flat_aux</span><span class="p">,</span> <span class="n">aux_spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">aux</span><span class="p">)</span>
+            <span class="n">flat_aux</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">flat_aux</span><span class="p">]</span>
+            <span class="n">aux</span> <span class="o">=</span> <span class="n">tree_unflatten</span><span class="p">(</span><span class="n">flat_aux</span><span class="p">,</span> <span class="n">aux_spec</span><span class="p">)</span>
+
+        <span class="n">jac_outs</span><span class="p">,</span> <span class="n">spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+        <span class="c1"># Most probably below output check can never raise an error</span>
+        <span class="c1"># as jvp should test the output before</span>
+        <span class="c1"># assert_non_empty_output(jac_outs, &#39;jacfwd(f, ...)(*args)&#39;)</span>
+
+        <span class="n">jac_outs_ins</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+            <span class="nb">tuple</span><span class="p">(</span>
+                <span class="n">safe_unflatten</span><span class="p">(</span><span class="n">jac_out_in</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">primal</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">primal</span><span class="p">,</span> <span class="n">jac_out_in</span> <span class="ow">in</span>
+                <span class="nb">zip</span><span class="p">(</span><span class="n">flat_primals</span><span class="p">,</span> <span class="n">jac_out</span><span class="o">.</span><span class="n">movedim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">flat_primals_numels</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">jac_out</span> <span class="ow">in</span> <span class="n">jac_outs</span>
+        <span class="p">)</span>
+        <span class="n">jac_outs_ins</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">tree_unflatten</span><span class="p">(</span><span class="n">jac_ins</span><span class="p">,</span> <span class="n">primals_spec</span><span class="p">)</span> <span class="k">for</span> <span class="n">jac_ins</span> <span class="ow">in</span> <span class="n">jac_outs_ins</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argnums</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">jac_outs_ins</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">jac_ins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">jac_ins</span> <span class="ow">in</span> <span class="n">jac_outs_ins</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">has_aux</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">tree_unflatten</span><span class="p">(</span><span class="n">jac_outs_ins</span><span class="p">,</span> <span class="n">spec</span><span class="p">),</span> <span class="n">aux</span>
+        <span class="k">return</span> <span class="n">tree_unflatten</span><span class="p">(</span><span class="n">jac_outs_ins</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">wrapper_fn</span></div>
+
+
+<div class="viewcode-block" id="hessian"><a class="viewcode-back" href="../../../generated/functorch.hessian.html#functorch.experimental.hessian">[docs]</a><span class="k">def</span> <span class="nf">hessian</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes the Hessian of :attr:`func` with respect to the arg(s) at index</span>
+<span class="sd">    :attr:`argnum` via a forward-over-reverse strategy.</span>
+
+<span class="sd">    The forward-over-reverse strategy (composing ``jacfwd(jacrev(func))``) is</span>
+<span class="sd">    a good default for good performance. It is possible to compute Hessians</span>
+<span class="sd">    through other compositions of :func:`jacfwd` and :func:`jacrev` like</span>
+<span class="sd">    ``jacfwd(jacfwd(func))`` or ``jacrev(jacrev(func))``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        func (function): A Python function that takes one or more arguments,</span>
+<span class="sd">            one of which must be a Tensor, and returns one or more Tensors</span>
+<span class="sd">        argnums (int or Tuple[int]): Optional, integer or tuple of integers,</span>
+<span class="sd">            saying which arguments to get the Hessian with respect to.</span>
+<span class="sd">            Default: 0.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Returns a function that takes in the same inputs as :attr:`func` and</span>
+<span class="sd">        returns the Hessian of :attr:`func` with respect to the arg(s) at</span>
+<span class="sd">        :attr:`argnums`.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        PyTorch&#39;s forward-mode AD coverage on operators is not very good at the</span>
+<span class="sd">        moment. You may see this API error out with &quot;forward-mode AD not</span>
+<span class="sd">        implemented for operator X&quot;. If so, please file us a bug report and we</span>
+<span class="sd">        will prioritize it.</span>
+
+<span class="sd">    A basic usage with a R^N -&gt; R^1 function gives a N x N Hessian:</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import hessian</span>
+<span class="sd">        &gt;&gt;&gt; def f(x):</span>
+<span class="sd">        &gt;&gt;&gt;   return x.sin().sum()</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; x = torch.randn(5)</span>
+<span class="sd">        &gt;&gt;&gt; hess = jacfwd(jacrev(f))(x)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(hess, torch.diag(-x.sin()))</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">jacfwd</span><span class="p">(</span><span class="n">jacrev</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">argnums</span><span class="p">),</span> <span class="n">argnums</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="grad_and_value"><a class="viewcode-back" href="../../../generated/functorch.grad_and_value.html#functorch.experimental.grad_and_value">[docs]</a><span class="k">def</span> <span class="nf">grad_and_value</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">argnums</span><span class="p">:</span> <span class="n">argnums_t</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">has_aux</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a function to compute a tuple of the gradient and primal, or</span>
+<span class="sd">    forward, computation.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        func (Callable): A Python function that takes one or more arguments.</span>
+<span class="sd">            Must return a single-element Tensor. If specified :attr:`has_aux`</span>
+<span class="sd">            equals ``True``, function can return a tuple of single-element</span>
+<span class="sd">            Tensor and other auxiliary objects: ``(output, aux)``.</span>
+<span class="sd">        argnums (int or Tuple[int]): Specifies arguments to compute gradients</span>
+<span class="sd">            with respect to. :attr:`argnums` can be single integer or tuple of</span>
+<span class="sd">            integers. Default: 0.</span>
+<span class="sd">        has_aux (bool): Flag indicating that :attr:`func` returns a tensor and</span>
+<span class="sd">            other auxiliary objects: ``(output, aux)``. Default: False.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Function to compute a tuple of gradients with respect to its inputs</span>
+<span class="sd">        and the forward computation. By default, the output of the function is</span>
+<span class="sd">        a tuple of the gradient tensor(s) with respect to the first argument</span>
+<span class="sd">        and the primal computation. If specified :attr:`has_aux` equals</span>
+<span class="sd">        ``True``, tuple of gradients and tuple of the forward computation with</span>
+<span class="sd">        output auxiliary objects is returned. If :attr:`argnums` is a tuple of</span>
+<span class="sd">        integers, a tuple of a tuple of the output gradients with respect to</span>
+<span class="sd">        each :attr:`argnums` value and the forward computation is returned.</span>
+
+<span class="sd">    See :func:`grad` for examples</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">level</span> <span class="o">=</span> <span class="n">_grad_increment_nesting</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">output</span><span class="p">,</span> <span class="n">aux</span><span class="p">,</span> <span class="n">grad_input</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+            <span class="c1"># See NOTE [grad and vjp interaction with no_grad]</span>
+            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">enable_grad</span><span class="p">():</span>
+                <span class="n">args</span> <span class="o">=</span> <span class="n">_wrap_all_tensors</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+                <span class="n">kwargs</span> <span class="o">=</span> <span class="n">_wrap_all_tensors</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+                <span class="n">diff_args</span> <span class="o">=</span> <span class="n">_slice_argnums</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">argnums</span><span class="p">,</span> <span class="n">as_tuple</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="n">tree_map_</span><span class="p">(</span><span class="n">partial</span><span class="p">(</span><span class="n">_create_differentiable</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">),</span> <span class="n">diff_args</span><span class="p">)</span>
+
+                <span class="n">output</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">has_aux</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                            <span class="s2">&quot;grad_and_value(f)(*args): output of function f should be a tuple: (output, aux) &quot;</span>
+                            <span class="s2">&quot;if has_aux is True&quot;</span>
+                        <span class="p">)</span>
+                    <span class="n">output</span><span class="p">,</span> <span class="n">aux</span> <span class="o">=</span> <span class="n">output</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;grad_and_value(f)(*args): Expected f(*args) &#39;</span>
+                                       <span class="sa">f</span><span class="s1">&#39;to return a Tensor, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">output</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;grad_and_value(f)(*args): Expected f(*args) &#39;</span>
+                                       <span class="s1">&#39;to return a scalar Tensor, got tensor with &#39;</span>
+                                       <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">output</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span><span class="si">}</span><span class="s1"> dims. Maybe you wanted to &#39;</span>
+                                       <span class="s1">&#39;use the vjp or jacrev APIs instead?&#39;</span><span class="p">)</span>
+
+                <span class="n">flat_diff_args</span><span class="p">,</span> <span class="n">spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">diff_args</span><span class="p">)</span>
+
+                <span class="c1"># NB: need create_graph so that backward pass isn&#39;t run in no_grad mode</span>
+                <span class="n">flat_outputs</span> <span class="o">=</span> <span class="n">_as_tuple</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+                <span class="n">flat_grad_input</span> <span class="o">=</span> <span class="n">_autograd_grad</span><span class="p">(</span><span class="n">flat_outputs</span><span class="p">,</span> <span class="n">flat_diff_args</span><span class="p">,</span> <span class="n">create_graph</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">grad_input</span> <span class="o">=</span> <span class="n">tree_unflatten</span><span class="p">(</span><span class="n">flat_grad_input</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span>
+
+                <span class="n">grad_input</span> <span class="o">=</span> <span class="n">_undo_create_differentiable</span><span class="p">(</span><span class="n">grad_input</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="n">_undo_create_differentiable</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">aux</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">aux</span> <span class="o">=</span> <span class="n">_undo_create_differentiable</span><span class="p">(</span><span class="n">aux</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">has_aux</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">grad_input</span><span class="p">,</span> <span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">aux</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">grad_input</span><span class="p">,</span> <span class="n">output</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">_grad_decrement_nesting</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">wrapper</span></div>
+
+
+<div class="viewcode-block" id="grad"><a class="viewcode-back" href="../../../generated/functorch.grad.html#functorch.experimental.grad">[docs]</a><span class="k">def</span> <span class="nf">grad</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">argnums</span><span class="p">:</span> <span class="n">argnums_t</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">has_aux</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;``grad`` operator helps computing gradients of :attr:`func` with respect to the</span>
+<span class="sd">    input(s) specified by :attr:`argnums`. This operator can be nested to</span>
+<span class="sd">    compute higher-order gradients.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        func (Callable): A Python function that takes one or more arguments.</span>
+<span class="sd">            Must return a single-element Tensor. If specified :attr:`has_aux` equals ``True``,</span>
+<span class="sd">            function can return a tuple of single-element Tensor and other auxiliary objects:</span>
+<span class="sd">            ``(output, aux)``.</span>
+<span class="sd">        argnums (int or Tuple[int]): Specifies arguments to compute gradients with respect to.</span>
+<span class="sd">            :attr:`argnums` can be single integer or tuple of integers. Default: 0.</span>
+<span class="sd">        has_aux (bool): Flag indicating that :attr:`func` returns a tensor and other</span>
+<span class="sd">            auxiliary objects: ``(output, aux)``. Default: False.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Function to compute gradients with respect to its inputs. By default, the output of</span>
+<span class="sd">        the function is the gradient tensor(s) with respect to the first argument.</span>
+<span class="sd">        If specified :attr:`has_aux` equals ``True``, tuple of gradients and output auxiliary objects</span>
+<span class="sd">        is returned. If :attr:`argnums` is a tuple of integers, a tuple of output gradients with</span>
+<span class="sd">        respect to each :attr:`argnums` value is returned.</span>
+
+<span class="sd">    Example of using ``grad``:</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import grad</span>
+<span class="sd">        &gt;&gt;&gt; x = torch.randn([])</span>
+<span class="sd">        &gt;&gt;&gt; cos_x = grad(lambda x: torch.sin(x))(x)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(cos_x, x.cos())</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # Second-order gradients</span>
+<span class="sd">        &gt;&gt;&gt; neg_sin_x = grad(grad(lambda x: torch.sin(x)))(x)</span>
+<span class="sd">        &gt;&gt;&gt; assert torch.allclose(neg_sin_x, -x.sin())</span>
+
+<span class="sd">    When composed with ``vmap``, ``grad`` can be used to compute per-sample-gradients:</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import grad</span>
+<span class="sd">        &gt;&gt;&gt; from functorch import vmap</span>
+<span class="sd">        &gt;&gt;&gt; batch_size, feature_size = 3, 5</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; def model(weights, feature_vec):</span>
+<span class="sd">        &gt;&gt;&gt;     # Very simple linear model with activation</span>
+<span class="sd">        &gt;&gt;&gt;     assert feature_vec.dim() == 1</span>
+<span class="sd">        &gt;&gt;&gt;     return feature_vec.dot(weights).relu()</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; def compute_loss(weights, example, target):</span>
+<span class="sd">        &gt;&gt;&gt;     y = model(weights, example)</span>
+<span class="sd">        &gt;&gt;&gt;     return ((y - target) ** 2).mean()  # MSELoss</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; weights = torch.randn(feature_size, requires_grad=True)</span>
+<span class="sd">        &gt;&gt;&gt; examples = torch.randn(batch_size, feature_size)</span>
+<span class="sd">        &gt;&gt;&gt; targets = torch.randn(batch_size)</span>
+<span class="sd">        &gt;&gt;&gt; inputs = (weights, examples, targets)</span>
+<span class="sd">        &gt;&gt;&gt; grad_weight_per_example = vmap(grad(compute_loss), in_dims=(None, 0, 0))(*inputs)</span>
+
+<span class="sd">    Example of using ``grad`` with :attr:`has_aux` and :attr:`argnums`:</span>
+
+<span class="sd">        &gt;&gt;&gt; from functorch import grad</span>
+<span class="sd">        &gt;&gt;&gt; def my_loss_func(y, y_pred):</span>
+<span class="sd">        &gt;&gt;&gt;    loss_per_sample = (0.5 * y_pred - y) ** 2</span>
+<span class="sd">        &gt;&gt;&gt;    loss = loss_per_sample.mean()</span>
+<span class="sd">        &gt;&gt;&gt;    return loss, (y_pred, loss_per_sample)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; fn = grad(my_loss_func, argnums=(0, 1), has_aux=True)</span>
+<span class="sd">        &gt;&gt;&gt; y_true = torch.rand(4)</span>
+<span class="sd">        &gt;&gt;&gt; y_preds = torch.rand(4, requires_grad=True)</span>
+<span class="sd">        &gt;&gt;&gt; out = fn(y_true, y_preds)</span>
+<span class="sd">        &gt;&gt;&gt; &gt; output is ((grads w.r.t y_true, grads w.r.t y_preds), (y_pred, loss_per_sample))</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Using PyTorch ``torch.no_grad`` together with ``grad``.</span>
+
+<span class="sd">        Case 1: Using ``torch.no_grad`` inside a function:</span>
+
+<span class="sd">            &gt;&gt;&gt; def f(x):</span>
+<span class="sd">            &gt;&gt;&gt;     with torch.no_grad():</span>
+<span class="sd">            &gt;&gt;&gt;         c = x ** 2</span>
+<span class="sd">            &gt;&gt;&gt;     return x - c</span>
+
+<span class="sd">        In this case, ``grad(f)(x)`` will respect the inner ``torch.no_grad``.</span>
+
+<span class="sd">        Case 2: Using ``grad`` inside ``torch.no_grad`` context manager:</span>
+
+<span class="sd">            &gt;&gt;&gt; with torch.no_grad():</span>
+<span class="sd">            &gt;&gt;&gt;     grad(f)(x)</span>
+
+<span class="sd">        In this case, ``grad`` will respect the inner ``torch.no_grad``, but not the</span>
+<span class="sd">        outer one. This is because ``grad`` is a &quot;function transform&quot;: its result</span>
+<span class="sd">        should not depend on the result of a context manager outside of ``f``.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">grad_and_value</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">argnums</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="n">has_aux</span><span class="p">)(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">has_aux</span><span class="p">:</span>
+            <span class="n">grad</span><span class="p">,</span> <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">aux</span><span class="p">)</span> <span class="o">=</span> <span class="n">results</span>
+            <span class="k">return</span> <span class="n">grad</span><span class="p">,</span> <span class="n">aux</span>
+        <span class="n">grad</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">results</span>
+        <span class="k">return</span> <span class="n">grad</span>
+    <span class="k">return</span> <span class="n">wrapper</span></div>
+
+
+<span class="k">def</span> <span class="nf">_maybe_wrap_functional_tensor</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">,</span> <span class="n">level</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">maybe_tensor</span>
+    <span class="n">wrapped</span> <span class="o">=</span> <span class="n">_wrap_functional_tensor</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span>
+    <span class="n">_assert_wrapped_functional</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">,</span> <span class="n">wrapped</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">wrapped</span>
+
+
+<span class="k">def</span> <span class="nf">_wrap_all_tensors_to_functional</span><span class="p">(</span><span class="n">tensor_pytree</span><span class="p">,</span> <span class="n">level</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">tree_map</span><span class="p">(</span><span class="n">partial</span><span class="p">(</span><span class="n">_maybe_wrap_functional_tensor</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">),</span> <span class="n">tensor_pytree</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_maybe_unwrap_functional_tensor</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">reapply_views</span><span class="p">:</span> <span class="nb">bool</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">maybe_tensor</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">_is_functional_tensor</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">):</span>
+        <span class="c1"># If it&#39;s not a functional tensor, just return it.</span>
+        <span class="c1"># This can happen if we functionalize a fn that returns a global,</span>
+        <span class="c1"># which was never wrapped properly.</span>
+        <span class="k">return</span> <span class="n">maybe_tensor</span>
+    <span class="k">return</span> <span class="n">_unwrap_functional_tensor</span><span class="p">(</span><span class="n">maybe_tensor</span><span class="p">,</span> <span class="n">reapply_views</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_unwrap_all_tensors_from_functional</span><span class="p">(</span><span class="n">tensor_pytree</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">reapply_views</span><span class="p">:</span> <span class="nb">bool</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">tree_map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="n">_maybe_unwrap_functional_tensor</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">reapply_views</span><span class="o">=</span><span class="n">reapply_views</span><span class="p">),</span> <span class="n">tensor_pytree</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="functionalize"><a class="viewcode-back" href="../../../generated/functorch.experimental.functionalize.html#functorch.experimental.functionalize">[docs]</a><span class="k">def</span> <span class="nf">functionalize</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">remove</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;mutations&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    functionalize is a transform that can be used to remove (intermediate)</span>
+<span class="sd">    mutations and aliasing from a function, while preserving the function&#39;s</span>
+<span class="sd">    semantics.</span>
+
+<span class="sd">    ``functionalize(func)`` returns a new function with the same semantics</span>
+<span class="sd">    as ``func``, but with all intermediate mutations removed.</span>
+<span class="sd">    Every inplace operation performed on an intermediate tensor:</span>
+<span class="sd">    ``intermediate.foo_()``</span>
+<span class="sd">    gets replaced by its out-of-place equivalent:</span>
+<span class="sd">    ``intermediate_updated = intermediate.foo()``.</span>
+
+<span class="sd">    functionalize is useful for shipping a pytorch program off to</span>
+<span class="sd">    backends or compilers that aren&#39;t able to easily represent</span>
+<span class="sd">    mutations or aliasing operators.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        func (Callable): A Python function that takes one or more arguments.</span>
+<span class="sd">        remove (str): An optional string argument, that takes on either</span>
+<span class="sd">            the value &#39;mutations&#39; or &#39;mutations_and_views&#39;.</span>
+<span class="sd">            If &#39;mutations&#39; is passed in then all mutating operators</span>
+<span class="sd">            will be replaced with their non-mutating equivalents.</span>
+<span class="sd">            If &#39;mutations_and_views&#39; is passed in, then additionally, all aliasing</span>
+<span class="sd">            operators will be replaced with their non-aliasing equivalents.</span>
+<span class="sd">            Default: &#39;mutations&#39;.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Returns a new &quot;functionalized&quot; function. It takes the same inputs as</span>
+<span class="sd">        :attr:`func`, and has the same behavior, but any mutations</span>
+<span class="sd">        (and optionally aliasing) performed on intermeidate tensors</span>
+<span class="sd">        in the function will be removed.</span>
+
+<span class="sd">    functionalize will also remove mutations (and views) that were performed on function inputs.</span>
+<span class="sd">    However to preserve semantics, functionalize will &quot;fix up&quot; the mutations after</span>
+<span class="sd">    the transform has finished running, by detecting if any tensor inputs &quot;should have&quot;</span>
+<span class="sd">    been mutated, and copying the new data back to the inputs if necessary.</span>
+
+
+<span class="sd">    Example::</span>
+
+<span class="sd">        &gt;&gt;&gt; import torch</span>
+<span class="sd">        &gt;&gt;&gt; from functorch import make_fx</span>
+<span class="sd">        &gt;&gt;&gt; from functorch.experimental import functionalize</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; A function that uses mutations and views, but only on intermediate tensors.</span>
+<span class="sd">        &gt;&gt;&gt; def f(a):</span>
+<span class="sd">        ...     b = a + 1</span>
+<span class="sd">        ...     c = b.view(-1)</span>
+<span class="sd">        ...     c.add_(1)</span>
+<span class="sd">        ...     return b</span>
+<span class="sd">        ...</span>
+<span class="sd">        &gt;&gt;&gt; inpt = torch.randn(2)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; out1 = f(inpt)</span>
+<span class="sd">        &gt;&gt;&gt; out2 = functionalize(f)(inpt)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # semantics are the same (outputs are equivalent)</span>
+<span class="sd">        &gt;&gt;&gt; print(torch.allclose(out1, out2))</span>
+<span class="sd">        True</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; f_traced = make_fx(f)(inpt)</span>
+<span class="sd">        &gt;&gt;&gt; f_no_mutations_traced = make_fx(functionalize(f))(inpt)</span>
+<span class="sd">        &gt;&gt;&gt; f_no_mutations_and_views_traced = make_fx(functionalize(f, remove=&#39;mutations_and_views&#39;))(inpt)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; print(f_traced.code)</span>
+
+
+
+<span class="sd">        def forward(self, a_1):</span>
+<span class="sd">            add = torch.ops.aten.add(a_1, 1);  a_1 = None</span>
+<span class="sd">            view = torch.ops.aten.view(add, [-1])</span>
+<span class="sd">            add_ = torch.ops.aten.add_(view, 1);  view = None</span>
+<span class="sd">            return add</span>
+
+<span class="sd">        &gt;&gt;&gt; print(f_no_mutations_traced.code)</span>
+
+
+
+<span class="sd">        def forward(self, a_1):</span>
+<span class="sd">            add = torch.ops.aten.add(a_1, 1);  a_1 = None</span>
+<span class="sd">            view = torch.ops.aten.view(add, [-1]);  add = None</span>
+<span class="sd">            add_1 = torch.ops.aten.add(view, 1);  view = None</span>
+<span class="sd">            view_1 = torch.ops.aten.view(add_1, [2]);  add_1 = None</span>
+<span class="sd">            return view_1</span>
+
+<span class="sd">        &gt;&gt;&gt; print(f_no_mutations_and_views_traced.code)</span>
+
+
+
+<span class="sd">        def forward(self, a_1):</span>
+<span class="sd">            add = torch.ops.aten.add(a_1, 1);  a_1 = None</span>
+<span class="sd">            view_copy = torch.ops.aten.view_copy(add, [-1]);  add = None</span>
+<span class="sd">            add_1 = torch.ops.aten.add(view_copy, 1);  view_copy = None</span>
+<span class="sd">            view_copy_1 = torch.ops.aten.view_copy(add_1, [2]);  add_1 = None</span>
+<span class="sd">            return view_copy_1</span>
+
+
+<span class="sd">        &gt;&gt;&gt; A function that mutates its input tensor</span>
+<span class="sd">        &gt;&gt;&gt; def f(a):</span>
+<span class="sd">        ...     b = a.view(-1)</span>
+<span class="sd">        ...     b.add_(1)</span>
+<span class="sd">        ...     return a</span>
+<span class="sd">        ...</span>
+<span class="sd">        &gt;&gt;&gt; f_no_mutations_and_views_traced = make_fx(functionalize(f, remove=&#39;mutations_and_views&#39;))(inpt)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; All mutations and views have been removed,</span>
+<span class="sd">        &gt;&gt;&gt; but there is an extra copy_ in the graph to correctly apply the mutation to the input</span>
+<span class="sd">        &gt;&gt;&gt; after the function has completed.</span>
+<span class="sd">        &gt;&gt;&gt; print(f_no_mutations_and_views_traced.code)</span>
+
+
+
+<span class="sd">        def forward(self, a_1):</span>
+<span class="sd">            view_copy = torch.ops.aten.view_copy(a_1, [-1])</span>
+<span class="sd">            add = torch.ops.aten.add(view_copy, 1);  view_copy = None</span>
+<span class="sd">            view_copy_1 = torch.ops.aten.view_copy(add, [2]);  add = None</span>
+<span class="sd">            copy_ = torch.ops.aten.copy_(a_1, view_copy_1);  a_1 = None</span>
+<span class="sd">            return view_copy_1</span>
+
+
+<span class="sd">    There are a few &quot;failure modes&quot; for functionalize that are worth calling out:</span>
+<span class="sd">      (1) Like other functorch transforms, `functionalize()` doesn&#39;t work with functions</span>
+<span class="sd">          that directly use `.backward()`. The same is true for torch.autograd.grad.</span>
+<span class="sd">          If you want to use autograd, you can compute gradients directly</span>
+<span class="sd">          with `functionalize(grad(f))`.</span>
+<span class="sd">      (2) Like other functorch transforms, `functionalize()` doesn&#39;t work with global state.</span>
+<span class="sd">          If you call `functionalize(f)` on a function that takes views / mutations of</span>
+<span class="sd">          non-local state, functionalization will simply no-op and pass the view/mutation</span>
+<span class="sd">          calls directly to the backend.</span>
+<span class="sd">          One way to work around this is is to ensure that any non-local state creation</span>
+<span class="sd">          is wrapped into a larger function, which you then call functionalize on.</span>
+<span class="sd">      (3) `resize_()` has some limitations: functionalize will only work on programs</span>
+<span class="sd">          that use resize_()` as long as the tensor being resized is not a view.</span>
+<span class="sd">      (4) `as_strided()` has some limitations: functionalize will not work on</span>
+<span class="sd">          `as_strided()` calls that result in tensors with overlapping memory.</span>
+
+
+<span class="sd">    Finally, a helpful mental model for understanding functionalization is that</span>
+<span class="sd">    most user pytorch programs are writting with the public torch API.</span>
+<span class="sd">    When executed, torch operators are generally decomposed into</span>
+<span class="sd">    our internal C++ &quot;ATen&quot; API.</span>
+<span class="sd">    The logic for functionalization happens entirely at the level of ATen.</span>
+<span class="sd">    Functionalization knows how to take every aliasing operator in ATen,</span>
+<span class="sd">    and map it to its non-aliasing equivalent</span>
+<span class="sd">    (e.g. ``tensor.view({-1})`` -&gt; ``at::view_copy(tensor, {-1})``),</span>
+<span class="sd">    and how to take every mutating operator in ATen,</span>
+<span class="sd">    and map it to its non-mutating equivalent</span>
+<span class="sd">    (e.g. ``tensor.add_(1)`` -&gt; ``at::add(tensor, -1)``),</span>
+<span class="sd">    while tracking aliases and mutations out-of-line to know when to fix things up.</span>
+<span class="sd">    Information about which ATen operators are aliasing or mutating all comes from</span>
+<span class="sd">    https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/native/native_functions.yaml.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">remove</span> <span class="o">==</span> <span class="s1">&#39;mutations&#39;</span><span class="p">:</span>
+        <span class="n">reapply_views</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">elif</span> <span class="n">remove</span> <span class="o">==</span> <span class="s1">&#39;mutations_and_views&#39;</span><span class="p">:</span>
+        <span class="n">reapply_views</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;functionalize(f, remove=&#39;mutations&#39;): received invalid argument for remove=</span><span class="si">{</span><span class="n">remove</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="s2">&quot; Valid options are:</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;     remove=&#39;mutations&#39;: all inplace and out= operators will be removed from the program, and replaced&quot;</span>
+            <span class="s2">&quot; with their out-of-place equivalents.</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;     remove=&#39;mutations_and_views&#39;: In addition to the above, all aliasing operators </span><span class="si">{view}</span><span class="s2"> will be&quot;</span>
+            <span class="s2">&quot; replaced with their non-aliasing counterparts, </span><span class="si">{view}</span><span class="s2">_copy.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">wrapped</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">func_level</span> <span class="o">=</span> <span class="n">_func_increment_nesting</span><span class="p">(</span><span class="n">reapply_views</span><span class="p">)</span>
+            <span class="n">func_args</span> <span class="o">=</span> <span class="n">_wrap_all_tensors_to_functional</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">func_level</span><span class="p">)</span>
+            <span class="n">func_kwargs</span> <span class="o">=</span> <span class="n">_wrap_all_tensors_to_functional</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">func_level</span><span class="p">)</span>
+
+            <span class="n">flattened_unwrapped_args</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+            <span class="n">flattened_wrapped_args</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">func_args</span><span class="p">)</span>
+            <span class="n">flattened_unwrapped_kwargs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">flattened_wrapped_kwargs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">func_kwargs</span><span class="p">)</span>
+
+            <span class="n">func_outputs</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">func_args</span><span class="p">,</span> <span class="o">**</span><span class="n">func_kwargs</span><span class="p">)</span>
+            <span class="n">outputs</span> <span class="o">=</span> <span class="n">_unwrap_all_tensors_from_functional</span><span class="p">(</span><span class="n">func_outputs</span><span class="p">,</span> <span class="n">reapply_views</span><span class="o">=</span><span class="n">reapply_views</span><span class="p">)</span>
+            <span class="n">flat_outputs</span><span class="p">,</span> <span class="n">func_out_spec</span> <span class="o">=</span> <span class="n">tree_flatten</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">flattened_wrapped_args</span> <span class="o">+</span> <span class="n">flattened_wrapped_kwargs</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                    <span class="c1"># Call sync_() on the inputs, to ensure that any pending mutations have been applied.</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">_sync</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+
+            <span class="c1"># And if any mutations were applied to the inputs, we need to propagate them back to the user.</span>
+            <span class="k">for</span> <span class="n">unwrapped</span><span class="p">,</span> <span class="n">wrapped</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">flattened_unwrapped_args</span><span class="p">,</span> <span class="n">flattened_wrapped_args</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">unwrapped</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">wrapped</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                    <span class="n">_propagate_functional_input_mutation</span><span class="p">(</span><span class="n">unwrapped</span><span class="p">,</span> <span class="n">wrapped</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">unwrapped</span><span class="p">,</span> <span class="n">wrapped</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">flattened_unwrapped_kwargs</span><span class="p">,</span> <span class="n">flattened_wrapped_kwargs</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">unwrapped</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">wrapped</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                    <span class="n">_propagate_functional_input_mutation</span><span class="p">(</span><span class="n">unwrapped</span><span class="p">,</span> <span class="n">wrapped</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">outputs</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">_func_decrement_nesting</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">wrapped</span></div>
+
+
+<span class="k">def</span> <span class="nf">_register_jit_decomposition</span><span class="p">(</span><span class="n">decomp</span><span class="p">,</span> <span class="n">use_python</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">decomp</span> <span class="ow">in</span> <span class="n">decomposition_table_for_jvp</span><span class="p">:</span>
+        <span class="n">decomposition_table_used</span> <span class="o">=</span> <span class="n">decomposition_table_for_jvp</span>
+    <span class="k">elif</span> <span class="n">decomp</span> <span class="ow">in</span> <span class="n">decomposition_table</span><span class="p">:</span>
+        <span class="n">decomposition_table_used</span> <span class="o">=</span> <span class="n">decomposition_table</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;could not find decomposition for </span><span class="si">{</span><span class="n">decomp</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">decomp_fn</span> <span class="o">=</span> <span class="n">decomposition_table_used</span><span class="p">[</span><span class="n">decomp</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">use_python</span><span class="p">:</span>
+        <span class="n">decomp_fn</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">ignore</span><span class="p">(</span><span class="n">decomp_fn</span><span class="p">)</span>
+        <span class="n">sig</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">decomp_fn</span><span class="p">)</span>
+
+        <span class="c1"># Create a string wrapping the function from the signature</span>
+        <span class="c1"># example output:</span>
+        <span class="c1"># def wrapped_decomp(x: torch.Tensor, y: int, z: int):</span>
+        <span class="c1">#   return decomp_fn(x, y, z)</span>
+        <span class="c1"># Thanks copilot!</span>
+        <span class="k">def</span> <span class="nf">get_function_def</span><span class="p">(</span><span class="n">sig</span><span class="p">):</span>
+            <span class="n">param_def</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">param_str</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">param_str</span> <span class="ow">in</span> <span class="n">sig</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+            <span class="n">param_use</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">param_str</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">param_str</span> <span class="ow">in</span> <span class="n">sig</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;def wrapped_decomp(</span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">param_def</span><span class="p">)</span><span class="si">}</span><span class="s2">):</span><span class="se">\n</span><span class="s2">  return decomp_fn(</span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">param_use</span><span class="p">)</span><span class="si">}</span><span class="s2">)</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+        <span class="n">f_str</span> <span class="o">=</span> <span class="n">get_function_def</span><span class="p">(</span><span class="n">sig</span><span class="p">)</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">CompilationUnit</span><span class="p">(</span><span class="n">f_str</span><span class="p">)</span><span class="o">.</span><span class="n">wrapped_decomp</span><span class="o">.</span><span class="n">graph</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">script</span><span class="p">(</span><span class="n">decomp_fn</span><span class="p">)</span><span class="o">.</span><span class="n">graph</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">_register_decomposition</span><span class="p">(</span><span class="n">decomp</span><span class="p">,</span> <span class="n">graph</span><span class="p">)</span>
+
+
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">trace</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">nll_loss_backward</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">nll_loss2d_backward</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">mse_loss_backward</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">l1_loss_backward</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">_log_softmax_backward_data</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">_softmax_backward_data</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">log_sigmoid_forward</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">binary_cross_entropy_backward</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">binary_cross_entropy</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+<span class="n">_register_jit_decomposition</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">native_layer_norm_backward</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+</pre></div>
+
+             </article>
+             
+            </div>
+            <footer>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright functorch Contributors.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+         <script src="../../../_static/jquery.js"></script>
+         <script src="../../../_static/underscore.js"></script>
+         <script src="../../../_static/doctools.js"></script>
+         <script src="../../../_static/clipboard.min.js"></script>
+         <script src="../../../_static/copybutton.js"></script>
+         <script >let toggleHintShow = 'Click to show';</script>
+         <script >let toggleHintHide = 'Click to hide';</script>
+         <script >let toggleOpenOnPrint = 'true';</script>
+         <script src="../../../_static/togglebutton.js"></script>
+         <script >var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
+     
+
+  
+
+  <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <script script type="text/javascript">
+    var collapsedSections = ['Notes', 'Language Bindings', 'Libraries', 'Community'];
+  </script>
+
+  <img height="1" width="1" style="border-style:none;" alt="" src="https://www.googleadservices.com/pagead/conversion/795629140/?label=txkmCPmdtosBENSssfsC&amp;guid=ON&amp;script=0"/>
+
+  
+
+  <script type="text/javascript" src="../../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>
+
+<link rel="canonical" href="_modules/functorch/_src/eager_transforms.html" />

@@ -1,0 +1,690 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>functorch._src.compilers &mdash; functorch 0.2.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/togglebutton.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/mystnb.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/custom.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+  <!-- Google Analytics -->
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-117752657-2"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'UA-117752657-2');
+    </script>
+  
+  <!-- End Google Analytics -->
+
+  
+
+  
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../../../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../../../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://pytorch.org/functorch" aria-label="functorch"></a>
+
+      <div class="main-menu">
+        <ul>
+
+          <li>
+            <a href="https://pytorch.org/functorch">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pytorch/functorch/tree/main/examples">Examples</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pytorch/functorch">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  <a href='https://pytorch.org/functorch/versions.html'>0.2.1 (works with PyTorch 1.12.1) &#x25BC</a>
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../install.html">Install functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/whirlwind_tour.html">Whirlwind Tour</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../ux_limitations.html">UX Limitations</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API Reference and Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../functorch.html">functorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../experimental.html">functorch.experimental</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../aot_autograd.html">functorch.compile (experimental)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/jacobians_hessians.html">Jacobians, Hessians, hvp, vhp, and more: composing functorch transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/ensembling.html">Model ensembling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/per_sample_grads.html">Per-sample-gradients</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/neural_tangent_kernels.html">Neural Tangent Kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/aot_autograd_optimizations.html">AOT Autograd - How to use and optimize?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/minifier.html">Using the Minifier</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="../../index.html">Module code</a> &gt;</li>
+        
+      <li>functorch._src.compilers</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <h1>Source code for functorch._src.compilers</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch.fx</span> <span class="k">as</span> <span class="nn">fx</span>
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span> <span class="nn">.aot_autograd</span> <span class="kn">import</span> <span class="n">aot_function</span><span class="p">,</span> <span class="n">aot_module</span>
+<span class="kn">from</span> <span class="nn">.decompositions</span> <span class="kn">import</span> <span class="n">get_decompositions</span>
+<span class="kn">from</span> <span class="nn">.partitioners</span> <span class="kn">import</span> <span class="n">draw_graph</span><span class="p">,</span> <span class="n">min_cut_rematerialization_partition</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+
+<span class="c1"># These canonicalizations are needed here (and not decompositions), as the ops</span>
+<span class="c1"># we&#39;re trying to canonicalize to CompositeImplicitAutograd.</span>
+<span class="k">def</span> <span class="nf">_canonicalize</span><span class="p">(</span><span class="n">fx_g</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="o">==</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">_to_copy</span><span class="p">:</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">to</span>
+    <span class="n">fx_g</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">fx_g</span>
+
+
+<div class="viewcode-block" id="ts_compile"><a class="viewcode-back" href="../../../generated/functorch.compile.ts_compile.html#functorch.compile.ts_compile">[docs]</a><span class="k">def</span> <span class="nf">ts_compile</span><span class="p">(</span><span class="n">fx_g</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compiles the :attr:`fx_g` with Torchscript compiler.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This API is experimental and likely to change.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        fx_g(fx.GraphModule): The input Fx graph module to be compiled.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Torch scripted model.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="o">==</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">_to_copy</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+           <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="s1">&#39;dtype&#39;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">to</span>
+
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+        <span class="n">new_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">):</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">type</span>
+            <span class="n">new_kwargs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">new_kwargs</span>
+
+    <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">lint</span><span class="p">()</span>
+
+    <span class="n">fx_g</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
+
+    <span class="n">f</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">script</span><span class="p">(</span><span class="n">fx_g</span><span class="p">)</span>
+
+    <span class="n">torch</span><span class="o">.</span><span class="n">_C</span><span class="o">.</span><span class="n">_jit_pass_remove_mutation</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
+
+    <span class="n">f</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">freeze</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">eval</span><span class="p">())</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">optimize_for_inference</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">f</span></div>
+
+
+<span class="k">def</span> <span class="nf">tensorexpr_compile</span><span class="p">(</span><span class="n">fx_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Compiles the given fx_module using TensorExpr Kernel&quot;&quot;&quot;</span>
+    <span class="n">inp_devices</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="o">.</span><span class="n">device</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">flat_args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)}</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">inp_devices</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">inp_device</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">inp_devices</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">inputs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">output_refs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fx_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span><span class="p">:</span>
+            <span class="n">inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;output&quot;</span><span class="p">:</span>
+            <span class="n">outputs</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">):</span>
+                <span class="n">outputs</span> <span class="o">=</span> <span class="p">(</span><span class="n">outputs</span><span class="p">,)</span>
+            <span class="n">new_outputs</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">output</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">outputs</span><span class="p">):</span>
+                <span class="c1"># Appends (bool, idx) pairs</span>
+                <span class="c1"># if True, read from kernel outputs</span>
+                <span class="c1"># if False, read from kernel inputs</span>
+                <span class="k">if</span> <span class="n">output</span> <span class="ow">in</span> <span class="n">inputs</span><span class="p">:</span>
+                    <span class="n">output_refs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="kc">False</span><span class="p">,</span> <span class="n">inputs</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">output</span><span class="p">)))</span>
+                <span class="k">elif</span> <span class="n">output</span> <span class="ow">in</span> <span class="n">outputs</span><span class="p">[:</span><span class="n">idx</span><span class="p">]:</span>
+                    <span class="n">output_refs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="kc">True</span><span class="p">,</span> <span class="n">output_refs</span><span class="p">[</span><span class="n">outputs</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">output</span><span class="p">)][</span><span class="mi">1</span><span class="p">]))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">output_refs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="kc">True</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_outputs</span><span class="p">)))</span>
+                    <span class="n">new_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">new_outputs</span><span class="p">),)</span>
+    <span class="n">fx_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">lint</span><span class="p">()</span>
+    <span class="n">fx_module</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">):</span>
+        <span class="n">attr</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;_tensor_constant</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">fx_module</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">fx_module</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">fx_module</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">inp_device</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">break</span>
+
+    <span class="n">jit_module</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="n">fx_module</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">)</span>
+    <span class="n">jit_module</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">freeze</span><span class="p">(</span><span class="n">jit_module</span><span class="o">.</span><span class="n">eval</span><span class="p">())</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">_C</span><span class="o">.</span><span class="n">_jit_trace_module</span><span class="p">(</span><span class="n">jit_module</span><span class="o">.</span><span class="n">_c</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">flat_args</span><span class="p">))</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">_C</span><span class="o">.</span><span class="n">_te</span><span class="o">.</span><span class="n">remove_unused_self_argument</span><span class="p">(</span><span class="n">jit_module</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">_C</span><span class="o">.</span><span class="n">_te</span><span class="o">.</span><span class="n">annotate_input_shapes</span><span class="p">(</span><span class="n">jit_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">flat_args</span><span class="p">))</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">_C</span><span class="o">.</span><span class="n">_jit_pass_lower_all_tuples</span><span class="p">(</span><span class="n">jit_module</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
+    <span class="n">te_kernel</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_C</span><span class="o">.</span><span class="n">_te</span><span class="o">.</span><span class="n">TensorExprKernel</span><span class="p">(</span><span class="n">jit_module</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="n">outs</span> <span class="o">=</span> <span class="n">te_kernel</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outs</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outs</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">outs</span> <span class="o">=</span> <span class="p">(</span><span class="n">outs</span><span class="p">,)</span>
+        <span class="n">real_outs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="n">output_refs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">out</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">real_outs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">outs</span><span class="p">[</span><span class="n">out</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">real_outs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="n">out</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span>
+        <span class="k">return</span> <span class="n">real_outs</span>
+
+    <span class="k">return</span> <span class="n">f</span>
+
+
+<span class="k">def</span> <span class="nf">_draw_graph_compile</span><span class="p">(</span><span class="n">fx_g</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">clear_meta</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">fx_g</span><span class="o">.</span><span class="n">code</span><span class="p">)</span>
+    <span class="n">draw_graph</span><span class="p">(</span><span class="n">fx_g</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">clear_meta</span><span class="o">=</span><span class="n">clear_meta</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">fx_g</span>
+
+
+<span class="k">def</span> <span class="nf">draw_graph_compile</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">partial</span><span class="p">(</span><span class="n">_draw_graph_compile</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_tvm_compile</span><span class="p">(</span>
+    <span class="n">fx_module</span><span class="p">,</span> <span class="n">example_inputs</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tuning_logfile</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">use_ansor_tuning</span><span class="o">=</span><span class="kc">False</span>
+<span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">tvm</span>
+    <span class="kn">from</span> <span class="nn">tvm</span> <span class="kn">import</span> <span class="n">relay</span><span class="p">,</span> <span class="n">auto_scheduler</span>
+    <span class="kn">from</span> <span class="nn">tvm.contrib</span> <span class="kn">import</span> <span class="n">graph_executor</span>
+    <span class="kn">import</span> <span class="nn">os</span>
+
+    <span class="c1"># Find the target and device for TVM.</span>
+    <span class="n">dev</span> <span class="o">=</span> <span class="n">tvm</span><span class="o">.</span><span class="n">cpu</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Setup the TVM target correctly.&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;cuda&quot;</span> <span class="ow">in</span> <span class="n">target</span><span class="p">:</span>
+            <span class="n">dev</span> <span class="o">=</span> <span class="n">tvm</span><span class="o">.</span><span class="n">cuda</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">tvm</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">Target</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">tvm</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">Target</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;cuda&quot;</span> <span class="ow">in</span> <span class="n">target</span><span class="o">.</span><span class="n">keys</span><span class="p">:</span>
+            <span class="n">dev</span> <span class="o">=</span> <span class="n">tvm</span><span class="o">.</span><span class="n">cuda</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="c1"># JIT the model and pass it to Torchscript to Relay frontend parser. TVM</span>
+    <span class="c1"># tutorials suggest tracing instead of scripting. The main reason is to</span>
+    <span class="c1"># avoid Pythonic computation to show up in JIT module. However, with Python</span>
+    <span class="c1"># key tracing, AOT Autograd leads to simpler graphs. Therefore, we use</span>
+    <span class="c1"># scripting here to retrieve the JIT module.</span>
+    <span class="n">jit_mod</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">script</span><span class="p">(</span><span class="n">fx_module</span><span class="p">)</span>
+    <span class="n">shape_list</span> <span class="o">=</span> <span class="p">[(</span><span class="sa">f</span><span class="s2">&quot;inp_</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">i</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">example_inputs</span><span class="p">)]</span>
+    <span class="n">mod</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="n">relay</span><span class="o">.</span><span class="n">frontend</span><span class="o">.</span><span class="n">from_pytorch</span><span class="p">(</span><span class="n">jit_mod</span><span class="p">,</span> <span class="n">shape_list</span><span class="p">)</span>
+
+    <span class="c1"># TVM Autotuning</span>
+    <span class="k">if</span> <span class="n">use_ansor_tuning</span><span class="p">:</span>
+        <span class="n">tasks</span><span class="p">,</span> <span class="n">task_weights</span> <span class="o">=</span> <span class="n">auto_scheduler</span><span class="o">.</span><span class="n">extract_tasks</span><span class="p">(</span><span class="n">mod</span><span class="p">[</span><span class="s2">&quot;main&quot;</span><span class="p">],</span> <span class="n">params</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">tuning_logfile</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">log_file</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="si">}</span><span class="s2">.json&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log_file</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">tuning_logfile</span><span class="si">}</span><span class="s2">.json&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tasks</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">tuner</span> <span class="o">=</span> <span class="n">auto_scheduler</span><span class="o">.</span><span class="n">TaskScheduler</span><span class="p">(</span><span class="n">tasks</span><span class="p">,</span> <span class="n">task_weights</span><span class="p">)</span>
+            <span class="n">tune_option</span> <span class="o">=</span> <span class="n">auto_scheduler</span><span class="o">.</span><span class="n">TuningOptions</span><span class="p">(</span>
+                <span class="n">num_measure_trials</span><span class="o">=</span><span class="mi">20000</span><span class="p">,</span>
+                <span class="n">measure_callbacks</span><span class="o">=</span><span class="p">[</span><span class="n">auto_scheduler</span><span class="o">.</span><span class="n">RecordToFile</span><span class="p">(</span><span class="n">log_file</span><span class="p">)],</span>
+                <span class="c1"># early_stopping=1000,</span>
+                <span class="c1"># verbose=2,</span>
+            <span class="p">)</span>
+            <span class="n">tuner</span><span class="o">.</span><span class="n">tune</span><span class="p">(</span><span class="n">tune_option</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">tuning_logfile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">log_file</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">tuning_logfile</span><span class="si">}</span><span class="s2">.json&quot;</span>
+
+    <span class="k">if</span> <span class="n">use_ansor_tuning</span> <span class="ow">or</span> <span class="n">tuning_logfile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">log_file</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">auto_scheduler</span><span class="o">.</span><span class="n">ApplyHistoryBest</span><span class="p">(</span><span class="n">log_file</span><span class="p">):</span>
+            <span class="k">with</span> <span class="n">tvm</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">PassContext</span><span class="p">(</span>
+                <span class="n">opt_level</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;relay.backend.use_auto_scheduler&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+            <span class="p">):</span>
+                <span class="n">lib</span> <span class="o">=</span> <span class="n">relay</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">tvm</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">PassContext</span><span class="p">(</span><span class="n">opt_level</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+            <span class="n">lib</span> <span class="o">=</span> <span class="n">relay</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
+
+    <span class="c1"># Get a graph executor graph module</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">graph_executor</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">(</span><span class="n">lib</span><span class="p">[</span><span class="s2">&quot;default&quot;</span><span class="p">](</span><span class="n">dev</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">exec_tvm</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">arg</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">arg</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">m</span><span class="o">.</span><span class="n">set_input</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;inp_</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">tvm</span><span class="o">.</span><span class="n">nd</span><span class="o">.</span><span class="n">from_dlpack</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">dlpack</span><span class="o">.</span><span class="n">to_dlpack</span><span class="p">(</span><span class="n">arg</span><span class="o">.</span><span class="n">contiguous</span><span class="p">())),</span>
+                <span class="p">)</span>
+        <span class="n">m</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+        <span class="n">outs</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">dlpack</span><span class="o">.</span><span class="n">from_dlpack</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">to_dlpack</span><span class="p">())</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">get_num_outputs</span><span class="p">())</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="n">outs</span>
+
+    <span class="k">return</span> <span class="n">exec_tvm</span>
+
+
+<span class="k">def</span> <span class="nf">tvm_compile</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">tuning_logfile</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">use_ansor_tuning</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">partial</span><span class="p">(</span>
+        <span class="n">_tvm_compile</span><span class="p">,</span>
+        <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+        <span class="n">tuning_logfile</span><span class="o">=</span><span class="n">tuning_logfile</span><span class="p">,</span>
+        <span class="n">use_ansor_tuning</span><span class="o">=</span><span class="n">use_ansor_tuning</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<div class="viewcode-block" id="nop"><a class="viewcode-back" href="../../../generated/functorch.compile.nop.html#functorch.compile.nop">[docs]</a><span class="k">def</span> <span class="nf">nop</span><span class="p">(</span><span class="n">fx_g</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the :attr:`fx_g` Fx graph module as it is. This is a no-op compiler</span>
+<span class="sd">    and can be used to check accuracy.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This API is experimental and likely to change.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">fx_g</span></div>
+
+
+<span class="k">def</span> <span class="nf">simple_ts_compile</span><span class="p">(</span><span class="n">fx_g</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">script</span><span class="p">(</span><span class="n">fx_g</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">freeze</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">eval</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">f</span>
+
+
+<span class="k">def</span> <span class="nf">nnc_jit</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">aot_function</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">simple_ts_compile</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="n">static_argnums</span><span class="p">)</span>
+
+
+<span class="n">aten</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span>
+<span class="n">default_decompositions</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">detach</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">gelu_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">leaky_relu_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">sigmoid_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">threshold_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">hardtanh_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">hardsigmoid_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">hardswish_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">tanh_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">silu_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">elu_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">cudnn_batch_norm</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">cudnn_batch_norm_backward</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">masked_fill</span><span class="o">.</span><span class="n">Scalar</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">masked_fill</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">elu</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">leaky_relu</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">hardtanh</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">hardswish</span><span class="p">,</span>
+    <span class="n">aten</span><span class="o">.</span><span class="n">hardsigmoid</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="n">default_decompositions</span> <span class="o">=</span> <span class="n">get_decompositions</span><span class="p">(</span><span class="n">default_decompositions</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">print_compile</span><span class="p">(</span><span class="n">fx_g</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">fx_g</span><span class="o">.</span><span class="n">code</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">fx_g</span>
+
+
+<div class="viewcode-block" id="memory_efficient_fusion"><a class="viewcode-back" href="../../../generated/functorch.compile.memory_efficient_fusion.html#functorch.compile.memory_efficient_fusion">[docs]</a><span class="k">def</span> <span class="nf">memory_efficient_fusion</span><span class="p">(</span>
+    <span class="n">fn</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">],</span> <span class="n">static_argnums</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrapper function over :func:`aot_function` and :func:`aot_module` to perform</span>
+<span class="sd">    memory efficient fusion. It uses the</span>
+<span class="sd">    :func:`min_cut_rematerialization_partition` partitioner to perform efficient</span>
+<span class="sd">    recomputation. It uses NVFuser to compile the generated forward and backward</span>
+<span class="sd">    graphs.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This API is experimental and likely to change.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        fn (Union[Callable, nn.Module]): A Python function or a ``nn.Module``</span>
+<span class="sd">            that takes one ore more arguments. Must return one or more Tensors.</span>
+<span class="sd">        static_argnums (Optional[Tuple[Int]]): An option tuple of ints to mark</span>
+<span class="sd">            the arguments of the function as static.</span>
+<span class="sd">        **kwargs: Any other overrides you want to make to the settings</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Returns a ``Callable``  or ``nn.Module`` that retains the eager behavior</span>
+<span class="sd">        of the original :attr:`fn`, but whose forward and backward graphs have</span>
+<span class="sd">        gone through recomputation optimizations, and the graphs have been</span>
+<span class="sd">        compiled with nvfuser.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;fw_compiler&quot;</span><span class="p">:</span> <span class="n">ts_compile</span><span class="p">,</span>
+        <span class="s2">&quot;bw_compiler&quot;</span><span class="p">:</span> <span class="n">ts_compile</span><span class="p">,</span>
+        <span class="s2">&quot;partition_fn&quot;</span><span class="p">:</span> <span class="n">min_cut_rematerialization_partition</span><span class="p">,</span>
+        <span class="s2">&quot;hasher_type&quot;</span><span class="p">:</span> <span class="s2">&quot;StaticShapeHasher&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;decompositions&quot;</span><span class="p">:</span> <span class="n">default_decompositions</span><span class="p">,</span>
+        <span class="s2">&quot;static_argnums&quot;</span><span class="p">:</span> <span class="n">static_argnums</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">aot_module</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="o">**</span><span class="n">config</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">aot_function</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="o">**</span><span class="n">config</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">debug_compile</span><span class="p">(</span><span class="n">fx_g</span><span class="p">,</span> <span class="n">inps</span><span class="p">):</span>
+    <span class="n">fx_g</span><span class="o">.</span><span class="n">to_folder</span><span class="p">(</span><span class="s2">&quot;foo&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">##############################################################</span>
+<span class="s2"># To minimize FX graph, copy and paste the below and run it  #</span>
+<span class="s2">##############################################################</span>
+
+<span class="s2">import torch</span>
+<span class="s2">import torch.fx as fx</span>
+<span class="s2">from functorch.compile import minifier, check_nvfuser_subprocess, check_nvfuser_correctness_subprocess</span>
+
+<span class="s2">inps = </span><span class="si">{</span><span class="p">[(</span><span class="n">i</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">i</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">inps</span><span class="p">]</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">inps = [torch.ones(shape, dtype=dtype, device=&#39;cuda&#39;) for (shape, dtype) in inps]</span>
+<span class="s2">from foo import FxModule</span>
+<span class="s2">mod = FxModule().cuda()</span>
+
+<span class="s2">with torch.jit.fuser(&quot;fuser2&quot;):</span>
+<span class="s2">  # check_nvfuser_subprocess can be replaced with check_nvfuser_correctness_subprocess</span>
+<span class="s2">  minifier(fx.symbolic_trace(mod), inps, check_nvfuser_subprocess)</span>
+<span class="s2">&quot;&quot;&quot;</span>
+    <span class="p">)</span>
+    <span class="kn">from</span> <span class="nn">foo</span> <span class="kn">import</span> <span class="n">FxModule</span>
+
+    <span class="n">FxModule</span><span class="p">()</span><span class="o">.</span><span class="n">cuda</span><span class="p">()(</span><span class="o">*</span><span class="n">inps</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">ts_compile</span><span class="p">(</span><span class="n">fx_g</span><span class="p">,</span> <span class="n">inps</span><span class="p">)</span>
+</pre></div>
+
+             </article>
+             
+            </div>
+            <footer>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright functorch Contributors.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+         <script src="../../../_static/jquery.js"></script>
+         <script src="../../../_static/underscore.js"></script>
+         <script src="../../../_static/doctools.js"></script>
+         <script src="../../../_static/clipboard.min.js"></script>
+         <script src="../../../_static/copybutton.js"></script>
+         <script >let toggleHintShow = 'Click to show';</script>
+         <script >let toggleHintHide = 'Click to hide';</script>
+         <script >let toggleOpenOnPrint = 'true';</script>
+         <script src="../../../_static/togglebutton.js"></script>
+         <script >var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
+     
+
+  
+
+  <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <script script type="text/javascript">
+    var collapsedSections = ['Notes', 'Language Bindings', 'Libraries', 'Community'];
+  </script>
+
+  <img height="1" width="1" style="border-style:none;" alt="" src="https://www.googleadservices.com/pagead/conversion/795629140/?label=txkmCPmdtosBENSssfsC&amp;guid=ON&amp;script=0"/>
+
+  
+
+  <script type="text/javascript" src="../../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>
+
+<link rel="canonical" href="_modules/functorch/_src/compilers.html" />
