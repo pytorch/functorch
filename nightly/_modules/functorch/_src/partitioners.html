@@ -124,7 +124,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.3.0a0+496417a) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.3.0a0+c57edfa) &#x25BC</a>
                 </div>
               
             
@@ -564,6 +564,11 @@
 
     <span class="n">AGGRESSIVE_RECOMPUTATION</span> <span class="o">=</span> <span class="kc">False</span>
 
+    <span class="k">def</span> <span class="nf">_maybe_size_of</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s1">&#39;tensor_meta&#39;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_size_of</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;tensor_meta&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
     <span class="k">def</span> <span class="nf">ban_recomputation</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">AGGRESSIVE_RECOMPUTATION</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span> <span class="ow">and</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">in</span> <span class="n">unrecomputable_ops</span><span class="p">)</span>
@@ -578,7 +583,7 @@
             <span class="c1"># then we don&#39;t allow recomputation.</span>
             <span class="k">if</span> <span class="s1">&#39;tensor_meta&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">False</span>
-            <span class="n">input_tensors_size</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">_size_of</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;tensor_meta&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">))</span>
+            <span class="n">input_tensors_size</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">_maybe_size_of</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">))</span>
             <span class="n">output_size</span> <span class="o">=</span> <span class="n">_size_of</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;tensor_meta&#39;</span><span class="p">])</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">output_size</span> <span class="o">*</span> <span class="mi">4</span> <span class="o">&lt;</span> <span class="n">input_tensors_size</span><span class="p">)</span>
 
