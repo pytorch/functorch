@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import torch
+from torchrl.data.tensordict.tensordict import TensorDictBase
 import functools
 from torch import Tensor
 from typing import Any, Callable, Optional, Tuple, Union, List
@@ -84,7 +85,7 @@ def _process_batched_inputs(
                 f'vmap({_get_name(func)}, in_dims={in_dims}, ...)(<inputs>): '
                 f'Got in_dim={in_dim} for an input but in_dim must be either '
                 f'an integer dimension or None.')
-        if isinstance(in_dim, int) and not isinstance(arg, Tensor):
+        if isinstance(in_dim, int) and not isinstance(arg, (Tensor, TensorDictBase)):
             raise ValueError(
                 f'vmap({_get_name(func)}, in_dims={in_dims}, ...)(<inputs>): '
                 f'Got in_dim={in_dim} for an input but the input is of type '
@@ -109,6 +110,8 @@ def _create_batched_inputs(
         flat_in_dims: List[Any], flat_args: List[Any], vmap_level: int, args_spec) -> Tuple:
     # See NOTE [Ignored _remove_batch_dim, _add_batch_dim]
     batched_inputs = [arg if in_dim is None else
+                      arg.apply(lambda _arg: _add_batch_dim(_arg, in_dim, vmap_level))
+                      if isinstance(arg, TensorDictBase) else
                       _add_batch_dim(arg, in_dim, vmap_level)
                       for in_dim, arg in zip(flat_in_dims, flat_args)]
     return tree_unflatten(batched_inputs, args_spec)
