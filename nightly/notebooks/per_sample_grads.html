@@ -126,7 +126,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.3.0a0+012d5a2) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.3.0a0+116c845) &#x25BC</a>
                 </div>
               
             
@@ -374,7 +374,7 @@ and optimization research.</p>
 <h2>Per-sample-grads, <em>the efficient way</em>, using functorch<a class="headerlink" href="#per-sample-grads-the-efficient-way-using-functorch" title="Permalink to this headline">¶</a></h2>
 <p>We can compute per-sample-gradients efficiently by using function transforms.</p>
 <p>First, let’s create a stateless functional version of <code class="docutils literal notranslate"><span class="pre">model</span></code> by using <code class="docutils literal notranslate"><span class="pre">functorch.make_functional_with_buffers</span></code>.</p>
-<p>This will seperate state (the parameters) from the model and turn the model into a pure function:</p>
+<p>This will separate state (the parameters) from the model and turn the model into a pure function:</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">make_functional_with_buffers</span><span class="p">,</span> <span class="n">vmap</span><span class="p">,</span> <span class="n">grad</span>

@@ -124,7 +124,7 @@
               
               
                 <div class="version">
-                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.3.0a0+012d5a2) &#x25BC</a>
+                  <a href='https://pytorch.org/functorch/versions.html'>nightly (0.3.0a0+116c845) &#x25BC</a>
                 </div>
               
             
@@ -251,10 +251,9 @@
 
 <span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">import</span> <span class="nn">functools</span>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span>
-<span class="kn">from</span> <span class="nn">torch.utils._pytree</span> <span class="kn">import</span> <span class="n">tree_flatten</span><span class="p">,</span> <span class="n">tree_unflatten</span><span class="p">,</span> <span class="n">_broadcast_to_and_flatten</span><span class="p">,</span> <span class="n">TreeSpec</span><span class="p">,</span> <span class="n">_register_pytree_node</span>
+<span class="kn">from</span> <span class="nn">torch.utils._pytree</span> <span class="kn">import</span> <span class="n">tree_flatten</span><span class="p">,</span> <span class="n">tree_unflatten</span><span class="p">,</span> <span class="n">_broadcast_to_and_flatten</span><span class="p">,</span> <span class="n">TreeSpec</span>
 <span class="kn">from</span> <span class="nn">.pytree_hacks</span> <span class="kn">import</span> <span class="n">tree_map_</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 
@@ -269,25 +268,14 @@
 <span class="n">out_dims_t</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]</span>
 
 
-<span class="c1"># Temporary OrderedDict registration as pytree</span>
-<span class="k">def</span> <span class="nf">_odict_flatten</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
-    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span> <span class="nb">list</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-
-
-<span class="k">def</span> <span class="nf">_odict_unflatten</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">OrderedDict</span><span class="p">((</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
-
-
-<span class="n">_register_pytree_node</span><span class="p">(</span><span class="n">OrderedDict</span><span class="p">,</span> <span class="n">_odict_flatten</span><span class="p">,</span> <span class="n">_odict_unflatten</span><span class="p">)</span>
-
-
 <span class="c1"># Checks that all args-to-be-batched have the same batch dim size</span>
-
 <span class="k">def</span> <span class="nf">_validate_and_get_batch_size</span><span class="p">(</span>
         <span class="n">flat_in_dims</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
         <span class="n">flat_args</span><span class="p">:</span> <span class="n">List</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
     <span class="n">batch_sizes</span> <span class="o">=</span> <span class="p">[</span><span class="n">arg</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">in_dim</span><span class="p">)</span> <span class="k">for</span> <span class="n">in_dim</span><span class="p">,</span> <span class="n">arg</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">flat_in_dims</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">)</span>
                    <span class="k">if</span> <span class="n">in_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">batch_sizes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;vmap: Expected at least one Tensor to vmap over&#39;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">batch_sizes</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">size</span> <span class="o">!=</span> <span class="n">batch_sizes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="n">batch_sizes</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s1">&#39;vmap: Expected all tensors to have the same size in the mapped &#39;</span>
