@@ -2205,6 +2205,57 @@ class TestCustomFunction(TestCase):
 
         assert torch.allclose(x.grad, 3 * x.cos())
 
+    @onlyCPU
+    def test_generated_batching_rule_for_custom_op(self, device):
+        called_impl = False
+        called_vjp = False
+        called_impl_with_batched_args = None
+        called_vjp_with_batched_args = None
+
+        def my_sin_impl(args):
+            x, = args
+            nonlocal called_impl
+            nonlocal called_impl_with_batched_args
+            called_impl = True
+            called_impl_with_batched_args = functorch._C.is_batchedtensor(x)
+            return x.sin(), x
+
+        def my_sin_vjp(args):
+            grad_y, result, x = args
+            nonlocal called_vjp
+            nonlocal called_vjp_with_batched_args
+            called_vjp = True
+            called_vjp_with_batched_args = all(functorch._C.is_batchedtensor(a) for a in [grad_y, result, x])
+            return (grad_y * 3 * x.cos(),)
+
+        def filter_fn(args):
+            return args[0]
+
+        my_sin = custom_vjp('my_sin2', filter_fn, my_sin_impl, my_sin_vjp)
+
+        x = torch.tensor([[[1., 2.], [3., 4.]], [[1., 2.], [3., 4.]]], requires_grad=True, device=device)
+        x_copy = torch.tensor([[[1., 2.], [3., 4.]], [[1., 2.], [3., 4.]]], requires_grad=True, device=device)
+
+        vmap_my_sin = vmap(my_sin)
+        y = vmap_my_sin(x)
+        self.assertTrue(called_impl)
+        # We expect to run the custom forward with batched tensors, so when
+        # it decomposes into base ops we run the batching rule on each base op.
+        self.assertTrue(called_impl_with_batched_args)
+
+        y.sum().backward()
+        self.assertTrue(called_vjp)
+        # We expect to run the custom forward with non-batched tensors,
+        # because we didn't explictly vmap over the backward() call.
+        self.assertFalse(called_vjp_with_batched_args)
+
+        assert torch.allclose(x.grad, 3 * x.cos())
+
+        y_copy = my_sin(x_copy)
+        y_copy.sum().backward()
+        assert torch.allclose(y_copy, y)
+        assert torch.allclose(x_copy.grad, x.grad)
+
 
 class TestComposability(TestCase):
     def test_grad_grad(self, device):

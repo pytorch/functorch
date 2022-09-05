@@ -1,5 +1,6 @@
 #ifndef _WIN32
 #include <functorch/csrc/CustomFunction.h>
+#include <functorch/csrc/BatchedTensorImpl.h>
 #include <ATen/ATen.h>
 #include <torch/csrc/autograd/function.h>
 #include <torch/csrc/autograd/graph_task.h>
@@ -209,7 +210,7 @@ using torch::autograd::collect_next_edges;
 using torch::autograd::deleteNode;
 using torch::autograd::flatten_tensor_args;
 
-void customFunctionBoxed(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
+void customFunctionBoxed(const c10::OperatorHandle& op, torch::jit::Stack* stack, bool get_output_by_running_forward_pass) {
   auto tensors = torch::jit::pop(stack).toTensorList().vec();
   auto tensors_ = unpack(tensors, "tensors", 0);
   auto _any_requires_grad = compute_requires_grad(tensors);
@@ -226,12 +227,27 @@ void customFunctionBoxed(const c10::OperatorHandle& op, torch::jit::Stack* stack
     grad_fn->num_inputs_ = tensors_.size();
   }
 
-  auto typed_handle = op.typed<custom_function_t>();
-  std::vector<Tensor> _tmp = ([&]() {
-    at::AutoDispatchBelowADInplaceOrView guard;
-    return typed_handle.call(tensors_);
-  })();
-  auto result = std::move(_tmp);
+  std::vector<at::Tensor> result;
+  // When this is true, we:
+  // - run the forward pass
+  // - construct the autograd graph
+  // - return the result
+  // When this is false, we:
+  // - DONT run the forward pass (and instead, assume that the output from the forward pass
+  //   was already pushed on the stack)
+  // - construct the autograd graph, using the (unwrapped) inputs and outputs from the fwd pass
+  // - DONT return the result
+  if (get_output_by_running_forward_pass) {
+    auto typed_handle = op.typed<custom_function_t>();
+    std::vector<Tensor> _tmp = ([&]() {
+      at::AutoDispatchBelowADInplaceOrView guard;
+      return typed_handle.call(tensors_);
+    })();
+    result = std::move(_tmp);
+  } else {
+    result = torch::jit::pop(stack).toTensorList().vec();
+  }
+
   if (grad_fn) {
     for (auto& tensor : result) {
       // TODO: is this right?
@@ -248,8 +264,76 @@ void customFunctionBoxed(const c10::OperatorHandle& op, torch::jit::Stack* stack
       grad_fn->saved_tensors_.emplace_back(tensor, !is_input);
     }
   }
-  torch::jit::push(stack, result);
+  // if we computed the output ourselves, return it.
+  if (get_output_by_running_forward_pass) {
+    torch::jit::push(stack, result);
+  }
 }
+
+void customFunctionBoxed(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
+  customFunctionBoxed(op, stack, /*get_output_by_running_forward_pass=*/true);
+}
+
+
+void generatedCustomBatchingRule(const c10::OperatorHandle& op, c10::DispatchKeySet ks, torch::jit::Stack* stack) {
+  // We basically simulate running the user's op in inference mode WITH the decomposition
+  // And then separately we create the autograd graph WITHOUT the decomposition.
+  // This allows us to decompose and "get batching rules for free",
+  // while still being able to run a user's custom backward function
+  // (which might be necessary for numeric stability).
+
+  auto tensors = torch::jit::pop(stack).toTensorList().vec();
+  auto typed_handle = op.typed<custom_function_t>();
+
+  // Step (1) = run the forward using the decomposition
+  std::vector<Tensor> _tmp = ([&]() {
+    // NOTE: I don't think this composes with DynamicLayer very well.
+    // I want to fully turn off autograd when I call the custom python operator,
+    // but when vmap() is active, DynamicLayer will overwrite TLS and (potentially) run autograd anyway.
+    // TODO: think more about this.
+    at::AutoDispatchBelowADInplaceOrView guard;
+    // The tensor arguments should all be batched tensors at this point,
+    // so what will happen is we:
+    // (a) Skip the autograd key and go straight to the backend
+    //     (potentially running other stuff like AMP along the way)
+    // (b) Enter the user's python kernel, which runs a bunch of "prim" aten ops
+    // (c) Those prim ops each enter the dispatcher, and we'll hit each of their
+    //     batching rule kernels (because our inputs are *still* BatchedTensors)
+    // TODO better idiom for this - I just want to go straight to the python impl
+    return typed_handle.redispatch(c10::DispatchKeySet(c10::DispatchKey::CPU), tensors);
+  })();
+  auto forward_result = std::move(_tmp);
+
+  // Step (2) = Create the autograd graph without the decomposition.
+  // Taking special care to "re-use" the same inputs/outputs in the autograd kernel
+  // that we got from the forward pass.
+  // This is really hacky - I'm hardcoding the boxed autograd kernel
+  // to know that when it's running in "don't run the forward pass" mode,
+  // it can assume that the arguments on the stack are <unwrapped_output, unwrapped_inputs...>
+  // from the forward pass.
+  auto unwrapped_args = std::vector<Tensor>();
+  for (const auto& a : tensors) {
+      TORCH_INTERNAL_ASSERT(at::functorch::isBatchedTensor(a));
+      unwrapped_args.push_back(at::functorch::unsafeGetBatchedImpl(a)->value());
+  }
+  auto unwrapped_outs = std::vector<Tensor>();
+  for (const auto& a : forward_result) {
+      TORCH_INTERNAL_ASSERT(at::functorch::isBatchedTensor(a));
+      unwrapped_outs.push_back(at::functorch::unsafeGetBatchedImpl(a)->value());
+  }
+  // relying on customFunctionBoxed will push these off the stack.
+  torch::jit::push(stack, unwrapped_outs);
+  torch::jit::push(stack, unwrapped_args);
+  {
+    // When get_output_by_running_forward_pass is false, the autograd boxed fallback knows to:
+    // (a) add the vjp to the autograd graph
+    // (b) NOT run the forward pass
+    customFunctionBoxed(op, stack, /*get_output_by_running_forward_pass=*/false);
+  }
+
+  torch::jit::push(stack, forward_result);
+}
+
 
 void initDispatchBindings(PyObject* module) {
   auto m = py::handle(module).cast<py::module>();
@@ -272,6 +356,13 @@ void initDispatchBindings(PyObject* module) {
           torch::CppFunction::makeFromBoxedFunction<&customFunctionBoxed>())
       );
     }, "", py::arg("name"), py::arg("dispatch"))
+    .def("gen_vmap_binding", [](py::object self, const char* name) {
+      self.cast<torch::Library&>().impl(
+        name,
+        dispatch_str("FuncTorchBatched",
+          torch::CppFunction::makeFromBoxedFunction<&generatedCustomBatchingRule>())
+      );
+    }, "", py::arg("name"))
     .def("fallback_fallthrough", [](py::object self, const char* dispatch) {
       self.cast<torch::Library&>().fallback(
         dispatch_str(dispatch, torch::CppFunction::makeFallthrough())
