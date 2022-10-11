@@ -28,7 +28,7 @@ elif sha != 'Unknown':
 requirements = [
     # This represents a nightly version of PyTorch.
     # It can be installed as a binary or from source.
-    "torch>=1.13.0.dev",
+    "torch>=1.14.0.dev",
 ]
 
 extras = {}
