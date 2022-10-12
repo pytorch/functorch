@@ -202,17 +202,10 @@
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
             
-
-            
-              
-              
-                <div class="version">
-                  nightly (1.14.0a0+git8a47a49)
-                </div>
-              
-            
-
-            
+    <div class="version">
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (1.14.0a0+gitf912b58) &#x25BC</a>
+    </div>
+    
 
 
   
@@ -226,7 +219,6 @@
   </form>
 </div>
 
-            
           </div>
 
           
@@ -326,7 +318,8 @@
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
   <h1>Source code for functorch._src.partitioners</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span></span><span class="kn">from</span> <span class="nn">torch.fx.experimental.proxy_tensor</span> <span class="kn">import</span> <span class="n">is_sym_node</span>
+<span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">import</span> <span class="nn">torch.fx</span> <span class="k">as</span> <span class="nn">fx</span>
 <span class="kn">import</span> <span class="nn">operator</span>
 <span class="kn">import</span> <span class="nn">math</span>
@@ -419,13 +412,14 @@
     <span class="k">return</span> <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span>
 
 
-<span class="k">def</span> <span class="nf">_extract_fwd_bwd_modules</span><span class="p">(</span><span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_extract_fwd_bwd_modules</span><span class="p">(</span><span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">,</span> <span class="n">saved_sym_nodes</span><span class="o">=</span><span class="p">()):</span>
     <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
     <span class="n">primal_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_primal</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
     <span class="n">tangent_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_tangent</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
     <span class="c1"># Construct the forward module</span>
-    <span class="n">fwd_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">primal_inputs</span><span class="p">,</span> <span class="n">fwd_outputs</span> <span class="o">+</span> <span class="n">saved_values</span><span class="p">)</span>
-    <span class="n">bwd_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">saved_values</span> <span class="o">+</span> <span class="n">tangent_inputs</span><span class="p">,</span> <span class="n">bwd_outputs</span><span class="p">)</span>
+    <span class="c1"># Keep symints separate from tensors, passed between fwd/bwd graphs, and in the right order.</span>
+    <span class="n">fwd_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">primal_inputs</span><span class="p">,</span> <span class="n">fwd_outputs</span> <span class="o">+</span> <span class="n">saved_values</span> <span class="o">+</span> <span class="n">saved_sym_nodes</span><span class="p">)</span>
+    <span class="n">bwd_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">saved_sym_nodes</span> <span class="o">+</span> <span class="n">saved_values</span> <span class="o">+</span> <span class="n">tangent_inputs</span><span class="p">,</span> <span class="n">bwd_outputs</span><span class="p">)</span>
 
     <span class="c1"># This is to filter out saved values that don&#39;t actually end up being used by the backwards pass</span>
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">bwd_graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
@@ -435,10 +429,15 @@
                     <span class="n">saved_values</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">saved_value</span><span class="p">)</span>
                     <span class="k">break</span>
 
+            <span class="k">for</span> <span class="n">saved_sym</span> <span class="ow">in</span> <span class="n">saved_sym_nodes</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">saved_sym</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+                    <span class="n">saved_sym_nodes</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">saved_sym</span><span class="p">)</span>
+                    <span class="k">break</span>
+
     <span class="c1"># Now, we re-generate the fwd/bwd graphs.</span>
     <span class="c1"># NB: This might increase compilation time, but I doubt it matters</span>
-    <span class="n">fwd_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">primal_inputs</span><span class="p">,</span> <span class="n">fwd_outputs</span> <span class="o">+</span> <span class="n">saved_values</span><span class="p">)</span>
-    <span class="n">bwd_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">saved_values</span> <span class="o">+</span> <span class="n">tangent_inputs</span><span class="p">,</span> <span class="n">bwd_outputs</span><span class="p">)</span>
+    <span class="n">fwd_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">primal_inputs</span><span class="p">,</span> <span class="n">fwd_outputs</span> <span class="o">+</span> <span class="n">saved_values</span> <span class="o">+</span> <span class="n">saved_sym_nodes</span><span class="p">)</span>
+    <span class="n">bwd_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">saved_sym_nodes</span> <span class="o">+</span> <span class="n">saved_values</span> <span class="o">+</span> <span class="n">tangent_inputs</span><span class="p">,</span> <span class="n">bwd_outputs</span><span class="p">)</span>
 
     <span class="n">fwd_module</span> <span class="o">=</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">fwd_graph</span><span class="p">)</span>
     <span class="n">bwd_module</span> <span class="o">=</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">bwd_graph</span><span class="p">)</span>
@@ -476,11 +475,20 @@
     <span class="n">forward_only_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">primal_inputs</span><span class="p">,</span> <span class="n">fwd_outputs</span><span class="p">)</span>
     <span class="n">forward_node_names</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">forward_only_graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s1">&#39;output&#39;</span><span class="p">}</span>
     <span class="n">saved_values</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">saved_sym_nodes</span> <span class="o">=</span> <span class="p">[]</span>
+
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">forward_node_names</span><span class="p">:</span>
             <span class="k">continue</span>
-        <span class="c1"># Since we can&#39;t save tuple of tensor values, we need to flatten out what we&#39;re saving</span>
-        <span class="k">if</span> <span class="s1">&#39;tensor_meta&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+            <span class="c1"># Symints must be kept separate from tensors so that PythonFunction only calls</span>
+            <span class="c1"># save_for_backward on tensors and stashes symints in autograd .ctx</span>
+            <span class="n">saved_sym_nodes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="p">(</span>
+            <span class="s1">&#39;tensor_meta&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span>
+            <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span>
+        <span class="p">):</span>
+            <span class="c1"># Since we can&#39;t save tuple of tensor values, we need to flatten out what we&#39;re saving</span>
             <span class="n">users</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">users</span>
             <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">target</span> <span class="o">==</span> <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span> <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">users</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">users</span><span class="p">:</span>
@@ -488,8 +496,9 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">saved_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
     <span class="n">saved_values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">saved_values</span><span class="p">))</span>
+    <span class="n">saved_sym_nodes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">saved_sym_nodes</span><span class="p">))</span>
 
-    <span class="k">return</span> <span class="n">_extract_fwd_bwd_modules</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">_extract_fwd_bwd_modules</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">,</span> <span class="n">saved_sym_nodes</span><span class="o">=</span><span class="n">saved_sym_nodes</span><span class="p">)</span></div>
 
 
 <span class="k">def</span> <span class="nf">_prod</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
@@ -515,7 +524,14 @@
         <span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
     <span class="p">}</span>
 
-    <span class="n">numel</span> <span class="o">=</span> <span class="n">_prod</span><span class="p">(</span><span class="n">metadata</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">to_size_hint</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymIntNode</span><span class="p">):</span>
+            <span class="n">py_s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get_pyobj</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">py_s</span><span class="o">.</span><span class="n">shape_env</span><span class="o">.</span><span class="n">size_hint</span><span class="p">(</span><span class="n">py_s</span><span class="o">.</span><span class="n">expr</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">s</span>
+
+    <span class="n">numel</span> <span class="o">=</span> <span class="n">_prod</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">to_size_hint</span><span class="p">,</span> <span class="n">metadata</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
     <span class="n">dtype</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">dtype</span>
 
     <span class="k">if</span> <span class="n">dtype</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sizes</span><span class="p">:</span>
@@ -694,7 +710,10 @@
         <span class="k">if</span> <span class="n">ban_recomputation</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">and</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span><span class="p">:</span>
             <span class="n">nx_graph</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="s2">&quot;source&quot;</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;_in&quot;</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="n">math</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="s1">&#39;tensor_meta&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+            <span class="n">weight</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="c1"># TODO(whc) try changing this to isTensor(node.meta[&#39;val&#39;])?</span>
+        <span class="k">elif</span> <span class="s1">&#39;tensor_meta&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
             <span class="n">weight</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">inf</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">weight</span> <span class="o">=</span> <span class="n">get_node_weight</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
@@ -719,9 +738,19 @@
     <span class="c1"># To make this stuff deterministic</span>
     <span class="n">node_idx</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span><span class="p">:</span> <span class="n">idx</span> <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">)}</span>
     <span class="n">saved_values</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">((</span><span class="n">name_to_node</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">cut_nodes</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">node_idx</span><span class="p">[</span><span class="n">x</span><span class="p">])</span>
-    <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_modules</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">)</span>
+    <span class="c1"># Symints must be kept separate from tensors so that PythonFunction only calls</span>
+    <span class="c1"># save_for_backward on tensors and stashes symints in autograd .ctx</span>
+    <span class="n">saved_sym_nodes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">n</span><span class="p">:</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">saved_values</span><span class="p">))</span>
+    <span class="n">saved_values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">n</span><span class="p">:</span> <span class="ow">not</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">saved_values</span><span class="p">))</span>
+    <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_modules</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">,</span> <span class="n">saved_sym_nodes</span><span class="o">=</span><span class="n">saved_sym_nodes</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">AOT_PARTITIONER_DEBUG</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Theoretical Activations Stored: &quot;</span><span class="p">,</span> <span class="nb">sum</span><span class="p">([</span><span class="n">_size_of</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;tensor_meta&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">saved_values</span><span class="p">])</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">)</span>
+        <span class="k">def</span> <span class="nf">node_size</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s1">&#39;tensor_meta&#39;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">_size_of</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;tensor_meta&#39;</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+                <span class="k">return</span> <span class="mi">1</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Theoretical Activations Stored: &quot;</span><span class="p">,</span> <span class="nb">sum</span><span class="p">([</span><span class="n">node_size</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">saved_values</span><span class="p">])</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">)</span>
         <span class="n">fw_module_nodes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span><span class="p">])</span>
         <span class="n">bw_module_nodes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span><span class="p">])</span>
         <span class="n">remat_nodes</span> <span class="o">=</span> <span class="n">fw_module_nodes</span> <span class="o">&amp;</span> <span class="n">bw_module_nodes</span>
