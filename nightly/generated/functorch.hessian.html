@@ -221,7 +221,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (1.14.0a0+gitbcde754) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (1.14.0a0+gitbd1e95c) &#x25BC</a>
     </div>
     
 
@@ -366,12 +366,12 @@ returns the Hessian of <code class="xref py py-attr docutils literal notranslate
 <code class="xref py py-attr docutils literal notranslate"><span class="pre">argnums</span></code>.</p>
 </dd>
 </dl>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>PyTorch’s forward-mode AD coverage on operators is not very good at the
-moment. You may see this API error out with “forward-mode AD not
-implemented for operator X”. If so, please file us a bug report and we
-will prioritize it.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You may see this API error out with “forward-mode AD not implemented
+for operator X”. If so, please file a bug report and we will prioritize it.
+An alternative is to use <code class="docutils literal notranslate"><span class="pre">jacrev(jacrev(func))</span></code>, which has better
+operator coverage.</p>
 </div>
 <p>A basic usage with a R^N -&gt; R^1 function gives a N x N Hessian:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">hessian</span>
