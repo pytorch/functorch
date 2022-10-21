@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>functorch._src.eager_transforms &mdash; functorch nightly documentation</title>
+  <title>functorch._src.eager_transforms &mdash; functorch 1.13 documentation</title>
   
 
   
@@ -122,12 +122,16 @@
                   <span class="dropdown-title">torchvision</span>
                   <p></p>
                 </a>
-                <a class="doc-dropdown-option nav-dropdown-item" href="https://pytorch.org/torchrec">
-                  <span class="dropdown-title">TorchRec</span>
+                <a class="doc-dropdown-option nav-dropdown-item" href="https://pytorch.org/torcharrow">
+                  <span class="dropdown-title">torcharrow</span>
                   <p></p>
                 </a>
                 <a class="doc-dropdown-option nav-dropdown-item" href="https://pytorch.org/data">
                   <span class="dropdown-title">TorchData</span>
+                  <p></p>
+                </a>
+                <a class="doc-dropdown-option nav-dropdown-item" href="https://pytorch.org/torchrec">
+                  <span class="dropdown-title">TorchRec</span>
                   <p></p>
                 </a>
                 <a class="doc-dropdown-option nav-dropdown-item" href="https://pytorch.org/serve/">
@@ -155,13 +159,25 @@
                   <span class="dropdown-title">About</span>
                   <p>Learn about PyTorch’s features and capabilities</p>
                 </a>
+                <a class="nav-dropdown-item" href="https://pytorch.org/foundation">
+                  <span class="dropdown-title">PyTorch Foundation</span>
+                  <p>Learn about the PyTorch foundation</p>
+                </a>
                 <a class="nav-dropdown-item" href="https://pytorch.org/#community-module">
                   <span class="dropdown-title">Community</span>
                   <p>Join the PyTorch developer community to contribute, learn, and get your questions answered.</p>
                 </a>
+                <a class="nav-dropdown-item" href="https://pytorch.org/community-stories">
+                  <span class="dropdown-title">Community Stories</span>
+                  <p>Learn how our community solves real, everyday machine learning problems with PyTorch.</p>
+                </a>
                 <a class="nav-dropdown-item" href="https://pytorch.org/resources">
                   <span class="dropdown-title">Developer Resources</span>
                   <p>Find resources and get questions answered</p>
+                </a>
+                <a class="nav-dropdown-item" href="https://pytorch.org/events">
+                  <span class="dropdown-title">Events</span>
+                  <p>Find events, webinars, and podcasts</p>
                 </a>
                 <a class="nav-dropdown-item" href="https://discuss.pytorch.org/" target="_blank">
                   <span class="dropdown-title">Forums</span>
@@ -202,17 +218,10 @@
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
             
-
-            
-              
-              
-                <div class="version">
-                  nightly (1.13.0a0+git95112ca)
-                </div>
-              
-            
-
-            
+    <div class="version">
+      <a href='https://pytorch.org/functorch/versions.html'>1.13 &#x25BC</a>
+    </div>
+    
 
 
   
@@ -226,7 +235,6 @@
   </form>
 </div>
 
-            
           </div>
 
           
@@ -1088,11 +1096,9 @@
 <span class="sd">        evaluated at ``primals`` and the Jacobian-vector product.</span>
 <span class="sd">        If ``has_aux is True``, then instead returns a ``(output, jvp_out, aux)`` tuple.</span>
 
-<span class="sd">    .. warning::</span>
-<span class="sd">        PyTorch&#39;s forward-mode AD coverage on operators is not very good at the</span>
-<span class="sd">        moment. You may see this API error out with &quot;forward-mode AD not</span>
-<span class="sd">        implemented for operator X&quot;. If so, please file us a bug report and we</span>
-<span class="sd">        will prioritize it.</span>
+<span class="sd">    .. note::</span>
+<span class="sd">        You may see this API error out with &quot;forward-mode AD not implemented</span>
+<span class="sd">        for operator X&quot;. If so, please file a bug report and we will prioritize it.</span>
 
 <span class="sd">    jvp is useful when you wish to compute gradients of a function R^1 -&gt; R^N</span>
 
@@ -1229,11 +1235,10 @@
 <span class="sd">        instead returns a ``(jacobian, aux)`` tuple where ``jacobian``</span>
 <span class="sd">        is the Jacobian and ``aux`` is auxiliary objects returned by :attr:`func`.</span>
 
-<span class="sd">    .. warning::</span>
-<span class="sd">        PyTorch&#39;s forward-mode AD coverage on operators is not very good at the</span>
-<span class="sd">        moment. You may see this API error out with &quot;forward-mode AD not</span>
-<span class="sd">        implemented for operator X&quot;. If so, please file us a bug report and we</span>
-<span class="sd">        will prioritize it.</span>
+<span class="sd">    .. note::</span>
+<span class="sd">        You may see this API error out with &quot;forward-mode AD not implemented</span>
+<span class="sd">        for operator X&quot;. If so, please file a bug report and we will prioritize it.</span>
+<span class="sd">        An alternative is to use :func:`jacrev`, which has better operator coverage.</span>
 
 <span class="sd">    A basic usage with a pointwise, unary operation will give a diagonal array</span>
 <span class="sd">    as the Jacobian</span>
@@ -1378,11 +1383,11 @@
 <span class="sd">        returns the Hessian of :attr:`func` with respect to the arg(s) at</span>
 <span class="sd">        :attr:`argnums`.</span>
 
-<span class="sd">    .. warning::</span>
-<span class="sd">        PyTorch&#39;s forward-mode AD coverage on operators is not very good at the</span>
-<span class="sd">        moment. You may see this API error out with &quot;forward-mode AD not</span>
-<span class="sd">        implemented for operator X&quot;. If so, please file us a bug report and we</span>
-<span class="sd">        will prioritize it.</span>
+<span class="sd">    .. note::</span>
+<span class="sd">        You may see this API error out with &quot;forward-mode AD not implemented</span>
+<span class="sd">        for operator X&quot;. If so, please file a bug report and we will prioritize it.</span>
+<span class="sd">        An alternative is to use ``jacrev(jacrev(func))``, which has better</span>
+<span class="sd">        operator coverage.</span>
 
 <span class="sd">    A basic usage with a R^N -&gt; R^1 function gives a N x N Hessian:</span>
 
@@ -2021,13 +2026,9 @@
           <li>
             <a href="https://pytorch.org/ecosystem">Ecosystem</a>
           </li>
-
+            
           <li>
             <a href="https://pytorch.org/mobile">Mobile</a>
-          </li>
-
-          <li>
-            <a href="https://pytorch.org/hub">PyTorch Hub</a>
           </li>
 
           <li>
@@ -2060,6 +2061,18 @@
             </li>
 
             <li>
+              <a href="https://pytorch.org/torcharrow">torcharrow</a>
+            </li>
+
+            <li>
+              <a href="https://pytorch.org/data">TorchData</a>
+            </li>
+
+            <li>
+              <a href="https://pytorch.org/torchrec">TorchRec</a>
+            </li>
+
+            <li>
               <a href="https://pytorch.org/serve/">TorchServe</a>
             </li>
 
@@ -2075,18 +2088,15 @@
           <li class="resources-mobile-menu-title">
             Resources
           </li>
-
-          <ul class="resources-mobile-menu-items">
-            <li>
-              <a href="https://pytorch.org/resources">Developer Resources</a>
-            </li>
+            
+           <ul class="resources-mobile-menu-items">
 
             <li>
               <a href="https://pytorch.org/features">About</a>
             </li>
 
             <li>
-              <a href="https://pytorch.org/hub">Models (Beta)</a>
+              <a href="https://pytorch.org/foundation">PyTorch Foundation</a>
             </li>
 
             <li>
@@ -2094,7 +2104,23 @@
             </li>
 
             <li>
+              <a href="https://pytorch.org/community-stories">Community Stories</a>
+            </li>
+
+            <li>
+              <a href="https://pytorch.org/resources">Developer Resources</a>
+            </li>
+
+            <li>
+              <a href="https://pytorch.org/events">Events</a>
+            </li>
+
+            <li>
               <a href="https://discuss.pytorch.org/">Forums</a>
+            </li>
+
+            <li>
+              <a href="https://pytorch.org/hub">Models (Beta)</a>
             </li>
           </ul>
 
