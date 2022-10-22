@@ -221,7 +221,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (1.14.0a0+gitbd1e95c) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (1.14.0a0+git5c4a2e6) &#x25BC</a>
     </div>
     
 
@@ -405,7 +405,10 @@
 <span class="n">aot_print_fn</span> <span class="o">=</span> <span class="n">aot_function</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">fw_compiler</span><span class="o">=</span><span class="n">compiler_fn</span><span class="p">,</span> <span class="n">bw_compiler</span><span class="o">=</span><span class="n">compiler_fn</span><span class="p">)</span>
 
 <span class="c1"># Run the aot_print_fn once to trigger the compilation and print the graphs</span>
-<span class="n">res</span> <span class="o">=</span> <span class="n">aot_print_fn</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+<span class="n">cloned_inputs</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">requires_grad_</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">)]</span>
+<span class="n">cloned_a</span><span class="p">,</span> <span class="n">cloned_b</span><span class="p">,</span> <span class="n">cloned_c</span><span class="p">,</span> <span class="n">cloned_d</span> <span class="o">=</span> <span class="n">cloned_inputs</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">aot_print_fn</span><span class="p">(</span><span class="n">cloned_a</span><span class="p">,</span> <span class="n">cloned_b</span><span class="p">,</span> <span class="n">cloned_c</span><span class="p">,</span> <span class="n">cloned_d</span><span class="p">)</span>
+<span class="n">res</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
 <span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="n">res</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -532,6 +535,9 @@ AOT, Fwd = 734.2723174951971 us, Bwd = 831.1696897726506 us
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">functorch.compile</span> <span class="kn">import</span> <span class="n">min_cut_rematerialization_partition</span>
+
+<span class="c1"># Zero out the gradients so we can do a comparison later</span>
+<span class="n">a</span><span class="o">.</span><span class="n">grad</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">grad</span><span class="p">,</span> <span class="n">c</span><span class="o">.</span><span class="n">grad</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">grad</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,)</span> <span class="o">*</span> <span class="mi">4</span>
 
 <span class="c1"># Lets set up the partitioner. Also set the fwd and bwd compilers to the printer function that we used earlier.</span>
 <span class="c1"># This will show us how the recomputation has modified the graph.</span>
