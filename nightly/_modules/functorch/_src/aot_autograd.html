@@ -219,7 +219,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (1.14.0a0+gite804c72) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (1.14.0a0+gitbbaa063) &#x25BC</a>
     </div>
     
 
@@ -354,7 +354,6 @@
 <span class="kn">from</span> <span class="nn">torch.nn.utils</span> <span class="kn">import</span> <span class="n">stateless</span>
 
 <span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">make_fx</span>
-<span class="kn">from</span> <span class="nn">functorch.experimental</span> <span class="kn">import</span> <span class="n">functionalize</span>
 <span class="kn">from</span> <span class="nn">torch._dispatch.python</span> <span class="kn">import</span> <span class="n">enable_python_dispatcher</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">config</span>
 <span class="kn">from</span> <span class="nn">.named_members_polyfill</span> <span class="kn">import</span> <span class="n">_named_buffers</span><span class="p">,</span> <span class="n">_named_parameters</span>
@@ -469,7 +468,99 @@
         <span class="n">node</span><span class="o">.</span><span class="n">register_hook</span><span class="p">(</span><span class="n">get_posthook</span><span class="p">(</span><span class="n">special_stack</span><span class="p">))</span>
 
 
-<span class="k">def</span> <span class="nf">create_joint_forward_backward</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+<span class="c1"># This is a version of functionalization that is specifically designed</span>
+<span class="c1"># for the AOTAutograd use case.  It might be generally applicable though</span>
+<span class="c1"># (if so, move it out of this file), so I&#39;ve tried to give it a name that</span>
+<span class="c1"># describes what it does.</span>
+<span class="c1">#</span>
+<span class="c1"># Given a function f, it produces a new function g that:</span>
+<span class="c1">#</span>
+<span class="c1">#   - Detaches all inputs before running f; the inner function</span>
+<span class="c1">#     does not directly participate in any pre-existing autograd.</span>
+<span class="c1">#     preserve_requires_grad is provided as a convenience to set the</span>
+<span class="c1">#     requires_grad on the new detached leaves in sync with the originals.</span>
+<span class="c1">#     (NB: In principle, you could backward through the pure operations</span>
+<span class="c1">#     produced by functionalization; this is not used for AOTAutograd</span>
+<span class="c1">#     and we have not tested it.)</span>
+<span class="c1">#</span>
+<span class="c1">#   - Functionalizes all operations on f, under the assumption that the passed</span>
+<span class="c1">#     in function f must be &quot;observationally pure&quot;; that is, it cannot perform any</span>
+<span class="c1">#     mutations (inplace data or view operations) on the passed in inputs, nor is</span>
+<span class="c1">#     it allowed to directly close over tensors that aren&#39;t passed via its</span>
+<span class="c1">#     arguments.  See</span>
+<span class="c1">#     https://docs.google.com/document/d/19UoIh_SVrMy_b2Sx5ZaeOJttm6P0Qmyss2rdBuyfoic/edit</span>
+<span class="c1">#     for discussion how how to implement the more complicated case.</span>
+<span class="c1">#</span>
+<span class="c1"># Unlike functorch&#39;s variant, this doesn&#39;t use the functorch level system,</span>
+<span class="c1"># instead it directly uses PyTorch&#39;s conventional dispatcher to hit the</span>
+<span class="c1"># functionalization key.  In particular, this means that FunctionalTensorWrapper</span>
+<span class="c1"># can have autograd data stored directly on it.</span>
+<span class="c1">#</span>
+<span class="c1"># In typical AOTAutograd usage, the dispatch key order will look like:</span>
+<span class="c1">#</span>
+<span class="c1">#   Autograd - Functionalization ~~~~&gt; Proxy Mode - Fake Tensor</span>
+<span class="c1">#       outer tensor                        inner tensor</span>
+<span class="c1">#</span>
+<span class="c1"># TODO: Provide a faster version of this that assumes flat arguments</span>
+<span class="c1"># (so no pytree necessary)</span>
+<span class="k">def</span> <span class="nf">detach_and_functionalize_pure</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">preserve_requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">inner</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">to_fun</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_to_functional_tensor</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+                <span class="c1"># NB: r is a leaf; it has no grad_fn relating</span>
+                <span class="c1"># it to t.  If t has autograd metadata, that</span>
+                <span class="c1"># metadata was preserved *inside* the r wrapper</span>
+                <span class="k">if</span> <span class="n">preserve_requires_grad</span><span class="p">:</span>
+                    <span class="n">r</span><span class="o">.</span><span class="n">requires_grad</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">requires_grad</span>
+                <span class="k">return</span> <span class="n">r</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">t</span>
+
+        <span class="n">f_args</span><span class="p">,</span> <span class="n">f_kwargs</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">to_fun</span><span class="p">,</span> <span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">))</span>
+
+        <span class="n">torch</span><span class="o">.</span><span class="n">_enable_functionalization</span><span class="p">(</span><span class="n">reapply_views</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">outs</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="o">*</span><span class="n">f_args</span><span class="p">,</span> <span class="o">**</span><span class="n">f_kwargs</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">_disable_functionalization</span><span class="p">()</span>
+
+        <span class="c1"># Detect input mutation and error if found</span>
+        <span class="n">flat_args</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_flatten</span><span class="p">((</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">))</span>
+        <span class="n">flat_f_args</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_flatten</span><span class="p">((</span><span class="n">f_args</span><span class="p">,</span> <span class="n">f_kwargs</span><span class="p">))</span>
+
+        <span class="c1"># This is just for sanity checking, can be skipped</span>
+        <span class="k">for</span> <span class="n">arg</span><span class="p">,</span> <span class="n">f_arg</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">flat_args</span><span class="p">,</span> <span class="n">flat_f_args</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">_sync</span><span class="p">(</span><span class="n">f_arg</span><span class="p">)</span>
+            <span class="n">new_arg</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_from_functional_tensor</span><span class="p">(</span><span class="n">f_arg</span><span class="p">)</span>
+            <span class="c1"># I want to do this assert, but it is annoying because</span>
+            <span class="c1"># we have operator tests that have mutating inputs.  So</span>
+            <span class="c1"># I do something unsound instead</span>
+            <span class="c1"># assert arg is new_arg, &quot;input argument was mutated, this is not valid&quot;</span>
+            <span class="k">if</span> <span class="n">arg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">new_arg</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="n">arg</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">new_arg</span><span class="o">.</span><span class="n">shape</span>
+                <span class="n">arg</span><span class="o">.</span><span class="n">copy_</span><span class="p">(</span><span class="n">new_arg</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">from_fun</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">_is_functional_tensor</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">t</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">_sync</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">_from_functional_tensor</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">from_fun</span><span class="p">,</span> <span class="n">outs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">inner</span>
+
+
+<span class="c1"># This creates a joint forwards-backwards function given both</span>
+<span class="c1"># the primals (to run forwards) and tangents (to run backwards).</span>
+<span class="c1">#</span>
+<span class="c1"># It has a precondition which is that the passed in function</span>
+<span class="c1"># must be observationally pure; it is not permitted to mutate</span>
+<span class="c1"># the primals or tangents.</span>
+<span class="k">def</span> <span class="nf">create_joint_forward_backward_pure</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">joint_forward_backward</span><span class="p">(</span>
         <span class="n">primals</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">tangents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]:</span>
@@ -702,7 +793,7 @@
 
     <span class="n">deduped_flat_args</span> <span class="o">=</span> <span class="n">remove_dupe_args</span><span class="p">(</span><span class="n">flat_args</span><span class="p">)</span>
 
-    <span class="n">joint_forward_backward</span> <span class="o">=</span> <span class="n">create_joint_forward_backward</span><span class="p">(</span><span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">flat_fn</span><span class="p">(</span><span class="o">*</span><span class="n">add_dupe_args</span><span class="p">(</span><span class="n">args</span><span class="p">)))</span>
+    <span class="n">joint_forward_backward</span> <span class="o">=</span> <span class="n">create_joint_forward_backward_pure</span><span class="p">(</span><span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">flat_fn</span><span class="p">(</span><span class="o">*</span><span class="n">add_dupe_args</span><span class="p">(</span><span class="n">args</span><span class="p">)))</span>
 
     <span class="n">out</span> <span class="o">=</span> <span class="n">flat_fn</span><span class="p">(</span><span class="o">*</span><span class="n">flat_args</span><span class="p">)</span>
     <span class="c1"># Collect info on which output tensors require gradients,</span>
@@ -728,27 +819,13 @@
 
     <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">use_functionalize</span><span class="p">:</span>
         <span class="k">with</span> <span class="n">enable_python_dispatcher</span><span class="p">():</span>
-            <span class="c1"># Trace once without decompositions, into a graph of ATen ops.</span>
-            <span class="c1"># NB: tracing_mode is real, as it&#39;s assumed the calling context setup</span>
-            <span class="c1"># fake tensor mode / symbolic shapes if that is needed</span>
-            <span class="n">fx_g</span> <span class="o">=</span> <span class="n">make_fx</span><span class="p">(</span><span class="n">joint_forward_backward</span><span class="p">)(</span><span class="o">*</span><span class="n">joint_inputs</span><span class="p">)</span>
-
-            <span class="n">context</span> <span class="o">=</span> <span class="n">disable_autocast_manager</span> <span class="k">if</span> <span class="n">disable_amp</span> <span class="k">else</span> <span class="n">nullcontext</span>
-
-            <span class="k">def</span> <span class="nf">fake_fn</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">tangents</span><span class="p">):</span>
-                <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">traceback</span><span class="o">.</span><span class="n">override_stack_trace</span><span class="p">():</span>
-                    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Interpreter</span><span class="p">(</span><span class="n">fx_g</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">tangents</span><span class="p">)</span>
-
-            <span class="c1"># Trace a second time, running functionalization, and THEN running decompositions.</span>
-            <span class="c1"># functionalization only acts on ATen today, and doesn&#39;t currently handle</span>
-            <span class="c1"># view and inplace ops that come from primtorch.</span>
-            <span class="c1"># Eventually, functionalization should support primtorch view/inplace ops,</span>
-            <span class="c1"># which will make it ok to run decompositions before functionalization.</span>
-            <span class="k">with</span> <span class="n">context</span><span class="p">():</span>
-                <span class="n">fx_g</span> <span class="o">=</span> <span class="n">make_fx</span><span class="p">(</span><span class="n">functionalize</span><span class="p">(</span><span class="n">fake_fn</span><span class="p">),</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">decompositions</span><span class="p">)(</span><span class="o">*</span><span class="n">joint_inputs</span><span class="p">)</span>
+            <span class="n">fx_g</span> <span class="o">=</span> <span class="n">make_fx</span><span class="p">(</span>
+                <span class="n">detach_and_functionalize_pure</span><span class="p">(</span><span class="n">joint_forward_backward</span><span class="p">),</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">decompositions</span>
+            <span class="p">)(</span><span class="o">*</span><span class="n">joint_inputs</span><span class="p">)</span>
         <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">eliminate_dead_code</span><span class="p">()</span>
         <span class="n">fx_g</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
     <span class="k">else</span><span class="p">:</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;graph partitioning without functionalization is not sound, we may introduce errors&quot;</span><span class="p">)</span>
         <span class="n">fx_g</span> <span class="o">=</span> <span class="n">make_fx</span><span class="p">(</span><span class="n">joint_forward_backward</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">decompositions</span><span class="p">)(</span><span class="o">*</span><span class="n">joint_inputs</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_joint</span><span class="p">:</span>
