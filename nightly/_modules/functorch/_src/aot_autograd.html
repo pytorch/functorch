@@ -219,7 +219,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (1.14.0a0+gitddcf919) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (1.14.0a0+git943acd4) &#x25BC</a>
     </div>
     
 
@@ -337,6 +337,7 @@
 <span></span><span class="kn">import</span> <span class="nn">collections</span>
 <span class="kn">import</span> <span class="nn">dataclasses</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span><span class="p">,</span> <span class="n">nullcontext</span>
 <span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
@@ -350,9 +351,8 @@
 <span class="kn">import</span> <span class="nn">torch.utils._pytree</span> <span class="k">as</span> <span class="nn">pytree</span>
 <span class="kn">import</span> <span class="nn">torch.utils.dlpack</span>
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">Tensor</span>
-<span class="kn">from</span> <span class="nn">torch._dynamo</span> <span class="kn">import</span> <span class="n">disable</span> <span class="k">as</span> <span class="n">disable_torchdynamo</span>
 <span class="kn">from</span> <span class="nn">torch._dynamo.utils</span> <span class="kn">import</span> <span class="n">dynamo_timed</span>
-<span class="kn">from</span> <span class="nn">torch._subclasses</span> <span class="kn">import</span> <span class="n">FakeTensorMode</span><span class="p">,</span> <span class="n">CrossRefFakeMode</span>
+<span class="kn">from</span> <span class="nn">torch._subclasses</span> <span class="kn">import</span> <span class="n">FakeTensorMode</span><span class="p">,</span> <span class="n">CrossRefFakeMode</span><span class="p">,</span> <span class="n">FakeTensor</span>
 <span class="kn">from</span> <span class="nn">torch.fx</span> <span class="kn">import</span> <span class="n">immutable_collections</span><span class="p">,</span> <span class="n">Interpreter</span>
 <span class="kn">from</span> <span class="nn">torch.fx.experimental.symbolic_shapes</span> <span class="kn">import</span> <span class="n">ShapeEnv</span>
 <span class="kn">from</span> <span class="nn">torch.multiprocessing.reductions</span> <span class="kn">import</span> <span class="n">StorageWeakRef</span>
@@ -382,6 +382,18 @@
 
 <span class="n">aten</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span>
 
+<span class="c1"># This global counter increments every time we compile a graph with</span>
+<span class="c1"># AOTAutograd.  You can use this to correlate runtime error messages</span>
+<span class="c1"># with compile time (e.g., if you get an error at runtime saying</span>
+<span class="c1"># compiled graph 3 failed, you can set a breakpoint at compile time</span>
+<span class="c1"># for this graph number to investigate further at compile time.)</span>
+<span class="c1">#</span>
+<span class="c1"># NB: this is different from get_aot_compilation_context, which tracks</span>
+<span class="c1"># each underlying graph that is compiled.  In contrast, AOT_COUNTER</span>
+<span class="c1"># corresponds to top-level invocations of aot_module/aot_function;</span>
+<span class="c1"># one counter is allocated per entire compiled block (but this block</span>
+<span class="c1"># may involve compiling multiple subgraphs; e.g., for forwards/backwards)</span>
+<span class="n">AOT_COUNTER</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
 
 <span class="n">KNOWN_TYPES</span> <span class="o">=</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymInt</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymFloat</span><span class="p">]</span>
 
@@ -1083,6 +1095,11 @@
 
 <span class="c1"># This is a list since looking forward, we can have this arbitrarily nested.</span>
 <span class="n">graph_being_compiled</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="c1"># TODO: It would be nice to reset the numbering every time aot_id goes</span>
+<span class="c1"># up, but this is annoying to do right now (because we don&#39;t know if</span>
+<span class="c1"># an aot_id will come back from the dead), so right now this also happens</span>
+<span class="c1"># to be a globally unique number too (at the cost of wobbling if you change</span>
+<span class="c1"># how the graphs compile)</span>
 <span class="n">nth_graph</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="n">model_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;model&quot;</span>
 
@@ -1101,20 +1118,20 @@
 <span class="sd">    Returns the name of the graph being compiled.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">global</span> <span class="n">model_name</span><span class="p">,</span> <span class="n">graph_being_compiled</span><span class="p">,</span> <span class="n">nth_graph</span>
-    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">model_name</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="s1">&#39;_&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">graph_being_compiled</span><span class="p">)</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">nth_graph</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">model_name</span><span class="si">}</span><span class="s2">__</span><span class="si">{</span><span class="s1">&#39;_&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">graph_being_compiled</span><span class="p">)</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">nth_graph</span><span class="si">}</span><span class="s2">&quot;</span>
 
 
 <span class="n">get_graph_being_compiled</span> <span class="o">=</span> <span class="n">get_aot_graph_name</span>
 
 
 <span class="nd">@contextmanager</span>
-<span class="k">def</span> <span class="nf">track_graph_compiling</span><span class="p">(</span><span class="n">graph_name</span><span class="p">,</span> <span class="n">increment_index</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="n">graph_name</span><span class="p">):</span>
     <span class="k">global</span> <span class="n">graph_being_compiled</span>
-    <span class="n">graph_being_compiled</span> <span class="o">=</span> <span class="p">[</span><span class="n">graph_name</span><span class="p">]</span>
+    <span class="c1"># TODO: Don&#39;t shove the aot_id in here; set it in the context</span>
+    <span class="n">graph_being_compiled</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">graph_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span>
     <span class="k">yield</span>
-    <span class="k">if</span> <span class="n">increment_index</span><span class="p">:</span>
-        <span class="k">global</span> <span class="n">nth_graph</span>
-        <span class="n">nth_graph</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">global</span> <span class="n">nth_graph</span>
+    <span class="n">nth_graph</span> <span class="o">+=</span> <span class="mi">1</span>
     <span class="n">graph_being_compiled</span> <span class="o">=</span> <span class="p">[]</span>
 
 
@@ -1172,19 +1189,20 @@
     <span class="n">partition_fn</span><span class="p">:</span> <span class="n">Callable</span>
     <span class="n">decompositions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span>
     <span class="n">num_params_buffers</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">aot_id</span><span class="p">:</span> <span class="nb">int</span>
 
 
 <span class="k">def</span> <span class="nf">aot_dispatch_base</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">aot_config</span><span class="p">:</span> <span class="n">AOTConfig</span><span class="p">):</span>
     <span class="n">fw_module</span> <span class="o">=</span> <span class="n">make_fx</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">decompositions</span><span class="p">)(</span><span class="o">*</span><span class="n">flat_args</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_graphs</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;====== Forward (only) graph ======&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;====== Forward (only) graph </span><span class="si">{aot_config.aot_id}</span><span class="s2"> ======&quot;</span><span class="p">)</span>
         <span class="n">fw_module</span><span class="o">.</span><span class="n">print_readable</span><span class="p">()</span>
 
 
     <span class="n">disable_amp</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_C</span><span class="o">.</span><span class="n">_is_any_autocast_enabled</span><span class="p">()</span>
     <span class="n">context</span> <span class="o">=</span> <span class="n">disable_autocast_manager</span> <span class="k">if</span> <span class="n">disable_amp</span> <span class="k">else</span> <span class="n">nullcontext</span>
 
-    <span class="k">with</span> <span class="n">context</span><span class="p">(),</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="s2">&quot;inference&quot;</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">context</span><span class="p">(),</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;inference&quot;</span><span class="p">):</span>
         <span class="n">compiled_fw</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">fw_compiler</span><span class="p">(</span><span class="n">fw_module</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">)</span>
 
     <span class="nd">@wraps</span><span class="p">(</span><span class="n">compiled_fw</span><span class="p">)</span>
@@ -1376,9 +1394,34 @@
         <span class="k">return</span> <span class="n">args_to_functionalization</span><span class="p">,</span> <span class="n">post_processed_calling_convention_meta</span>
 
 
+<span class="k">def</span> <span class="nf">format_guard_bug_msg</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="n">expected</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;At compilation time, graph </span><span class="si">{</span><span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="si">}</span><span class="s2"> was compiled under the &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;assumption that </span><span class="si">{</span><span class="n">expected</span><span class="si">}</span><span class="s2">, but at runtime this was not the case.  &quot;</span>
+        <span class="s2">&quot;This indicates a guard bug in AOTAutograd or Dynamo, please file a bug to PyTorch.&quot;</span>
+    <span class="p">)</span>
 
+
+<span class="c1"># Wraps aot_dispatch_deduplicated_autograd, ensuring that duplicate arguments</span>
+<span class="c1"># are dropped from the inner compilation function.</span>
+<span class="c1">#</span>
+<span class="c1"># In Haskell types, suppose you have:</span>
+<span class="c1">#</span>
+<span class="c1">#   add_dupe_args :: DedupedArgs -&gt; Args</span>
+<span class="c1">#   remove_dupe_args :: Args -&gt; DedupedArgs</span>
+<span class="c1">#</span>
+<span class="c1">#   aot_dispatch_deduplicated_autograd</span>
+<span class="c1">#       :: (DedupedArgs -&gt; R) -&gt; DedupedArgs -&gt; AOTConfig -&gt; (DedupedArgs -&gt; R)</span>
+<span class="c1">#   aot_dispatch_autograd</span>
+<span class="c1">#       :: (Args -&gt; R) -&gt; Args -&gt; AOTConfig -&gt; (Args -&gt; R)</span>
+<span class="c1">#</span>
+<span class="c1"># Then the code below can be written in point-free style as:</span>
+<span class="c1">#</span>
+<span class="c1">#   aot_dispatch_deduplicate_autograd f a c =</span>
+<span class="c1">#       aot_dispatch_autograd (f . add_dupe_args) (remove_dupe_args a) c . remove_dupe_args</span>
+<span class="c1">#</span>
 <span class="k">def</span> <span class="nf">aot_dispatch_autograd</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">aot_config</span><span class="p">:</span> <span class="n">AOTConfig</span><span class="p">):</span>
-    <span class="c1"># Deduplicate inputs.  Suppose you have:</span>
+    <span class="c1"># Suppose you have:</span>
     <span class="c1">#</span>
     <span class="c1">#   [a, b, a, c]</span>
     <span class="c1">#</span>
@@ -1396,10 +1439,7 @@
     <span class="c1">#       2: 0,</span>
     <span class="c1">#       3: 2,</span>
     <span class="c1">#   }</span>
-    <span class="c1">#</span>
-    <span class="c1"># Whether to use flat_args or deduped_flat_args?  flat_fn takes flat_args,</span>
-    <span class="c1"># and the autograd.Function must take deduped_flat_args; everything</span>
-    <span class="c1"># else is just getting the types right.</span>
+    <span class="c1">#   keep_arg_mask = [True, True, False, True]</span>
 
     <span class="n">seen_args</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="n">keep_arg_mask</span> <span class="o">=</span> <span class="p">[]</span>
@@ -1419,22 +1459,82 @@
         <span class="n">add_dupe_map</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">j</span>
         <span class="n">j</span> <span class="o">+=</span> <span class="mi">1</span>
 
+    <span class="n">unique_args</span> <span class="o">=</span> <span class="n">j</span>
+
     <span class="c1"># NB: Hot path, avoid set lookups here</span>
+    <span class="c1"># TODO: Can avoid the zip here too, probably</span>
     <span class="k">def</span> <span class="nf">remove_dupe_args</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">dropped_args</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">args</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">keep</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">keep_arg_mask</span><span class="p">)</span> <span class="k">if</span> <span class="n">keep</span><span class="p">]</span>
 
     <span class="k">def</span> <span class="nf">add_dupe_args</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">dropped_args</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">args</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">args</span><span class="p">[</span><span class="n">add_dupe_map</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">duped_arg_len</span><span class="p">)]</span>
+
+    <span class="k">def</span> <span class="nf">maybe_wrap_debug</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_assert</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">f</span>
+
+        <span class="nd">@wraps</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">def</span> <span class="nf">debug_wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+            <span class="c1"># Test that the computed remove/add arg functions are an inverse</span>
+            <span class="n">new_args</span> <span class="o">=</span> <span class="n">add_dupe_args</span><span class="p">(</span><span class="n">remove_dupe_args</span><span class="p">(</span><span class="n">args</span><span class="p">))</span>
+            <span class="n">seen</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">new_args</span><span class="p">,</span> <span class="n">args</span><span class="p">)):</span>
+                <span class="n">seen</span><span class="p">[</span><span class="n">y</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">assert</span> <span class="n">x</span> <span class="ow">is</span> <span class="n">y</span><span class="p">,</span> <span class="n">format_guard_bug_msg</span><span class="p">(</span>
+                    <span class="n">aot_config</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">describe_input</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">)</span><span class="si">}</span><span class="s2"> would be a duplicate of &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">describe_input</span><span class="p">(</span><span class="n">add_dupe_map</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">aot_config</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+            <span class="c1"># This is only an error if there is metadata mutation on both of</span>
+            <span class="c1"># the duped arguments; in this case, we need to know what order</span>
+            <span class="c1"># the metadata mutation applies in.  You&#39;ll get the correct result</span>
+            <span class="c1"># otherwise, because a graph that assumes distinct inputs works if</span>
+            <span class="c1"># you dupe the inputs (the gradient contributions from each input</span>
+            <span class="c1"># will get summed up appropriately.)</span>
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            assert len(seen) == unique_args, format_guard_bug_msg(aot_config,</span>
+<span class="sd">                f&quot;there would be {unique_args} distinct arguments&quot;</span>
+<span class="sd">            )</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="k">return</span> <span class="n">f</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">debug_wrapper</span>
+
+    <span class="c1"># Fastpath</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">dropped_args</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">maybe_wrap_debug</span><span class="p">(</span><span class="n">aot_dispatch_deduplicated_autograd</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">))</span>
 
     <span class="n">deduped_flat_args</span> <span class="o">=</span> <span class="n">remove_dupe_args</span><span class="p">(</span><span class="n">flat_args</span><span class="p">)</span>
 
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">wrapped_flat_fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">flat_fn</span><span class="p">(</span><span class="o">*</span><span class="n">add_dupe_args</span><span class="p">(</span><span class="n">args</span><span class="p">))</span>
+
+    <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">aot_dispatch_deduplicated_autograd</span><span class="p">(</span><span class="n">wrapped_flat_fn</span><span class="p">,</span> <span class="n">deduped_flat_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">)</span>
+
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">compiled_fn</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">wrapped_compiled_fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">compiled_fn</span><span class="p">(</span><span class="o">*</span><span class="n">remove_dupe_args</span><span class="p">(</span><span class="n">args</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">maybe_wrap_debug</span><span class="p">(</span><span class="n">wrapped_compiled_fn</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">describe_input</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">num_params_buffers</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;parameter/buffer </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;input </span><span class="si">{</span><span class="n">i</span> <span class="o">-</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">num_params_buffers</span><span class="si">}</span><span class="s2">&quot;</span>
+
+
+<span class="c1"># Like aot_dispatch_autograd, but with the precondition that there</span>
+<span class="c1"># are no duplicate arguments in flat_args (e.g., the same Tensor</span>
+<span class="c1"># object never shows up twice.  However, two tensor inputs MAY alias</span>
+<span class="c1"># the same storage, so long as they have separate TensorImpls.)</span>
+<span class="k">def</span> <span class="nf">aot_dispatch_deduplicated_autograd</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">aot_config</span><span class="p">:</span> <span class="n">AOTConfig</span><span class="p">):</span>
+
     <span class="n">_fw_metadata</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">_num_aliasing_metadata_outs</span> <span class="o">=</span> <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">(</span>
-        <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">flat_fn</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">add_dupe_args</span><span class="p">(</span><span class="n">args</span><span class="p">))),</span>
-    <span class="p">)(</span><span class="o">*</span><span class="n">deduped_flat_args</span><span class="p">)</span>
+        <span class="n">flat_fn</span>
+    <span class="p">)(</span><span class="o">*</span><span class="n">flat_args</span><span class="p">)</span>
 
     <span class="c1"># pre-compute, so we can bail out quickly in the hotpath</span>
     <span class="n">_num_outputs_aliased_to_inputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">([</span>
@@ -1463,16 +1563,16 @@
     <span class="c1"># gets its data mutated.</span>
     <span class="c1"># When that happens, we replace the aliased inputs with a synthetic base, and in the traced forward</span>
     <span class="c1"># we later generate the input views</span>
-    <span class="n">deduped_flat_args_with_views_handled</span><span class="p">,</span> <span class="n">_synthetic_base_info</span> <span class="o">=</span> <span class="n">merge_view_inputs</span><span class="p">(</span>
-        <span class="n">deduped_flat_args</span><span class="p">,</span> <span class="n">_fw_metadata</span><span class="o">.</span><span class="n">mutated_input_info</span><span class="p">)</span>
+    <span class="n">flat_args_with_views_handled</span><span class="p">,</span> <span class="n">_synthetic_base_info</span> <span class="o">=</span> <span class="n">merge_view_inputs</span><span class="p">(</span>
+        <span class="n">flat_args</span><span class="p">,</span> <span class="n">_fw_metadata</span><span class="o">.</span><span class="n">mutated_input_info</span><span class="p">)</span>
 
     <span class="n">joint_forward_backward</span> <span class="o">=</span> <span class="n">create_joint_forward_backward_functionalized</span><span class="p">(</span>
-        <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">flat_fn</span><span class="p">(</span><span class="o">*</span><span class="n">add_dupe_args</span><span class="p">(</span><span class="n">args</span><span class="p">)),</span>
+        <span class="n">flat_fn</span><span class="p">,</span>
         <span class="n">meta</span><span class="o">=</span><span class="n">_fw_metadata</span><span class="p">,</span>
         <span class="n">synthetic_base_info</span><span class="o">=</span><span class="n">_synthetic_base_info</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">joint_inputs</span> <span class="o">=</span> <span class="p">(</span><span class="n">deduped_flat_args_with_views_handled</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+    <span class="n">joint_inputs</span> <span class="o">=</span> <span class="p">(</span><span class="n">flat_args_with_views_handled</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
 
     <span class="n">disable_amp</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_C</span><span class="o">.</span><span class="n">_is_any_autocast_enabled</span><span class="p">()</span>
 
@@ -1482,6 +1582,11 @@
             <span class="n">fx_g</span> <span class="o">=</span> <span class="n">make_fx</span><span class="p">(</span>
                 <span class="n">joint_forward_backward</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">decompositions</span>
             <span class="p">)(</span><span class="o">*</span><span class="n">joint_inputs</span><span class="p">)</span>
+
+        <span class="c1"># Redudant with the check above, but worth having in case tracing introduced</span>
+        <span class="c1"># a fake tensor. Unlikely.</span>
+        <span class="c1"># See Note: [Fake Modules and AOTAutograd]</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">_dynamo</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">assert_no_fake_params_or_buffers</span><span class="p">(</span><span class="n">fx_g</span><span class="p">)</span>
         <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">eliminate_dead_code</span><span class="p">()</span>
         <span class="n">fx_g</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
     <span class="k">else</span><span class="p">:</span>
@@ -1491,11 +1596,11 @@
         <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s2">&quot;Graph partitioning without functionalization is not sound, we may introduce errors&quot;</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_joint</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;====== Joint graph ======&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;====== Joint graph </span><span class="si">{</span><span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="si">}</span><span class="s2"> ======&quot;</span><span class="p">)</span>
         <span class="n">fx_g</span><span class="o">.</span><span class="n">print_readable</span><span class="p">()</span>
 
     <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
-        <span class="k">with</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="s2">&quot;joint&quot;</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;joint&quot;</span><span class="p">):</span>
             <span class="n">num_inner_fwd_outputs</span> <span class="o">=</span> <span class="n">_num_mutated_data_inputs</span> <span class="o">+</span> <span class="n">_num_non_aliased_outs</span> <span class="o">+</span> <span class="n">_num_aliasing_metadata_outs</span>
             <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">partition_fn</span><span class="p">(</span>
                 <span class="n">fx_g</span><span class="p">,</span> <span class="n">joint_inputs</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_inner_fwd_outputs</span><span class="p">)</span>
@@ -1507,13 +1612,13 @@
             <span class="n">_num_symints_saved_for_bw</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">symint_outs_saved_for_bw</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_graphs</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;====== Forward graph ======&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;====== Forward graph </span><span class="si">{aot_config.aot_id}</span><span class="s2"> ======&quot;</span><span class="p">)</span>
             <span class="n">fw_module</span><span class="o">.</span><span class="n">print_readable</span><span class="p">()</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;====== Backward graph ======&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;====== Backward graph </span><span class="si">{aot_config.aot_id}</span><span class="s2"> ======&quot;</span><span class="p">)</span>
             <span class="n">bw_module</span><span class="o">.</span><span class="n">print_readable</span><span class="p">()</span>
 
-        <span class="k">with</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="s2">&quot;forward&quot;</span><span class="p">):</span>
-            <span class="n">compiled_fw_func</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">fw_compiler</span><span class="p">(</span><span class="n">fw_module</span><span class="p">,</span> <span class="n">deduped_flat_args_with_views_handled</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;forward&quot;</span><span class="p">):</span>
+            <span class="n">compiled_fw_func</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">fw_compiler</span><span class="p">(</span><span class="n">fw_module</span><span class="p">,</span> <span class="n">flat_args_with_views_handled</span><span class="p">)</span>
 
     <span class="k">class</span> <span class="nc">CompiledFunction</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">Function</span><span class="p">):</span>
         <span class="n">compiled_fw</span> <span class="o">=</span> <span class="n">compiled_fw_func</span>
@@ -1545,7 +1650,6 @@
         <span class="n">fw_metadata</span> <span class="o">=</span> <span class="n">_fw_metadata</span>
 
         <span class="nd">@staticmethod</span>
-        <span class="nd">@disable_torchdynamo</span>
         <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="o">*</span><span class="n">deduped_flat_tensor_args</span><span class="p">):</span>
 
             <span class="c1"># There is a pretty complicated calling convention around what the compiled fw returns.</span>
@@ -1591,7 +1695,6 @@
             <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">fw_outs</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">num_forward_returns</span><span class="p">])</span>
 
         <span class="nd">@staticmethod</span>
-        <span class="nd">@disable_torchdynamo</span>
         <span class="k">def</span> <span class="nf">backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="o">*</span><span class="n">all_flat_args</span><span class="p">):</span>
             <span class="c1"># Calling convention: we expect a grad_out passed to the backward:</span>
             <span class="c1"># - for every output of the fw that does *not* alias an input</span>
@@ -1619,7 +1722,7 @@
             <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">compiled_bw</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="c1"># TODO - pass in fake tensors ?</span>
                 <span class="n">context</span> <span class="o">=</span> <span class="n">disable_autocast_manager</span> <span class="k">if</span> <span class="n">disable_amp</span> <span class="k">else</span> <span class="n">nullcontext</span>
-                <span class="k">with</span> <span class="n">context</span><span class="p">(),</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="s2">&quot;backward&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
+                <span class="k">with</span> <span class="n">context</span><span class="p">(),</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;backward&quot;</span><span class="p">):</span>
                     <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">compiled_bw</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">bw_compiler</span><span class="p">(</span>
                         <span class="n">bw_module</span><span class="p">,</span> <span class="n">all_args</span>
                     <span class="p">)</span>
@@ -1632,9 +1735,6 @@
 
     <span class="nd">@wraps</span><span class="p">(</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">apply</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">compiled_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
-        <span class="c1"># Step 1: remove dupe args</span>
-        <span class="n">no_dupe_args</span> <span class="o">=</span> <span class="n">remove_dupe_args</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
-
         <span class="c1"># Step 2: remove aliased inputs that are mutated, replace with synthetic bases</span>
         <span class="c1"># Only happens if our graph mutates an input that aliases another input.</span>
         <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">synthetic_base_info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -1643,17 +1743,17 @@
             <span class="c1"># Generate: the updated args, including (potentially multiple) synthetic bases</span>
             <span class="c1"># that replace the views. The input views are regenerated manually in the compiled function.</span>
             <span class="c1"># TODO: think harder about what happens if (a view of) one of these mutated input views is ALSO returned</span>
-            <span class="n">new_inputs</span><span class="p">,</span> <span class="n">metadata</span> <span class="o">=</span> <span class="n">merge_view_inputs</span><span class="p">(</span><span class="n">no_dupe_args</span><span class="p">,</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">mutated_input_info</span><span class="p">)</span>
+            <span class="n">new_inputs</span><span class="p">,</span> <span class="n">metadata</span> <span class="o">=</span> <span class="n">merge_view_inputs</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">mutated_input_info</span><span class="p">)</span>
             <span class="c1"># We&#39;re just re-running the original-args-to-synthetic-base transformation</span>
             <span class="c1"># that we ran during compilation.</span>
             <span class="c1"># This returns metadata that we use during tracing to recover the input views,</span>
             <span class="c1"># which we don&#39;t actually need at runtime.</span>
             <span class="k">assert</span> <span class="n">metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-            <span class="n">no_dupe_args_with_synthetic_bases</span> <span class="o">=</span> <span class="n">new_inputs</span>
+            <span class="n">args_with_synthetic_bases</span> <span class="o">=</span> <span class="n">new_inputs</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">no_dupe_args_with_synthetic_bases</span> <span class="o">=</span> <span class="n">no_dupe_args</span>
+            <span class="n">args_with_synthetic_bases</span> <span class="o">=</span> <span class="n">args</span>
 
-        <span class="n">all_outs</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="o">*</span><span class="n">no_dupe_args_with_synthetic_bases</span><span class="p">)</span>
+        <span class="n">all_outs</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="o">*</span><span class="n">args_with_synthetic_bases</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_aliasing_metadata_outs</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">outs</span> <span class="o">=</span> <span class="n">all_outs</span><span class="p">[:</span><span class="o">-</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_aliasing_metadata_outs</span><span class="p">]</span>
             <span class="n">aliasing_metadata_outs</span> <span class="o">=</span> <span class="n">all_outs</span><span class="p">[</span><span class="o">-</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_aliasing_metadata_outs</span><span class="p">:]</span>
@@ -1683,7 +1783,7 @@
             <span class="p">)):</span>
                 <span class="k">if</span> <span class="n">mutation_type</span> <span class="o">==</span> <span class="n">MutationType</span><span class="o">.</span><span class="n">none</span><span class="p">:</span>
                     <span class="k">continue</span>
-                <span class="n">original_inpt</span> <span class="o">=</span> <span class="n">no_dupe_args</span><span class="p">[</span><span class="n">inpt_idx</span><span class="p">]</span>
+                <span class="n">original_inpt</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="n">inpt_idx</span><span class="p">]</span>
                 <span class="k">if</span> <span class="n">mutation_type</span> <span class="o">==</span> <span class="n">MutationType</span><span class="o">.</span><span class="n">metadata_only</span><span class="p">:</span>
                     <span class="c1"># We need to grab the size/stride/storage_offset from the compiled forward,</span>
                     <span class="c1"># and use that to mutate the metadata of the input</span>
@@ -1763,7 +1863,35 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">fw_outs</span>
 
-    <span class="k">return</span> <span class="n">compiled_function</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_assert</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">compiled_function</span>
+
+    <span class="n">flat_requires_grad</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="o">.</span><span class="n">requires_grad</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">flat_args</span><span class="p">]</span>
+
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">compiled_function</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">debug_compiled_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="c1"># TODO: Check aliasing relationships</span>
+        <span class="c1"># TODO: Check strides for metadata mutation</span>
+        <span class="c1"># (NB: ideally, this logic is factored out of this function and</span>
+        <span class="c1"># you move these debug checks there)</span>
+
+        <span class="c1"># Check requires grad.  Bad case is when we compiled with</span>
+        <span class="c1"># requires_grad = False, but input requires_grad = True</span>
+        <span class="c1"># (vice versa is OK; we compute a gradient and then throw</span>
+        <span class="c1"># it away when it hits the input.)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+            <span class="n">can_require_grad</span> <span class="o">=</span> <span class="n">flat_requires_grad</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">can_require_grad</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="n">can_require_grad</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="ow">not</span> <span class="n">a</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">,</span> <span class="n">format_guard_bug_msg</span><span class="p">(</span>
+                    <span class="n">aot_config</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">describe_input</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">)</span><span class="si">}</span><span class="s2"> would not require grad&quot;</span>
+                <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">compiled_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">debug_compiled_function</span>
 
 
 <span class="nd">@dynamo_timed</span>
@@ -1812,17 +1940,29 @@
     <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">use_dynamic_shapes</span><span class="p">:</span>
         <span class="k">assert</span> <span class="n">config</span><span class="o">.</span><span class="n">use_fake_tensor</span><span class="p">,</span> <span class="s2">&quot;Dynamic shapes only works with fake tensor&quot;</span>
 
-    <span class="n">shape_env</span> <span class="o">=</span> <span class="n">ShapeEnv</span><span class="p">()</span> <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">use_dynamic_shapes</span> <span class="k">else</span> <span class="kc">None</span>
-    <span class="n">fake_mode</span> <span class="o">=</span> <span class="n">FakeTensorMode</span><span class="p">(</span><span class="n">shape_env</span><span class="o">=</span><span class="n">shape_env</span><span class="p">)</span> <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">use_fake_tensor</span> <span class="k">else</span> <span class="n">nullcontext</span><span class="p">()</span>
+    <span class="c1"># Check flat_args to see if they&#39;re already fake.  If so, use that fake</span>
+    <span class="c1"># mode instead.</span>
+
+    <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">flat_args</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">FakeTensor</span><span class="p">):</span>
+            <span class="n">fake_mode</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">fake_mode</span>
+            <span class="k">break</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">shape_env</span> <span class="o">=</span> <span class="n">ShapeEnv</span><span class="p">()</span> <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">use_dynamic_shapes</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">fake_mode</span> <span class="o">=</span> <span class="n">FakeTensorMode</span><span class="p">(</span><span class="n">shape_env</span><span class="o">=</span><span class="n">shape_env</span><span class="p">)</span> <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">use_fake_tensor</span> <span class="k">else</span> <span class="n">nullcontext</span><span class="p">()</span>
+
     <span class="n">cross_ref</span> <span class="o">=</span> <span class="n">CrossRefFakeMode</span><span class="p">()</span> <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_fake_cross_ref</span> <span class="k">else</span> <span class="n">nullcontext</span><span class="p">()</span>
     <span class="n">python_dispatcher_mode</span> <span class="o">=</span> <span class="n">enable_python_dispatcher</span><span class="p">()</span> <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">use_dynamic_shapes</span> <span class="k">else</span> <span class="n">nullcontext</span><span class="p">()</span>
 
     <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">set_multithreading_enabled</span><span class="p">(</span><span class="kc">False</span><span class="p">),</span> <span class="n">preserve_rng_state</span><span class="p">(),</span> <span class="n">cross_ref</span><span class="p">,</span> <span class="n">fake_mode</span><span class="p">,</span> <span class="n">python_dispatcher_mode</span><span class="p">:</span>
 
         <span class="k">def</span> <span class="nf">process_inputs</span><span class="p">(</span><span class="n">flat_args</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">use_fake_tensor</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">use_fake_tensor</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fake_mode</span><span class="p">,</span> <span class="n">FakeTensorMode</span><span class="p">):</span>
                 <span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
                     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                        <span class="k">return</span> <span class="n">x</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">FakeTensor</span><span class="p">):</span>
+                        <span class="k">assert</span> <span class="n">x</span><span class="o">.</span><span class="n">fake_mode</span> <span class="ow">is</span> <span class="n">fake_mode</span>
                         <span class="k">return</span> <span class="n">x</span>
                     <span class="k">if</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">num_params_buffers</span> <span class="ow">and</span> <span class="n">config</span><span class="o">.</span><span class="n">static_weight_shapes</span><span class="p">:</span>
                         <span class="k">return</span> <span class="n">fake_mode</span><span class="o">.</span><span class="n">from_tensor</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">static_shapes</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -1952,6 +2092,7 @@
         <span class="n">partition_fn</span><span class="o">=</span><span class="n">partition_fn</span><span class="p">,</span>
         <span class="n">decompositions</span><span class="o">=</span><span class="n">decompositions</span><span class="p">,</span>
         <span class="n">num_params_buffers</span><span class="o">=</span><span class="n">num_params_buffers</span><span class="p">,</span>
+        <span class="n">aot_id</span><span class="o">=</span><span class="nb">next</span><span class="p">(</span><span class="n">AOT_COUNTER</span><span class="p">),</span>
     <span class="p">)</span>
     <span class="n">cached_res</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -2031,6 +2172,8 @@
 <span class="sd">        :attr:`mod`, but with forward and backward graph compiled.</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># See Note: [Fake Modules and AOTAutograd]</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">_dynamo</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">assert_no_fake_params_or_buffers</span><span class="p">(</span><span class="n">mod</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">functional_call</span><span class="p">(</span><span class="n">named_params</span><span class="p">,</span> <span class="n">named_buffers</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">params_and_buffers</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">named_params</span><span class="p">,</span> <span class="o">**</span><span class="n">named_buffers</span><span class="p">}</span>
@@ -2057,7 +2200,16 @@
     <span class="k">return</span> <span class="n">AOTModule</span><span class="p">()</span></div>
 
 
-<span class="k">def</span> <span class="nf">aot_module_simplified</span><span class="p">(</span><span class="n">mod</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="o">*</span><span class="n">top_args</span><span class="p">,</span> <span class="o">**</span><span class="n">top_kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+<span class="k">def</span> <span class="nf">aot_module_simplified</span><span class="p">(</span>
+    <span class="n">mod</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+    <span class="n">args</span><span class="p">,</span>
+    <span class="n">fw_compiler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">bw_compiler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">partition_fn</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="n">default_partition</span><span class="p">,</span>
+    <span class="n">decompositions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">hasher_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">static_argnums</span><span class="o">=</span><span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This is the simplified or low overhead version of aot_module. For frontends</span>
 <span class="sd">    like TorchDynamo, the input functions/modules to AOT are static and have</span>
@@ -2069,6 +2221,25 @@
 <span class="sd">    :func:`aot_module_simplified` removes these overheads.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1">#########################################################</span>
+
+    <span class="c1"># Redudant with dynamo, but worth having in case this gets invoked elsewhere.</span>
+
+    <span class="c1"># Note [Fake Modules and AOTAutograd]</span>
+    <span class="c1">#</span>
+    <span class="c1"># A simple heuristic for when to use fake versus real tensors is that fake tensors are for compile time</span>
+    <span class="c1"># (when we don&#39;t want to actually run the compute, but we do want to know about metadata),</span>
+    <span class="c1"># and real tensors are for runtime (when we actually want to do the compute.) However, in AOTAutograd,</span>
+    <span class="c1"># modules are the exception: we always pass AOTAutograd modules with real tensors.</span>
+    <span class="c1"># This is because AOTAutograd will produce a compiled function which needs to directly access any</span>
+    <span class="c1"># parameters the compiled function may need, but these parameters will NOT be passed in by the caller (aka Dynamo).</span>
+    <span class="c1"># So at compile time, the compiled function we produce must close over any parameters, and those parameters must be</span>
+    <span class="c1"># real parameters, and we cannot do this unless at compile time we get a module with real tensors.</span>
+
+    <span class="c1"># Even if Dynamo did pass all parameters explicitly at runtime, which would eliminate the need to close over</span>
+    <span class="c1"># the parameters, it would still be profitable to pass real tensor parameters to the compiler at compile time,</span>
+    <span class="c1"># because some compilation strategies like CUDA graphs want to burn in the pointer addresses where the parameter data live,</span>
+    <span class="c1"># and of course we can&#39;t do that unless we give the backend a real tensor.</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">_dynamo</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">assert_no_fake_params_or_buffers</span><span class="p">(</span><span class="n">mod</span><span class="p">)</span>
 
     <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
         <span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="n">_named_parameters</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">remove_duplicate</span><span class="o">=</span><span class="kc">False</span><span class="p">)),</span>
@@ -2100,62 +2271,42 @@
             <span class="p">)</span>
         <span class="k">return</span> <span class="n">out</span>
 
-    <span class="k">def</span> <span class="nf">aot_function_simplified</span><span class="p">(</span>
-        <span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
-        <span class="n">fw_compiler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
-        <span class="n">bw_compiler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">partition_fn</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="n">default_partition</span><span class="p">,</span>
-        <span class="n">decompositions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">hasher_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">static_argnums</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
-        <span class="k">assert</span> <span class="n">static_argnums</span> <span class="ow">is</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="n">bw_compiler</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">bw_compiler</span> <span class="o">=</span> <span class="n">fw_compiler</span>
-        <span class="n">aot_config</span> <span class="o">=</span> <span class="n">AOTConfig</span><span class="p">(</span>
-            <span class="n">fw_compiler</span><span class="o">=</span><span class="n">fw_compiler</span><span class="p">,</span>
-            <span class="n">bw_compiler</span><span class="o">=</span><span class="n">bw_compiler</span><span class="p">,</span>
-            <span class="n">partition_fn</span><span class="o">=</span><span class="n">partition_fn</span><span class="p">,</span>
-            <span class="n">decompositions</span><span class="o">=</span><span class="n">decompositions</span><span class="p">,</span>
-            <span class="n">num_params_buffers</span><span class="o">=</span><span class="n">params_len</span><span class="p">,</span>
-        <span class="p">)</span>
+    <span class="k">assert</span> <span class="n">static_argnums</span> <span class="ow">is</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">bw_compiler</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">bw_compiler</span> <span class="o">=</span> <span class="n">fw_compiler</span>
+    <span class="n">aot_config</span> <span class="o">=</span> <span class="n">AOTConfig</span><span class="p">(</span>
+        <span class="n">fw_compiler</span><span class="o">=</span><span class="n">fw_compiler</span><span class="p">,</span>
+        <span class="n">bw_compiler</span><span class="o">=</span><span class="n">bw_compiler</span><span class="p">,</span>
+        <span class="n">partition_fn</span><span class="o">=</span><span class="n">partition_fn</span><span class="p">,</span>
+        <span class="n">decompositions</span><span class="o">=</span><span class="n">decompositions</span><span class="p">,</span>
+        <span class="n">num_params_buffers</span><span class="o">=</span><span class="n">params_len</span><span class="p">,</span>
+        <span class="n">aot_id</span><span class="o">=</span><span class="nb">next</span><span class="p">(</span><span class="n">AOT_COUNTER</span><span class="p">),</span>
+    <span class="p">)</span>
 
-        <span class="n">compiled_fn</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">full_args</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">full_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">params_flat</span><span class="p">)</span>
+    <span class="n">full_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
 
-        <span class="nd">@wraps</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
-        <span class="k">def</span> <span class="nf">new_func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
-            <span class="k">nonlocal</span> <span class="n">compiled_fn</span>
-            <span class="k">if</span> <span class="n">compiled_fn</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">create_aot_dispatcher_function</span><span class="p">(</span>
-                    <span class="n">fn</span><span class="p">,</span>
-                    <span class="n">args</span><span class="p">,</span>
-                    <span class="n">aot_config</span><span class="p">,</span>
-                <span class="p">)</span>
-            <span class="k">return</span> <span class="n">compiled_fn</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">create_aot_dispatcher_function</span><span class="p">(</span>
+        <span class="n">functional_call</span><span class="p">,</span>
+        <span class="n">full_args</span><span class="p">,</span>
+        <span class="n">aot_config</span><span class="p">,</span>
+    <span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">new_func</span>
+    <span class="c1"># TODO: There is something deeply wrong here; compiled_fn running with</span>
+    <span class="c1"># the boxed calling convention, but aot_module_simplified somehow</span>
+    <span class="c1"># historically returned a function that was not the boxed calling</span>
+    <span class="c1"># convention.  This should get fixed...</span>
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="o">*</span><span class="n">runtime_args</span><span class="p">):</span>
+        <span class="n">full_args</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">full_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">params_flat</span><span class="p">)</span>
+        <span class="n">full_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">runtime_args</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">compiled_fn</span><span class="p">(</span><span class="n">full_args</span><span class="p">)</span>
 
-    <span class="n">compiled_f</span> <span class="o">=</span> <span class="n">aot_function_simplified</span><span class="p">(</span><span class="n">functional_call</span><span class="p">,</span> <span class="o">*</span><span class="n">top_args</span><span class="p">,</span> <span class="o">**</span><span class="n">top_kwargs</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">top_kwargs</span><span class="p">:</span>
-
-        <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">compiled_f</span><span class="p">(</span>
-                <span class="o">*</span><span class="n">params_flat</span><span class="p">,</span>
-                <span class="o">*</span><span class="n">args</span><span class="p">,</span>
-                <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
-            <span class="p">)</span>
-
-    <span class="k">else</span><span class="p">:</span>
-
-        <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">compiled_f</span><span class="p">(</span>
-                <span class="o">*</span><span class="n">params_flat</span><span class="p">,</span>
-                <span class="o">*</span><span class="n">args</span><span class="p">,</span>
-            <span class="p">)</span>
-
+    <span class="c1"># Just for convenience</span>
     <span class="n">forward</span><span class="o">.</span><span class="n">zero_grad</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">zero_grad</span>
     <span class="n">forward</span><span class="o">.</span><span class="n">named_parameters</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">named_parameters</span>
+
     <span class="k">return</span> <span class="n">forward</span>
 
 
