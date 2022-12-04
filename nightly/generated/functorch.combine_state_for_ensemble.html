@@ -221,7 +221,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (1.14.0a0+gitd3f20a2) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (1.14.0a0+git2bca280) &#x25BC</a>
     </div>
     
 
@@ -343,7 +343,7 @@
 <h1>functorch.combine_state_for_ensemble<a class="headerlink" href="#functorch-combine-state-for-ensemble" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="functorch.combine_state_for_ensemble">
-<code class="sig-prename descclassname"><span class="pre">functorch.</span></code><code class="sig-name descname"><span class="pre">combine_state_for_ensemble</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">models</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">func</span><span class="p"><span class="pre">,</span> </span><span class="pre">params</span><span class="p"><span class="pre">,</span> </span><span class="pre">buffers</span><a class="reference internal" href="../_modules/functorch/_src/make_functional.html#combine_state_for_ensemble"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.combine_state_for_ensemble" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">functorch.</span></code><code class="sig-name descname"><span class="pre">combine_state_for_ensemble</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">models</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">func</span><span class="p"><span class="pre">,</span> </span><span class="pre">params</span><span class="p"><span class="pre">,</span> </span><span class="pre">buffers</span><a class="reference internal" href="../_modules/torch/_functorch/make_functional.html#combine_state_for_ensemble"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.combine_state_for_ensemble" title="Permalink to this definition">¶</a></dt>
 <dd><p>Prepares a list of torch.nn.Modules for ensembling with <a class="reference internal" href="functorch.vmap.html#functorch.vmap" title="functorch.vmap"><code class="xref py py-func docutils literal notranslate"><span class="pre">vmap()</span></code></a>.</p>
 <p>Given a list of <code class="docutils literal notranslate"><span class="pre">M</span></code> <code class="docutils literal notranslate"><span class="pre">nn.Modules</span></code> of the same class, stacks all of their
 parameters and buffers together to make <code class="docutils literal notranslate"><span class="pre">params</span></code> and <code class="docutils literal notranslate"><span class="pre">buffers</span></code>.
