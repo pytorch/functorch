@@ -351,10 +351,10 @@
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>func</strong> (<em>function</em>) – A Python function that takes one or more arguments,
 one of which must be a Tensor, and returns one or more Tensors</p></li>
-<li><p><strong>argnums</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em> or </em><em>Tuple</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>]</em>) – Optional, integer or tuple of integers,
+<li><p><strong>argnums</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em> or </em><em>Tuple</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>]</em>) – Optional, integer or tuple of integers,
 saying which arguments to get the Jacobian with respect to.
 Default: 0.</p></li>
-<li><p><strong>has_aux</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Flag indicating that <code class="xref py py-attr docutils literal notranslate"><span class="pre">func</span></code> returns a
+<li><p><strong>has_aux</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Flag indicating that <code class="xref py py-attr docutils literal notranslate"><span class="pre">func</span></code> returns a
 <code class="docutils literal notranslate"><span class="pre">(output,</span> <span class="pre">aux)</span></code> tuple where the first element is the output of
 the function to be differentiated and the second element is
 auxiliary objects that will not be differentiated.
