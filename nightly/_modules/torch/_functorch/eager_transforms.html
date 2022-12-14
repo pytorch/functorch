@@ -219,7 +219,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+git98a9235) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+gitd52f121) &#x25BC</a>
     </div>
     
 
@@ -358,8 +358,6 @@
     <span class="n">_grad_decrement_nesting</span><span class="p">,</span>
     <span class="n">_jvp_increment_nesting</span><span class="p">,</span>
     <span class="n">_jvp_decrement_nesting</span><span class="p">,</span>
-    <span class="n">set_fwd_grad_enabled</span><span class="p">,</span>
-    <span class="n">get_fwd_grad_enabled</span><span class="p">,</span>
     <span class="n">_wrap_functional_tensor</span><span class="p">,</span>
     <span class="n">_unwrap_functional_tensor</span><span class="p">,</span>
     <span class="n">_func_decrement_nesting</span><span class="p">,</span>
@@ -981,16 +979,6 @@
     <span class="k">yield</span>
 
 
-<span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
-<span class="k">def</span> <span class="nf">enable_fwd_grad</span><span class="p">(</span><span class="n">enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-    <span class="n">prev_state</span> <span class="o">=</span> <span class="n">get_fwd_grad_enabled</span><span class="p">()</span>
-    <span class="n">set_fwd_grad_enabled</span><span class="p">(</span><span class="n">enabled</span><span class="p">)</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="k">yield</span>
-    <span class="k">finally</span><span class="p">:</span>
-        <span class="n">set_fwd_grad_enabled</span><span class="p">(</span><span class="n">prev_state</span><span class="p">)</span>
-
-
 <span class="k">def</span> <span class="nf">assert_flat_tuple_of_tensors</span><span class="p">(</span><span class="n">elts</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">api</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">argname</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">elts</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
@@ -1161,7 +1149,7 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="k">global</span> <span class="n">JVP_NESTING</span>
         <span class="n">JVP_NESTING</span> <span class="o">+=</span> <span class="mi">1</span>
-        <span class="k">with</span> <span class="n">enable_fwd_grad</span><span class="p">():</span>
+        <span class="k">with</span> <span class="n">fwAD</span><span class="o">.</span><span class="n">_set_fwd_grad_enabled</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
             <span class="n">ctx</span> <span class="o">=</span> <span class="n">fwAD</span><span class="o">.</span><span class="n">dual_level</span> <span class="k">if</span> <span class="n">JVP_NESTING</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">noop</span>
             <span class="k">with</span> <span class="n">ctx</span><span class="p">():</span>
                 <span class="n">flat_duals</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">fwAD</span><span class="o">.</span><span class="n">make_dual</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
