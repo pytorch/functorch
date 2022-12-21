@@ -221,7 +221,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+gitd19791e) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+git55bfb41) &#x25BC</a>
     </div>
     
 
@@ -343,9 +343,9 @@
 <h1>functorch.hessian<a class="headerlink" href="#functorch-hessian" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="functorch.hessian">
-<code class="sig-prename descclassname"><span class="pre">functorch.</span></code><code class="sig-name descname"><span class="pre">hessian</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">argnums</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch/_functorch/eager_transforms.html#hessian"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.hessian" title="Permalink to this definition">¶</a></dt>
-<dd><p>Computes the Hessian of <code class="xref py py-attr docutils literal notranslate"><span class="pre">func</span></code> with respect to the arg(s) at index
-<code class="xref py py-attr docutils literal notranslate"><span class="pre">argnum</span></code> via a forward-over-reverse strategy.</p>
+<code class="sig-prename descclassname"><span class="pre">functorch.</span></code><code class="sig-name descname"><span class="pre">hessian</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">argnums</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#functorch.hessian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the Hessian of <code class="docutils literal notranslate"><span class="pre">func</span></code> with respect to the arg(s) at index
+<code class="docutils literal notranslate"><span class="pre">argnum</span></code> via a forward-over-reverse strategy.</p>
 <p>The forward-over-reverse strategy (composing <code class="docutils literal notranslate"><span class="pre">jacfwd(jacrev(func))</span></code>) is
 a good default for good performance. It is possible to compute Hessians
 through other compositions of <a class="reference internal" href="functorch.jacfwd.html#functorch.jacfwd" title="functorch.jacfwd"><code class="xref py py-func docutils literal notranslate"><span class="pre">jacfwd()</span></code></a> and <a class="reference internal" href="functorch.jacrev.html#functorch.jacrev" title="functorch.jacrev"><code class="xref py py-func docutils literal notranslate"><span class="pre">jacrev()</span></code></a> like
@@ -361,9 +361,9 @@ Default: 0.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Returns a function that takes in the same inputs as <code class="xref py py-attr docutils literal notranslate"><span class="pre">func</span></code> and
-returns the Hessian of <code class="xref py py-attr docutils literal notranslate"><span class="pre">func</span></code> with respect to the arg(s) at
-<code class="xref py py-attr docutils literal notranslate"><span class="pre">argnums</span></code>.</p>
+<dd class="field-even"><p>Returns a function that takes in the same inputs as <code class="docutils literal notranslate"><span class="pre">func</span></code> and
+returns the Hessian of <code class="docutils literal notranslate"><span class="pre">func</span></code> with respect to the arg(s) at
+<code class="docutils literal notranslate"><span class="pre">argnums</span></code>.</p>
 </dd>
 </dl>
 <div class="admonition note">
@@ -374,7 +374,7 @@ An alternative is to use <code class="docutils literal notranslate"><span class=
 operator coverage.</p>
 </div>
 <p>A basic usage with a R^N -&gt; R^1 function gives a N x N Hessian:</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">hessian</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torch.func</span> <span class="kn">import</span> <span class="n">hessian</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
 <span class="gp">&gt;&gt;&gt; </span>  <span class="k">return</span> <span class="n">x</span><span class="o">.</span><span class="n">sin</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
 <span class="go">&gt;&gt;&gt;</span>

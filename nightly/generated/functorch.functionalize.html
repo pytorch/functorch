@@ -221,7 +221,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+gitd19791e) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+git55bfb41) &#x25BC</a>
     </div>
     
 
@@ -343,7 +343,7 @@
 <h1>functorch.functionalize<a class="headerlink" href="#functorch-functionalize" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="functorch.functionalize">
-<code class="sig-prename descclassname"><span class="pre">functorch.</span></code><code class="sig-name descname"><span class="pre">functionalize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mutations'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch/_functorch/eager_transforms.html#functionalize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.functionalize" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">functorch.</span></code><code class="sig-name descname"><span class="pre">functionalize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mutations'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#functorch.functionalize" title="Permalink to this definition">¶</a></dt>
 <dd><p>functionalize is a transform that can be used to remove (intermediate)
 mutations and aliasing from a function, while preserving the function’s
 semantics.</p>
@@ -371,7 +371,7 @@ Default: ‘mutations’.</p></li>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>Returns a new “functionalized” function. It takes the same inputs as
-<code class="xref py py-attr docutils literal notranslate"><span class="pre">func</span></code>, and has the same behavior, but any mutations
+<code class="docutils literal notranslate"><span class="pre">func</span></code>, and has the same behavior, but any mutations
 (and optionally aliasing) performed on intermeidate tensors
 in the function will be removed.</p>
 </dd>
@@ -382,8 +382,8 @@ the transform has finished running, by detecting if any tensor inputs “should 
 been mutated, and copying the new data back to the inputs if necessary.</p>
 <p>Example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">torch</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">make_fx</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">functorch.experimental</span> <span class="kn">import</span> <span class="n">functionalize</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torch.fx.experimental.proxy_tensor</span> <span class="kn">import</span> <span class="n">make_fx</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torch.func</span> <span class="kn">import</span> <span class="n">functionalize</span>
 <span class="go">&gt;&gt;&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">A</span> <span class="n">function</span> <span class="n">that</span> <span class="n">uses</span> <span class="n">mutations</span> <span class="ow">and</span> <span class="n">views</span><span class="p">,</span> <span class="n">but</span> <span class="n">only</span> <span class="n">on</span> <span class="n">intermediate</span> <span class="n">tensors</span><span class="o">.</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
@@ -463,11 +463,11 @@ been mutated, and copying the new data back to the inputs if necessary.</p>
 </div>
 <dl class="simple">
 <dt>There are a few “failure modes” for functionalize that are worth calling out:</dt><dd><ol class="arabic simple">
-<li><p>Like other functorch transforms, <cite>functionalize()</cite> doesn’t work with functions
+<li><p>Like other torch.func transforms, <cite>functionalize()</cite> doesn’t work with functions
 that directly use <cite>.backward()</cite>. The same is true for torch.autograd.grad.
 If you want to use autograd, you can compute gradients directly
 with <cite>functionalize(grad(f))</cite>.</p></li>
-<li><p>Like other functorch transforms, <cite>functionalize()</cite> doesn’t work with global state.
+<li><p>Like other torch.func transforms, <cite>functionalize()</cite> doesn’t work with global state.
 If you call <cite>functionalize(f)</cite> on a function that takes views / mutations of
 non-local state, functionalization will simply no-op and pass the view/mutation
 calls directly to the backend.

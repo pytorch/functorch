@@ -219,7 +219,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+gitd19791e) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+git55bfb41) &#x25BC</a>
     </div>
     
 
@@ -344,9 +344,11 @@
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">SymInt</span>
 <span class="kn">import</span> <span class="nn">torch.fx</span> <span class="k">as</span> <span class="nn">fx</span>
 <span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
 <span class="kn">from</span> <span class="nn">torch._decomp</span> <span class="kn">import</span> <span class="n">get_decompositions</span>
+<span class="kn">from</span> <span class="nn">torch.fx.experimental.symbolic_shapes</span> <span class="kn">import</span> <span class="n">bind_symbols</span>
 
 <span class="kn">from</span> <span class="nn">.aot_autograd</span> <span class="kn">import</span> <span class="n">aot_function</span><span class="p">,</span> <span class="n">aot_module</span><span class="p">,</span> <span class="n">make_boxed_compiler</span>
 <span class="kn">from</span> <span class="nn">.compile_utils</span> <span class="kn">import</span> <span class="n">strip_overloads</span>
@@ -357,6 +359,8 @@
 <span class="p">)</span>
 <span class="kn">import</span> <span class="nn">torch.utils._pytree</span> <span class="k">as</span> <span class="nn">pytree</span>
 
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <span class="c1"># These canonicalizations are needed here (and not decompositions), as the ops</span>
@@ -452,22 +456,53 @@
     <span class="k">return</span> <span class="n">fx_g</span></div>
 
 <span class="k">class</span> <span class="nc">DebugInterpreter</span><span class="p">(</span><span class="n">fx</span><span class="o">.</span><span class="n">Interpreter</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">symbol_mapping</span> <span class="o">=</span> <span class="n">bind_symbols</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">module</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">run_node</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
-        <span class="c1"># TODO: This will fail once we start caching in AOTAutograd</span>
-        <span class="c1"># again, because we need to remap SymInts to their new values</span>
-        <span class="c1"># in the presence of dynamism</span>
+        <span class="kn">import</span> <span class="nn">sympy</span>
+
+        <span class="k">def</span> <span class="nf">subst_symint</span><span class="p">(</span><span class="n">ni</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ni</span><span class="p">,</span> <span class="n">SymInt</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">ni</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">sympy</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="n">ni</span><span class="o">.</span><span class="n">node</span><span class="o">.</span><span class="n">expr</span><span class="o">.</span><span class="n">xreplace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">symbol_mapping</span><span class="p">))</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">free_symbols</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">r</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">subst_symint_tuple</span><span class="p">(</span><span class="n">nis</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">subst_symint</span><span class="p">(</span><span class="n">ni</span><span class="p">)</span> <span class="k">for</span> <span class="n">ni</span> <span class="ow">in</span> <span class="n">nis</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">check_significant_strides</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">subst_symint</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">numel</span><span class="p">())</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">ndim</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">subst_symint</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">stride</span><span class="p">(</span><span class="n">idx</span><span class="p">))</span> <span class="o">!=</span> <span class="n">b</span><span class="o">.</span><span class="n">stride</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span> <span class="ow">and</span> <span class="n">subst_symint</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">idx</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">def</span> <span class="nf">check</span><span class="p">(</span><span class="n">nv</span><span class="p">,</span> <span class="n">rv</span><span class="p">,</span> <span class="n">desc</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">callable</span><span class="p">(</span><span class="n">desc</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">nv</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">rv</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">desc</span><span class="p">()</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">nv</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">rv</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">assert</span> <span class="n">subst_symint_tuple</span><span class="p">(</span><span class="n">nv</span><span class="o">.</span><span class="n">size</span><span class="p">())</span> <span class="o">==</span> <span class="n">rv</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> \
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">desc</span><span class="p">()</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">nv</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="si">}</span><span class="s2"> aka </span><span class="si">{</span><span class="n">subst_symint_tuple</span><span class="p">(</span><span class="n">nv</span><span class="o">.</span><span class="n">size</span><span class="p">())</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">rv</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">same_strides</span> <span class="o">=</span> <span class="n">check_significant_strides</span><span class="p">(</span><span class="n">nv</span><span class="p">,</span> <span class="n">rv</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">same_strides</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">desc</span><span class="p">()</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">nv</span><span class="o">.</span><span class="n">stride</span><span class="p">()</span><span class="si">}</span><span class="s2"> aka </span><span class="si">{</span><span class="n">subst_symint_tuple</span><span class="p">(</span><span class="n">nv</span><span class="o">.</span><span class="n">stride</span><span class="p">())</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">rv</span><span class="o">.</span><span class="n">stride</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+
         <span class="n">r</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">run_node</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
         <span class="k">if</span> <span class="s1">&#39;val&#39;</span> <span class="ow">in</span> <span class="n">n</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
             <span class="n">n_vals</span><span class="p">,</span> <span class="n">n_spec</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_flatten</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;val&#39;</span><span class="p">])</span>
             <span class="n">r_vals</span><span class="p">,</span> <span class="n">r_spec</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_flatten</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
-            <span class="k">assert</span> <span class="n">n_spec</span> <span class="o">==</span> <span class="n">r_spec</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">n_spec</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">r_spec</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="c1"># TODO: There is some sort of problem where we record that an</span>
+            <span class="c1"># operator returned a tuple/list, and then later it turns out the</span>
+            <span class="c1"># real version of the operator returned a list/tuple. Need to</span>
+            <span class="c1"># figure out what&#39;s actually going on here, the error itself is</span>
+            <span class="c1"># harmless enough as we only getitem out the outputs.</span>
+            <span class="c1"># assert n_spec == r_spec, f&quot;{n_spec} != {r_spec}&quot;</span>
             <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">n_vals</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">r_vals</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">n_vals</span><span class="p">)</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">r_vals</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">nv</span><span class="p">,</span> <span class="n">rv</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">n_vals</span><span class="p">)),</span> <span class="n">n_vals</span><span class="p">,</span> <span class="n">r_vals</span><span class="p">):</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rv</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
                     <span class="k">continue</span>
-                <span class="k">assert</span> <span class="n">nv</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="n">rv</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;output </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">nv</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">rv</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
-                <span class="k">assert</span> <span class="n">nv</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">rv</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;output </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">nv</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">rv</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">&quot;</span>
-                <span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">_prims_common</span><span class="o">.</span><span class="n">check_significant_strides</span><span class="p">(</span><span class="n">nv</span><span class="p">,</span> <span class="n">rv</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;output </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">nv</span><span class="o">.</span><span class="n">stride</span><span class="p">()</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">rv</span><span class="o">.</span><span class="n">stride</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">check</span><span class="p">(</span><span class="n">nv</span><span class="p">,</span> <span class="n">rv</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;output </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2"> where </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">symbol_mapping</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">r</span>
 
 
@@ -669,7 +704,7 @@
     <span class="k">def</span> <span class="nf">graph_saver_helper</span><span class="p">(</span><span class="n">gm_to_save</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">type_name</span><span class="p">):</span>
         <span class="k">global</span> <span class="n">graph_index</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">gm_to_save</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">logging</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
                 <span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span><span class="p">,</span>
                 <span class="sa">f</span><span class="s2">&quot;No nodes in graph </span><span class="si">{</span><span class="n">current_name</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">type_name</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">graph_index</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">,</span>
             <span class="p">)</span>
