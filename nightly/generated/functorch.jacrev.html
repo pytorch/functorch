@@ -221,7 +221,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+gite839313) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+gitf012d0e) &#x25BC</a>
     </div>
     
 
@@ -346,6 +346,12 @@
 <code class="sig-prename descclassname"><span class="pre">functorch.</span></code><code class="sig-name descname"><span class="pre">jacrev</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">argnums</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">has_aux</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_preallocate_and_copy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#functorch.jacrev" title="Permalink to this definition">¶</a></dt>
 <dd><p>Computes the Jacobian of <code class="docutils literal notranslate"><span class="pre">func</span></code> with respect to the arg(s) at index
 <code class="docutils literal notranslate"><span class="pre">argnum</span></code> using reverse mode autodiff</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Using <code class="xref py py-attr docutils literal notranslate"><span class="pre">chunk_size=1</span></code> is equivalent to computing the jacobian
+row-by-row with a for-loop i.e. the constraints of <a class="reference internal" href="functorch.vmap.html#functorch.vmap" title="functorch.vmap"><code class="xref py py-func docutils literal notranslate"><span class="pre">vmap()</span></code></a> are
+not applicable.</p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -361,10 +367,9 @@ auxiliary objects that will not be differentiated.
 Default: False.</p></li>
 <li><p><strong>chunk_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><em>None</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – If None (default), use the maximum chunk size
 (equivalent to doing a single vmap over vjp to compute the jacobian).
+If 1, then compute the jacobian row-by-row with a for-loop.
 If not None, then compute the jacobian <code class="xref py py-attr docutils literal notranslate"><span class="pre">chunk_size</span></code> rows at a time
-(equivalent to doing multiple vmap over vjp).
-Note that <code class="xref py py-attr docutils literal notranslate"><span class="pre">chunk_size=1</span></code> is equivalent to computing the jacobian
-row-by-row with a for-loop. If you run into memory issues computing
+(equivalent to doing multiple vmap over vjp). If you run into memory issues computing
 the jacobian, please try to specify a non-None chunk_size.</p></li>
 </ul>
 </dd>
