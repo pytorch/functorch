@@ -26,7 +26,7 @@ package_name = 'functorch'
 
 
 requirements = [
-    "torch>=1.13.0,<1.13.1",
+    "torch>=1.13.1,<1.13.2",
 ]
 
 extras = {}
