@@ -221,7 +221,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+git0157e2e) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+gitbb77907) &#x25BC</a>
     </div>
     
 
@@ -343,7 +343,7 @@
 <h1>functorch.vmap<a class="headerlink" href="#functorch-vmap" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="functorch.vmap">
-<code class="sig-prename descclassname"><span class="pre">functorch.</span></code><code class="sig-name descname"><span class="pre">vmap</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">in_dims</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dims</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">randomness</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'error'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#functorch.vmap" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">functorch.</span></code><code class="sig-name descname"><span class="pre">vmap</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">in_dims</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dims</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">randomness</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'error'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch/_functorch/deprecated.html#vmap"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.vmap" title="Permalink to this definition">¶</a></dt>
 <dd><p>vmap is the vectorizing map; <code class="docutils literal notranslate"><span class="pre">vmap(func)</span></code> returns a new function that
 maps <code class="docutils literal notranslate"><span class="pre">func</span></code> over some dimension of the inputs. Semantically, vmap
 pushes the map into PyTorch operations called by <code class="docutils literal notranslate"><span class="pre">func</span></code>, effectively
@@ -493,6 +493,15 @@ accept kwargs</p>
 <p class="admonition-title">Note</p>
 <p>vmap does not provide general autobatching or handle variable-length
 sequences out of the box.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>We’ve integrated functorch into PyTorch. As the final step of the
+integration, functorch.vmap is deprecated as of PyTorch
+2.0 and will be deleted in a future version of PyTorch &gt;= 2.3.
+Please use torch.vmap instead; see the PyTorch 2.0 release notes
+and/or the torch.func migration guide for more details
+<a class="reference external" href="https://pytorch.org/docs/master/func.migrating.html">https://pytorch.org/docs/master/func.migrating.html</a></p>
 </div>
 </dd></dl>
 
