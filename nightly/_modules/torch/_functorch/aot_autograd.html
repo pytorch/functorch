@@ -219,7 +219,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+git78d3340) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+git3ce1ebb) &#x25BC</a>
     </div>
     
 
@@ -1385,11 +1385,8 @@
 
 
 <span class="k">def</span> <span class="nf">aot_dispatch_base</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">aot_config</span><span class="p">:</span> <span class="n">AOTConfig</span><span class="p">):</span>
-    <span class="c1"># flat_args is used by make_fx and aot_config.fw_compiler</span>
-    <span class="c1"># clone flat_args to avoid flat_args shape changed by inplace ops (unsqueeze_)</span>
-    <span class="n">tmp_flat_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">_prims_common</span><span class="o">.</span><span class="n">clone_preserve_strides</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">flat_args</span><span class="p">]</span>
     <span class="k">with</span> <span class="n">enable_python_dispatcher</span><span class="p">():</span>
-        <span class="n">fw_module</span> <span class="o">=</span> <span class="n">make_fx</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">decompositions</span><span class="p">)(</span><span class="o">*</span><span class="n">tmp_flat_args</span><span class="p">)</span>
+        <span class="n">fw_module</span> <span class="o">=</span> <span class="n">make_fx</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">decompositions</span><span class="p">)(</span><span class="o">*</span><span class="n">flat_args</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_graphs</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;====== Forward (only) graph </span><span class="si">{</span><span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="si">}</span><span class="s2"> ======&quot;</span><span class="p">)</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">fw_module</span><span class="o">.</span><span class="n">print_readable</span><span class="p">(</span><span class="n">print_output</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
