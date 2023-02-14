@@ -219,7 +219,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+git046e88a) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+git5ed7c70) &#x25BC</a>
     </div>
     
 
@@ -772,10 +772,15 @@
     <span class="c1"># another user output (in both cases, we won&#39;t redundantly append bases to the end of the graph)</span>
     <span class="n">num_intermediate_bases</span><span class="p">:</span> <span class="nb">int</span>
 
+    <span class="c1"># For inference only: instructs us to keep data-only input mutations directly in the graph</span>
+    <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">int</span>
+
     <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="c1"># pre-compute the indices of the inputs that are mutated</span>
+        <span class="c1"># pre-compute the indices of the inputs that are mutated.</span>
+        <span class="c1"># When keep_input_mutations is set, we don&#39;t need to worry about our epilogue</span>
+        <span class="c1"># handling data-only mutations, because we keep them directly in the graph.</span>
         <span class="n">mutated_inp_indices</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span> <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">or</span> <span class="n">m</span><span class="o">.</span><span class="n">mutates_metadata</span>
+            <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span> <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">mutates_metadata</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_input_mutations</span> <span class="ow">and</span> <span class="n">m</span><span class="o">.</span><span class="n">mutates_data</span><span class="p">)</span>
         <span class="p">]</span>
         <span class="n">aliased_out_indices</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">i</span>
@@ -832,7 +837,13 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">reshaped_base_tensor</span> <span class="o">=</span> <span class="n">aliased_base_tensor</span>
         <span class="n">out</span> <span class="o">=</span> <span class="n">target_meta_tensor</span><span class="o">.</span><span class="n">_view_func</span><span class="p">(</span><span class="n">reshaped_base_tensor</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">out</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># This shape mismatch can happen due to a bug in inplace/view handling in autograd.</span>
+        <span class="c1"># Try putting a breakpoint here and running</span>
+        <span class="c1"># `test/functorch/test_aotdispatch TestAOTAutograd.test_output_all_alias_types`</span>
+        <span class="c1"># Also, https://github.com/pytorch/pytorch/issues/49825</span>
+        <span class="c1">#</span>
+        <span class="c1"># As a stopgap, we&#39;ll fall back to as_strided.</span>
+        <span class="k">if</span> <span class="n">out</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">target_meta_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
             <span class="n">out</span><span class="o">.</span><span class="n">requires_grad_</span><span class="p">(</span><span class="n">target_requires_grad</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">out</span>
     <span class="n">size</span> <span class="o">=</span> <span class="n">target_meta_tensor</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
@@ -854,6 +865,18 @@
     <span class="k">elif</span> <span class="ow">not</span> <span class="n">aliased_base_tensor</span><span class="o">.</span><span class="n">requires_grad</span> <span class="ow">and</span> <span class="n">target_requires_grad</span><span class="p">:</span>
         <span class="n">aliased_out</span><span class="o">.</span><span class="n">requires_grad_</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">aliased_out</span>
+
+<span class="k">def</span> <span class="nf">to_fun</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">_to_functional_tensor</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">mirror_autograd_meta</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">t</span>
+
+<span class="k">def</span> <span class="nf">from_fun</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">_is_functional_tensor</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">t</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">_sync</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">_from_functional_tensor</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
 
 
 <span class="c1"># This is a version of functionalization that is specifically designed</span>
@@ -877,6 +900,8 @@
 <span class="c1">#   in the compiled backward function.</span>
 <span class="k">def</span> <span class="nf">run_functionalized_fw_and_collect_metadata</span><span class="p">(</span>
     <span class="n">f</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">ViewAndMutationMeta</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]:</span>
     <span class="n">memo</span> <span class="o">=</span> <span class="p">{}</span>
 
@@ -1055,223 +1080,421 @@
             <span class="n">requires_grad_info</span><span class="o">=</span><span class="n">requires_grad_info</span><span class="p">,</span>
             <span class="n">output_info</span><span class="o">=</span><span class="n">output_info</span><span class="p">,</span>
             <span class="n">num_intermediate_bases</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">intermediate_bases</span><span class="p">),</span>
+            <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">keep_input_mutations</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">metadata</span><span class="p">,</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">from_fun</span><span class="p">,</span> <span class="n">f_tangents</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">inner</span>
 
 
-<span class="c1"># This creates a functionalized joint forwards-backwards function given both</span>
-<span class="c1"># the primals (to run forwards) and tangents (to run backwards).</span>
-<span class="c1">#</span>
-<span class="c1"># It uses the metadata that was created earlier to figure out what all of the outputs to the autograd.Function.forward are:</span>
-<span class="c1"># (1) Which inputs received data mutations (and need to be passed as outputs into autograd.grad())</span>
-<span class="c1"># (2) Which outputs are aliases of inputs (and should *not* be passed as outputs into autograd.grad())</span>
-<span class="k">def</span> <span class="nf">create_joint_forward_backward_functionalized</span><span class="p">(</span>
-    <span class="n">fn</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">meta</span><span class="p">:</span> <span class="n">ViewAndMutationMeta</span><span class="p">,</span>
+<span class="k">def</span> <span class="nf">unpack_synthetic_bases</span><span class="p">(</span>
+    <span class="n">primals</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
     <span class="n">synthetic_base_info</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]]]],</span>
-<span class="p">):</span>
-    <span class="c1"># What&#39;s happening here? For any inputs in the graph that are mutated, we need to clone them first</span>
-    <span class="c1"># (and similarly for metadata-only mutations, we need to view them first).</span>
-    <span class="c1"># The idea is that when we trace the backward, we need to pass in the *original* primals</span>
-    <span class="c1"># to autograd.grad(), before they were mutated.</span>
-    <span class="c1">#</span>
-    <span class="c1"># NOTE: when we have synthetic base inputs, we need to clone them *before* creating views off of them.</span>
-    <span class="c1"># This means that &quot;idx&quot; here represents the index of the (potentially) synthetic base.</span>
-    <span class="c1"># What we need to do is:</span>
-    <span class="c1"># (1) map the current (post-synthetic-base calling convention) input argument index</span>
-    <span class="c1">#     to int index pre-synthetic-base-calling-convention.</span>
-    <span class="c1"># (2) There could be multiple, if this index corresponds to a synthetic base</span>
-    <span class="c1">#     that has multiple input aliases.</span>
-    <span class="c1"># (3) If any of those corresponding inputs get metadata mutations, then we clone the base.</span>
-    <span class="k">def</span> <span class="nf">maybe_to_fresh_input</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">t</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
+    <span class="c1"># This is only not None if our graph mutates a graph input that aliases another graph input.</span>
+    <span class="k">if</span> <span class="n">synthetic_base_info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">primals</span>
 
-        <span class="k">if</span> <span class="n">synthetic_base_info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">outer_aliased_indices_of_current_base_arg</span> <span class="o">=</span> <span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+    <span class="n">f_args_inner</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">outer_idx_or_tuple</span> <span class="ow">in</span> <span class="n">synthetic_base_info</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outer_idx_or_tuple</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">f_args_inner</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">primals</span><span class="p">[</span><span class="n">outer_idx_or_tuple</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">outer_aliased_indices_of_current_base_arg</span> <span class="o">=</span> <span class="p">[</span>
-                <span class="c1"># For every argument index in the outer calling convention (before synthetic bases)</span>
-                <span class="c1"># find its index in the inner calling convention.</span>
-                <span class="c1"># if it matches the index of our current arg (idx), track the outer argument&#39;s index (i)</span>
-                <span class="n">i</span>
-                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">outer_idx_or_tuple</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">synthetic_base_info</span><span class="p">)</span>
-                <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">outer_idx_or_tuple</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="n">outer_idx_or_tuple</span> <span class="o">==</span> <span class="n">idx</span><span class="p">)</span>
-                <span class="ow">or</span> <span class="p">(</span>
-                    <span class="nb">isinstance</span><span class="p">(</span><span class="n">outer_idx_or_tuple</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span>
-                    <span class="ow">and</span> <span class="n">outer_idx_or_tuple</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">idx</span>
-                <span class="p">)</span>
+            <span class="n">outer_base_idx</span><span class="p">,</span> <span class="n">view_tensor</span> <span class="o">=</span> <span class="n">outer_idx_or_tuple</span>
+            <span class="n">outer_base</span> <span class="o">=</span> <span class="n">primals</span><span class="p">[</span><span class="n">outer_base_idx</span><span class="p">]</span>
+            <span class="n">view_arg</span> <span class="o">=</span> <span class="n">gen_alias_from_base</span><span class="p">(</span>
+                <span class="n">outer_base</span><span class="p">,</span> <span class="n">view_tensor</span><span class="p">,</span> <span class="n">view_tensor</span><span class="o">.</span><span class="n">requires_grad</span>
+            <span class="p">)</span>
+            <span class="n">f_args_inner</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">view_arg</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">f_args_inner</span>
+
+<span class="c1"># This class contains all the metadata we care about for the current function we&#39;re compiling.</span>
+<span class="c1"># This data is needed both at trace time and at runtime.</span>
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">CompiledRuntimeMetadata</span><span class="p">:</span>
+    <span class="c1"># This type / object should be cleaned up</span>
+    <span class="c1"># See Note [Synthetic Base Info Metadata]</span>
+    <span class="n">synthetic_base_info</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]]]]</span>
+    <span class="n">fw_metadata</span><span class="p">:</span> <span class="n">ViewAndMutationMeta</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs_non_aliased</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_info</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs_aliased_to_inputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">x</span>
+                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_info</span>
+                <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">in</span> <span class="p">[</span>
+                    <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_input</span><span class="p">,</span>
+                    <span class="n">OutputType</span><span class="o">.</span><span class="n">is_input</span><span class="p">,</span>
+                <span class="p">]</span>
             <span class="p">]</span>
-        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span>
-            <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">outer_aliased_indices_of_current_base_arg</span>
-        <span class="p">):</span>
-            <span class="c1"># Make sure the primal we pass to autograd.grad()</span>
-            <span class="c1"># sees the tensor before the mutation</span>
-            <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
-        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span>
-            <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_metadata</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">outer_aliased_indices_of_current_base_arg</span>
-        <span class="p">):</span>
-            <span class="c1"># Make sure the primal we pass to autograd.grad()</span>
-            <span class="c1"># sees the tensor before the metadata mutation</span>
-            <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs_aliased_to_intermediates</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">x</span>
+                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_info</span>
+                <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">in</span> <span class="p">[</span>
+                    <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate</span><span class="p">,</span>
+                    <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_save_as_output</span><span class="p">,</span>
+                    <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_base_is_user_output</span><span class="p">,</span>
+                <span class="p">]</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs_aliased</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs_aliased_to_inputs</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs_aliased_to_intermediates</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_data_inputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_data</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_metadata_inputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">x</span>
+                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span>
+                <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_metadata</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_metadata_only_inputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">x</span>
+                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">and</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_metadata</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_data_inputs</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_metadata_only_inputs</span>
+
+<span class="c1"># This function takes in a tensor t, and returns one of t, t.view(), or t.clone().</span>
+<span class="c1"># When tracing the joint forward + backward, for any inputs in the graph that are mutated,</span>
+<span class="c1"># we need to clone them first (and similarly for metadata-only mutations, we need to view them first).</span>
+<span class="c1"># The idea is that when we trace the backward, we need to pass in the *original* primals</span>
+<span class="c1"># to autograd.grad(), before they were mutated.</span>
+<span class="c1"># Note: when we have synthetic base inputs, we need to clone them *before* creating views off of them.</span>
+<span class="c1"># This means that &quot;idx&quot; here represents the index of the (potentially) synthetic base.</span>
+<span class="c1"># What we need to do is:</span>
+<span class="c1"># (1) map the current (post-synthetic-base calling convention) input argument index</span>
+<span class="c1">#     to int index pre-synthetic-base-calling-convention.</span>
+<span class="c1"># (2) There could be multiple, if this index corresponds to a synthetic base</span>
+<span class="c1">#     that has multiple input aliases.</span>
+<span class="c1"># (3) If any of those corresponding inputs get metadata mutations, then we clone the base.</span>
+<span class="k">def</span> <span class="nf">maybe_to_fresh_input</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">meta</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">t</span>
 
-    <span class="k">def</span> <span class="nf">unpack_synthetic_bases</span><span class="p">(</span><span class="n">primals</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
-        <span class="c1"># This is only not None if our graph mutates a graph input that aliases another graph input.</span>
-        <span class="k">if</span> <span class="n">synthetic_base_info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">primals</span>
-
-        <span class="n">f_args_inner</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">outer_idx_or_tuple</span> <span class="ow">in</span> <span class="n">synthetic_base_info</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outer_idx_or_tuple</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
-                <span class="n">f_args_inner</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">primals</span><span class="p">[</span><span class="n">outer_idx_or_tuple</span><span class="p">])</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">outer_base_idx</span><span class="p">,</span> <span class="n">view_tensor</span> <span class="o">=</span> <span class="n">outer_idx_or_tuple</span>
-                <span class="n">outer_base</span> <span class="o">=</span> <span class="n">primals</span><span class="p">[</span><span class="n">outer_base_idx</span><span class="p">]</span>
-                <span class="n">view_arg</span> <span class="o">=</span> <span class="n">gen_alias_from_base</span><span class="p">(</span>
-                    <span class="n">outer_base</span><span class="p">,</span> <span class="n">view_tensor</span><span class="p">,</span> <span class="n">view_tensor</span><span class="o">.</span><span class="n">requires_grad</span>
-                <span class="p">)</span>
-                <span class="n">f_args_inner</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">view_arg</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">f_args_inner</span>
-
-    <span class="k">def</span> <span class="nf">joint_forward_backward</span><span class="p">(</span>
-        <span class="n">primals</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">tangents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]:</span>
-        <span class="c1"># Call the forward pass, making sure to clone any inputs that are mutated first.</span>
-        <span class="c1"># We need to ensure that the inputs we pass to autograd.grad() are the *original*</span>
-        <span class="c1"># inputs, and not their mutated values.</span>
-        <span class="n">primals_no_input_mutations</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">maybe_to_fresh_input</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">primals</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">synthetic_base_info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">outer_aliased_indices_of_current_base_arg</span> <span class="o">=</span> <span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">outer_aliased_indices_of_current_base_arg</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="c1"># For every argument index in the outer calling convention (before synthetic bases)</span>
+            <span class="c1"># find its index in the inner calling convention.</span>
+            <span class="c1"># if it matches the index of our current arg (idx), track the outer argument&#39;s index (i)</span>
+            <span class="n">i</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">outer_idx_or_tuple</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">synthetic_base_info</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">outer_idx_or_tuple</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="n">outer_idx_or_tuple</span> <span class="o">==</span> <span class="n">idx</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="p">(</span>
+                <span class="nb">isinstance</span><span class="p">(</span><span class="n">outer_idx_or_tuple</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">outer_idx_or_tuple</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">idx</span>
+            <span class="p">)</span>
         <span class="p">]</span>
-        <span class="c1"># This is also where we handle the calling convention around synthetic bases.</span>
-        <span class="c1"># We need to make sure that we convert any synthetic base arguments into views</span>
-        <span class="c1"># *after* we do the cloning above, to preserve the view relationship.</span>
-        <span class="n">primals_</span> <span class="o">=</span> <span class="n">unpack_synthetic_bases</span><span class="p">(</span><span class="n">primals_no_input_mutations</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">primals_</span><span class="p">)</span>
-        <span class="n">outs</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">primals_</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span>
+        <span class="n">meta</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">outer_aliased_indices_of_current_base_arg</span>
+    <span class="p">):</span>
+        <span class="c1"># Make sure the primal we pass to autograd.grad()</span>
+        <span class="c1"># sees the tensor before the mutation</span>
+        <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span>
+        <span class="n">meta</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_metadata</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">meta</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">outer_aliased_indices_of_current_base_arg</span>
+    <span class="p">):</span>
+        <span class="c1"># Make sure the primal we pass to autograd.grad()</span>
+        <span class="c1"># sees the tensor before the metadata mutation</span>
+        <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">t</span>
 
-        <span class="n">intermediate_bases</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">o</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">outs</span><span class="p">,</span> <span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_save_as_output</span><span class="p">:</span>
-                <span class="n">intermediate_bases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">_base</span><span class="p">)</span>
+<span class="c1"># This function takes in a forward fn, runs it, and (optionally) runs autograd to compute the joint.</span>
+<span class="c1"># When maybe_tangents is None, we only run the forward. Otherwise we run the &quot;joint&quot; forward + backward.</span>
+<span class="c1"># Preconditions:</span>
+<span class="c1"># - fn corresponds to the flattened user fw function, with duplicate inputs removed</span>
+<span class="c1"># - functionalization is turned on (and inputs are wrapped in functional tensors)</span>
+<span class="c1"># - Synthetic bases have been *removed* (we&#39;ve taken views on them corresponding to the user argument views).</span>
+<span class="c1"># - primals_after_cloning are what we run our forward function on. It is identical to primals_before_cloning,</span>
+<span class="c1">#   except that every input we know will be mutated in the forward has been cloned.</span>
+<span class="c1">#   We run our forward on primals_after_cloning (potentially mutating some inputs), and then compute our gradients</span>
+<span class="c1">#   w.r.t. primals_before_cloning (so we properly capture the mutation in our gradient computation).</span>
+<span class="c1"># Importantly, due functionalization + some autograd.Function constraints, this function can return EXTRA outputs</span>
+<span class="c1"># compared to what the original user forward returns.</span>
+<span class="c1">#</span>
+<span class="c1"># If we are only running the forward (and not computing the joint):</span>
+<span class="c1"># - Our function will return (updated_inputs, fw_outs)</span>
+<span class="c1">#</span>
+<span class="c1"># If we are running the forward + backward (computing the joint):</span>
+<span class="c1"># - Our function will return (updated_inputs, fw_outs, intermediate_bases), (gradients)</span>
+<span class="c1">#</span>
+<span class="c1"># Finally, if keep_input_mutations is set, then we will explicitly *not* return updated inputs, for any inputs</span>
+<span class="c1"># that experienced data-only mutations.</span>
+<span class="c1"># Instead, we are relying on the logic in create_forward_or_joint_functionalized to manually perform the input mutations,</span>
+<span class="c1"># keeping them directly in the traced graph.</span>
+<span class="k">def</span> <span class="nf">forward_or_joint</span><span class="p">(</span>
+    <span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">primals_before_cloning</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">primals_after_cloning</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">maybe_tangents</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span>
+    <span class="n">meta</span><span class="p">:</span> <span class="n">CompiledRuntimeMetadata</span><span class="p">,</span>
+    <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+    <span class="n">outs</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">primals_after_cloning</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
 
-        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="n">meta</span><span class="o">.</span><span class="n">num_intermediate_bases</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">intermediate_bases</span><span class="p">)</span>
-
-        <span class="c1"># Pass any (non-aliased) outputs in as tangents, since they&#39;ll be returned as outputs in the fw</span>
-        <span class="c1"># For outputs that are aliases of intermediates, we will have returned the output&#39;s _base as an output in the graph instead,</span>
-        <span class="c1"># which we *should* send to grad()</span>
-        <span class="n">outputs_for_grad</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">x</span>
-            <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span>
-        <span class="p">]</span>
-        <span class="c1"># Pass any (non-aliased) mutated inputs in as tangents, since they&#39;ll be returned as outputs in the fw</span>
-        <span class="c1"># Important: the traced joint fw/bw will return updated inputs with data mutations,</span>
-        <span class="c1"># but *not* with metadata mutations.</span>
-        <span class="c1"># Instead, we shunt the updated metadata around externally</span>
-        <span class="c1"># and update the input&#39;s metadata outside of the autograd.Function</span>
-        <span class="n">mutated_inputs_for_grad</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">x</span>
-            <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">primals_</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span>
-        <span class="p">]</span>
-        <span class="c1"># The tensors that we include in the backward graph are:</span>
-        <span class="c1"># - inputs that recieve *data* mutations (not metadata-only; those are recomputed later)</span>
-        <span class="c1"># - outputs that are not aliased (aliased outputs are recomputed later)</span>
-        <span class="c1"># - intermediate ._base tensors of aliased outputs (we use those later to recompute the aliased outputs)</span>
-        <span class="n">fw_outs_to_grad</span> <span class="o">=</span> <span class="n">mutated_inputs_for_grad</span> <span class="o">+</span> <span class="n">outputs_for_grad</span> <span class="o">+</span> <span class="n">intermediate_bases</span>
-
-        <span class="c1"># The compiled fw will return mutated input tensors, *including* metadata-only mutation.</span>
+    <span class="c1"># The compiled fw will return mutated input tensors, *including* metadata-only mutation.</span>
+    <span class="c1"># However, if keep_input_mutations is set, the compiled fw only needs to return metadata-mutated inputs.</span>
+    <span class="c1"># (because data-only input mutations are handled directly in the compiled graph)</span>
+    <span class="k">if</span> <span class="n">keep_input_mutations</span><span class="p">:</span>
         <span class="n">mutated_inputs_to_return</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">x</span>
-            <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">primals_</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">or</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_metadata</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">primals_after_cloning</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_metadata</span>
         <span class="p">]</span>
-        <span class="c1"># the compiled forward should return (mutated_inputs, user_outs, intermediate_bases)</span>
-        <span class="n">fw_outs_to_return</span> <span class="o">=</span> <span class="o">*</span><span class="n">mutated_inputs_to_return</span><span class="p">,</span> <span class="o">*</span><span class="n">outs</span><span class="p">,</span> <span class="o">*</span><span class="n">intermediate_bases</span>
-
-        <span class="c1"># Take care to grab and sync the updated inputs from primals_ (the inputs we actually mutate!)</span>
-        <span class="c1"># and not primals (the preserved inputs, pre-mutation, that we pass to grad())</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">arg</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">primals_</span><span class="p">):</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
-                <span class="k">continue</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">_sync</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
-
-        <span class="c1"># Get the inputs that need gradients</span>
-        <span class="n">grad_primals</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">inputs_needs_grads</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="c1"># Note that we&#39;re not using primals_ here, being carefully not to pass any mutated inputs into autograd.grad()</span>
-        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">primals</span><span class="p">:</span>
-            <span class="n">is_grad_tensor</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span>
-            <span class="n">inputs_needs_grads</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">is_grad_tensor</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">is_grad_tensor</span><span class="p">:</span>
-                <span class="n">grad_primals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
-
-        <span class="c1"># Get the outputs that need gradients</span>
-        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">tangents</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_outs_to_grad</span><span class="p">)</span>
-        <span class="n">needed_outs</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">needed_tangents</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">out</span><span class="p">,</span> <span class="n">tangent</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">fw_outs_to_grad</span><span class="p">,</span> <span class="n">tangents</span><span class="p">):</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">out</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">:</span>
-                <span class="c1"># A bit sketchy, but fixes e.g. test_aot_autograd_exhaustive_matmul_cpu_float32</span>
-                <span class="c1"># The issue is that we are sensitive to decomps that don&#39;t accurately maintain</span>
-                <span class="c1"># their output&#39;s _base.shape compared to eager mode, and this helps mitigate a bit.</span>
-                <span class="n">needed_outs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                    <span class="n">out</span> <span class="k">if</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">tangent</span><span class="o">.</span><span class="n">shape</span> <span class="k">else</span> <span class="n">out</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">tangent</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-                <span class="p">)</span>
-                <span class="n">needed_tangents</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tangent</span><span class="o">.</span><span class="n">requires_grad_</span><span class="p">(</span><span class="kc">True</span><span class="p">))</span>
-
-        <span class="n">setup_stacktrace_preservation_hooks</span><span class="p">([</span><span class="n">out</span><span class="o">.</span><span class="n">grad_fn</span> <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="n">needed_outs</span><span class="p">])</span>
-
-        <span class="n">backward_out</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="c1"># Call the backwards pass</span>
-        <span class="k">if</span> <span class="n">grad_primals</span><span class="p">:</span>
-            <span class="k">with</span> <span class="n">fx_traceback</span><span class="o">.</span><span class="n">preserve_node_meta</span><span class="p">():</span>
-                <span class="n">backward_out</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span>
-                    <span class="n">needed_outs</span><span class="p">,</span>
-                    <span class="n">grad_primals</span><span class="p">,</span>
-                    <span class="n">grad_outputs</span><span class="o">=</span><span class="n">needed_tangents</span><span class="p">,</span>
-                    <span class="n">allow_unused</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="p">)</span>
-        <span class="n">backward_out_iter</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">backward_out</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">fw_outs_to_return</span><span class="p">,</span> <span class="p">[</span>
-            <span class="nb">next</span><span class="p">(</span><span class="n">backward_out_iter</span><span class="p">)</span> <span class="k">if</span> <span class="n">i</span> <span class="k">else</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">inputs_needs_grads</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">mutated_inputs_to_return</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">x</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">primals_after_cloning</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">or</span> <span class="n">meta</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_metadata</span>
         <span class="p">]</span>
 
-    <span class="k">def</span> <span class="nf">to_fun</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">_to_functional_tensor</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">mirror_autograd_meta</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">t</span>
+    <span class="c1"># Case 1: We are just tracing the forward; not the joint forward + backward.</span>
+    <span class="k">if</span> <span class="n">maybe_tangents</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="o">*</span><span class="n">mutated_inputs_to_return</span><span class="p">,</span> <span class="o">*</span><span class="n">outs</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">tangents</span> <span class="o">=</span> <span class="n">maybe_tangents</span>
 
-    <span class="k">def</span> <span class="nf">from_fun</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">_is_functional_tensor</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">t</span>
-        <span class="n">torch</span><span class="o">.</span><span class="n">_sync</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">_from_functional_tensor</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+    <span class="c1"># Case 2: We are tracing the joint forward backward.</span>
+    <span class="c1"># This also requires us to:</span>
+    <span class="c1"># - update the graph to return intermediate bases</span>
+    <span class="c1"># - Figure out what grad_outputs to pass into the backward</span>
+    <span class="c1"># - (this includes intermediate bases in the forward, and forward inputs that had data mutations)</span>
+    <span class="c1"># - actually call autograd.grad to trace the backward.</span>
+    <span class="n">intermediate_bases</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">o</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">outs</span><span class="p">,</span> <span class="n">meta</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_info</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_save_as_output</span><span class="p">:</span>
+            <span class="n">intermediate_bases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">_base</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">functionalized_joint</span><span class="p">(</span>
-        <span class="n">primals</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">tangents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]:</span>
+    <span class="k">assert</span> <span class="n">meta</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">intermediate_bases</span><span class="p">)</span>
 
+    <span class="c1"># Pass any (non-aliased) outputs in as tangents, since they&#39;ll be returned as outputs in the fw</span>
+    <span class="c1"># For outputs that are aliases of intermediates, we will have returned the output&#39;s _base as an output in the graph instead,</span>
+    <span class="c1"># which we *should* send to grad()</span>
+    <span class="n">outputs_for_grad</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">x</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span>
+    <span class="p">]</span>
+    <span class="c1"># Pass any (non-aliased) mutated inputs in as tangents, since they&#39;ll be returned as outputs in the fw</span>
+    <span class="c1"># Important: the traced joint fw/bw will return updated inputs with data mutations,</span>
+    <span class="c1"># but *not* with metadata mutations.</span>
+    <span class="c1"># Instead, we shunt the updated metadata around externally</span>
+    <span class="c1"># and update the input&#39;s metadata outside of the autograd.Function</span>
+    <span class="n">mutated_inputs_for_grad</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">x</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">primals_after_cloning</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span>
+    <span class="p">]</span>
+    <span class="c1"># The tensors that we include in the backward graph are:</span>
+    <span class="c1"># - inputs that recieve *data* mutations (not metadata-only; those are recomputed later)</span>
+    <span class="c1"># - outputs that are not aliased (aliased outputs are recomputed later)</span>
+    <span class="c1"># - intermediate ._base tensors of aliased outputs (we use those later to recompute the aliased outputs)</span>
+    <span class="n">fw_outs_to_grad</span> <span class="o">=</span> <span class="n">mutated_inputs_for_grad</span> <span class="o">+</span> <span class="n">outputs_for_grad</span> <span class="o">+</span> <span class="n">intermediate_bases</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">tangents</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_outs_to_grad</span><span class="p">)</span>
+
+    <span class="c1"># the compiled forward should return (mutated_inputs, user_outs, intermediate_bases)</span>
+    <span class="n">fw_outs_to_return</span> <span class="o">=</span> <span class="o">*</span><span class="n">mutated_inputs_to_return</span><span class="p">,</span> <span class="o">*</span><span class="n">outs</span><span class="p">,</span> <span class="o">*</span><span class="n">intermediate_bases</span>
+
+    <span class="c1"># Take care to grab and sync the updated inputs from primals_after_cloning (the inputs we actually mutate!)</span>
+    <span class="c1"># and not primals_before_cloning (the preserved inputs, pre-mutation, that we pass to grad())</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">arg</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">primals_after_cloning</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">_sync</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+
+    <span class="c1"># Get the inputs that need gradients</span>
+    <span class="n">grad_primals</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">inputs_needs_grads</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># Note that we&#39;re not using primals_before_cloning here,</span>
+    <span class="c1"># being carefully not to pass any mutated inputs into autograd.grad()</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">primals_before_cloning</span><span class="p">:</span>
+        <span class="n">is_grad_tensor</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span>
+        <span class="n">inputs_needs_grads</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">is_grad_tensor</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">is_grad_tensor</span><span class="p">:</span>
+            <span class="n">grad_primals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+
+    <span class="c1"># Get the outputs that need gradients</span>
+    <span class="n">needed_outs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">needed_tangents</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">out</span><span class="p">,</span> <span class="n">tangent</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">fw_outs_to_grad</span><span class="p">,</span> <span class="n">tangents</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">out</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">:</span>
+            <span class="c1"># A bit sketchy, but fixes e.g. test_aot_autograd_exhaustive_matmul_cpu_float32</span>
+            <span class="c1"># The issue is that we are sensitive to decomps that don&#39;t accurately maintain</span>
+            <span class="c1"># their output&#39;s _base.shape compared to eager mode, and this helps mitigate a bit.</span>
+            <span class="n">needed_outs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">out</span> <span class="k">if</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">tangent</span><span class="o">.</span><span class="n">shape</span> <span class="k">else</span> <span class="n">out</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">tangent</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">needed_tangents</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tangent</span><span class="o">.</span><span class="n">requires_grad_</span><span class="p">(</span><span class="kc">True</span><span class="p">))</span>
+
+    <span class="n">setup_stacktrace_preservation_hooks</span><span class="p">([</span><span class="n">out</span><span class="o">.</span><span class="n">grad_fn</span> <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="n">needed_outs</span><span class="p">])</span>
+
+    <span class="n">backward_out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># Call the backwards pass</span>
+    <span class="k">if</span> <span class="n">grad_primals</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">fx_traceback</span><span class="o">.</span><span class="n">preserve_node_meta</span><span class="p">():</span>
+            <span class="n">backward_out</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span>
+                <span class="n">needed_outs</span><span class="p">,</span>
+                <span class="n">grad_primals</span><span class="p">,</span>
+                <span class="n">grad_outputs</span><span class="o">=</span><span class="n">needed_tangents</span><span class="p">,</span>
+                <span class="n">allow_unused</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
+    <span class="n">backward_out_iter</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">backward_out</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">fw_outs_to_return</span><span class="p">,</span> <span class="p">[</span>
+        <span class="nb">next</span><span class="p">(</span><span class="n">backward_out_iter</span><span class="p">)</span> <span class="k">if</span> <span class="n">i</span> <span class="k">else</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">inputs_needs_grads</span>
+    <span class="p">]</span>
+
+<span class="c1"># This function expands synthetic base arguments into the original aliased inputs that the user passed in.</span>
+<span class="c1"># Preconditions:</span>
+<span class="c1"># - fn corresponds to the flattened user fw function, with duplicate inputs removed</span>
+<span class="c1"># - functionalization is turned on (and inputs are wrapped in functional tensors)</span>
+<span class="c1"># - both primals args **include** synthetic bases.</span>
+<span class="c1">#   &quot;primals_after_cloning&quot; just corresponds to &quot;primals_before_cloning&quot;, but with some inputs (optionally) cloned.</span>
+<span class="c1">#   &quot;primals_before_cloning&quot; is unused, and is only needed so we can pass the correct leaf tensors into autograd.</span>
+<span class="k">def</span> <span class="nf">flat_fn_with_synthetic_bases_expanded</span><span class="p">(</span>
+    <span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">primals_before_cloning</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">primals_after_cloning</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">maybe_tangents</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span>
+    <span class="n">meta</span><span class="p">:</span> <span class="n">CompiledRuntimeMetadata</span><span class="p">,</span>
+    <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span>
+<span class="p">):</span>
+    <span class="c1"># This is where we handle the calling convention around synthetic bases.</span>
+    <span class="c1"># We need to make sure that we convert any synthetic base arguments into views</span>
+    <span class="c1"># *after* we clone inputs for autograd (see below), to preserve the view relationship.</span>
+    <span class="n">primals</span> <span class="o">=</span> <span class="n">unpack_synthetic_bases</span><span class="p">(</span><span class="n">primals_after_cloning</span><span class="p">,</span> <span class="n">meta</span><span class="o">.</span><span class="n">synthetic_base_info</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">primals</span><span class="p">)</span>
+    <span class="n">outs</span> <span class="o">=</span> <span class="n">forward_or_joint</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">primals_before_cloning</span><span class="p">,</span> <span class="n">primals</span><span class="p">,</span> <span class="n">maybe_tangents</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">keep_input_mutations</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">outs</span>
+
+<span class="c1"># This function adds extra clone() calls on any inputs in the forward that get mutated.</span>
+<span class="c1"># It *only* does this if we plan on performing autograd on fn.</span>
+<span class="c1"># The idea here is that when computing grdients w.r.t. inputs, we need to compute our gradients</span>
+<span class="c1"># w.r.t. the inputs *before* they were mutated!</span>
+<span class="c1"># Preconditions:</span>
+<span class="c1"># - fn corresponds to the flattened user fw function, with duplicate inputs removed</span>
+<span class="c1"># - primals **includes** synthetic bases. Importantly, if a synthetic base is mutated,</span>
+<span class="c1">#   we need to clone it *before* taking views off of it (if we clone the views they won&#39;t be views anymore)</span>
+<span class="c1"># - functionalization is turned on (and inputs are wrapped in functional tensors)</span>
+<span class="k">def</span> <span class="nf">flat_fn_no_input_mutations</span><span class="p">(</span>
+    <span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">primals</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">maybe_tangents</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span>
+    <span class="n">meta</span><span class="p">:</span> <span class="n">CompiledRuntimeMetadata</span><span class="p">,</span>
+    <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span>
+<span class="p">):</span>
+    <span class="c1"># When tracing the joint fwd + bwd, making sure to clone any inputs that are mutated first.</span>
+    <span class="c1"># We need to ensure that the inputs we pass to autograd.grad() are the *original*</span>
+    <span class="c1"># inputs, and not their mutated values.</span>
+    <span class="k">if</span> <span class="n">maybe_tangents</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">primals_after_cloning</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">maybe_to_fresh_input</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">meta</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">primals</span><span class="p">)</span>
+        <span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">primals_after_cloning</span> <span class="o">=</span> <span class="n">primals</span>
+    <span class="n">outs</span> <span class="o">=</span> <span class="n">flat_fn_with_synthetic_bases_expanded</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">primals</span><span class="p">,</span> <span class="n">primals_after_cloning</span><span class="p">,</span> <span class="n">maybe_tangents</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">keep_input_mutations</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">outs</span>
+
+<span class="c1"># This creates the final function that we want to trace using make_fx(),</span>
+<span class="c1"># in both aot_dispatch_autograd and aot_dispatch_base.</span>
+<span class="c1"># Preconditions:</span>
+<span class="c1"># - fn corresponds to the user&#39;s fw function</span>
+<span class="c1"># - fn arguments have been flattened, duplicate arguments have been handled</span>
+<span class="c1"># - In the returned function, the &quot;primals&quot; arguments *includes* synthetic bases.</span>
+<span class="c1"># This function does the work of functionalizing the input function,</span>
+<span class="c1"># and performing copy_() calls at the end of the function if `keep_input_mutations` is set.</span>
+<span class="c1"># The function returned has signature that is either:</span>
+<span class="c1"># (1) &quot;traced_fn(primals: List[Any])&quot; if trace_joint is False</span>
+<span class="c1"># (2) &quot;traced_fn(primals: List[Any], tangents: List[Any])&quot; if trace_joint is True</span>
+<span class="k">def</span> <span class="nf">create_forward_or_joint_functionalized</span><span class="p">(</span>
+    <span class="n">fn</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">meta</span><span class="p">:</span> <span class="n">CompiledRuntimeMetadata</span><span class="p">,</span>
+    <span class="n">trace_joint</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+    <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span>
+<span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">functionalized_f_helper</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">maybe_tangents</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># Convention: this function is used to trace both the joint, and just the forward (for inference).</span>
+        <span class="c1"># When trace_joint is set, tangents should be passed in.</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">maybe_tangents</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="n">trace_joint</span>
         <span class="c1"># Wrap inputs into functional wrappers</span>
-        <span class="n">f_primals</span><span class="p">,</span> <span class="n">f_tangents</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">to_fun</span><span class="p">,</span> <span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">tangents</span><span class="p">))</span>
+        <span class="n">f_primals</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">to_fun</span><span class="p">,</span> <span class="n">primals</span><span class="p">)</span>
+        <span class="n">f_tangents</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">maybe_tangents</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">to_fun</span><span class="p">,</span> <span class="n">maybe_tangents</span><span class="p">)</span>
         <span class="n">torch</span><span class="o">.</span><span class="n">_enable_functionalization</span><span class="p">(</span><span class="n">reapply_views</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># Run the joint</span>
-            <span class="n">f_outs</span> <span class="o">=</span> <span class="n">joint_forward_backward</span><span class="p">(</span><span class="n">f_primals</span><span class="p">,</span> <span class="n">f_tangents</span><span class="p">)</span>
+            <span class="n">f_outs</span> <span class="o">=</span> <span class="n">flat_fn_no_input_mutations</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">f_primals</span><span class="p">,</span> <span class="n">f_tangents</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">keep_input_mutations</span><span class="p">)</span>
         <span class="k">finally</span><span class="p">:</span>
             <span class="n">torch</span><span class="o">.</span><span class="n">_disable_functionalization</span><span class="p">()</span>
 
+        <span class="k">if</span> <span class="n">keep_input_mutations</span><span class="p">:</span>
+            <span class="c1"># Note: This is a bit annoying. There&#39;s a layering issue here, where:</span>
+            <span class="c1"># (1) functionalization needs to operate on **synthetic base** inputs, before unpacking them into the &quot;real&quot; inputs.</span>
+            <span class="c1"># (2) For keep_input_mutations, we support tracing a call to copy_() directly on mutated inputs.</span>
+            <span class="c1">#     However, we **only** want to support this for inputs that have data-only (and no metadata) mutations,</span>
+            <span class="c1">#     because inductor (and backends in generally) would prefer not to see these (e.g. as_strided_(), resize_()).</span>
+            <span class="c1">#     This makes it pretty difficult for this logic to operate on synthetic bases.</span>
+            <span class="c1"># (3) In addition, there are cases where it&#39;s significantly cheaper to perform the copy on the individual</span>
+            <span class="c1">#     (unpacked) input aliases, instead of the synthetic base.</span>
+            <span class="c1"># The result is that ideally this function shouldn&#39;t have to worry about synthetic bases</span>
+            <span class="c1"># (unpacking them happens underneath this function),</span>
+            <span class="c1"># but we actually do need to unpack the synthetic bases when performing the copy_&#39;s to keep input mutations around.</span>
+            <span class="c1"># Example case where this could be important:</span>
+            <span class="c1">#</span>
+            <span class="c1">#     def f(x, y):</span>
+            <span class="c1">#         x.mul_(2)</span>
+            <span class="c1">#         y.mul_(3)</span>
+            <span class="c1">#         return x, y</span>
+            <span class="c1">#    a = torch.ones(1&#39;000&#39;000)</span>
+            <span class="c1">#    x, y = out(a[0:9], a[1:10])</span>
+            <span class="c1">#</span>
+            <span class="c1"># It would be much better to add copy_() calls into the graph for the two tiny slices, instead of materializing</span>
+            <span class="c1"># a giant &quot;updated synthetic base&quot; and copying into a&#39;s entire storage.</span>
+            <span class="n">primals_unpacked</span> <span class="o">=</span> <span class="n">unpack_synthetic_bases</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">meta</span><span class="o">.</span><span class="n">synthetic_base_info</span><span class="p">)</span>
+            <span class="n">f_primals_unpacked</span> <span class="o">=</span> <span class="n">unpack_synthetic_bases</span><span class="p">(</span><span class="n">f_primals</span><span class="p">,</span> <span class="n">meta</span><span class="o">.</span><span class="n">synthetic_base_info</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">f_primals_unpacked</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">inpt_old</span><span class="p">,</span> <span class="n">inpt_f</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">primals_unpacked</span><span class="p">,</span> <span class="n">f_primals_unpacked</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inpt_f</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">_sync</span><span class="p">(</span><span class="n">inpt_f</span><span class="p">)</span>
+                <span class="n">inpt_new</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_from_functional_tensor</span><span class="p">(</span><span class="n">inpt_f</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">meta</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_metadata</span><span class="p">:</span>
+                    <span class="c1"># We found an input that had a (data-only) mutation.</span>
+                    <span class="c1"># Since keep_input_mutations is set, we need to faithfully apply a copy_()</span>
+                    <span class="c1"># so the compiler will see the input mutation in the graph.</span>
+                    <span class="k">assert</span> <span class="n">inpt_new</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">inpt_old</span>
+                    <span class="k">assert</span> <span class="n">has_same_metadata</span><span class="p">(</span><span class="n">inpt_new</span><span class="p">,</span> <span class="n">inpt_old</span><span class="p">)</span>
+                    <span class="n">inpt_old</span><span class="o">.</span><span class="n">copy_</span><span class="p">(</span><span class="n">inpt_new</span><span class="p">)</span>
+
         <span class="k">return</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">from_fun</span><span class="p">,</span> <span class="n">f_outs</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">functionalized_joint</span>
+    <span class="c1"># the joint needs have args named &quot;primals&quot; and &quot;tangents&quot;,</span>
+    <span class="c1"># which are hardcoded into the partitioning logic.</span>
+    <span class="k">def</span> <span class="nf">traced_joint</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">tangents</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">functionalized_f_helper</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">tangents</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">traced_forward</span><span class="p">(</span><span class="o">*</span><span class="n">primals</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">functionalized_f_helper</span><span class="p">(</span><span class="n">primals</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">trace_joint</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">traced_joint</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">traced_forward</span>
 
 
 <span class="k">def</span> <span class="nf">normalize_as_list</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
@@ -1369,7 +1592,6 @@
             <span class="k">del</span> <span class="n">guard</span>
     <span class="k">return</span> <span class="n">out</span>
 
-
 <span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
 <span class="k">class</span> <span class="nc">AOTConfig</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -1382,11 +1604,50 @@
     <span class="n">decompositions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span>
     <span class="n">num_params_buffers</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">aot_id</span><span class="p">:</span> <span class="nb">int</span>
-
+    <span class="n">keep_inference_input_mutations</span><span class="p">:</span> <span class="nb">bool</span>
 
 <span class="k">def</span> <span class="nf">aot_dispatch_base</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">aot_config</span><span class="p">:</span> <span class="n">AOTConfig</span><span class="p">):</span>
     <span class="k">with</span> <span class="n">enable_python_dispatcher</span><span class="p">():</span>
-        <span class="n">fw_module</span> <span class="o">=</span> <span class="n">make_fx</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">decompositions</span><span class="p">)(</span><span class="o">*</span><span class="n">flat_args</span><span class="p">)</span>
+        <span class="n">_fw_metadata</span><span class="p">,</span> <span class="n">_out</span> <span class="o">=</span> <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">(</span>
+            <span class="n">flat_fn</span><span class="p">,</span>
+            <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
+        <span class="p">)(</span>
+            <span class="o">*</span><span class="n">flat_args</span>
+        <span class="p">)</span>
+
+    <span class="n">_input_info</span> <span class="o">=</span> <span class="n">_fw_metadata</span><span class="o">.</span><span class="n">input_info</span>
+
+    <span class="n">flat_args_with_views_handled</span><span class="p">,</span> <span class="n">_synthetic_base_info</span> <span class="o">=</span> <span class="n">merge_view_inputs</span><span class="p">(</span>
+        <span class="n">flat_args</span><span class="p">,</span> <span class="n">_input_info</span><span class="p">,</span> <span class="n">is_inference</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span>
+    <span class="n">metadata_</span> <span class="o">=</span> <span class="n">CompiledRuntimeMetadata</span><span class="p">(</span>
+        <span class="n">synthetic_base_info</span><span class="o">=</span><span class="n">_synthetic_base_info</span><span class="p">,</span>
+        <span class="n">fw_metadata</span><span class="o">=</span><span class="n">_fw_metadata</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="c1"># aot_dispatch_base requires functionalization, but doesn&#39;t need to handle as many cases as the autograd case.</span>
+    <span class="c1"># The cases that aot_dispatch_base doesn&#39;t need to handle include:</span>
+    <span class="c1"># - outputs that are aliases of graph intermediates</span>
+    <span class="c1"># - outputs that are aliases of graph inputs</span>
+    <span class="c1"># While cases that it does need to handle include:</span>
+    <span class="c1"># - input mutations (including when inputs are aliases of each other)</span>
+    <span class="c1"># - input metadata mutations</span>
+    <span class="n">trace_fn</span> <span class="o">=</span> <span class="n">create_forward_or_joint_functionalized</span><span class="p">(</span>
+        <span class="n">flat_fn</span><span class="p">,</span>
+        <span class="n">meta</span><span class="o">=</span><span class="n">metadata_</span><span class="p">,</span>
+        <span class="n">trace_joint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span>
+    <span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">enable_python_dispatcher</span><span class="p">():</span>
+        <span class="n">fw_module</span> <span class="o">=</span> <span class="n">make_fx</span><span class="p">(</span><span class="n">trace_fn</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">decompositions</span><span class="p">)(</span><span class="o">*</span><span class="n">flat_args_with_views_handled</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">:</span>
+        <span class="c1"># As long as we opted to remove input mutations, then</span>
+        <span class="c1"># there should be *NO* mutating ops in the graph at this point.</span>
+        <span class="n">assert_functional_graph</span><span class="p">(</span><span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
+        <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">eliminate_dead_code</span><span class="p">()</span>
+        <span class="n">fw_module</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
+
     <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_graphs</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;====== Forward (only) graph </span><span class="si">{</span><span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="si">}</span><span class="s2"> ======&quot;</span><span class="p">)</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">fw_module</span><span class="o">.</span><span class="n">print_readable</span><span class="p">(</span><span class="n">print_output</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
@@ -1395,16 +1656,16 @@
     <span class="n">context</span> <span class="o">=</span> <span class="n">disable_autocast_manager</span> <span class="k">if</span> <span class="n">disable_amp</span> <span class="k">else</span> <span class="n">nullcontext</span>
 
     <span class="k">with</span> <span class="n">context</span><span class="p">(),</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;inference&quot;</span><span class="p">):</span>
-        <span class="n">compiled_fw</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">fw_compiler</span><span class="p">(</span><span class="n">fw_module</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">)</span>
+        <span class="n">compiled_fw</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">fw_compiler</span><span class="p">(</span><span class="n">fw_module</span><span class="p">,</span> <span class="n">flat_args_with_views_handled</span><span class="p">)</span>
 
-    <span class="nd">@wraps</span><span class="p">(</span><span class="n">compiled_fw</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">new_fn</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
-        <span class="n">fw_outs</span> <span class="o">=</span> <span class="n">call_func_with_args</span><span class="p">(</span><span class="n">compiled_fw</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">disable_amp</span><span class="o">=</span><span class="n">disable_amp</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">fw_outs</span>
+    <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">create_runtime_wrapper</span><span class="p">(</span>
+        <span class="n">compiled_fw</span><span class="p">,</span>
+        <span class="n">runtime_metadata</span><span class="o">=</span><span class="n">metadata_</span><span class="p">,</span>
+        <span class="n">trace_joint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span>
+    <span class="p">)</span>
 
-    <span class="n">new_fn</span><span class="o">.</span><span class="n">_boxed_call</span> <span class="o">=</span> <span class="kc">True</span>
-
-    <span class="k">return</span> <span class="n">new_fn</span>
+    <span class="k">return</span> <span class="n">compiled_fn</span>
 
 
 <span class="k">def</span> <span class="nf">assert_functional_graph</span><span class="p">(</span><span class="n">fx_g</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Graph</span><span class="p">):</span>
@@ -1511,7 +1772,10 @@
 <span class="c1">#   c_base = torch.Tensor(c.storage())</span>
 <span class="c1">#   f(c_base, b_base, a, d)</span>
 <span class="k">def</span> <span class="nf">merge_view_inputs</span><span class="p">(</span>
-    <span class="n">fwd_inputs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">mutated_input_info</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">InputAliasInfo</span><span class="p">]</span>
+    <span class="n">fwd_inputs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">mutated_input_info</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">InputAliasInfo</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="c1"># The autograd case currently has more restrictions than the inference case.</span>
+    <span class="n">is_inference</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]]]]]:</span>
     <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">fwd_inputs</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">mutated_input_info</span><span class="p">)</span>
     <span class="n">storage_ref_to_idx</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">StorageWeakRef</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
@@ -1523,6 +1787,7 @@
             <span class="n">storage_ref_to_idx</span><span class="p">[</span><span class="n">storage_ref</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">other_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">inpt</span><span class="p">)</span>
+    <span class="c1"># Note [Synthetic Base Info Metadata]</span>
     <span class="c1"># This list contains metadata that tells you what the i&#39;th argument in the inner calling convention should be.</span>
     <span class="c1"># It&#39;s either:</span>
     <span class="c1"># - another int (corresponding to the index in the argument list of the element from the outer calling convention)</span>
@@ -1549,9 +1814,10 @@
             <span class="n">view2</span> <span class="o">=</span> <span class="n">fwd_inputs</span><span class="p">[</span><span class="n">idx2</span><span class="p">]</span>
             <span class="c1"># The &quot;inputs that are aliased but have different differentiable bases&quot; case</span>
             <span class="c1"># is more complicated and hopefully pretty rare. Not currently handled.</span>
-            <span class="k">assert</span> <span class="n">are_differentiable_views</span><span class="p">(</span>
-                <span class="n">view1</span><span class="p">,</span> <span class="n">view2</span>
-            <span class="p">),</span> <span class="s2">&quot;aot_autograd() does not yet handle non-differentiable view input mutations.&quot;</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">is_inference</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="n">are_differentiable_views</span><span class="p">(</span>
+                    <span class="n">view1</span><span class="p">,</span> <span class="n">view2</span>
+                <span class="p">),</span> <span class="s2">&quot;aot_autograd() does not yet handle non-differentiable view input mutations.&quot;</span>
             <span class="c1"># Regenerating views when reinterpreting complex / real tensors seems non-trivial,</span>
             <span class="c1"># not handling for now</span>
             <span class="k">assert</span> <span class="n">same_dtype_views</span><span class="p">(</span>
@@ -1568,8 +1834,35 @@
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">non_none_bases</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="c1"># Case where none of the aliases have a ._base</span>
             <span class="c1"># we generate a synthetic base without gradients, and generate views off of it</span>
+            <span class="c1"># We hit this case when we have input tensors to the graph that share a storage,</span>
+            <span class="c1"># but do not have a ._base field.</span>
+            <span class="c1"># Wondering when we hit this case?</span>
+            <span class="c1"># The _base field simply says that autograd knows about the aliasing relationship,</span>
+            <span class="c1"># but sometimes we create tensors which are aliased out of the same storage but guaranteed</span>
+            <span class="c1"># to be disjoint. In these cases, we will skip setting up the _base relationship</span>
+            <span class="c1"># for performance reasons (because the fact that the tensors share the same storage</span>
+            <span class="c1"># is unobservable unless you (1) do naughty things with resize_/as_strided</span>
+            <span class="c1"># or (2) look at the storage--as we are doing here.)</span>
+            <span class="c1"># One particular example of this is optimizer steps on the LSTM module:</span>
+            <span class="c1"># LSTM parameters are packed into a contiguous storage for efficiency reasons when</span>
+            <span class="c1"># calling cuDNN kernels, so when these parameters get passed to the optimizer we will</span>
+            <span class="c1"># find they share the same storage, but do not have _base set since they are all disjoint.</span>
+            <span class="c1">#</span>
+            <span class="c1"># NOTE: There is one case where this is unsafe:</span>
+            <span class="c1"># torch.Tensor(storage) will ALWAYS create a 1D tensor, which is not necessarily</span>
+            <span class="c1"># the same shape as the &quot;actual&quot; base that the tensor came from.</span>
+            <span class="c1"># For the most part this is fine, because we always use as_strided()</span>
+            <span class="c1"># to generate the original aliased inputs again.</span>
+            <span class="c1"># If we were to use view-replay though, this could cause the aliased views</span>
+            <span class="c1"># to have incorrect sizes.</span>
             <span class="n">example_idx</span> <span class="o">=</span> <span class="n">aliased_input_indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">synthetic_base</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">fwd_inputs</span><span class="p">[</span><span class="n">example_idx</span><span class="p">]</span><span class="o">.</span><span class="n">untyped_storage</span><span class="p">())</span>
+            <span class="n">example_alias</span> <span class="o">=</span> <span class="n">fwd_inputs</span><span class="p">[</span><span class="n">example_idx</span><span class="p">]</span>
+            <span class="c1"># Note that this function is re-used at both trace time and rutnime.</span>
+            <span class="c1"># At trace time, we&#39;re under a FakeMode so synthetic_base becomes a FakeTensor.</span>
+            <span class="n">synthetic_base</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">0</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">example_alias</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">example_alias</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+            <span class="c1"># We don&#39;t actually have a convenient way of going from storage -&gt; tensor,</span>
+            <span class="c1"># So using set_() here (we suffer some minor overhead, but this case is rare).</span>
+            <span class="n">synthetic_base</span><span class="o">.</span><span class="n">set_</span><span class="p">(</span><span class="n">example_alias</span><span class="o">.</span><span class="n">untyped_storage</span><span class="p">())</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Case where all of the aliases require gradients, and have the same _base.</span>
             <span class="n">synthetic_base</span> <span class="o">=</span> <span class="n">non_none_bases</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -1711,7 +2004,12 @@
     <span class="c1"># or not</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="k">with</span> <span class="n">enable_python_dispatcher</span><span class="p">():</span>
-            <span class="n">fw_metadata</span><span class="p">,</span> <span class="n">_out</span> <span class="o">=</span> <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">)(</span>
+            <span class="n">fw_metadata</span><span class="p">,</span> <span class="n">_out</span> <span class="o">=</span> <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">(</span>
+                <span class="n">flat_fn</span><span class="p">,</span>
+                <span class="c1"># For the purpose of checking for dupes that are mutated,</span>
+                <span class="c1"># we always want our metadata to correctly reflect input mutations</span>
+                <span class="n">keep_input_mutations</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="p">)(</span>
                 <span class="o">*</span><span class="n">flat_args</span>
             <span class="p">)</span>
     <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
@@ -1890,6 +2188,173 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;input </span><span class="si">{</span><span class="n">i</span> <span class="o">-</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">num_params_buffers</span><span class="si">}</span><span class="s2">&quot;</span>
 
+<span class="c1"># The wrapper created by this function handles all of the runtime aliasing and mutation &quot;epilogue&quot; logic</span>
+<span class="c1"># that needs to run after the compiled function.</span>
+<span class="c1">#</span>
+<span class="c1"># This function accepts a trace_joint flag, indicating whether or not we&#39;re generating the runtime</span>
+<span class="c1"># epilogue for a forward-only inference graph, or for an autograd.Function.apply function.</span>
+<span class="c1"># This is because there are some minor differences in how we treat these cases at runtime:</span>
+<span class="c1"># - resize_() is currently handled in the inference case, but not fully handled in the autograd case.</span>
+<span class="c1"># - the autograd cases inserts TensorAlias wrapper objects for outputs that alias inputs</span>
+<span class="k">def</span> <span class="nf">create_runtime_wrapper</span><span class="p">(</span>
+    <span class="n">compiled_fn</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">runtime_metadata</span><span class="p">:</span> <span class="n">CompiledRuntimeMetadata</span><span class="p">,</span>
+    <span class="n">trace_joint</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+    <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="k">def</span> <span class="nf">runtime_wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="c1"># Step 2: remove aliased inputs that are mutated, replace with synthetic bases</span>
+        <span class="c1"># Only happens if our graph mutates an input that aliases another input.</span>
+        <span class="k">if</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">synthetic_base_info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Given: the original args, including at least one pair of inputs that are aliased</span>
+            <span class="c1"># and get subsequently mutated.</span>
+            <span class="c1"># Generate: the updated args, including (potentially multiple) synthetic bases</span>
+            <span class="c1"># that replace the views. The input views are regenerated manually in the compiled function.</span>
+            <span class="c1"># TODO: think harder about what happens if (a view of) one of these mutated input views is ALSO returned</span>
+            <span class="n">new_inputs</span><span class="p">,</span> <span class="n">metadata</span> <span class="o">=</span> <span class="n">merge_view_inputs</span><span class="p">(</span>
+                <span class="n">args</span><span class="p">,</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">,</span> <span class="n">is_inference</span><span class="o">=</span><span class="ow">not</span> <span class="n">trace_joint</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="c1"># We&#39;re just re-running the original-args-to-synthetic-base transformation</span>
+            <span class="c1"># that we ran during compilation.</span>
+            <span class="c1"># This returns metadata that we use during tracing to recover the input views,</span>
+            <span class="c1"># which we don&#39;t actually need at runtime.</span>
+            <span class="k">assert</span> <span class="n">metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="n">args_with_synthetic_bases</span> <span class="o">=</span> <span class="n">new_inputs</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">args_with_synthetic_bases</span> <span class="o">=</span> <span class="n">args</span>
+
+        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">_force_original_view_tracking</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
+            <span class="n">all_outs</span> <span class="o">=</span> <span class="n">call_func_with_args</span><span class="p">(</span>
+                <span class="n">compiled_fn</span><span class="p">,</span>
+                <span class="n">args_with_synthetic_bases</span><span class="p">,</span>
+                <span class="n">disable_amp</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">num_mutated_inps</span> <span class="o">=</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_mutated_inputs</span>
+        <span class="n">num_metadata_mutated_inps</span> <span class="o">=</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_mutated_metadata_inputs</span>
+        <span class="n">num_intermediate_bases</span> <span class="o">=</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
+
+        <span class="k">if</span> <span class="n">keep_input_mutations</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">all_outs</span><span class="p">)</span>
+                <span class="o">==</span> <span class="n">num_metadata_mutated_inps</span> <span class="o">+</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
+            <span class="p">)</span>
+            <span class="k">assert</span> <span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">runtime_metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">mutated_inp_indices</span><span class="p">)</span> <span class="o">==</span> <span class="n">num_metadata_mutated_inps</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">all_outs</span><span class="p">)</span>
+                <span class="o">==</span> <span class="n">num_mutated_inps</span> <span class="o">+</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
+            <span class="p">)</span>
+            <span class="k">assert</span> <span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">runtime_metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">mutated_inp_indices</span><span class="p">)</span> <span class="o">==</span> <span class="n">num_mutated_inps</span>
+            <span class="p">)</span>
+        <span class="c1"># Step 3: After running the compiled fw, apply updates to mutated inputs</span>
+        <span class="n">num_mutations_to_apply</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">runtime_metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">mutated_inp_indices</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">num_mutations_to_apply</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">updated_inputs</span> <span class="o">=</span> <span class="n">all_outs</span><span class="p">[:</span> <span class="n">num_mutations_to_apply</span><span class="p">]</span>
+            <span class="n">fw_outs</span> <span class="o">=</span> <span class="n">all_outs</span><span class="p">[</span><span class="n">num_mutations_to_apply</span> <span class="p">:]</span>
+
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">inpt_idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span>
+                <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">mutated_inp_indices</span>
+            <span class="p">):</span>
+                <span class="n">meta</span> <span class="o">=</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">inpt_idx</span><span class="p">]</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_metadata</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">original_inpt</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="n">inpt_idx</span><span class="p">]</span>
+                <span class="n">updated_inpt</span> <span class="o">=</span> <span class="n">updated_inputs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="c1"># TODO: add better resize_() support for autograd case.</span>
+                <span class="c1"># Check for the case when an input has been resized.</span>
+                <span class="c1"># Note: One important thing to check for is user code that calls inpt.storage().resize_().</span>
+                <span class="c1"># We can&#39;t trace operations on storage into the graph, so we should get dynamo to graph break.</span>
+                <span class="c1"># TODO: handle resize_() on inputs to a larger size.</span>
+                <span class="c1"># This is actually non-trivial to detect, so we should probably just handle it</span>
+                <span class="c1"># (or make dynamo detect).</span>
+                <span class="c1"># We can&#39;t just check of original_inpt.storage_size != updated_inpt.storage_size,</span>
+                <span class="c1"># Because the original_inpt might be a view of some larger tensor,</span>
+                <span class="c1"># and updated_inpt is always densely packed.</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">trace_joint</span> <span class="ow">and</span> <span class="n">original_inpt</span><span class="o">.</span><span class="n">storage</span><span class="p">()</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">!=</span> <span class="n">updated_inpt</span><span class="o">.</span><span class="n">storage</span><span class="p">()</span><span class="o">.</span><span class="n">size</span><span class="p">():</span>
+                    <span class="n">original_inpt</span><span class="o">.</span><span class="n">resize_</span><span class="p">(</span><span class="n">updated_inpt</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
+                <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_metadata</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_data</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">trace_joint</span><span class="p">:</span>
+                        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">updated_inpt</span><span class="p">,</span> <span class="n">TensorAlias</span><span class="p">)</span>
+                        <span class="n">updated_inpt</span> <span class="o">=</span> <span class="n">updated_inpt</span><span class="o">.</span><span class="n">alias</span>
+                    <span class="c1"># We need to grab the size/stride/storage_offset from the compiled forward,</span>
+                    <span class="c1"># and use that to mutate the metadata of the input</span>
+                    <span class="n">original_inpt</span><span class="o">.</span><span class="n">as_strided_</span><span class="p">(</span>
+                        <span class="n">updated_inpt</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span>
+                        <span class="n">updated_inpt</span><span class="o">.</span><span class="n">stride</span><span class="p">(),</span>
+                        <span class="n">updated_inpt</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">(),</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">and</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_metadata</span><span class="p">:</span>
+                        <span class="n">original_inpt</span><span class="o">.</span><span class="n">as_strided_</span><span class="p">(</span>
+                            <span class="n">updated_inpt</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span>
+                            <span class="n">updated_inpt</span><span class="o">.</span><span class="n">stride</span><span class="p">(),</span>
+                            <span class="n">updated_inpt</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">(),</span>
+                        <span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">assert</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_data</span>
+                    <span class="n">original_inpt</span><span class="o">.</span><span class="n">copy_</span><span class="p">(</span><span class="n">updated_inpt</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">fw_outs</span> <span class="o">=</span> <span class="n">all_outs</span>
+
+        <span class="c1"># Step 4: Manually regenerate any outputs that are aliased to inputs, instead of</span>
+        <span class="c1"># compiling them.</span>
+        <span class="k">if</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_outputs_aliased</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># The compiled forward also returned intermediate bases. We don&#39;t want to return them to the user.</span>
+            <span class="k">if</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">fw_outs_no_intermediate_bases</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span>
+                    <span class="p">:</span> <span class="o">-</span><span class="n">runtime_metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
+                <span class="p">]</span>
+                <span class="n">intermediate_bases</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span><span class="o">-</span><span class="n">runtime_metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span><span class="p">:]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">fw_outs_no_intermediate_bases</span> <span class="o">=</span> <span class="n">fw_outs</span>
+                <span class="n">intermediate_bases</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_outs_no_intermediate_bases</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">runtime_metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span>
+
+            <span class="n">fw_outs_including_aliases</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span>
+                <span class="n">fw_outs_no_intermediate_bases</span><span class="p">,</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_info</span>
+            <span class="p">)):</span>
+                <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">:</span>
+                    <span class="n">fw_outs_including_aliases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="n">trace_joint</span><span class="p">:</span>
+                    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">TensorAlias</span><span class="p">)</span>
+                    <span class="n">o_</span> <span class="o">=</span> <span class="n">o</span><span class="o">.</span><span class="n">alias</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">o_</span> <span class="o">=</span> <span class="n">o</span>
+                <span class="n">o_grad</span> <span class="o">=</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">requires_grad_info</span><span class="p">[</span><span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="n">i</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_input</span><span class="p">:</span>
+                    <span class="n">aliased_base_tensor</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="n">info</span><span class="o">.</span><span class="n">base_idx</span><span class="p">]</span>
+                    <span class="n">regenerated_out</span> <span class="o">=</span> <span class="n">gen_alias_from_base</span><span class="p">(</span><span class="n">aliased_base_tensor</span><span class="p">,</span> <span class="n">o_</span><span class="p">,</span> <span class="n">o_grad</span><span class="p">)</span>
+                    <span class="n">fw_outs_including_aliases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">regenerated_out</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="k">elif</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">is_input</span><span class="p">:</span>
+                    <span class="n">aliased_base_tensor</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="n">info</span><span class="o">.</span><span class="n">base_idx</span><span class="p">]</span>
+                    <span class="n">regenerated_out</span> <span class="o">=</span> <span class="n">aliased_base_tensor</span>
+                    <span class="n">fw_outs_including_aliases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">regenerated_out</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="k">elif</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate</span><span class="p">:</span>
+                    <span class="n">base_tensor_list</span> <span class="o">=</span> <span class="n">intermediate_bases</span>
+                <span class="k">elif</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_save_as_output</span><span class="p">:</span>
+                    <span class="n">base_tensor_list</span> <span class="o">=</span> <span class="n">intermediate_bases</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">assert</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_base_is_user_output</span>
+                    <span class="n">base_tensor_list</span> <span class="o">=</span> <span class="n">fw_outs_no_intermediate_bases</span>
+                <span class="n">aliased_base_tensor</span> <span class="o">=</span> <span class="n">base_tensor_list</span><span class="p">[</span><span class="n">info</span><span class="o">.</span><span class="n">base_idx</span><span class="p">]</span>
+                <span class="c1"># TODO: handle the custom autograd function case here.</span>
+                <span class="c1"># We need a way to check whether a tensor came from a custom autograd fn from python,</span>
+                <span class="c1"># AND a way to replay that custom view fn.</span>
+                <span class="n">regenerated_out</span> <span class="o">=</span> <span class="n">gen_alias_from_base</span><span class="p">(</span><span class="n">aliased_base_tensor</span><span class="p">,</span> <span class="n">o_</span><span class="p">,</span> <span class="n">o_grad</span><span class="p">)</span>
+                <span class="n">fw_outs_including_aliases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">regenerated_out</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">fw_outs_including_aliases</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">fw_outs</span>
+    <span class="k">return</span> <span class="n">runtime_wrapper</span>
 
 <span class="c1"># Has the precondition that there</span>
 <span class="c1"># are no duplicate arguments in flat_args (e.g., the same Tensor</span>
@@ -1898,53 +2363,15 @@
 <span class="k">def</span> <span class="nf">aot_dispatch_autograd</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">aot_config</span><span class="p">:</span> <span class="n">AOTConfig</span><span class="p">):</span>
 
     <span class="k">with</span> <span class="n">enable_python_dispatcher</span><span class="p">():</span>
-        <span class="n">_fw_metadata</span><span class="p">,</span> <span class="n">out</span> <span class="o">=</span> <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">)(</span>
+        <span class="n">_fw_metadata</span><span class="p">,</span> <span class="n">out</span> <span class="o">=</span> <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">(</span>
+            <span class="n">flat_fn</span><span class="p">,</span>
+            <span class="c1"># Note: in the non-inference path, we are currently not passing input mutations into the graph directly.</span>
+            <span class="c1"># This is mainly difficult due to the partitioner, but we are leaving (a bit of) perf on the table.</span>
+            <span class="n">keep_input_mutations</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)(</span>
             <span class="o">*</span><span class="n">flat_args</span>
         <span class="p">)</span>
 
-    <span class="c1"># pre-compute, so we can bail out quickly in the hotpath</span>
-    <span class="n">_num_outputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">_fw_metadata</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span>
-    <span class="n">_num_outputs_non_aliased</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
-        <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">_fw_metadata</span><span class="o">.</span><span class="n">output_info</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">]</span>
-    <span class="p">)</span>
-    <span class="n">_num_outputs_aliased_to_inputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
-        <span class="p">[</span>
-            <span class="n">x</span>
-            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">_fw_metadata</span><span class="o">.</span><span class="n">output_info</span>
-            <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">in</span> <span class="p">[</span>
-                <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_input</span><span class="p">,</span>
-                <span class="n">OutputType</span><span class="o">.</span><span class="n">is_input</span><span class="p">,</span>
-            <span class="p">]</span>
-        <span class="p">]</span>
-    <span class="p">)</span>
-    <span class="n">_num_outputs_aliased_to_intermediates</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
-        <span class="p">[</span>
-            <span class="n">x</span>
-            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">_fw_metadata</span><span class="o">.</span><span class="n">output_info</span>
-            <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">in</span> <span class="p">[</span>
-                <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate</span><span class="p">,</span>
-                <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_save_as_output</span><span class="p">,</span>
-                <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_base_is_user_output</span><span class="p">,</span>
-            <span class="p">]</span>
-        <span class="p">]</span>
-    <span class="p">)</span>
-    <span class="n">_num_outputs_aliased</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">_num_outputs_aliased_to_inputs</span> <span class="o">+</span> <span class="n">_num_outputs_aliased_to_intermediates</span>
-    <span class="p">)</span>
-
-    <span class="n">_num_mutated_data_inputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
-        <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">_fw_metadata</span><span class="o">.</span><span class="n">input_info</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_data</span><span class="p">]</span>
-    <span class="p">)</span>
-    <span class="n">_num_mutated_metadata_only_inputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
-        <span class="p">[</span>
-            <span class="n">x</span>
-            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">_fw_metadata</span><span class="o">.</span><span class="n">input_info</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">and</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_metadata</span>
-        <span class="p">]</span>
-    <span class="p">)</span>
-    <span class="n">_num_mutated_inputs</span> <span class="o">=</span> <span class="n">_num_mutated_data_inputs</span> <span class="o">+</span> <span class="n">_num_mutated_metadata_only_inputs</span>
-
-    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">_fw_metadata</span><span class="o">.</span><span class="n">requires_grad_info</span><span class="p">)</span> <span class="o">==</span> <span class="n">_num_mutated_inputs</span> <span class="o">+</span> <span class="n">_num_outputs</span>
 
     <span class="c1"># out here corresponds to the set of outputs in the traced forward that should get grad_outputs in the traced backward.</span>
     <span class="c1"># It includes outputs of the original forward, *and* any updated inputs due to input mutations.</span>
@@ -1960,13 +2387,24 @@
     <span class="c1"># When that happens, we replace the aliased inputs with a synthetic base, and in the traced forward</span>
     <span class="c1"># we later generate the input views</span>
     <span class="n">flat_args_with_views_handled</span><span class="p">,</span> <span class="n">_synthetic_base_info</span> <span class="o">=</span> <span class="n">merge_view_inputs</span><span class="p">(</span>
-        <span class="n">flat_args</span><span class="p">,</span> <span class="n">_fw_metadata</span><span class="o">.</span><span class="n">input_info</span>
+        <span class="n">flat_args</span><span class="p">,</span> <span class="n">_fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">,</span> <span class="n">is_inference</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">joint_forward_backward</span> <span class="o">=</span> <span class="n">create_joint_forward_backward_functionalized</span><span class="p">(</span>
-        <span class="n">flat_fn</span><span class="p">,</span>
-        <span class="n">meta</span><span class="o">=</span><span class="n">_fw_metadata</span><span class="p">,</span>
+    <span class="c1"># pre-compute, so we can bail out quickly in the hotpath</span>
+    <span class="n">metadata_</span> <span class="o">=</span> <span class="n">CompiledRuntimeMetadata</span><span class="p">(</span>
         <span class="n">synthetic_base_info</span><span class="o">=</span><span class="n">_synthetic_base_info</span><span class="p">,</span>
+        <span class="n">fw_metadata</span><span class="o">=</span><span class="n">_fw_metadata</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">_fw_metadata</span><span class="o">.</span><span class="n">requires_grad_info</span><span class="p">)</span> <span class="o">==</span> <span class="n">metadata_</span><span class="o">.</span><span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="n">metadata_</span><span class="o">.</span><span class="n">num_outputs</span>
+
+    <span class="n">joint_forward_backward</span> <span class="o">=</span> <span class="n">create_forward_or_joint_functionalized</span><span class="p">(</span>
+        <span class="n">flat_fn</span><span class="p">,</span>
+        <span class="n">meta</span><span class="o">=</span><span class="n">metadata_</span><span class="p">,</span>
+        <span class="n">trace_joint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="c1"># For now in the autograd case, we NEVER keep input mutations (we could eventually fix this for slightly better perf</span>
+        <span class="c1"># in some cases, but it&#39;s annoying to fix the partitioner)</span>
+        <span class="n">keep_input_mutations</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="n">joint_inputs</span> <span class="o">=</span> <span class="p">(</span><span class="n">flat_args_with_views_handled</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
@@ -2002,7 +2440,7 @@
 
     <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
         <span class="k">with</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;joint&quot;</span><span class="p">):</span>
-            <span class="n">num_inner_fwd_outputs</span> <span class="o">=</span> <span class="n">_num_mutated_inputs</span> <span class="o">+</span> <span class="n">_num_outputs</span> <span class="o">+</span> <span class="n">_fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
+            <span class="n">num_inner_fwd_outputs</span> <span class="o">=</span> <span class="n">metadata_</span><span class="o">.</span><span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="n">metadata_</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="n">_fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
             <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">partition_fn</span><span class="p">(</span>
                 <span class="n">fx_g</span><span class="p">,</span> <span class="n">joint_inputs</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_inner_fwd_outputs</span>
             <span class="p">)</span>
@@ -2029,16 +2467,8 @@
     <span class="k">class</span> <span class="nc">CompiledFunction</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">Function</span><span class="p">):</span>
         <span class="n">compiled_fw</span> <span class="o">=</span> <span class="n">compiled_fw_func</span>
         <span class="n">compiled_bw</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="n">num_outputs</span> <span class="o">=</span> <span class="n">_num_outputs</span>
-        <span class="n">num_outputs_aliased_to_inputs</span> <span class="o">=</span> <span class="n">_num_outputs_aliased_to_inputs</span>
-        <span class="n">num_outputs_aliased_to_intermediates</span> <span class="o">=</span> <span class="n">_num_outputs_aliased_to_intermediates</span>
-        <span class="n">num_outputs_aliased</span> <span class="o">=</span> <span class="n">_num_outputs_aliased</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="n">metadata_</span>
         <span class="n">num_symints_saved_for_bw</span> <span class="o">=</span> <span class="n">_num_symints_saved_for_bw</span>
-        <span class="n">num_mutated_inputs</span> <span class="o">=</span> <span class="n">_num_mutated_inputs</span>
-        <span class="n">num_mutated_data_inputs</span> <span class="o">=</span> <span class="n">_num_mutated_data_inputs</span>
-        <span class="n">num_mutated_metadata_only_inputs</span> <span class="o">=</span> <span class="n">_num_mutated_metadata_only_inputs</span>
-        <span class="n">synthetic_base_info</span> <span class="o">=</span> <span class="n">_synthetic_base_info</span>
-        <span class="n">fw_metadata</span> <span class="o">=</span> <span class="n">_fw_metadata</span>
 
         <span class="nd">@staticmethod</span>
         <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="o">*</span><span class="n">deduped_flat_tensor_args</span><span class="p">):</span>
@@ -2054,25 +2484,25 @@
                 <span class="n">disable_amp</span><span class="o">=</span><span class="n">disable_amp</span><span class="p">,</span>
             <span class="p">)</span>
 
-            <span class="n">num_outputs</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_outputs</span>
+            <span class="n">num_outputs</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs</span>
             <span class="n">num_outputs_aliased_to_inputs</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_outputs_aliased_to_inputs</span>
+                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs_aliased_to_inputs</span>
             <span class="p">)</span>
             <span class="n">num_outputs_aliased_to_intermediates</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_outputs_aliased_to_intermediates</span>
+                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs_aliased_to_intermediates</span>
             <span class="p">)</span>
-            <span class="n">num_outputs_aliased</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_outputs_aliased</span>
-            <span class="n">num_intermediate_bases</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
+            <span class="n">num_outputs_aliased</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs_aliased</span>
+            <span class="n">num_intermediate_bases</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
             <span class="n">num_symints_saved_for_bw</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_symints_saved_for_bw</span>
-            <span class="n">num_mutated_inputs</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_mutated_inputs</span>
+            <span class="n">num_mutated_inputs</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_mutated_inputs</span>
             <span class="n">num_mutated_metadata_only_inputs</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_mutated_metadata_only_inputs</span>
+                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_mutated_metadata_only_inputs</span>
             <span class="p">)</span>
             <span class="c1"># Our forward() returns both (mutated_inputs, outputs, output_intermediate_bases, saved_tensors, saved_symints)</span>
             <span class="n">num_forward_returns</span> <span class="o">=</span> <span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="n">num_outputs</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
 
             <span class="k">assert</span> <span class="n">num_forward_returns</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span>
-                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">requires_grad_info</span>
+                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">requires_grad_info</span>
             <span class="p">)</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
 
             <span class="c1"># Partitioners must put symint arguments at the end separate from tensor arguments</span>
@@ -2102,21 +2532,23 @@
             <span class="c1"># so that autograd.Function doesn&#39;t treat them as tensors</span>
             <span class="k">if</span> <span class="n">num_mutated_metadata_only_inputs</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span>
-                    <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">mutated_inp_indices</span>
+                    <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">mutated_inp_indices</span>
                 <span class="p">):</span>
                     <span class="c1"># We could make this faster by only looping over inputs with metadata-only mutations</span>
                     <span class="c1"># (instead of looping over inputs with either data or metadata mutations), but there shouldn&#39;t be many.</span>
-                    <span class="n">info</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+                    <span class="n">info</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
                     <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">mutates_metadata</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">info</span><span class="o">.</span><span class="n">mutates_data</span><span class="p">:</span>
                         <span class="n">raw_returns</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">TensorAlias</span><span class="p">(</span><span class="n">raw_returns</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
 
                 <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_assert</span><span class="p">:</span>
                     <span class="n">user_mutated_inputs_raw</span> <span class="o">=</span> <span class="n">raw_returns</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">num_mutated_inputs</span><span class="p">]</span>
-                    <span class="n">mut_inp_infos</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">or</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_metadata</span><span class="p">]</span>
+                    <span class="n">mut_inp_infos</span> <span class="o">=</span> <span class="p">[</span>
+                        <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">or</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_metadata</span>
+                    <span class="p">]</span>
                     <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">user_mutated_inputs_raw</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">mut_inp_infos</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="n">num_outputs_aliased</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">aliased_out_indices</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">aliased_out_indices</span><span class="p">:</span>
                     <span class="n">raw_return_idx</span> <span class="o">=</span> <span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="n">idx</span>
                     <span class="n">raw_returns</span><span class="p">[</span><span class="n">raw_return_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">TensorAlias</span><span class="p">(</span><span class="n">raw_returns</span><span class="p">[</span><span class="n">raw_return_idx</span><span class="p">])</span>
 
@@ -2131,7 +2563,7 @@
                 <span class="n">x</span>
                 <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">raw_returns_not_including_intermediate_bases</span><span class="p">)</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
-                <span class="ow">and</span> <span class="ow">not</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">requires_grad_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="ow">and</span> <span class="ow">not</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">requires_grad_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
             <span class="p">]</span>
             <span class="n">ctx</span><span class="o">.</span><span class="n">mark_non_differentiable</span><span class="p">(</span><span class="o">*</span><span class="n">fw_outs_not_requiring_grad</span><span class="p">)</span>
 
@@ -2148,27 +2580,27 @@
             <span class="c1"># - updated inputs due to metadata-only mutations.</span>
             <span class="c1"># We need to return them in the forward, but ensure that they all do not get gradients in the backward,</span>
             <span class="c1"># and we filter them out here before passing the remaining grad_outputs into the compiled backward.</span>
-            <span class="n">num_mutated_inps</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_mutated_inputs</span>
-            <span class="n">num_intermediate_bases</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
+            <span class="n">num_mutated_inps</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_mutated_inputs</span>
+            <span class="n">num_intermediate_bases</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
             <span class="n">expected_grad_outs</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="n">num_mutated_inps</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
+                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="n">num_mutated_inps</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
             <span class="p">)</span>
 
             <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">flat_args</span><span class="p">)</span> <span class="o">==</span> <span class="n">expected_grad_outs</span>
             <span class="k">if</span> <span class="p">(</span>
-                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_mutated_metadata_only_inputs</span> <span class="o">&gt;</span> <span class="mi">0</span>
-                <span class="ow">or</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_outputs_aliased</span> <span class="o">&gt;</span> <span class="mi">0</span>
+                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_mutated_metadata_only_inputs</span> <span class="o">&gt;</span> <span class="mi">0</span>
+                <span class="ow">or</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs_aliased</span> <span class="o">&gt;</span> <span class="mi">0</span>
             <span class="p">):</span>
                 <span class="n">inp_tangents</span><span class="p">,</span> <span class="n">out_tangents</span><span class="p">,</span> <span class="n">intermediate_base_tangents</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="n">flat_args</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">num_mutated_inps</span><span class="p">],</span>
-                    <span class="n">flat_args</span><span class="p">[</span><span class="n">num_mutated_inps</span><span class="p">:</span><span class="n">num_mutated_inps</span> <span class="o">+</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_outputs</span><span class="p">],</span>
-                    <span class="n">flat_args</span><span class="p">[</span><span class="n">num_mutated_inps</span> <span class="o">+</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_outputs</span><span class="p">:],</span>
+                    <span class="n">flat_args</span><span class="p">[</span><span class="n">num_mutated_inps</span><span class="p">:</span><span class="n">num_mutated_inps</span> <span class="o">+</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs</span><span class="p">],</span>
+                    <span class="n">flat_args</span><span class="p">[</span><span class="n">num_mutated_inps</span> <span class="o">+</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs</span><span class="p">:],</span>
                 <span class="p">)</span>
                 <span class="c1"># input_info contains info on *every* input,</span>
                 <span class="c1"># But in the backward(), we are only given grad outputs for every mutated input.</span>
                 <span class="c1"># We then need to filter out the grad outputs that correspond to metadata-only mutations.</span>
-                <span class="n">mutated_inp_indices</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">mutated_inp_indices</span>
-                <span class="n">input_info</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span>
+                <span class="n">mutated_inp_indices</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">mutated_inp_indices</span>
+                <span class="n">input_info</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span>
                 <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">inp_tangents</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">mutated_inp_indices</span><span class="p">)</span>
                 <span class="n">inp_tangents_filtered</span> <span class="o">=</span> <span class="p">[</span>
                     <span class="n">x</span>
@@ -2176,7 +2608,7 @@
                     <span class="k">if</span> <span class="n">input_info</span><span class="p">[</span><span class="n">info_idx</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span>
                 <span class="p">]</span>
                 <span class="c1"># We also need to filter out grad outputs that correspond to outputs aliasing inputs/intermediates</span>
-                <span class="n">out_info</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_info</span>
+                <span class="n">out_info</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_info</span>
                 <span class="n">out_tangents_filtered</span> <span class="o">=</span> <span class="p">[</span>
                     <span class="n">x</span>
                     <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">out_tangents</span><span class="p">,</span> <span class="n">out_info</span><span class="p">)</span>
@@ -2242,134 +2674,12 @@
                 <span class="n">out</span> <span class="o">=</span> <span class="n">call_compiled_backward</span><span class="p">()</span>
             <span class="k">return</span> <span class="n">out</span>
 
-    <span class="nd">@wraps</span><span class="p">(</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">apply</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">compiled_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
-        <span class="c1"># Step 2: remove aliased inputs that are mutated, replace with synthetic bases</span>
-        <span class="c1"># Only happens if our graph mutates an input that aliases another input.</span>
-        <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">synthetic_base_info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="c1"># Given: the original args, including at least one pair of inputs that are aliased</span>
-            <span class="c1"># and get subsequently mutated.</span>
-            <span class="c1"># Generate: the updated args, including (potentially multiple) synthetic bases</span>
-            <span class="c1"># that replace the views. The input views are regenerated manually in the compiled function.</span>
-            <span class="c1"># TODO: think harder about what happens if (a view of) one of these mutated input views is ALSO returned</span>
-            <span class="n">new_inputs</span><span class="p">,</span> <span class="n">metadata</span> <span class="o">=</span> <span class="n">merge_view_inputs</span><span class="p">(</span>
-                <span class="n">args</span><span class="p">,</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span>
-            <span class="p">)</span>
-            <span class="c1"># We&#39;re just re-running the original-args-to-synthetic-base transformation</span>
-            <span class="c1"># that we ran during compilation.</span>
-            <span class="c1"># This returns metadata that we use during tracing to recover the input views,</span>
-            <span class="c1"># which we don&#39;t actually need at runtime.</span>
-            <span class="k">assert</span> <span class="n">metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-            <span class="n">args_with_synthetic_bases</span> <span class="o">=</span> <span class="n">new_inputs</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">args_with_synthetic_bases</span> <span class="o">=</span> <span class="n">args</span>
-
-        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">_force_original_view_tracking</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
-            <span class="n">all_outs</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="o">*</span><span class="n">args_with_synthetic_bases</span><span class="p">)</span>
-
-        <span class="n">num_mutated_inps</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_mutated_inputs</span>
-        <span class="n">num_intermediate_bases</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
-        <span class="k">assert</span> <span class="p">(</span>
-            <span class="nb">len</span><span class="p">(</span><span class="n">all_outs</span><span class="p">)</span>
-            <span class="o">==</span> <span class="n">num_mutated_inps</span> <span class="o">+</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
-        <span class="p">)</span>
-        <span class="c1"># Step 3: After running the compiled fw, apply updates to mutated inputs</span>
-        <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_mutated_inputs</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="p">(</span>
-                <span class="nb">len</span><span class="p">(</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">mutated_inp_indices</span><span class="p">)</span>
-                <span class="o">==</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_mutated_inputs</span>
-            <span class="p">)</span>
-
-            <span class="n">updated_inputs</span> <span class="o">=</span> <span class="n">all_outs</span><span class="p">[:</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_mutated_inputs</span><span class="p">]</span>
-            <span class="n">fw_outs</span> <span class="o">=</span> <span class="n">all_outs</span><span class="p">[</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_mutated_inputs</span> <span class="p">:]</span>
-
-            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">inpt_idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span>
-                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">mutated_inp_indices</span>
-            <span class="p">):</span>
-                <span class="n">meta</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">inpt_idx</span><span class="p">]</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_metadata</span><span class="p">:</span>
-                    <span class="k">continue</span>
-                <span class="n">original_inpt</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="n">inpt_idx</span><span class="p">]</span>
-                <span class="n">updated_inpt</span> <span class="o">=</span> <span class="n">updated_inputs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-                <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_metadata</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_data</span><span class="p">:</span>
-                    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">updated_inpt</span><span class="p">,</span> <span class="n">TensorAlias</span><span class="p">)</span>
-                    <span class="n">updated_inpt</span> <span class="o">=</span> <span class="n">updated_inpt</span><span class="o">.</span><span class="n">alias</span>
-                    <span class="c1"># We need to grab the size/stride/storage_offset from the compiled forward,</span>
-                    <span class="c1"># and use that to mutate the metadata of the input</span>
-                    <span class="n">original_inpt</span><span class="o">.</span><span class="n">as_strided_</span><span class="p">(</span>
-                        <span class="n">updated_inpt</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span>
-                        <span class="n">updated_inpt</span><span class="o">.</span><span class="n">stride</span><span class="p">(),</span>
-                        <span class="n">updated_inpt</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">(),</span>
-                    <span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="c1"># TODO: handle resize_() on inputs to a larger size.</span>
-                    <span class="c1"># This is actually non-trivial to detect, so we should probably just handle it</span>
-                    <span class="c1"># (or make dynamo detect).</span>
-                    <span class="c1"># We can&#39;t just check of original_inpt.storage_size != updated_inpt.storage_size,</span>
-                    <span class="c1"># Because the original_inpt might be a view of some larger tensor,</span>
-                    <span class="c1"># and updated_inpt is always densely packed.</span>
-                    <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">and</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_metadata</span><span class="p">:</span>
-                        <span class="n">original_inpt</span><span class="o">.</span><span class="n">as_strided_</span><span class="p">(</span>
-                            <span class="n">updated_inpt</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span>
-                            <span class="n">updated_inpt</span><span class="o">.</span><span class="n">stride</span><span class="p">(),</span>
-                            <span class="n">updated_inpt</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">(),</span>
-                        <span class="p">)</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="k">assert</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_data</span>
-                    <span class="n">original_inpt</span><span class="o">.</span><span class="n">copy_</span><span class="p">(</span><span class="n">updated_inpt</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">fw_outs</span> <span class="o">=</span> <span class="n">all_outs</span>
-
-        <span class="c1"># Step 4: Manually regenerate any outputs that are aliased to inputs, instead of</span>
-        <span class="c1"># compiling them.</span>
-        <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_outputs_aliased</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="c1"># The compiled forward also returned intermediate bases. We don&#39;t want to return them to the user.</span>
-            <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">fw_outs_no_intermediate_bases</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span>
-                    <span class="p">:</span> <span class="o">-</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
-                <span class="p">]</span>
-                <span class="n">intermediate_bases</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span><span class="o">-</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span><span class="p">:]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">fw_outs_no_intermediate_bases</span> <span class="o">=</span> <span class="n">fw_outs</span>
-                <span class="n">intermediate_bases</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_outs_no_intermediate_bases</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span>
-
-            <span class="n">fw_outs_including_aliases</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span>
-                <span class="n">fw_outs_no_intermediate_bases</span><span class="p">,</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_info</span>
-            <span class="p">)):</span>
-                <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">:</span>
-                    <span class="n">fw_outs_including_aliases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
-                    <span class="k">continue</span>
-                <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">TensorAlias</span><span class="p">)</span>
-                <span class="n">o_</span> <span class="o">=</span> <span class="n">o</span><span class="o">.</span><span class="n">alias</span>
-                <span class="n">o_grad</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">requires_grad_info</span><span class="p">[</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="n">i</span><span class="p">]</span>
-                <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_input</span><span class="p">:</span>
-                    <span class="n">aliased_base_tensor</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="n">info</span><span class="o">.</span><span class="n">base_idx</span><span class="p">]</span>
-                    <span class="n">regenerated_out</span> <span class="o">=</span> <span class="n">gen_alias_from_base</span><span class="p">(</span><span class="n">aliased_base_tensor</span><span class="p">,</span> <span class="n">o_</span><span class="p">,</span> <span class="n">o_grad</span><span class="p">)</span>
-                    <span class="n">fw_outs_including_aliases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">regenerated_out</span><span class="p">)</span>
-                    <span class="k">continue</span>
-                <span class="k">elif</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">is_input</span><span class="p">:</span>
-                    <span class="n">aliased_base_tensor</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="n">info</span><span class="o">.</span><span class="n">base_idx</span><span class="p">]</span>
-                    <span class="n">regenerated_out</span> <span class="o">=</span> <span class="n">aliased_base_tensor</span>
-                    <span class="n">fw_outs_including_aliases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">regenerated_out</span><span class="p">)</span>
-                    <span class="k">continue</span>
-                <span class="k">elif</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate</span><span class="p">:</span>
-                    <span class="n">base_tensor_list</span> <span class="o">=</span> <span class="n">intermediate_bases</span>
-                <span class="k">elif</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_save_as_output</span><span class="p">:</span>
-                    <span class="n">base_tensor_list</span> <span class="o">=</span> <span class="n">intermediate_bases</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">assert</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_base_is_user_output</span>
-                    <span class="n">base_tensor_list</span> <span class="o">=</span> <span class="n">fw_outs_no_intermediate_bases</span>
-                <span class="n">aliased_base_tensor</span> <span class="o">=</span> <span class="n">base_tensor_list</span><span class="p">[</span><span class="n">info</span><span class="o">.</span><span class="n">base_idx</span><span class="p">]</span>
-                <span class="c1"># TODO: handle the custom autograd function case here.</span>
-                <span class="c1"># We need a way to check whether a tensor came from a custom autograd fn from python,</span>
-                <span class="c1"># AND a way to replay that custom view fn.</span>
-                <span class="n">regenerated_out</span> <span class="o">=</span> <span class="n">gen_alias_from_base</span><span class="p">(</span><span class="n">aliased_base_tensor</span><span class="p">,</span> <span class="n">o_</span><span class="p">,</span> <span class="n">o_grad</span><span class="p">)</span>
-                <span class="n">fw_outs_including_aliases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">regenerated_out</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">fw_outs_including_aliases</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">fw_outs</span>
+    <span class="n">compiled_function</span> <span class="o">=</span> <span class="n">create_runtime_wrapper</span><span class="p">(</span>
+        <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">apply</span><span class="p">,</span>
+        <span class="n">runtime_metadata</span><span class="o">=</span><span class="n">metadata_</span><span class="p">,</span>
+        <span class="n">trace_joint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">keep_input_mutations</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_assert</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">compiled_function</span>
@@ -2555,6 +2865,7 @@
     <span class="n">num_params_buffers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="n">hasher_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># deprecated</span>
     <span class="n">static_argnums</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># deprecated</span>
+    <span class="n">keep_inference_input_mutations</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Traces the forward and backward graph of :attr:`fn` using torch dispatch</span>
@@ -2620,6 +2931,7 @@
         <span class="n">decompositions</span><span class="o">=</span><span class="n">decompositions</span><span class="p">,</span>
         <span class="n">num_params_buffers</span><span class="o">=</span><span class="n">num_params_buffers</span><span class="p">,</span>
         <span class="n">aot_id</span><span class="o">=</span><span class="nb">next</span><span class="p">(</span><span class="n">AOT_COUNTER</span><span class="p">),</span>
+        <span class="n">keep_inference_input_mutations</span><span class="o">=</span><span class="n">keep_inference_input_mutations</span>
     <span class="p">)</span>
     <span class="n">cached_res</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -2736,6 +3048,7 @@
     <span class="n">decompositions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">hasher_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">static_argnums</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">keep_inference_input_mutations</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This is the simplified or low overhead version of aot_module. For frontends</span>
@@ -2808,6 +3121,7 @@
         <span class="n">decompositions</span><span class="o">=</span><span class="n">decompositions</span><span class="p">,</span>
         <span class="n">num_params_buffers</span><span class="o">=</span><span class="n">params_len</span><span class="p">,</span>
         <span class="n">aot_id</span><span class="o">=</span><span class="nb">next</span><span class="p">(</span><span class="n">AOT_COUNTER</span><span class="p">),</span>
+        <span class="n">keep_inference_input_mutations</span><span class="o">=</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="n">full_args</span> <span class="o">=</span> <span class="p">[]</span>
