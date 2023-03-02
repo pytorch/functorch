@@ -219,7 +219,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+git0553b46) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.0.0a0+gitc04134c) &#x25BC</a>
     </div>
     
 
@@ -2206,6 +2206,9 @@
     <span class="n">trace_joint</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
     <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
 <span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">compiled_fn</span><span class="p">,</span> <span class="s2">&quot;_boxed_call&quot;</span><span class="p">):</span>
+        <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">make_boxed_func</span><span class="p">(</span><span class="n">compiled_fn</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">runtime_wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
         <span class="c1"># Step 2: remove aliased inputs that are mutated, replace with synthetic bases</span>
         <span class="c1"># Only happens if our graph mutates an input that aliases another input.</span>
@@ -2516,7 +2519,8 @@
                 <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span>
                     <span class="p">[</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tensors_saved_for_backwards</span><span class="p">]</span>
                 <span class="p">)</span>
-                <span class="n">ctx</span><span class="o">.</span><span class="n">save_for_backward</span><span class="p">(</span><span class="o">*</span><span class="n">tensors_saved_for_backwards</span><span class="p">)</span>
+                <span class="c1"># See Note [Detaching saved tensors in AOTAutograd]</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">save_for_backward</span><span class="p">(</span><span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">_is_view</span><span class="p">()</span> <span class="k">else</span> <span class="n">x</span><span class="p">,</span> <span class="n">tensors_saved_for_backwards</span><span class="p">))</span>
                 <span class="n">symint_outs</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span><span class="o">-</span><span class="n">num_symints_saved_for_bw</span><span class="p">:]</span>
                 <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span>
                     <span class="p">[</span>
@@ -2526,7 +2530,9 @@
                 <span class="p">)</span>
                 <span class="n">ctx</span><span class="o">.</span><span class="n">symints</span> <span class="o">=</span> <span class="n">symint_outs</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">ctx</span><span class="o">.</span><span class="n">save_for_backward</span><span class="p">(</span><span class="o">*</span><span class="n">fw_outs</span><span class="p">[</span><span class="n">num_forward_returns</span><span class="p">:])</span>
+                <span class="n">tensors_saved_for_backwards</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span><span class="n">num_forward_returns</span><span class="p">:]</span>
+                <span class="c1"># See Note [Detaching saved tensors in AOTAutograd]</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">save_for_backward</span><span class="p">(</span><span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">_is_view</span><span class="p">()</span> <span class="k">else</span> <span class="n">x</span><span class="p">,</span> <span class="n">tensors_saved_for_backwards</span><span class="p">))</span>
                 <span class="n">ctx</span><span class="o">.</span><span class="n">symints</span> <span class="o">=</span> <span class="p">[]</span>
 
             <span class="n">raw_returns</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">num_forward_returns</span><span class="p">]</span>
@@ -2635,6 +2641,7 @@
             <span class="n">contiguous_args</span> <span class="o">=</span> <span class="p">[</span>
                 <span class="n">t</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">else</span> <span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">flat_bw_args</span>
             <span class="p">]</span>
+
             <span class="n">all_args</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="nb">list</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">symints</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">saved_tensors</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">contiguous_args</span><span class="p">)</span>
             <span class="p">)</span>
