@@ -219,7 +219,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gite8cd173) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git680214a) &#x25BC</a>
     </div>
     
 
@@ -1608,15 +1608,7 @@
     <span class="n">num_params_buffers</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">aot_id</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">keep_inference_input_mutations</span><span class="p">:</span> <span class="nb">bool</span>
-    <span class="c1"># If None, defer to config</span>
-    <span class="n">_dynamic_shapes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">dynamic_shapes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dynamic_shapes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">config</span><span class="o">.</span><span class="n">use_dynamic_shapes</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dynamic_shapes</span>
+    <span class="n">dynamic_shapes</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 
 <span class="k">def</span> <span class="nf">aot_dispatch_base</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">aot_config</span><span class="p">:</span> <span class="n">AOTConfig</span><span class="p">):</span>
     <span class="k">with</span> <span class="n">enable_python_dispatcher</span><span class="p">():</span>
@@ -2667,7 +2659,7 @@
                                 <span class="n">aot_config</span><span class="o">.</span><span class="n">bw_compiler</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
                                 <span class="n">aot_config</span><span class="o">.</span><span class="n">decompositions</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="p">,</span>
                                 <span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
-                                <span class="n">aot_config</span><span class="o">.</span><span class="n">_dynamic_shapes</span>
+                                <span class="n">aot_config</span><span class="o">.</span><span class="n">dynamic_shapes</span>
                             <span class="p">)</span>
                         <span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>
@@ -2899,7 +2891,10 @@
     <span class="n">num_params_buffers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="n">hasher_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># deprecated</span>
     <span class="n">static_argnums</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># deprecated</span>
-    <span class="n">keep_inference_input_mutations</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">keep_inference_input_mutations</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="c1"># Whether or not to trace with dynamic shapes</span>
+    <span class="n">dynamic</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Traces the forward and backward graph of :attr:`fn` using torch dispatch</span>
@@ -2966,6 +2961,7 @@
         <span class="n">num_params_buffers</span><span class="o">=</span><span class="n">num_params_buffers</span><span class="p">,</span>
         <span class="n">aot_id</span><span class="o">=</span><span class="nb">next</span><span class="p">(</span><span class="n">AOT_COUNTER</span><span class="p">),</span>
         <span class="n">keep_inference_input_mutations</span><span class="o">=</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
+        <span class="n">dynamic_shapes</span><span class="o">=</span><span class="n">dynamic</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">cached_res</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -3158,8 +3154,6 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">FakeTensor</span><span class="p">):</span>
             <span class="n">dynamic_shapes</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">fake_mode</span><span class="o">.</span><span class="n">shape_env</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
             <span class="k">break</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">dynamic_shapes</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">use_dynamic_shapes</span>
 
     <span class="n">aot_config</span> <span class="o">=</span> <span class="n">AOTConfig</span><span class="p">(</span>
         <span class="n">fw_compiler</span><span class="o">=</span><span class="n">fw_compiler</span><span class="p">,</span>
@@ -3169,7 +3163,7 @@
         <span class="n">num_params_buffers</span><span class="o">=</span><span class="n">params_len</span><span class="p">,</span>
         <span class="n">aot_id</span><span class="o">=</span><span class="nb">next</span><span class="p">(</span><span class="n">AOT_COUNTER</span><span class="p">),</span>
         <span class="n">keep_inference_input_mutations</span><span class="o">=</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
-        <span class="n">_dynamic_shapes</span><span class="o">=</span><span class="n">dynamic_shapes</span>
+        <span class="n">dynamic_shapes</span><span class="o">=</span><span class="n">dynamic_shapes</span>
     <span class="p">)</span>
 
     <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">create_aot_dispatcher_function</span><span class="p">(</span>
