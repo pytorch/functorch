@@ -4,7 +4,7 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches:
-      - main
+      - release/2.0
 
 jobs:
 
@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Install PyTorch Nightly
         run: |
-          python3 -mpip install --pre torch>=1.13.0.dev -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
+          python3 -mpip install --pre torch==2.0 -f https://download.pytorch.org/whl/test/cpu/torch_test.html
       - name: Build wheel
         run: |
           python3 -mpip install wheel

@@ -19,6 +19,6 @@ echo git_version
 git clone https://github.com/pytorch/pytorch.git
 pushd pytorch
 git checkout $git_version
-pushd functorch
+pushd test
 
-pytest test
+pytest functorch
