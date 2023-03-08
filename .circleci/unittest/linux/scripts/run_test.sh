@@ -19,7 +19,8 @@ echo git_version
 git clone https://github.com/pytorch/pytorch.git
 pushd pytorch
 git checkout $git_version
+pushd test
 pushd functorch
 
-find test \( -name test\*.py ! -name test_functorch_lagging_op_db.py \) | xargs -I {} -n 1 python {} -v || EXIT_STATUS=$?
+find . \( -name test\*.py \) | xargs -I {} -n 1 python {} -v || EXIT_STATUS=$?
 exit $EXIT_STATUS

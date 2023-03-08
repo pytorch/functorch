@@ -53,11 +53,11 @@ gcc --version
 pip install expecttest
 
 if [ "${CU_VERSION:-}" == cpu ] ; then
-    conda install -y pytorch torchvision cpuonly -c pytorch-nightly
+    conda install -y pytorch=2.0 torchvision cpuonly -c pytorch-test
     PYTORCH_VERSION="$(python -c "import torch; print(torch.__version__)")" python setup.py develop bdist_wheel -d $WHEELS_FOLDER
     pip install functorch -f $WHEELS_FOLDER
 else
-    conda install pytorch torchvision pytorch-cuda=11.6 -c pytorch-nightly -c nvidia
+    conda install pytorch=2.0 torchvision pytorch-cuda=11.6 -c pytorch-test -c nvidia
     PYTORCH_VERSION="$(python -c "import torch; print(torch.__version__)")" python setup.py develop bdist_wheel -d $WHEELS_FOLDER
     pip install functorch -f $WHEELS_FOLDER
 fi

@@ -19,16 +19,16 @@ except Exception:
     sha = 'Unknown'
 package_name = 'functorch'
 
-if os.getenv('BUILD_VERSION'):
-    version = os.getenv('BUILD_VERSION')
-elif sha != 'Unknown':
-    version += '+' + sha[:7]
+# if os.getenv('BUILD_VERSION'):
+#     version = os.getenv('BUILD_VERSION')
+# elif sha != 'Unknown':
+#     version += '+' + sha[:7]
 
 
 requirements = [
     # This represents a nightly version of PyTorch.
     # It can be installed as a binary or from source.
-    "torch>=1.14.0.dev",
+    "torch>=2.0,<2.1",
 ]
 
 extras = {}
