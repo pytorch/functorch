@@ -219,7 +219,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git6a49290) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gita8f36dd) &#x25BC</a>
     </div>
     
 
@@ -335,7 +335,7 @@
               
   <h1>Source code for torch._functorch.partitioners</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span> <span class="nn">torch.fx.experimental.proxy_tensor</span> <span class="kn">import</span> <span class="n">is_sym_node</span><span class="p">,</span> <span class="n">py_sym_types</span>
-<span class="kn">from</span> <span class="nn">torch.fx.experimental.symbolic_shapes</span> <span class="kn">import</span> <span class="n">hint_int</span>
+<span class="kn">from</span> <span class="nn">torch.fx.experimental.symbolic_shapes</span> <span class="kn">import</span> <span class="n">hint_int</span><span class="p">,</span> <span class="n">magic_methods</span><span class="p">,</span> <span class="n">method_to_operator</span>
 <span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">import</span> <span class="nn">torch.fx</span> <span class="k">as</span> <span class="nn">fx</span>
 <span class="kn">import</span> <span class="nn">operator</span>
@@ -352,6 +352,10 @@
 
 <span class="n">AOT_PARTITIONER_DEBUG</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_partitioner</span>
 
+
+<span class="k">def</span> <span class="nf">is_symint_node</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="s1">&#39;meta&#39;</span><span class="p">),</span> <span class="s2">&quot;All nodes traced with proxy_tensor should have meta&quot;</span>
+    <span class="k">return</span> <span class="s2">&quot;val&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;val&#39;</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymInt</span><span class="p">)</span>
 
 
 <span class="k">class</span> <span class="nc">InvalidNodeBase</span><span class="p">:</span>
@@ -404,6 +408,7 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">x</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">env</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Node </span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2"> couldn&#39;t be found in env&quot;</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env</span><span class="p">[</span><span class="n">x</span><span class="p">],</span> <span class="n">InvalidNodeBase</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Node </span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2"> was invalid, but is output&quot;</span>
             <span class="n">output_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">env</span><span class="p">[</span><span class="n">x</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">output_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
@@ -561,7 +566,10 @@
     <span class="k">if</span> <span class="s1">&#39;val&#39;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
         <span class="n">val</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;val&#39;</span><span class="p">]</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">py_sym_types</span><span class="p">):</span>
-            <span class="k">return</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymInt</span><span class="p">):</span>
+                <span class="k">return</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="mi">999999</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
             <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">_tensor_nbytes</span><span class="p">(</span><span class="n">hint_int</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">numel</span><span class="p">()),</span> <span class="n">n</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">val</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">))</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
@@ -668,7 +676,8 @@
                     <span class="n">required_bw_nodes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
 
         <span class="n">primal_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_primal</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
-        <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span>
+        <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span>
+        <span class="n">required_bw_nodes</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">o</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">bwd_outputs</span> <span class="k">if</span> <span class="n">o</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">forward_only_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">primal_inputs</span><span class="p">,</span> <span class="n">fwd_outputs</span><span class="p">)</span>
         <span class="n">required_fw_nodes</span> <span class="o">=</span> <span class="p">{</span><span class="n">name_to_node</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">forward_only_graph</span><span class="o">.</span><span class="n">nodes</span>
                              <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s1">&#39;output&#39;</span><span class="p">}</span>
@@ -714,6 +723,15 @@
     <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="n">view_ops</span>
 
     <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="n">pointwise_ops</span><span class="p">()</span>
+
+    <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="p">[</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">,</span>
+    <span class="p">]</span>
+
+    <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="p">[</span>
+        <span class="n">method_to_operator</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">magic_methods</span>
+    <span class="p">]</span>
 
     <span class="n">recomputable_ops</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">recomputable_ops</span><span class="p">)</span> <span class="k">if</span> <span class="n">recomputable_ops</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">set</span><span class="p">(</span><span class="n">default_recomputable_ops</span><span class="p">)</span>
 
@@ -823,8 +841,10 @@
         <span class="c1"># Checks if a node is actually a tuple. Can be simplified to just an isisinstance check if we always use faketensors.</span>
         <span class="n">is_non_tensor_node</span> <span class="o">=</span> <span class="p">((</span><span class="s1">&#39;val&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="s1">&#39;tensor_meta&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">)</span> <span class="ow">or</span>
                               <span class="p">(</span><span class="s1">&#39;val&#39;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;val&#39;</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)))</span>
-        <span class="k">if</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">is_symint_node</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
             <span class="n">weight</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+            <span class="n">weight</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">inf</span>
         <span class="k">elif</span> <span class="n">is_non_tensor_node</span><span class="p">:</span>
             <span class="n">weight</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">inf</span>
         <span class="k">else</span><span class="p">:</span>
@@ -835,7 +855,13 @@
         <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">users</span><span class="p">:</span>
             <span class="n">nx_graph</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;_out&quot;</span><span class="p">,</span> <span class="n">user</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;_in&quot;</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="n">math</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
 
-    <span class="n">cut_value</span><span class="p">,</span> <span class="n">partition</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">minimum_cut</span><span class="p">(</span><span class="n">nx_graph</span><span class="p">,</span> <span class="s2">&quot;source&quot;</span><span class="p">,</span> <span class="s2">&quot;sink&quot;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">cut_value</span><span class="p">,</span> <span class="n">partition</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">minimum_cut</span><span class="p">(</span><span class="n">nx_graph</span><span class="p">,</span> <span class="s2">&quot;source&quot;</span><span class="p">,</span> <span class="s2">&quot;sink&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Failed to compute min-cut on following graph:&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">readwrite</span><span class="o">.</span><span class="n">edgelist</span><span class="o">.</span><span class="n">generate_edgelist</span><span class="p">(</span><span class="n">nx_graph</span><span class="p">)))</span>
+        <span class="k">raise</span>
+
     <span class="n">reachable</span><span class="p">,</span> <span class="n">non_reachable</span> <span class="o">=</span> <span class="n">partition</span>
     <span class="n">cutset</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
     <span class="k">for</span> <span class="n">u</span><span class="p">,</span> <span class="n">nbrs</span> <span class="ow">in</span> <span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">nx_graph</span><span class="p">[</span><span class="n">n</span><span class="p">])</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">reachable</span><span class="p">):</span>
