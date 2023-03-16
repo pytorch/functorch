@@ -1,6 +1,0 @@
-﻿functorch.compile.min\_cut\_rematerialization\_partition
-========================================================
-
-.. currentmodule:: functorch.compile
-
-.. autofunction:: min_cut_rematerialization_partition

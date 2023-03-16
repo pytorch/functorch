@@ -1,6 +1,0 @@
-﻿functorch.hessian
-=================
-
-.. currentmodule:: functorch
-
-.. autofunction:: hessian
