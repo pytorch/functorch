@@ -1,6 +1,0 @@
-﻿functorch.compile.nop
-=====================
-
-.. currentmodule:: functorch.compile
-
-.. autofunction:: nop

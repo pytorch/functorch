@@ -1,6 +1,0 @@
-﻿functorch.compile.ts\_compile
-=============================
-
-.. currentmodule:: functorch.compile
-
-.. autofunction:: ts_compile
