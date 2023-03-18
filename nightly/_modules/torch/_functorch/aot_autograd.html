@@ -219,7 +219,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gite4e761b) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gitc62fc81) &#x25BC</a>
     </div>
     
 
@@ -1166,21 +1166,6 @@
 
     <span class="k">return</span> <span class="n">inner</span>
 
-<span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
-<span class="k">class</span> <span class="nc">AOTConfig</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Configuration for AOTDispatcher</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">fw_compiler</span><span class="p">:</span> <span class="n">Callable</span>
-    <span class="n">bw_compiler</span><span class="p">:</span> <span class="n">Callable</span>
-    <span class="n">partition_fn</span><span class="p">:</span> <span class="n">Callable</span>
-    <span class="n">decompositions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span>
-    <span class="n">num_params_buffers</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">aot_id</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">keep_inference_input_mutations</span><span class="p">:</span> <span class="nb">bool</span>
-    <span class="n">dynamic_shapes</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
-
 <span class="c1"># This function takes in a tensor t, and returns one of t, t.view(), or t.clone().</span>
 <span class="c1"># When tracing the joint forward + backward, for any inputs in the graph that are mutated,</span>
 <span class="c1"># we need to clone them first (and similarly for metadata-only mutations, we need to view them first).</span>
@@ -1210,165 +1195,181 @@
             <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">t</span>
 
-<span class="c1"># This function returns a new function that returns mutated inputs as outputs.</span>
-<span class="c1"># if keep_data_input_mutations is set, then we assume that data-only mutations</span>
-<span class="c1"># will be left in the graph, and we only return metadata-mutated inputs as outputs.</span>
-<span class="k">def</span> <span class="nf">fn_input_mutations_to_outputs</span><span class="p">(</span>
+<span class="c1"># This function takes in a forward fn, runs it, and (optionally) runs autograd to compute the joint.</span>
+<span class="c1"># When maybe_tangents is None, we only run the forward. Otherwise we run the &quot;joint&quot; forward + backward.</span>
+<span class="c1"># Preconditions:</span>
+<span class="c1"># - fn corresponds to the flattened user fw function, with duplicate inputs removed</span>
+<span class="c1"># - functionalization is turned on (and inputs are wrapped in functional tensors)</span>
+<span class="c1"># - Synthetic bases have been *removed* (we&#39;ve taken views on them corresponding to the user argument views).</span>
+<span class="c1"># - primals_after_cloning are what we run our forward function on. It is identical to primals_before_cloning,</span>
+<span class="c1">#   except that every input we know will be mutated in the forward has been cloned.</span>
+<span class="c1">#   We run our forward on primals_after_cloning (potentially mutating some inputs), and then compute our gradients</span>
+<span class="c1">#   w.r.t. primals_before_cloning (so we properly capture the mutation in our gradient computation).</span>
+<span class="c1"># Importantly, due functionalization + some autograd.Function constraints, this function can return EXTRA outputs</span>
+<span class="c1"># compared to what the original user forward returns.</span>
+<span class="c1">#</span>
+<span class="c1"># If we are only running the forward (and not computing the joint):</span>
+<span class="c1"># - Our function will return (updated_inputs, fw_outs)</span>
+<span class="c1">#</span>
+<span class="c1"># If we are running the forward + backward (computing the joint):</span>
+<span class="c1"># - Our function will return (updated_inputs, fw_outs, intermediate_bases), (gradients)</span>
+<span class="c1">#</span>
+<span class="c1"># Finally, if keep_input_mutations is set, then we will explicitly *not* return updated inputs, for any inputs</span>
+<span class="c1"># that experienced data-only mutations.</span>
+<span class="c1"># Instead, we are relying on the logic in create_forward_or_joint_functionalized to manually perform the input mutations,</span>
+<span class="c1"># keeping them directly in the traced graph.</span>
+<span class="k">def</span> <span class="nf">forward_or_joint</span><span class="p">(</span>
     <span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">primals_before_cloning</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">primals_after_cloning</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">maybe_tangents</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span>
     <span class="n">meta</span><span class="p">:</span> <span class="n">ViewAndMutationMeta</span><span class="p">,</span>
-    <span class="n">keep_data_input_mutations</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+    <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-    <span class="k">def</span> <span class="nf">inner_fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
-        <span class="n">outs</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
-        <span class="c1"># The compiled fw will return mutated input tensors, *including* metadata-only mutation.</span>
-        <span class="c1"># However, if keep_data_input_mutations is set, the compiled fw only needs to return metadata-mutated inputs.</span>
-        <span class="c1"># (because data-only input mutations are handled directly in the compiled graph)</span>
+    <span class="n">outs</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">primals_after_cloning</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
+
+    <span class="c1"># The compiled fw will return mutated input tensors, *including* metadata-only mutation.</span>
+    <span class="c1"># However, if keep_input_mutations is set, the compiled fw only needs to return metadata-mutated inputs.</span>
+    <span class="c1"># (because data-only input mutations are handled directly in the compiled graph)</span>
+    <span class="k">if</span> <span class="n">keep_input_mutations</span><span class="p">:</span>
         <span class="n">mutated_inputs_to_return</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">x</span>
-            <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_metadata</span> <span class="ow">or</span> <span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">keep_data_input_mutations</span><span class="p">)</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">primals_after_cloning</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_metadata</span>
         <span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">mutated_inputs_to_return</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">x</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">primals_after_cloning</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">or</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_metadata</span>
+        <span class="p">]</span>
+
+    <span class="c1"># Case 1: We are just tracing the forward; not the joint forward + backward.</span>
+    <span class="k">if</span> <span class="n">maybe_tangents</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span> <span class="o">*</span><span class="n">mutated_inputs_to_return</span><span class="p">,</span> <span class="o">*</span><span class="n">outs</span>
-    <span class="k">return</span> <span class="n">inner_fn</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">tangents</span> <span class="o">=</span> <span class="n">maybe_tangents</span>
 
-<span class="c1"># This function takes in a fn with external aliasing and mutation,</span>
-<span class="c1"># and returns a new fn with no external aliasing and mutation,</span>
-<span class="c1"># as needed for autograd.</span>
-<span class="c1"># The main transformations are:</span>
-<span class="c1"># - Return mutated inputs as extra outputs</span>
-<span class="c1"># - Clone mutated inputs that require gradients,</span>
-<span class="c1">#   because autograd will require us to pass the pre-mutated inputs into autograd.grad</span>
-<span class="c1"># - Return intermediate bases of outputs as additional outputs,</span>
-<span class="c1">#   needed to appease autograd.Function</span>
-<span class="c1"># The new function returns:</span>
-<span class="c1"># (1) The updated outputs</span>
-<span class="c1"># (2) A boolean mask of len(new_fn_outputs),</span>
-<span class="c1">#     that can be used to tell autograd.grad which outputs should get tangents</span>
-<span class="c1">#     if we trace the backward.</span>
-<span class="k">def</span> <span class="nf">fn_prepped_for_autograd</span><span class="p">(</span>
+    <span class="c1"># Case 2: We are tracing the joint forward backward.</span>
+    <span class="c1"># This also requires us to:</span>
+    <span class="c1"># - update the graph to return intermediate bases</span>
+    <span class="c1"># - Figure out what grad_outputs to pass into the backward</span>
+    <span class="c1"># - (this includes intermediate bases in the forward, and forward inputs that had data mutations)</span>
+    <span class="c1"># - actually call autograd.grad to trace the backward.</span>
+    <span class="n">intermediate_bases</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">o</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">outs</span><span class="p">,</span> <span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_save_as_output</span><span class="p">:</span>
+            <span class="n">intermediate_bases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">_base</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">meta</span><span class="o">.</span><span class="n">num_intermediate_bases</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">intermediate_bases</span><span class="p">)</span>
+
+    <span class="c1"># Pass any (non-aliased) outputs in as tangents, since they&#39;ll be returned as outputs in the fw</span>
+    <span class="c1"># For outputs that are aliases of intermediates, we will have returned the output&#39;s _base as an output in the graph instead,</span>
+    <span class="c1"># which we *should* send to grad()</span>
+    <span class="n">outputs_for_grad</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">x</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span>
+        <span class="c1"># Also, only tensor outputs should participate in the backward</span>
+        <span class="c1"># (in particular, Symint outputs in the forward graph shouldn&#39;t get tangents)</span>
+        <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">raw_type</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
+    <span class="p">]</span>
+    <span class="c1"># Pass any (non-aliased) mutated inputs in as tangents, since they&#39;ll be returned as outputs in the fw</span>
+    <span class="c1"># Important: the traced joint fw/bw will return updated inputs with data mutations,</span>
+    <span class="c1"># but *not* with metadata mutations.</span>
+    <span class="c1"># Instead, we shunt the updated metadata around externally</span>
+    <span class="c1"># and update the input&#39;s metadata outside of the autograd.Function</span>
+    <span class="n">mutated_inputs_for_grad</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">x</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">primals_after_cloning</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span>
+    <span class="p">]</span>
+    <span class="c1"># The tensors that we include in the backward graph are:</span>
+    <span class="c1"># - inputs that recieve *data* mutations (not metadata-only; those are recomputed later)</span>
+    <span class="c1"># - outputs that are not aliased (aliased outputs are recomputed later)</span>
+    <span class="c1"># - intermediate ._base tensors of aliased outputs (we use those later to recompute the aliased outputs)</span>
+    <span class="n">fw_outs_to_grad</span> <span class="o">=</span> <span class="n">mutated_inputs_for_grad</span> <span class="o">+</span> <span class="n">outputs_for_grad</span> <span class="o">+</span> <span class="n">intermediate_bases</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">tangents</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_outs_to_grad</span><span class="p">)</span>
+
+    <span class="c1"># the compiled forward should return (mutated_inputs, user_outs, intermediate_bases)</span>
+    <span class="n">fw_outs_to_return</span> <span class="o">=</span> <span class="o">*</span><span class="n">mutated_inputs_to_return</span><span class="p">,</span> <span class="o">*</span><span class="n">outs</span><span class="p">,</span> <span class="o">*</span><span class="n">intermediate_bases</span>
+
+    <span class="c1"># Take care to grab and sync the updated inputs from primals_after_cloning (the inputs we actually mutate!)</span>
+    <span class="c1"># and not primals_before_cloning (the preserved inputs, pre-mutation, that we pass to grad())</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">arg</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">primals_after_cloning</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">_sync</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+
+    <span class="c1"># Get the inputs that need gradients</span>
+    <span class="n">grad_primals</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">inputs_needs_grads</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># Note that we&#39;re not using primals_before_cloning here,</span>
+    <span class="c1"># being carefully not to pass any mutated inputs into autograd.grad()</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">primals_before_cloning</span><span class="p">:</span>
+        <span class="n">is_grad_tensor</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span>
+        <span class="n">inputs_needs_grads</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">is_grad_tensor</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">is_grad_tensor</span><span class="p">:</span>
+            <span class="n">grad_primals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+
+    <span class="c1"># Get the outputs that need gradients</span>
+    <span class="n">needed_outs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">needed_tangents</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">out</span><span class="p">,</span> <span class="n">tangent</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">fw_outs_to_grad</span><span class="p">,</span> <span class="n">tangents</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">out</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">:</span>
+            <span class="c1"># A bit sketchy, but fixes e.g. test_aot_autograd_exhaustive_matmul_cpu_float32</span>
+            <span class="c1"># The issue is that we are sensitive to decomps that don&#39;t accurately maintain</span>
+            <span class="c1"># their output&#39;s _base.shape compared to eager mode, and this helps mitigate a bit.</span>
+            <span class="n">needed_outs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">out</span> <span class="k">if</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">tangent</span><span class="o">.</span><span class="n">shape</span> <span class="k">else</span> <span class="n">out</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">tangent</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">needed_tangents</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tangent</span><span class="p">)</span>
+
+    <span class="n">setup_stacktrace_preservation_hooks</span><span class="p">([</span><span class="n">out</span><span class="o">.</span><span class="n">grad_fn</span> <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="n">needed_outs</span><span class="p">])</span>
+
+    <span class="n">backward_out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># Call the backwards pass</span>
+    <span class="k">if</span> <span class="n">grad_primals</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">fx_traceback</span><span class="o">.</span><span class="n">preserve_node_meta</span><span class="p">():</span>
+            <span class="n">backward_out</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span>
+                <span class="n">needed_outs</span><span class="p">,</span>
+                <span class="n">grad_primals</span><span class="p">,</span>
+                <span class="n">grad_outputs</span><span class="o">=</span><span class="n">needed_tangents</span><span class="p">,</span>
+                <span class="n">allow_unused</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
+    <span class="n">backward_out_iter</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">backward_out</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">fw_outs_to_return</span><span class="p">,</span> <span class="p">[</span>
+        <span class="nb">next</span><span class="p">(</span><span class="n">backward_out_iter</span><span class="p">)</span> <span class="k">if</span> <span class="n">i</span> <span class="k">else</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">inputs_needs_grads</span>
+    <span class="p">]</span>
+
+<span class="c1"># This function adds extra clone() calls on any inputs in the forward that get mutated.</span>
+<span class="c1"># It *only* does this if we plan on performing autograd on fn.</span>
+<span class="c1"># The idea here is that when computing grdients w.r.t. inputs, we need to compute our gradients</span>
+<span class="c1"># w.r.t. the inputs *before* they were mutated!</span>
+<span class="c1"># Preconditions:</span>
+<span class="c1"># - fn corresponds to the flattened user fw function, with duplicate inputs removed</span>
+<span class="c1"># - primals **includes** synthetic bases. Importantly, if a synthetic base is mutated,</span>
+<span class="c1">#   we need to clone it *before* taking views off of it (if we clone the views they won&#39;t be views anymore)</span>
+<span class="c1"># - functionalization is turned on (and inputs are wrapped in functional tensors)</span>
+<span class="k">def</span> <span class="nf">flat_fn_no_input_mutations</span><span class="p">(</span>
     <span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">primals</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">maybe_tangents</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span>
     <span class="n">meta</span><span class="p">:</span> <span class="n">ViewAndMutationMeta</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-    <span class="k">def</span> <span class="nf">inner_fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
-        <span class="n">args_maybe_cloned</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">maybe_to_fresh_input</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">meta</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span>
+<span class="p">):</span>
+    <span class="c1"># When tracing the joint fwd + bwd, making sure to clone any inputs that are mutated first.</span>
+    <span class="c1"># We need to ensure that the inputs we pass to autograd.grad() are the *original*</span>
+    <span class="c1"># inputs, and not their mutated values.</span>
+    <span class="k">if</span> <span class="n">maybe_tangents</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">primals_after_cloning</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">maybe_to_fresh_input</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">meta</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">primals</span><span class="p">)</span>
         <span class="p">]</span>
-
-        <span class="n">outs</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args_maybe_cloned</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
-
-        <span class="n">mutated_inputs_to_return</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">x</span>
-            <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args_maybe_cloned</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_metadata</span> <span class="ow">or</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span>
-        <span class="p">]</span>
-
-        <span class="n">intermediate_bases</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">o</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">outs</span><span class="p">,</span> <span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_save_as_output</span><span class="p">:</span>
-                <span class="n">intermediate_bases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">_base</span><span class="p">)</span>
-
-        <span class="k">assert</span> <span class="n">meta</span><span class="o">.</span><span class="n">num_intermediate_bases</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">intermediate_bases</span><span class="p">)</span>
-
-        <span class="c1"># the compiled forward should return (mutated_inputs, user_outs, intermediate_bases)</span>
-        <span class="n">fw_outs_to_return</span> <span class="o">=</span> <span class="o">*</span><span class="n">mutated_inputs_to_return</span><span class="p">,</span> <span class="o">*</span><span class="n">outs</span><span class="p">,</span> <span class="o">*</span><span class="n">intermediate_bases</span>
-
-        <span class="c1"># Also return a boolean mask specifying which outputs to this function will be used as tangents</span>
-        <span class="n">mutated_inputs_grad_mask</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">meta</span><span class="o">.</span><span class="n">mutated_inp_indices</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span><span class="o">.</span><span class="n">mutates_data</span>
-            <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">mutated_inputs_to_return</span><span class="p">)</span>
-        <span class="p">]</span>
-
-        <span class="c1"># Pass any (non-aliased) outputs in as tangents, since they&#39;ll be returned as outputs in the fw</span>
-        <span class="c1"># For outputs that are aliases of intermediates, we will have returned the output&#39;s _base as an output in the graph instead,</span>
-        <span class="c1"># which we *should* send to grad()</span>
-        <span class="n">output_grad_mask</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span>
-            <span class="c1"># Also, only tensor outputs should participate in the backward</span>
-            <span class="c1"># (in particular, Symint outputs in the forward graph shouldn&#39;t get tangents)</span>
-            <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">raw_type</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
-            <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
-        <span class="p">]</span>
-
-        <span class="n">intermediate_base_grad_mask</span> <span class="o">=</span> <span class="p">[</span><span class="kc">True</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">intermediate_bases</span><span class="p">))]</span>
-
-        <span class="n">out_grad_mask</span> <span class="o">=</span> <span class="n">mutated_inputs_grad_mask</span> <span class="o">+</span> <span class="n">output_grad_mask</span> <span class="o">+</span> <span class="n">intermediate_base_grad_mask</span>
-        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">out_grad_mask</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_outs_to_return</span><span class="p">)</span>
-
-        <span class="c1"># Take care to grab and sync the updated inputs from primals_after_cloning (the inputs we actually mutate!)</span>
-        <span class="c1"># and not primals (the preserved inputs, pre-mutation, that we pass to grad())</span>
-        <span class="c1"># This is annoying: our joint function needs to be aware of functionalization</span>
-        <span class="c1"># (syncing mutated inputs before calling autograd.grad())</span>
-        <span class="c1"># In theory, we could make the autograd engine do this automatically, although that probably isn&#39;t any cleaner.</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">arg</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args_maybe_cloned</span><span class="p">):</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
-                <span class="k">continue</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">_sync</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">fw_outs_to_return</span><span class="p">,</span> <span class="n">out_grad_mask</span>
-    <span class="k">return</span> <span class="n">inner_fn</span>
-
-<span class="c1"># Given a fn, computes the joint.</span>
-<span class="c1"># NOTE: fn is expects the following behavior:</span>
-<span class="c1"># (1) fn() needs to return a tuple of (outs, mask),</span>
-<span class="c1">#     where `mask` tells us which outputs are meant to have tangents.</span>
-<span class="c1">#     we don&#39;t know this info automatically, because we don&#39;t actually want to blindly</span>
-<span class="c1">#     compute tangents for every output that requires grad.</span>
-<span class="c1">#     Specifically, outputs that alias inputs won&#39;t participate in the backward and get tangents.</span>
-<span class="c1"># (2) fn() cannot mutate any inputs that require gradient.</span>
-<span class="c1">#     otherwise, when we compute autograd.grad(), we will not take those input mutations into account</span>
-<span class="c1">#     (the way this is handled is that we ensure any inputs that normally get mutated are cloned first)</span>
-<span class="k">def</span> <span class="nf">create_joint</span><span class="p">(</span>
-    <span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-    <span class="k">def</span> <span class="nf">inner_fn</span><span class="p">(</span><span class="n">primals</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">tangents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]):</span>
-        <span class="n">outs</span><span class="p">,</span> <span class="n">tangent_mask</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">primals</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">tangent_mask</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
-        <span class="n">outs_to_grad</span> <span class="o">=</span> <span class="p">[</span><span class="n">o</span> <span class="k">for</span> <span class="n">needs_tangent</span><span class="p">,</span> <span class="n">o</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">tangent_mask</span><span class="p">,</span> <span class="n">outs</span><span class="p">)</span> <span class="k">if</span> <span class="n">needs_tangent</span><span class="p">]</span>
-        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">outs_to_grad</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">tangents</span><span class="p">)</span>
-
-        <span class="c1"># Get the inputs that need gradients</span>
-        <span class="n">grad_primals</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">inputs_needs_grads</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="c1"># Note that we&#39;re not using primals here,</span>
-        <span class="c1"># being carefully not to pass any mutated inputs into autograd.grad()</span>
-        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">primals</span><span class="p">:</span>
-            <span class="n">is_grad_tensor</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span>
-            <span class="n">inputs_needs_grads</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">is_grad_tensor</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">is_grad_tensor</span><span class="p">:</span>
-                <span class="n">grad_primals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
-
-        <span class="c1"># Get the outputs that need gradients</span>
-        <span class="n">needed_outs</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">needed_tangents</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">out</span><span class="p">,</span> <span class="n">tangent</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">outs_to_grad</span><span class="p">,</span> <span class="n">tangents</span><span class="p">):</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">out</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">:</span>
-                <span class="c1"># A bit sketchy, but fixes e.g. test_aot_autograd_exhaustive_matmul_cpu_float32</span>
-                <span class="c1"># The issue is that we are sensitive to decomps that don&#39;t accurately maintain</span>
-                <span class="c1"># their output&#39;s _base.shape compared to eager mode, and this helps mitigate a bit.</span>
-                <span class="n">needed_outs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                    <span class="n">out</span> <span class="k">if</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">tangent</span><span class="o">.</span><span class="n">shape</span> <span class="k">else</span> <span class="n">out</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">tangent</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-                <span class="p">)</span>
-                <span class="n">needed_tangents</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tangent</span><span class="p">)</span>
-
-        <span class="n">setup_stacktrace_preservation_hooks</span><span class="p">([</span><span class="n">out</span><span class="o">.</span><span class="n">grad_fn</span> <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="n">needed_outs</span><span class="p">])</span>
-
-        <span class="n">backward_out</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="c1"># Call the backwards pass</span>
-        <span class="k">if</span> <span class="n">grad_primals</span><span class="p">:</span>
-            <span class="k">with</span> <span class="n">fx_traceback</span><span class="o">.</span><span class="n">preserve_node_meta</span><span class="p">():</span>
-                <span class="n">backward_out</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span>
-                    <span class="n">needed_outs</span><span class="p">,</span>
-                    <span class="n">grad_primals</span><span class="p">,</span>
-                    <span class="n">grad_outputs</span><span class="o">=</span><span class="n">needed_tangents</span><span class="p">,</span>
-                    <span class="n">allow_unused</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="p">)</span>
-        <span class="n">backward_out_iter</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">backward_out</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">outs</span><span class="p">,</span> <span class="p">[</span>
-            <span class="nb">next</span><span class="p">(</span><span class="n">backward_out_iter</span><span class="p">)</span> <span class="k">if</span> <span class="n">i</span> <span class="k">else</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">inputs_needs_grads</span>
-        <span class="p">]</span>
-    <span class="k">return</span> <span class="n">inner_fn</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">primals_after_cloning</span> <span class="o">=</span> <span class="n">primals</span>
+    <span class="n">outs</span> <span class="o">=</span> <span class="n">forward_or_joint</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">primals</span><span class="p">,</span> <span class="n">primals_after_cloning</span><span class="p">,</span> <span class="n">maybe_tangents</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">keep_input_mutations</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">outs</span>
 
 <span class="c1"># This creates the final function that we want to trace using make_fx(),</span>
 <span class="c1"># in both aot_dispatch_autograd and aot_dispatch_base.</span>
@@ -1381,25 +1382,29 @@
 <span class="c1"># The function returned has signature that is either:</span>
 <span class="c1"># (1) &quot;traced_fn(primals: List[Any])&quot; if trace_joint is False</span>
 <span class="c1"># (2) &quot;traced_fn(primals: List[Any], tangents: List[Any])&quot; if trace_joint is True</span>
-<span class="k">def</span> <span class="nf">create_functionalized_graph</span><span class="p">(</span>
+<span class="k">def</span> <span class="nf">create_forward_or_joint_functionalized</span><span class="p">(</span>
     <span class="n">fn</span><span class="p">,</span>
-    <span class="n">args</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">meta</span><span class="p">:</span> <span class="n">ViewAndMutationMeta</span><span class="p">,</span>
-    <span class="n">aot_config</span><span class="p">:</span> <span class="n">AOTConfig</span><span class="p">,</span>
     <span class="n">trace_joint</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+    <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span>
 <span class="p">):</span>
-    <span class="k">def</span> <span class="nf">functionalized_f_helper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">functionalized_f_helper</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">maybe_tangents</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># Convention: this function is used to trace both the joint, and just the forward (for inference).</span>
+        <span class="c1"># When trace_joint is set, tangents should be passed in.</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">maybe_tangents</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="n">trace_joint</span>
         <span class="c1"># Wrap inputs into functional wrappers</span>
-        <span class="n">f_args</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">to_fun</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+        <span class="n">f_primals</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">to_fun</span><span class="p">,</span> <span class="n">primals</span><span class="p">)</span>
+        <span class="n">f_tangents</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">maybe_tangents</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">to_fun</span><span class="p">,</span> <span class="n">maybe_tangents</span><span class="p">)</span>
         <span class="n">torch</span><span class="o">.</span><span class="n">_enable_functionalization</span><span class="p">(</span><span class="n">reapply_views</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># Run the joint</span>
-            <span class="n">f_outs</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">f_args</span><span class="p">)</span>
+            <span class="n">f_outs</span> <span class="o">=</span> <span class="n">flat_fn_no_input_mutations</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">f_primals</span><span class="p">,</span> <span class="n">f_tangents</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">keep_input_mutations</span><span class="p">)</span>
         <span class="k">finally</span><span class="p">:</span>
             <span class="n">torch</span><span class="o">.</span><span class="n">_disable_functionalization</span><span class="p">()</span>
 
-        <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">trace_joint</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">keep_input_mutations</span><span class="p">:</span>
             <span class="c1"># Note: This is a bit annoying. There&#39;s a layering issue here, where:</span>
             <span class="c1"># (1) functionalization needs to operate on **synthetic base** inputs, before unpacking them into the &quot;real&quot; inputs.</span>
             <span class="c1"># (2) For keep_input_mutations, we support tracing a call to copy_() directly on mutated inputs.</span>
@@ -1424,7 +1429,8 @@
             <span class="c1"># we will materialize an &quot;updated&quot; synthetic base, and copy it back to the synthetic input base.</span>
             <span class="c1"># This allows us to factor aot autograd much more nicely, since only one area of the code needs to worry</span>
             <span class="c1"># about synthetic bases.</span>
-            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">inpt_old</span><span class="p">,</span> <span class="n">inpt_f</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">f_args</span><span class="p">)):</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">f_primals</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">inpt_old</span><span class="p">,</span> <span class="n">inpt_f</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">f_primals</span><span class="p">)):</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inpt_f</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
                     <span class="k">continue</span>
                 <span class="n">torch</span><span class="o">.</span><span class="n">_sync</span><span class="p">(</span><span class="n">inpt_f</span><span class="p">)</span>
@@ -1439,16 +1445,18 @@
 
         <span class="k">return</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">from_fun</span><span class="p">,</span> <span class="n">f_outs</span><span class="p">)</span>
 
-    <span class="c1"># Kinda annoying, but needed to make sure that the fx graph we trace out has &quot;primals&quot;</span>
-    <span class="c1"># and &quot;tangents&quot; as its input names (which are special-cased by the partitioner)</span>
-    <span class="k">def</span> <span class="nf">joint_helper</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">tangents</span><span class="p">):</span>
+    <span class="c1"># the joint needs have args named &quot;primals&quot; and &quot;tangents&quot;,</span>
+    <span class="c1"># which are hardcoded into the partitioning logic.</span>
+    <span class="k">def</span> <span class="nf">traced_joint</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">tangents</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">functionalized_f_helper</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">tangents</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">fwd_helper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">functionalized_f_helper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">traced_forward</span><span class="p">(</span><span class="o">*</span><span class="n">primals</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">functionalized_f_helper</span><span class="p">(</span><span class="n">primals</span><span class="p">)</span>
 
-    <span class="k">with</span> <span class="n">enable_python_dispatcher</span><span class="p">():</span>
-        <span class="k">return</span> <span class="n">make_fx</span><span class="p">(</span><span class="n">joint_helper</span> <span class="k">if</span> <span class="n">trace_joint</span> <span class="k">else</span> <span class="n">fwd_helper</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">decompositions</span><span class="p">)(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">trace_joint</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">traced_joint</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">traced_forward</span>
 
 
 <span class="k">def</span> <span class="nf">normalize_as_list</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
@@ -1548,6 +1556,21 @@
             <span class="k">del</span> <span class="n">guard</span>
     <span class="k">return</span> <span class="n">out</span>
 
+<span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
+<span class="k">class</span> <span class="nc">AOTConfig</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Configuration for AOTDispatcher</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">fw_compiler</span><span class="p">:</span> <span class="n">Callable</span>
+    <span class="n">bw_compiler</span><span class="p">:</span> <span class="n">Callable</span>
+    <span class="n">partition_fn</span><span class="p">:</span> <span class="n">Callable</span>
+    <span class="n">decompositions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span>
+    <span class="n">num_params_buffers</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">aot_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">keep_inference_input_mutations</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">dynamic_shapes</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+
 <span class="k">def</span> <span class="nf">aot_dispatch_base</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">aot_config</span><span class="p">:</span> <span class="n">AOTConfig</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">fw_metadata</span><span class="p">:</span> <span class="n">ViewAndMutationMeta</span><span class="p">):</span>
     <span class="c1"># aot_dispatch_base requires functionalization, but doesn&#39;t need to handle as many cases as the autograd case.</span>
     <span class="c1"># The cases that aot_dispatch_base doesn&#39;t need to handle include:</span>
@@ -1556,19 +1579,15 @@
     <span class="c1"># While cases that it does need to handle include:</span>
     <span class="c1"># - input mutations (including when inputs are aliases of each other)</span>
     <span class="c1"># - input metadata mutations</span>
-    <span class="n">keep_mutations</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span>
-    <span class="n">fn_to_trace</span> <span class="o">=</span> <span class="n">fn_input_mutations_to_outputs</span><span class="p">(</span>
+    <span class="n">trace_fn</span> <span class="o">=</span> <span class="n">create_forward_or_joint_functionalized</span><span class="p">(</span>
         <span class="n">flat_fn</span><span class="p">,</span>
-        <span class="n">fw_metadata</span><span class="p">,</span>
-        <span class="n">keep_data_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
-    <span class="p">)</span>
-    <span class="n">fw_module</span> <span class="o">=</span> <span class="n">create_functionalized_graph</span><span class="p">(</span>
-        <span class="n">fn_to_trace</span><span class="p">,</span>
-        <span class="n">flat_args</span><span class="p">,</span>
         <span class="n">meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span>
-        <span class="n">aot_config</span><span class="o">=</span><span class="n">aot_config</span><span class="p">,</span>
         <span class="n">trace_joint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span>
     <span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">enable_python_dispatcher</span><span class="p">():</span>
+        <span class="n">fw_module</span> <span class="o">=</span> <span class="n">make_fx</span><span class="p">(</span><span class="n">trace_fn</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">decompositions</span><span class="p">)(</span><span class="o">*</span><span class="n">flat_args</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">:</span>
         <span class="c1"># As long as we opted to remove input mutations, then</span>
@@ -2549,23 +2568,26 @@
     <span class="p">)</span>
 
     <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">requires_grad_info</span><span class="p">)</span> <span class="o">==</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_outputs</span>
+
+    <span class="n">joint_forward_backward</span> <span class="o">=</span> <span class="n">create_forward_or_joint_functionalized</span><span class="p">(</span>
+        <span class="n">flat_fn</span><span class="p">,</span>
+        <span class="n">meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span>
+        <span class="n">trace_joint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="c1"># For now in the autograd case, we NEVER keep input mutations (we could eventually fix this for slightly better perf</span>
+        <span class="c1"># in some cases, but it&#39;s annoying to fix the partitioner)</span>
+        <span class="n">keep_input_mutations</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+
     <span class="n">joint_inputs</span> <span class="o">=</span> <span class="p">(</span><span class="n">flat_args</span><span class="p">,</span> <span class="n">traced_tangents</span><span class="p">)</span>
+
     <span class="n">disable_amp</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_C</span><span class="o">.</span><span class="n">_is_any_autocast_enabled</span><span class="p">()</span>
 
-    <span class="n">fn_prepared_for_autograd</span> <span class="o">=</span> <span class="n">fn_prepped_for_autograd</span><span class="p">(</span>
-        <span class="n">flat_fn</span><span class="p">,</span>
-        <span class="n">fw_metadata</span><span class="p">,</span>
-    <span class="p">)</span>
-    <span class="n">joint_fn_to_trace</span> <span class="o">=</span> <span class="n">create_joint</span><span class="p">(</span><span class="n">fn_prepared_for_autograd</span><span class="p">)</span>
-
     <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">use_functionalize</span><span class="p">:</span>
-        <span class="n">fx_g</span> <span class="o">=</span> <span class="n">create_functionalized_graph</span><span class="p">(</span>
-            <span class="n">joint_fn_to_trace</span><span class="p">,</span>
-            <span class="n">joint_inputs</span><span class="p">,</span>
-            <span class="n">meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span>
-            <span class="n">aot_config</span><span class="o">=</span><span class="n">aot_config</span><span class="p">,</span>
-            <span class="n">trace_joint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="k">with</span> <span class="n">enable_python_dispatcher</span><span class="p">():</span>
+            <span class="n">flattened_joints</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_flatten</span><span class="p">(</span><span class="n">joint_inputs</span><span class="p">)</span>
+            <span class="n">fx_g</span> <span class="o">=</span> <span class="n">make_fx</span><span class="p">(</span><span class="n">joint_forward_backward</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">decompositions</span><span class="p">)(</span>
+                <span class="o">*</span><span class="n">joint_inputs</span>
+            <span class="p">)</span>
 
         <span class="c1"># There should be *NO* mutating ops in the graph at this point.</span>
         <span class="n">assert_functional_graph</span><span class="p">(</span><span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
