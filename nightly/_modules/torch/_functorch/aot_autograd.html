@@ -219,7 +219,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gitfae28fc) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git6b319d1) &#x25BC</a>
     </div>
     
 
@@ -394,6 +394,8 @@
         <span class="c1"># Instructs the runtime code to regenerate the current output from</span>
         <span class="c1"># a base tensor, user_outputs[base_idx]</span>
         <span class="s2">&quot;alias_of_intermediate_base_is_user_output&quot;</span><span class="p">,</span>
+        <span class="c1"># See Note [Intermediate Bases Optimization]</span>
+        <span class="s2">&quot;unsafe_view_alias&quot;</span><span class="p">,</span>
     <span class="p">)</span>
 <span class="p">)</span>
 
@@ -805,7 +807,7 @@
         <span class="n">aliased_out_indices</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">i</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">output_type</span> <span class="o">!=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span>
+            <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">]</span>
         <span class="p">]</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">mutated_inp_indices</span> <span class="o">=</span> <span class="n">mutated_inp_indices</span>
@@ -819,7 +821,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">aliased_out_indices</span> <span class="o">=</span> <span class="n">aliased_out_indices</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs_non_aliased</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_info</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">]</span>
+            <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_info</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">]]</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs_aliased_to_inputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
             <span class="p">[</span>
@@ -1073,6 +1075,13 @@
         <span class="c1"># (This is also a dict because we need to know that output&#39;s index, so we can regenerate</span>
         <span class="c1"># the alias from it).</span>
         <span class="n">out_tensor_ids</span> <span class="o">=</span> <span class="p">{</span><span class="nb">id</span><span class="p">(</span><span class="n">o</span><span class="p">):</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">o</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">flat_f_outs</span><span class="p">)}</span>
+
+        <span class="c1"># Keep track of which outputs alias other outputs</span>
+        <span class="n">out_tensor_alias_counts</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">flat_f_outs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                <span class="n">out_tensor_alias_counts</span><span class="p">[</span><span class="n">StorageWeakRef</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">untyped_storage</span><span class="p">())]</span> <span class="o">+=</span> <span class="mi">1</span>
+
         <span class="c1"># maps the id of an intermediate base to its index in the output of the compiled forward</span>
         <span class="n">intermediate_base_tensor_id_to_output_idx</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">intermediate_bases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
@@ -1097,30 +1106,46 @@
                 <span class="ow">and</span> <span class="n">o</span><span class="o">.</span><span class="n">requires_grad</span>
                 <span class="ow">and</span> <span class="n">o</span><span class="o">.</span><span class="n">_base</span><span class="o">.</span><span class="n">requires_grad</span>
             <span class="p">):</span>
-                <span class="c1"># First, check if o&#39;s ._base is an existing output</span>
-                <span class="n">maybe_existing_out_idx</span> <span class="o">=</span> <span class="n">out_tensor_ids</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">_base</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">maybe_existing_out_idx</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="c1"># Special case where the output is an alias of a graph intermediate, but that intermediate</span>
-                    <span class="c1"># is itself also a user output.</span>
-                    <span class="n">output_type</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_base_is_user_output</span>
-                    <span class="n">base_idx</span> <span class="o">=</span> <span class="n">maybe_existing_out_idx</span>
+                <span class="k">if</span> <span class="n">out_tensor_alias_counts</span><span class="p">[</span><span class="n">StorageWeakRef</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">untyped_storage</span><span class="p">())]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="c1"># Note [Intermediate Bases Optimization]</span>
+                    <span class="c1"># Normally if we have an output that aliases an intermediate,</span>
+                    <span class="c1"># we need to add the extra &quot;intermediate base&quot; logic further down</span>
+                    <span class="c1"># to prevent autograd from yelling at us if the user later tries to</span>
+                    <span class="c1"># mutate that output.</span>
+                    <span class="c1"># However, the common case here is if we have an output that aliases an intermediate,</span>
+                    <span class="c1"># but doesn&#39;t alias any other outputs.</span>
+                    <span class="c1"># In that case, autograd shouldn&#39;t have to worry about the aliasing at all</span>
+                    <span class="c1"># (if that output is mutated, there are no other live aliases for autograd to worry about).</span>
+                    <span class="c1"># The &quot;intermediate bases&quot; can hurt inductor perf by forcing more variables to become outputs.</span>
+                    <span class="c1"># So as an optimization, we won&#39;t do intermediate base handling in this case.</span>
+                    <span class="c1"># Instead, we&#39;ll hide the aliasing from autograd using aten._unsafe_view().</span>
+                    <span class="n">output_type</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span>
+                    <span class="n">base_idx</span> <span class="o">=</span> <span class="kc">None</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="c1"># Next, check if o&#39;s ._base is an intermediate base that we already returned</span>
-                    <span class="n">maybe_existing_base_output_idx</span> <span class="o">=</span> <span class="n">intermediate_base_tensor_id_to_output_idx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                        <span class="nb">id</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">_base</span><span class="p">),</span> <span class="kc">None</span>
-                    <span class="p">)</span>
-                    <span class="k">if</span> <span class="n">maybe_existing_base_output_idx</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                        <span class="n">output_type</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate</span>
-                        <span class="n">base_idx</span> <span class="o">=</span> <span class="n">maybe_existing_base_output_idx</span>
+                    <span class="c1"># First, check if o&#39;s ._base is an existing output</span>
+                    <span class="n">maybe_existing_out_idx</span> <span class="o">=</span> <span class="n">out_tensor_ids</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">_base</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">maybe_existing_out_idx</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="c1"># Special case where the output is an alias of a graph intermediate, but that intermediate</span>
+                        <span class="c1"># is itself also a user output.</span>
+                        <span class="n">output_type</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_base_is_user_output</span>
+                        <span class="n">base_idx</span> <span class="o">=</span> <span class="n">maybe_existing_out_idx</span>
                     <span class="k">else</span><span class="p">:</span>
-                        <span class="c1"># Otherwise, take o._base and explicitly return it as an output in the compiled graph</span>
-                        <span class="n">new_out_idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">intermediate_bases</span><span class="p">)</span>
-                        <span class="n">base_idx</span> <span class="o">=</span> <span class="n">new_out_idx</span>
-                        <span class="c1"># Indicate to the logic later on (when we trace the joint)</span>
-                        <span class="c1"># that this particular output should get it&#39;s ._base appended to the forward graph outputs</span>
-                        <span class="n">output_type</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_save_as_output</span>
-                        <span class="n">intermediate_base_tensor_id_to_output_idx</span><span class="p">[</span><span class="nb">id</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">_base</span><span class="p">)]</span> <span class="o">=</span> <span class="n">new_out_idx</span>
-                        <span class="n">intermediate_bases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">_base</span><span class="p">)</span>
+                        <span class="c1"># Next, check if o&#39;s ._base is an intermediate base that we already returned</span>
+                        <span class="n">maybe_existing_base_output_idx</span> <span class="o">=</span> <span class="n">intermediate_base_tensor_id_to_output_idx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                            <span class="nb">id</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">_base</span><span class="p">),</span> <span class="kc">None</span>
+                        <span class="p">)</span>
+                        <span class="k">if</span> <span class="n">maybe_existing_base_output_idx</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="n">output_type</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate</span>
+                            <span class="n">base_idx</span> <span class="o">=</span> <span class="n">maybe_existing_base_output_idx</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="c1"># Otherwise, take o._base and explicitly return it as an output in the compiled graph</span>
+                            <span class="n">new_out_idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">intermediate_bases</span><span class="p">)</span>
+                            <span class="n">base_idx</span> <span class="o">=</span> <span class="n">new_out_idx</span>
+                            <span class="c1"># Indicate to the logic later on (when we trace the joint)</span>
+                            <span class="c1"># that this particular output should get it&#39;s ._base appended to the forward graph outputs</span>
+                            <span class="n">output_type</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_save_as_output</span>
+                            <span class="n">intermediate_base_tensor_id_to_output_idx</span><span class="p">[</span><span class="nb">id</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">_base</span><span class="p">)]</span> <span class="o">=</span> <span class="n">new_out_idx</span>
+                            <span class="n">intermediate_bases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">_base</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">output_type</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span>
                 <span class="n">base_idx</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1153,7 +1178,7 @@
         <span class="n">f_output_tangents</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">o</span>
             <span class="k">for</span> <span class="n">o</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">flat_f_outs</span><span class="p">,</span> <span class="n">output_info</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">raw_type</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">]</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">raw_type</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
         <span class="p">]</span>
         <span class="c1"># intermediate bases are also included in the backward graph</span>
         <span class="n">f_tangents</span> <span class="o">=</span> <span class="n">f_input_tangents</span> <span class="o">+</span> <span class="n">f_output_tangents</span> <span class="o">+</span> <span class="n">intermediate_bases</span>
@@ -1263,6 +1288,8 @@
         <span class="p">]</span>
 
         <span class="n">outs</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args_maybe_cloned</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outs</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">))</span>
+        <span class="n">outs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
 
         <span class="n">mutated_inputs_to_return</span> <span class="o">=</span> <span class="p">[</span>
@@ -1272,9 +1299,12 @@
         <span class="p">]</span>
 
         <span class="n">intermediate_bases</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">o</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">outs</span><span class="p">,</span> <span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">outs</span><span class="p">,</span> <span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">)):</span>
             <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate_save_as_output</span><span class="p">:</span>
                 <span class="n">intermediate_bases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">_base</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">:</span>
+                <span class="c1"># See Note [Intermediate Bases Optimization]</span>
+                <span class="n">outs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">_unsafe_view</span><span class="o">.</span><span class="n">default</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">o</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 
         <span class="k">assert</span> <span class="n">meta</span><span class="o">.</span><span class="n">num_intermediate_bases</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">intermediate_bases</span><span class="p">)</span>
 
@@ -1291,7 +1321,7 @@
         <span class="c1"># For outputs that are aliases of intermediates, we will have returned the output&#39;s _base as an output in the graph instead,</span>
         <span class="c1"># which we *should* send to grad()</span>
         <span class="n">output_grad_mask</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span>
+            <span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">]</span>
             <span class="c1"># Also, only tensor outputs should participate in the backward</span>
             <span class="c1"># (in particular, Symint outputs in the forward graph shouldn&#39;t get tangents)</span>
             <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">raw_type</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
@@ -2524,7 +2554,7 @@
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span>
                 <span class="n">fw_outs_no_intermediate_bases</span><span class="p">,</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">output_info</span>
             <span class="p">)):</span>
-                <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span> <span class="ow">or</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">:</span>
                     <span class="n">fw_outs_including_aliases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
                     <span class="k">continue</span>
                 <span class="k">if</span> <span class="n">trace_joint</span><span class="p">:</span>
@@ -2785,7 +2815,8 @@
                 <span class="n">out_tangents_filtered</span> <span class="o">=</span> <span class="p">[</span>
                     <span class="n">x</span>
                     <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">out_tangents</span><span class="p">,</span> <span class="n">out_info</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">raw_type</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span> <span class="ow">or</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">raw_type</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
                 <span class="p">]</span>
                 <span class="c1"># intermediate bases always require gradients, and always participate in the backward graph.</span>
                 <span class="n">flat_bw_args</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span><span class="n">inp_tangents_filtered</span><span class="p">,</span> <span class="n">out_tangents_filtered</span><span class="p">,</span> <span class="n">intermediate_base_tangents</span><span class="p">)</span>
