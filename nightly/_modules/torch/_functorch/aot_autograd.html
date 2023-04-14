@@ -219,7 +219,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git9a2a6fc) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gitfd7eaf7) &#x25BC</a>
     </div>
     
 
@@ -1212,6 +1212,7 @@
     <span class="n">dynamic_shapes</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="n">aot_autograd_arg_pos_to_source</span> <span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Source</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">inference_compiler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">enable_log</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
 
 <span class="c1"># This function takes in a tensor t, and returns one of t, t.view(), or t.clone().</span>
 <span class="c1"># When tracing the joint forward + backward, for any inputs in the graph that are mutated,</span>
@@ -1618,7 +1619,8 @@
 
     <span class="k">assert</span> <span class="n">copy_count</span> <span class="o">==</span> <span class="n">copy_count2</span>
 
-    <span class="n">aot_graphs_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">lazy_format_graph_code</span><span class="p">(</span><span class="s2">&quot;Forward graph&quot;</span><span class="p">,</span> <span class="n">fw_module</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">enable_log</span><span class="p">:</span>
+        <span class="n">aot_graphs_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">lazy_format_graph_code</span><span class="p">(</span><span class="s2">&quot;Forward graph&quot;</span><span class="p">,</span> <span class="n">fw_module</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="p">))</span>
 
     <span class="n">disable_amp</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_C</span><span class="o">.</span><span class="n">_is_any_autocast_enabled</span><span class="p">()</span>
     <span class="n">context</span> <span class="o">=</span> <span class="n">disable_autocast_manager</span> <span class="k">if</span> <span class="n">disable_amp</span> <span class="k">else</span> <span class="n">nullcontext</span>
@@ -1630,6 +1632,7 @@
     <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">create_runtime_wrapper</span><span class="p">(</span>
         <span class="n">compiled_fw</span><span class="p">,</span>
         <span class="n">runtime_metadata</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span>
+        <span class="n">indices_of_inps_to_detach</span><span class="o">=</span><span class="p">[],</span>
         <span class="n">trace_joint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
         <span class="n">disable_amp</span><span class="o">=</span><span class="n">disable_amp</span>
@@ -2433,6 +2436,7 @@
     <span class="n">compiled_fn</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">runtime_metadata</span><span class="p">:</span> <span class="n">ViewAndMutationMeta</span><span class="p">,</span>
+    <span class="n">indices_of_inps_to_detach</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
     <span class="n">trace_joint</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
     <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
     <span class="n">disable_amp</span><span class="p">:</span> <span class="nb">bool</span>
@@ -2442,10 +2446,15 @@
 
     <span class="k">def</span> <span class="nf">runtime_wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">trace_joint</span><span class="p">:</span>
+            <span class="n">args_</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+            <span class="c1"># See Note [Detaching inputs that never need gradients]</span>
+            <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">indices_of_inps_to_detach</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args_</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                    <span class="n">args_</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">args_</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
             <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">_force_original_view_tracking</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
                 <span class="n">all_outs</span> <span class="o">=</span> <span class="n">call_func_with_args</span><span class="p">(</span>
                     <span class="n">compiled_fn</span><span class="p">,</span>
-                    <span class="n">args</span><span class="p">,</span>
+                    <span class="n">args_</span><span class="p">,</span>
                     <span class="n">disable_amp</span><span class="o">=</span><span class="n">disable_amp</span><span class="p">,</span>
                 <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -2643,7 +2652,8 @@
             <span class="s2">&quot;Graph partitioning without functionalization is not sound, we may introduce errors&quot;</span>
         <span class="p">)</span>
 
-    <span class="n">aot_joint_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">lazy_format_graph_code</span><span class="p">(</span><span class="s2">&quot;Joint graph&quot;</span><span class="p">,</span> <span class="n">fx_g</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">enable_log</span><span class="p">:</span>
+        <span class="n">aot_joint_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">lazy_format_graph_code</span><span class="p">(</span><span class="s2">&quot;Joint graph&quot;</span><span class="p">,</span> <span class="n">fx_g</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="p">))</span>
 
     <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
         <span class="k">with</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;joint&quot;</span><span class="p">):</span>
@@ -2660,8 +2670,69 @@
             <span class="p">]</span>
             <span class="n">_num_symints_saved_for_bw</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">symint_outs_saved_for_bw</span><span class="p">)</span>
 
-        <span class="n">aot_graphs_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">lazy_format_graph_code</span><span class="p">(</span><span class="s2">&quot;Forward graph&quot;</span><span class="p">,</span> <span class="n">fw_module</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="p">))</span>
-        <span class="n">aot_graphs_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">lazy_format_graph_code</span><span class="p">(</span><span class="s2">&quot;Backward graph&quot;</span><span class="p">,</span> <span class="n">bw_module</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="p">))</span>
+        <span class="c1"># Note [Detaching inputs that never need gradients]</span>
+        <span class="c1"># See https://github.com/pytorch/pytorch/issues/97745</span>
+        <span class="c1"># Suppose we have a function like this that we want to compile:</span>
+        <span class="c1">#</span>
+        <span class="c1"># def f(x, y):</span>
+        <span class="c1">#     return torch.mul(x, y.detach())</span>
+        <span class="c1">#</span>
+        <span class="c1"># What gradients should we compute for x and y?</span>
+        <span class="c1"># By default, AOTAutograd will compute a gradient for **every** input that requires gradients,</span>
+        <span class="c1"># and so we&#39;ll compute:</span>
+        <span class="c1">#    x_grad_input = y</span>
+        <span class="c1">#    y_grad_input = None</span>
+        <span class="c1"># Does this preserve the semantics of eager mode?</span>
+        <span class="c1"># Unfortunately, no.</span>
+        <span class="c1"># Doing the above will cause autograd to **continue** to backprop the autograd tape</span>
+        <span class="c1"># that was generated from constructing y.</span>
+        <span class="c1">#</span>
+        <span class="c1"># This is **different** from what would have happened in eager mode.</span>
+        <span class="c1"># In eager mode, if we backprop through the output of this function, autograd will only traverse</span>
+        <span class="c1"># the bit of the autograd tape corresponding to &quot;x&quot;.</span>
+        <span class="c1"># In particular, if a user had previously backpropped through y&#39;s autograd tape,</span>
+        <span class="c1"># And then they try to backprop through the output of the above function,</span>
+        <span class="c1"># then we&#39;ll hit the dreaded &quot;Trying to backward through the graph a second time&quot; error.</span>
+        <span class="c1">#</span>
+        <span class="c1"># You might think: If autograd sees that a gradient is None, shouldn&#39;t it stop early,</span>
+        <span class="c1"># instead of continuing the backprop through the ancestors of that node in the graph?</span>
+        <span class="c1">#</span>
+        <span class="c1"># Autograd has two passes:</span>
+        <span class="c1"># (1) a first pass that traverses the autograd graph and figures out which nodes need to be executed</span>
+        <span class="c1"># (2) a second pass that actually goes ahead and executes each node when it becomes ready,</span>
+        <span class="c1">#     propagating gradients</span>
+        <span class="c1"># By the time we&#39;re executing a node and we see that it produces a None, the set of nodes to execute</span>
+        <span class="c1"># is already locked-in.</span>
+        <span class="c1">#</span>
+        <span class="c1"># The fix: instead, we can recognize statically that the graph we&#39;re compiling will never contribute</span>
+        <span class="c1"># gradients to y, and prevent autograd from trying to traverse y&#39;s autograd tape at all.</span>
+        <span class="c1"># We can do this by manually detach&#39;ing y before sending it through the `CompiledFunction`.</span>
+        <span class="c1">#</span>
+        <span class="c1"># Note that this solution is not bulletproof.</span>
+        <span class="c1"># It&#39;s possible to construct a case where eager may or may not have have tried to autograd through y,</span>
+        <span class="c1"># depending on the actual grad_outputs that were passed in during the backward.</span>
+        <span class="c1"># There is no easy fix for this: the simplest fix would be to run with `retain_graph=True`,</span>
+        <span class="c1"># allowing autograd to re-use the graph.</span>
+        <span class="c1">#</span>
+        <span class="c1"># An example of this case is:</span>
+        <span class="c1"># def f(x):</span>
+        <span class="c1">#     return x.detach() * 2, x * 3</span>
+        <span class="c1"># If we were to only backprop through outs[0], in eager, we would stop</span>
+        <span class="c1"># If we backward only on the first output, we shouldn&#39;t send a grad through x.</span>
+        <span class="c1"># But the custom autograd function doesn&#39;t know that: it will materialize zero grads for x * 3</span>
+        <span class="c1"># and we will end up with a zero grad at x.</span>
+        <span class="c1"># If we later backprop through the second output, this will also require backprop&#39;ing through x.</span>
+        <span class="c1"># Meaning we&#39;ll need to use `retain_graph=True` to be able to backprop through x the second time.</span>
+        <span class="n">_indices_of_inps_to_detach</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">bw_outs</span> <span class="o">=</span> <span class="p">[</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;output&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">bw_outs</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">bw_out</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">bw_outs</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">bw_out</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_indices_of_inps_to_detach</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">enable_log</span><span class="p">:</span>
+            <span class="n">aot_graphs_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">lazy_format_graph_code</span><span class="p">(</span><span class="s2">&quot;Forward graph&quot;</span><span class="p">,</span> <span class="n">fw_module</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="p">))</span>
+            <span class="n">aot_graphs_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">lazy_format_graph_code</span><span class="p">(</span><span class="s2">&quot;Backward graph&quot;</span><span class="p">,</span> <span class="n">bw_module</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="p">))</span>
 
         <span class="k">with</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;forward&quot;</span><span class="p">):</span>
             <span class="n">compiled_fw_func</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">fw_compiler</span><span class="p">(</span>
@@ -2905,6 +2976,7 @@
     <span class="n">compiled_function</span> <span class="o">=</span> <span class="n">create_runtime_wrapper</span><span class="p">(</span>
         <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">apply</span><span class="p">,</span>
         <span class="n">runtime_metadata</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span>
+        <span class="n">indices_of_inps_to_detach</span><span class="o">=</span><span class="n">_indices_of_inps_to_detach</span><span class="p">,</span>
         <span class="n">trace_joint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">keep_input_mutations</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">disable_amp</span><span class="o">=</span><span class="n">disable_amp</span>
@@ -3112,6 +3184,7 @@
     <span class="o">*</span><span class="p">,</span>
     <span class="c1"># Whether or not to trace with dynamic shapes</span>
     <span class="n">dynamic</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">enable_log</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Traces the forward and backward graph of :attr:`fn` using torch dispatch</span>
@@ -3184,6 +3257,7 @@
         <span class="n">keep_inference_input_mutations</span><span class="o">=</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
         <span class="n">dynamic_shapes</span><span class="o">=</span><span class="n">dynamic</span><span class="p">,</span>
         <span class="n">aot_autograd_arg_pos_to_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">enable_log</span><span class="o">=</span><span class="n">enable_log</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">cached_res</span> <span class="o">=</span> <span class="kc">None</span>
 
