@@ -354,7 +354,7 @@ If you use functorch in your publication, please cite it by using the following 
 
 ```bibtex
 @Misc{functorch2021,
-  author =       {Horace He, Richard Zou},
+  author =       {Horace He and Richard Zou},
   title =        {functorch: JAX-like composable function transforms for PyTorch},
   howpublished = {\url{https://github.com/pytorch/functorch}},
   year =         {2021}
