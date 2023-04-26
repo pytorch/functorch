@@ -221,7 +221,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gitbe0b12e) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gitbafa2c4) &#x25BC</a>
     </div>
     
 
@@ -343,7 +343,7 @@
 <h1>functorch.compile.memory_efficient_fusion<a class="headerlink" href="#functorch-compile-memory-efficient-fusion" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="functorch.compile.memory_efficient_fusion">
-<code class="sig-prename descclassname"><span class="pre">functorch.compile.</span></code><code class="sig-name descname"><span class="pre">memory_efficient_fusion</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">static_argnums</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch/_functorch/compilers.html#memory_efficient_fusion"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.compile.memory_efficient_fusion" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">functorch.compile.</span></code><code class="sig-name descname"><span class="pre">memory_efficient_fusion</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fn</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch/_functorch/compilers.html#memory_efficient_fusion"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.compile.memory_efficient_fusion" title="Permalink to this definition">¶</a></dt>
 <dd><p>Wrapper function over <a class="reference internal" href="functorch.compile.aot_function.html#functorch.compile.aot_function" title="functorch.compile.aot_function"><code class="xref py py-func docutils literal notranslate"><span class="pre">aot_function()</span></code></a> and <a class="reference internal" href="functorch.compile.aot_module.html#functorch.compile.aot_module" title="functorch.compile.aot_module"><code class="xref py py-func docutils literal notranslate"><span class="pre">aot_module()</span></code></a> to perform
 memory efficient fusion. It uses the
 <a class="reference internal" href="functorch.compile.min_cut_rematerialization_partition.html#functorch.compile.min_cut_rematerialization_partition" title="functorch.compile.min_cut_rematerialization_partition"><code class="xref py py-func docutils literal notranslate"><span class="pre">min_cut_rematerialization_partition()</span></code></a> partitioner to perform efficient
@@ -358,8 +358,6 @@ graphs.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>fn</strong> (<em>Union</em><em>[</em><em>Callable</em><em>, </em><em>nn.Module</em><em>]</em>) – A Python function or a <code class="docutils literal notranslate"><span class="pre">nn.Module</span></code>
 that takes one ore more arguments. Must return one or more Tensors.</p></li>
-<li><p><strong>static_argnums</strong> (<em>Optional</em><em>[</em><em>Tuple</em><em>[</em><em>Int</em><em>]</em><em>]</em>) – An option tuple of ints to mark
-the arguments of the function as static.</p></li>
 <li><p><strong>**kwargs</strong> – Any other overrides you want to make to the settings</p></li>
 </ul>
 </dd>

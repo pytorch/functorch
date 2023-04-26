@@ -219,7 +219,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gitbe0b12e) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gitbafa2c4) &#x25BC</a>
     </div>
     
 
@@ -339,11 +339,12 @@
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">pprint</span>
 <span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span><span class="p">,</span> <span class="n">nullcontext</span>
 <span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span><span class="p">,</span> <span class="n">wraps</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">NewType</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Set</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">NewType</span>
 <span class="kn">from</span> <span class="nn">unittest.mock</span> <span class="kn">import</span> <span class="n">patch</span>
 
 <span class="kn">from</span> <span class="nn">functorch</span> <span class="kn">import</span> <span class="n">make_fx</span>
@@ -356,16 +357,16 @@
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">torch._dispatch.python</span> <span class="kn">import</span> <span class="n">enable_python_dispatcher</span>
 <span class="kn">from</span> <span class="nn">torch._dynamo.utils</span> <span class="kn">import</span> <span class="n">dynamo_timed</span><span class="p">,</span> <span class="n">lazy_format_graph_code</span>
-<span class="kn">from</span> <span class="nn">torch._guards</span> <span class="kn">import</span> <span class="n">detect_fake_mode</span>
+<span class="kn">from</span> <span class="nn">torch._guards</span> <span class="kn">import</span> <span class="n">detect_fake_mode</span><span class="p">,</span> <span class="n">tracing</span>
 <span class="kn">from</span> <span class="nn">torch._prims_common</span> <span class="kn">import</span> <span class="n">CUDARngStateHelper</span>
 <span class="kn">from</span> <span class="nn">torch._logging</span> <span class="kn">import</span> <span class="n">getArtifactLogger</span>
-<span class="kn">from</span> <span class="nn">torch._subclasses</span> <span class="kn">import</span> <span class="n">CrossRefFakeMode</span><span class="p">,</span> <span class="n">FakeTensor</span><span class="p">,</span> <span class="n">FakeTensorMode</span>
+<span class="kn">from</span> <span class="nn">torch._subclasses</span> <span class="kn">import</span> <span class="n">FakeTensor</span><span class="p">,</span> <span class="n">FakeTensorMode</span>
 <span class="kn">from</span> <span class="nn">torch.fx</span> <span class="kn">import</span> <span class="n">immutable_collections</span><span class="p">,</span> <span class="n">Interpreter</span>
 <span class="kn">from</span> <span class="nn">torch.fx.experimental.proxy_tensor</span> <span class="kn">import</span> <span class="n">is_sym_node</span><span class="p">,</span> <span class="n">py_sym_types</span>
-<span class="kn">from</span> <span class="nn">torch.fx.experimental.symbolic_shapes</span> <span class="kn">import</span> <span class="n">ShapeEnv</span>
+<span class="kn">from</span> <span class="nn">torch.fx.experimental.symbolic_shapes</span> <span class="kn">import</span> <span class="n">ShapeEnv</span><span class="p">,</span> <span class="n">is_concrete_int</span><span class="p">,</span> <span class="n">fx_placeholder_vals</span>
 <span class="kn">from</span> <span class="nn">torch.multiprocessing.reductions</span> <span class="kn">import</span> <span class="n">StorageWeakRef</span>
 <span class="kn">from</span> <span class="nn">torch.nn.utils</span> <span class="kn">import</span> <span class="n">stateless</span>
-<span class="kn">from</span> <span class="nn">torch._decomp.decompositions_for_rng</span> <span class="kn">import</span> <span class="n">PhiloxStateTracker</span><span class="p">,</span> <span class="n">rng_decompositions</span><span class="p">,</span> <span class="n">PhiloxTotalOffsets</span>
+<span class="kn">from</span> <span class="nn">torch._decomp.decompositions_for_rng</span> <span class="kn">import</span> <span class="n">PhiloxStateTracker</span><span class="p">,</span> <span class="n">rng_decompositions</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">config</span>
 <span class="kn">from</span> <span class="nn">.partitioners</span> <span class="kn">import</span> <span class="n">default_partition</span>
 <span class="kn">from</span> <span class="nn">torch._guards</span> <span class="kn">import</span> <span class="n">TracingContext</span><span class="p">,</span> <span class="n">DuplicateInputs</span><span class="p">,</span> <span class="n">Source</span>
@@ -415,6 +416,16 @@
         <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
     <span class="p">),</span>
 <span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">partial_asdict</span><span class="p">(</span><span class="n">obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">is_dataclass</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">fields</span><span class="p">(</span><span class="n">obj</span><span class="p">)}</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="n">obj</span><span class="o">.</span><span class="vm">__class__</span><span class="p">([</span><span class="n">partial_asdict</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">partial_asdict</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">obj</span>
 
 <span class="n">aten</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span>
 
@@ -752,6 +763,8 @@
     <span class="c1"># - Tells us that the base of this alias is output_user_fwds[base_idx]</span>
     <span class="c1">#   here, this refers to the index of the *direct* traced</span>
     <span class="n">base_idx</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="c1"># If it is a Tensor, what the dynamic dims are (otherwise is None)</span>
+    <span class="n">dynamic_dims</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Set</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span>
 
 
 <span class="c1"># This class tells us info about user inputs.</span>
@@ -870,6 +883,19 @@
             <span class="p">]</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_data_inputs</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_metadata_only_inputs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dynamic_outputs</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="n">o</span><span class="o">.</span><span class="n">dynamic_dims</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_info</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_rng_op_functionalized</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">functionalize_rng_ops</span>
+        <span class="c1"># All of the above metadata is collected by tracing the fw function.</span>
+        <span class="c1"># However, extra outputs for rng offsets behave differently. Both fwd</span>
+        <span class="c1"># and bwd graphs have their own outputs for the total consumed offsets.</span>
+        <span class="c1"># Unlike mutated inputs, we don&#39;t have to worry about sending the right</span>
+        <span class="c1"># set of tensors between fwd and bwd. Fwd and bwd offsets are</span>
+        <span class="c1"># independent and simpler to handle. Therefore, we track them</span>
+        <span class="c1"># separately.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs_rng_offset</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_rng_op_functionalized</span> <span class="k">else</span> <span class="mi">0</span>
 
     <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">ViewAndMutationMeta</span><span class="p">):</span>
@@ -879,20 +905,11 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">requires_grad_info</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">requires_grad_info</span> <span class="ow">and</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">num_intermediate_bases</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">num_intermediate_bases</span> <span class="ow">and</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">keep_input_mutations</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">keep_input_mutations</span> <span class="ow">and</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">is_rng_op_functionalized</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">is_rng_op_functionalized</span> <span class="ow">and</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs_rng_offset</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">num_outputs_rng_offset</span> <span class="ow">and</span>
                 <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">traced_tangents</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">traced_tangents</span><span class="p">)</span> <span class="ow">and</span>
                 <span class="nb">all</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">y</span><span class="o">.</span><span class="n">shape</span> <span class="ow">and</span> <span class="n">x</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">y</span><span class="o">.</span><span class="n">dtype</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">traced_tangents</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">traced_tangents</span><span class="p">)))</span>
 
-
-<span class="c1"># This side data structures stores the functionalization of RNG related metadata</span>
-<span class="c1"># to be used at runtime. In future, we can repurpose this class to RuntimeMeta</span>
-<span class="c1"># if more metadata usecases popup</span>
-<span class="nd">@dataclass</span>
-<span class="k">class</span> <span class="nc">RNGMeta</span><span class="p">:</span>
-    <span class="c1"># Stores if the config.functionalize_rng_ops was True at compile time</span>
-    <span class="n">is_compiled_with_functional_rng_ops</span><span class="p">:</span> <span class="nb">bool</span>
-
-    <span class="c1"># Stores PhiloxTotalOffsets to be used at runtime</span>
-    <span class="n">philox_total_offsets</span><span class="p">:</span> <span class="n">PhiloxTotalOffsets</span>
 
 <span class="c1"># This class exists because:</span>
 <span class="c1"># - the autograd.Function.forward() in aot autograd returns outputs that might alias inputs</span>
@@ -1166,10 +1183,15 @@
                 <span class="n">output_type</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span>
                 <span class="n">base_idx</span> <span class="o">=</span> <span class="kc">None</span>
 
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                <span class="n">dynamic_dims</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">is_concrete_int</span><span class="p">(</span><span class="n">s</span><span class="p">)}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dynamic_dims</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="n">out_info</span> <span class="o">=</span> <span class="n">OutputAliasInfo</span><span class="p">(</span>
                 <span class="n">output_type</span><span class="o">=</span><span class="n">output_type</span><span class="p">,</span>
                 <span class="n">raw_type</span><span class="o">=</span><span class="nb">type</span><span class="p">(</span><span class="n">o</span><span class="p">),</span>
                 <span class="n">base_idx</span><span class="o">=</span><span class="n">base_idx</span><span class="p">,</span>
+                <span class="n">dynamic_dims</span><span class="o">=</span><span class="n">dynamic_dims</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">output_info</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">out_info</span><span class="p">)</span>
             <span class="n">output_requires_grad_info</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
@@ -1511,7 +1533,6 @@
     <span class="k">with</span> <span class="n">enable_python_dispatcher</span><span class="p">():</span>
         <span class="n">fx_g</span> <span class="o">=</span> <span class="n">make_fx</span><span class="p">(</span><span class="n">helper</span><span class="p">,</span> <span class="n">decomposition_table</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">decompositions</span><span class="p">)(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
 
-
     <span class="k">return</span> <span class="n">fx_g</span>
 
 
@@ -1653,21 +1674,41 @@
 
     <span class="k">with</span> <span class="n">context</span><span class="p">(),</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;inference&quot;</span><span class="p">):</span>
         <span class="n">compiler</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">inference_compiler</span> <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">inference_compiler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">fw_compiler</span>
+        <span class="n">adjusted_flat_args</span> <span class="o">=</span> <span class="n">flat_args</span>
         <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">functionalize_rng_ops</span><span class="p">:</span>
             <span class="c1"># Add the seed and offset as example inputs to pass to the compiler</span>
             <span class="n">fake_mode</span> <span class="o">=</span> <span class="n">detect_fake_mode</span><span class="p">()</span>
             <span class="n">seed</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">get_torch_state_as_tuple</span><span class="p">(</span><span class="n">fake_mode</span><span class="p">)</span>
-            <span class="n">flat_args</span> <span class="o">=</span> <span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="o">*</span><span class="n">flat_args</span><span class="p">)</span>
-        <span class="n">compiled_fw</span> <span class="o">=</span> <span class="n">compiler</span><span class="p">(</span><span class="n">fw_module</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">)</span>
+            <span class="n">adjusted_flat_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">seed</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="o">*</span><span class="n">flat_args</span><span class="p">]</span>
+            <span class="n">flat_args</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>  <span class="c1"># Don&#39;t hold extra reference</span>
+        <span class="n">compiled_fw</span> <span class="o">=</span> <span class="n">compiler</span><span class="p">(</span><span class="n">fw_module</span><span class="p">,</span> <span class="n">adjusted_flat_args</span><span class="p">)</span>
 
-    <span class="c1"># Get the RNG functionalization related metadata to be used at runtime.</span>
-    <span class="n">rng_metadata</span> <span class="o">=</span> <span class="n">RNGMeta</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="n">PhiloxTotalOffsets</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
-    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">functionalize_rng_ops</span><span class="p">:</span>
-        <span class="n">rng_metadata</span> <span class="o">=</span> <span class="n">RNGMeta</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">functionalize_rng_ops</span><span class="p">,</span> <span class="n">PhiloxStateTracker</span><span class="o">.</span><span class="n">get_accumulated_offsets</span><span class="p">())</span>
+    <span class="c1"># This boxed_call handling happens inside create_runtime_wrapper as well.</span>
+    <span class="c1"># However, create_runtime_wrapper does not expect the rng offsets in the</span>
+    <span class="c1"># output. So, we have to create another wrapper and take out the offset. As</span>
+    <span class="c1"># a result, we have to account for not boxed_call compilers as well.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">compiled_fw</span><span class="p">,</span> <span class="s2">&quot;_boxed_call&quot;</span><span class="p">):</span>
+        <span class="n">compiled_fw</span> <span class="o">=</span> <span class="n">make_boxed_func</span><span class="p">(</span><span class="n">compiled_fw</span><span class="p">)</span>
 
+    <span class="c1"># Create a wrapper to set up the rng functionalize bits</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">compiled_fw</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">rng_functionalization_wrapper</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+        <span class="c1"># args is a list because compiled_fw is boxed_call</span>
+        <span class="k">if</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">is_rng_op_functionalized</span><span class="p">:</span>
+            <span class="c1"># Add the seed and offset to args</span>
+            <span class="n">seed</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">get_torch_state_as_tuple</span><span class="p">()</span>
+            <span class="n">new_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">seed</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">]</span>
+            <span class="n">args</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>  <span class="c1"># Remove the reference of inputs from the args itself</span>
+
+            <span class="n">out</span> <span class="o">=</span> <span class="n">compiled_fw</span><span class="p">(</span><span class="n">new_args</span><span class="p">)</span>
+
+            <span class="n">out</span> <span class="o">=</span> <span class="n">functionalized_rng_runtime_epilogue</span><span class="p">(</span><span class="n">fw_metadata</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">out</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">compiled_fw</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
 
     <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">create_runtime_wrapper</span><span class="p">(</span>
-        <span class="n">compiled_fw</span><span class="p">,</span>
+        <span class="n">rng_functionalization_wrapper</span><span class="p">,</span>
         <span class="n">runtime_metadata</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span>
         <span class="n">indices_of_inps_to_detach</span><span class="o">=</span><span class="p">[],</span>
         <span class="n">trace_joint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -1675,19 +1716,7 @@
         <span class="n">disable_amp</span><span class="o">=</span><span class="n">disable_amp</span>
     <span class="p">)</span>
 
-    <span class="nd">@wraps</span><span class="p">(</span><span class="n">compiled_fn</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">rng_metadata</span><span class="o">.</span><span class="n">is_compiled_with_functional_rng_ops</span><span class="p">:</span>
-            <span class="c1"># Add the seed and offset to args</span>
-            <span class="n">seed</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">get_torch_state_as_tuple</span><span class="p">()</span>
-            <span class="n">out</span> <span class="o">=</span> <span class="n">compiled_fn</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
-            <span class="c1"># Advance the rng state offset</span>
-            <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">advance_torch_state</span><span class="p">(</span><span class="n">rng_metadata</span><span class="o">.</span><span class="n">philox_total_offsets</span><span class="o">.</span><span class="n">total_fwd_offset</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">out</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">compiled_fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">wrapper</span>
+    <span class="k">return</span> <span class="n">compiled_fn</span>
 
 
 <span class="c1"># Returns the number of detected copy_</span>
@@ -1988,6 +2017,7 @@
             <span class="n">OutputAliasInfo</span><span class="p">(</span>
                 <span class="n">output_type</span><span class="o">=</span><span class="n">o</span><span class="o">.</span><span class="n">output_type</span><span class="p">,</span>
                 <span class="n">raw_type</span><span class="o">=</span><span class="n">o</span><span class="o">.</span><span class="n">raw_type</span><span class="p">,</span>
+                <span class="n">dynamic_dims</span><span class="o">=</span><span class="n">o</span><span class="o">.</span><span class="n">dynamic_dims</span><span class="p">,</span>
                 <span class="n">base_idx</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">o</span><span class="o">.</span><span class="n">base_idx</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">dupe_to_dedup_idx</span><span class="p">[</span><span class="n">o</span><span class="o">.</span><span class="n">base_idx</span><span class="p">]</span>
             <span class="p">)</span>
             <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">m</span><span class="o">.</span><span class="n">output_info</span>
@@ -2071,12 +2101,14 @@
         <span class="n">OutputAliasInfo</span><span class="p">(</span>
             <span class="n">output_type</span><span class="o">=</span><span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_input</span><span class="p">,</span>
             <span class="n">raw_type</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+            <span class="n">dynamic_dims</span><span class="o">=</span><span class="p">{</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">outer_args</span><span class="p">[</span><span class="n">outer_idx</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">is_concrete_int</span><span class="p">(</span><span class="n">s</span><span class="p">)},</span>
             <span class="n">base_idx</span><span class="o">=</span><span class="n">synthetic_base_info</span><span class="p">[</span><span class="n">outer_idx</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
         <span class="p">)</span> <span class="k">for</span> <span class="n">outer_idx</span> <span class="ow">in</span> <span class="n">outer_aliased_arg_idx_with_metadata_mutations</span><span class="p">]</span>
     <span class="n">existing_output_infos</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">OutputAliasInfo</span><span class="p">(</span>
             <span class="n">output_type</span><span class="o">=</span><span class="n">o</span><span class="o">.</span><span class="n">output_type</span><span class="p">,</span>
             <span class="n">raw_type</span><span class="o">=</span><span class="n">o</span><span class="o">.</span><span class="n">raw_type</span><span class="p">,</span>
+            <span class="n">dynamic_dims</span><span class="o">=</span><span class="n">o</span><span class="o">.</span><span class="n">dynamic_dims</span><span class="p">,</span>
             <span class="c1"># Map the input idx pre-synthetic-bases to the new idx post-synthetic-bases</span>
             <span class="n">base_idx</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">o</span><span class="o">.</span><span class="n">base_idx</span> <span class="ow">is</span> <span class="kc">None</span>
             <span class="k">else</span> <span class="n">synthetic_base_info</span><span class="p">[</span><span class="n">o</span><span class="o">.</span><span class="n">base_idx</span><span class="p">]</span>
@@ -2433,8 +2465,10 @@
             <span class="n">wrapped_flat_fn</span><span class="p">,</span>
             <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">keep_input_mutations</span><span class="p">,</span>
         <span class="p">)(</span><span class="o">*</span><span class="n">flat_args_with_synthetic_bases</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="n">ref_fw_metadata</span> <span class="o">==</span> <span class="n">fw_metadata_updated</span><span class="p">,</span> \
-            <span class="sa">f</span><span class="s1">&#39;ref_metadata=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">ref_fw_metadata</span><span class="p">)</span><span class="si">}</span><span class="s1">, actual_metadata=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">fw_metadata_updated</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="k">assert</span> <span class="n">ref_fw_metadata</span> <span class="o">==</span> <span class="n">fw_metadata_updated</span><span class="p">,</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;ref_metadata=</span><span class="si">{</span><span class="n">pprint</span><span class="o">.</span><span class="n">pformat</span><span class="p">(</span><span class="n">partial_asdict</span><span class="p">(</span><span class="n">ref_fw_metadata</span><span class="p">))</span><span class="si">}</span><span class="s1">, &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;actual_metadata=</span><span class="si">{</span><span class="n">pprint</span><span class="o">.</span><span class="n">pformat</span><span class="p">(</span><span class="n">partial_asdict</span><span class="p">(</span><span class="n">fw_metadata_updated</span><span class="p">))</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="p">)</span>
 
     <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">compiler_fn</span><span class="p">(</span><span class="n">wrapped_flat_fn</span><span class="p">,</span> <span class="n">flat_args_with_synthetic_bases</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fw_metadata</span><span class="o">=</span><span class="n">fw_metadata_updated</span><span class="p">)</span>
 
@@ -2650,10 +2684,36 @@
                 <span class="c1"># AND a way to replay that custom view fn.</span>
                 <span class="n">regenerated_out</span> <span class="o">=</span> <span class="n">gen_alias_from_base</span><span class="p">(</span><span class="n">aliased_base_tensor</span><span class="p">,</span> <span class="n">o_</span><span class="p">,</span> <span class="n">o_grad</span><span class="p">)</span>
                 <span class="n">fw_outs_including_aliases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">regenerated_out</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">fw_outs_including_aliases</span>
+            <span class="n">ret_outs</span> <span class="o">=</span> <span class="n">fw_outs_including_aliases</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">fw_outs</span>
+            <span class="n">ret_outs</span> <span class="o">=</span> <span class="n">fw_outs</span>
+
+        <span class="k">if</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">dynamic_outputs</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">o</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">ret_outs</span><span class="p">,</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">output_info</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">o</span><span class="o">.</span><span class="n">dynamic_dims</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="s1">&#39;_dynamo_weak_dynamic_indices&#39;</span><span class="p">):</span>
+                    <span class="n">t</span><span class="o">.</span><span class="n">_dynamo_weak_dynamic_indices</span> <span class="o">|=</span> <span class="n">o</span><span class="o">.</span><span class="n">dynamic_dims</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">t</span><span class="o">.</span><span class="n">_dynamo_weak_dynamic_indices</span> <span class="o">=</span> <span class="n">o</span><span class="o">.</span><span class="n">dynamic_dims</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">ret_outs</span>
     <span class="k">return</span> <span class="n">runtime_wrapper</span>
+
+<span class="c1"># Calling convention: If we are running functionalized RNG, then outs consists</span>
+<span class="c1"># of (user_outs, rng_offset)</span>
+<span class="k">def</span> <span class="nf">functionalized_rng_runtime_epilogue</span><span class="p">(</span><span class="n">metadata</span><span class="p">,</span> <span class="n">outs</span><span class="p">,</span> <span class="n">return_new_outs</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">metadata</span><span class="o">.</span><span class="n">is_rng_op_functionalized</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs_rng_offset</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="n">new_rng_offset</span> <span class="o">=</span> <span class="n">outs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">set_new_offset</span><span class="p">(</span><span class="n">new_rng_offset</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">return_new_outs</span><span class="p">:</span>
+            <span class="n">user_outs</span> <span class="o">=</span> <span class="n">outs</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">user_outs</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">outs</span>
+
 
 <span class="k">def</span> <span class="nf">create_functionalized_rng_ops_wrapper</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">trace_joint</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="c1"># Functionalization of rng ops changes the calling convention of the joint graph.</span>
@@ -2661,6 +2721,8 @@
     <span class="c1"># At runtime, we pass on the current seed and offset. This is hidden from</span>
     <span class="c1"># the user.</span>
     <span class="n">fake_mode</span> <span class="o">=</span> <span class="n">detect_fake_mode</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">fake_mode</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fake_mode</span> <span class="o">=</span> <span class="n">nullcontext</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">override_get_rng_state</span><span class="p">(</span><span class="n">device</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;cuda&#39;</span><span class="p">):</span>
         <span class="n">out</span> <span class="o">=</span> <span class="n">PhiloxStateTracker</span><span class="o">.</span><span class="n">get_state_as_tensor</span><span class="p">()</span>
@@ -2669,13 +2731,25 @@
     <span class="k">def</span> <span class="nf">override_set_rng_state</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;cuda&#39;</span><span class="p">):</span>
         <span class="n">PhiloxStateTracker</span><span class="o">.</span><span class="n">set_state_from_tensor</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
 
+    <span class="k">def</span> <span class="nf">append_rng_offsets</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">trace_joint</span><span class="p">:</span>
+            <span class="c1"># args signature before: Tuple(fwd_outputs), Tuple(bwd_outputs)</span>
+            <span class="c1"># args signature after: Tuple(fwd_outputs, new_fwd_rng_offset), Tuple(bwd_offset, new_bwd_rng_offset)</span>
+            <span class="k">return</span> <span class="p">((</span><span class="o">*</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">PhiloxStateTracker</span><span class="o">.</span><span class="n">get_updated_fwd_offset</span><span class="p">()),</span>
+                    <span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">PhiloxStateTracker</span><span class="o">.</span><span class="n">get_updated_bwd_offset</span><span class="p">()))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># args signature before: Tuple(fwd_outputs)</span>
+            <span class="c1"># args signature after: Tuple(fwd_outputs, new_fwd_rng_offset)</span>
+            <span class="k">return</span> <span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">PhiloxStateTracker</span><span class="o">.</span><span class="n">get_updated_fwd_offset</span><span class="p">())</span>
+
+
     <span class="k">def</span> <span class="nf">traced_joint</span><span class="p">(</span><span class="n">fwd_seed</span><span class="p">,</span> <span class="n">fwd_base_offset</span><span class="p">,</span> <span class="n">bwd_seed</span><span class="p">,</span> <span class="n">bwd_base_offset</span><span class="p">,</span> <span class="n">primals</span><span class="p">,</span> <span class="n">tangents</span><span class="p">):</span>
         <span class="k">with</span> <span class="n">patch</span><span class="p">(</span><span class="s2">&quot;torch.cuda.get_rng_state&quot;</span><span class="p">,</span> <span class="n">override_get_rng_state</span><span class="p">),</span> <span class="n">patch</span><span class="p">(</span><span class="s2">&quot;torch.cuda.set_rng_state&quot;</span><span class="p">,</span> <span class="n">override_set_rng_state</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">tangents</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">append_rng_offsets</span><span class="p">(</span><span class="n">func</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">tangents</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">traced_forward</span><span class="p">(</span><span class="n">fwd_seed</span><span class="p">,</span> <span class="n">fwd_base_offset</span><span class="p">,</span> <span class="o">*</span><span class="n">primals</span><span class="p">):</span>
         <span class="k">with</span> <span class="n">patch</span><span class="p">(</span><span class="s2">&quot;torch.cuda.get_rng_state&quot;</span><span class="p">,</span> <span class="n">override_get_rng_state</span><span class="p">),</span> <span class="n">patch</span><span class="p">(</span><span class="s2">&quot;torch.cuda.set_rng_state&quot;</span><span class="p">,</span> <span class="n">override_set_rng_state</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">primals</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">append_rng_offsets</span><span class="p">(</span><span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">primals</span><span class="p">))</span>
 
     <span class="k">if</span> <span class="n">trace_joint</span><span class="p">:</span>
         <span class="c1"># Get the current seed and offset to setup tracing.</span>
@@ -2713,38 +2787,35 @@
     <span class="p">)</span>
     <span class="n">joint_fn_to_trace</span> <span class="o">=</span> <span class="n">create_joint</span><span class="p">(</span><span class="n">fn_prepared_for_autograd</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">use_functionalize</span><span class="p">:</span>
-        <span class="n">fx_g</span> <span class="o">=</span> <span class="n">create_functionalized_graph</span><span class="p">(</span>
-            <span class="n">joint_fn_to_trace</span><span class="p">,</span>
-            <span class="n">joint_inputs</span><span class="p">,</span>
-            <span class="n">meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span>
-            <span class="n">aot_config</span><span class="o">=</span><span class="n">aot_config</span><span class="p">,</span>
-            <span class="n">trace_joint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="p">)</span>
+    <span class="n">fx_g</span> <span class="o">=</span> <span class="n">create_functionalized_graph</span><span class="p">(</span>
+        <span class="n">joint_fn_to_trace</span><span class="p">,</span>
+        <span class="n">joint_inputs</span><span class="p">,</span>
+        <span class="n">meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span>
+        <span class="n">aot_config</span><span class="o">=</span><span class="n">aot_config</span><span class="p">,</span>
+        <span class="n">trace_joint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
 
-        <span class="c1"># There should be *NO* mutating ops in the graph at this point.</span>
-        <span class="n">assert_functional_graph</span><span class="p">(</span><span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
+    <span class="c1"># There should be *NO* mutating ops in the graph at this point.</span>
+    <span class="n">assert_functional_graph</span><span class="p">(</span><span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
 
-        <span class="c1"># Redudant with the check above, but worth having in case tracing introduced</span>
-        <span class="c1"># a fake tensor. Unlikely.</span>
-        <span class="c1"># See Note: [Fake Modules and AOTAutograd]</span>
-        <span class="n">torch</span><span class="o">.</span><span class="n">_dynamo</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">assert_no_fake_params_or_buffers</span><span class="p">(</span><span class="n">fx_g</span><span class="p">)</span>
-        <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">eliminate_dead_code</span><span class="p">()</span>
-        <span class="n">fx_g</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="c1"># joint_forward_backward() now always runs with functionalization, and factoring it out</span>
-        <span class="c1"># to make that toggleable is a bit painful.</span>
-        <span class="c1"># aot autograd without functionalization is wrong anyway, so we error.</span>
-        <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span>
-            <span class="s2">&quot;Graph partitioning without functionalization is not sound, we may introduce errors&quot;</span>
-        <span class="p">)</span>
+    <span class="c1"># Redudant with the check above, but worth having in case tracing introduced</span>
+    <span class="c1"># a fake tensor. Unlikely.</span>
+    <span class="c1"># See Note: [Fake Modules and AOTAutograd]</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">_dynamo</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">assert_no_fake_params_or_buffers</span><span class="p">(</span><span class="n">fx_g</span><span class="p">)</span>
+    <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">eliminate_dead_code</span><span class="p">()</span>
+    <span class="n">fx_g</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">enable_log</span><span class="p">:</span>
         <span class="n">aot_joint_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">lazy_format_graph_code</span><span class="p">(</span><span class="s2">&quot;Joint graph&quot;</span><span class="p">,</span> <span class="n">fx_g</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="p">))</span>
 
     <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
         <span class="k">with</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;joint&quot;</span><span class="p">):</span>
-            <span class="n">num_inner_fwd_outputs</span> <span class="o">=</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
+            <span class="n">num_inner_fwd_outputs</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_mutated_inputs</span>
+                <span class="o">+</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_outputs</span>
+                <span class="o">+</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
+                <span class="o">+</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_outputs_rng_offset</span>
+            <span class="p">)</span>
             <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">partition_fn</span><span class="p">(</span>
                 <span class="n">fx_g</span><span class="p">,</span> <span class="n">joint_inputs</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_inner_fwd_outputs</span>
             <span class="p">)</span>
@@ -2812,7 +2883,7 @@
         <span class="c1"># Meaning we&#39;ll need to use `retain_graph=True` to be able to backprop through x the second time.</span>
         <span class="n">_indices_of_inps_to_detach</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">bw_outs</span> <span class="o">=</span> <span class="p">[</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;output&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">bw_outs</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">bw_outs</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span> <span class="o">+</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_outputs_rng_offset</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">bw_out</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">bw_outs</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">bw_out</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">_indices_of_inps_to_detach</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
@@ -2822,25 +2893,21 @@
             <span class="n">aot_graphs_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">lazy_format_graph_code</span><span class="p">(</span><span class="s2">&quot;Backward graph&quot;</span><span class="p">,</span> <span class="n">bw_module</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="p">))</span>
 
         <span class="k">with</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;forward&quot;</span><span class="p">):</span>
+            <span class="n">adjusted_flat_args</span> <span class="o">=</span> <span class="n">flat_args</span>
             <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">functionalize_rng_ops</span><span class="p">:</span>
                 <span class="c1"># Update example inputs for the fw_compiler</span>
                 <span class="n">fake_mode</span> <span class="o">=</span> <span class="n">detect_fake_mode</span><span class="p">()</span>
                 <span class="n">seed</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">get_torch_state_as_tuple</span><span class="p">(</span><span class="n">fake_mode</span><span class="p">)</span>
-                <span class="n">flat_args</span> <span class="o">=</span> <span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="o">*</span><span class="n">flat_args</span><span class="p">)</span>
+                <span class="n">adjusted_flat_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">seed</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="o">*</span><span class="n">flat_args</span><span class="p">]</span>
+                <span class="c1"># We are not clearing flat_args here because</span>
+                <span class="c1"># 1) There is a check in the the debug compiler at the end</span>
+                <span class="c1"># 2) It does not matter as these are fake tensors</span>
             <span class="n">compiled_fw_func</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">fw_compiler</span><span class="p">(</span>
-                <span class="n">fw_module</span><span class="p">,</span> <span class="n">flat_args</span>
+                <span class="n">fw_module</span><span class="p">,</span> <span class="n">adjusted_flat_args</span>
             <span class="p">)</span>
 
 
-    <span class="c1"># Get the rng_metadata so that it can be used at runtime</span>
-    <span class="n">rng_metadata</span> <span class="o">=</span> <span class="n">RNGMeta</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="n">PhiloxTotalOffsets</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
-    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">functionalize_rng_ops</span><span class="p">:</span>
-        <span class="n">rng_metadata</span> <span class="o">=</span> <span class="n">RNGMeta</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">functionalize_rng_ops</span><span class="p">,</span> <span class="n">PhiloxStateTracker</span><span class="o">.</span><span class="n">get_accumulated_offsets</span><span class="p">())</span>
-        <span class="c1"># Total offsets differ for each AOT traced graph, so they can&#39;t be saved</span>
-        <span class="c1"># in the PhiloxStateTracker singleton object. Therefore, we save them</span>
-        <span class="c1"># into rng_meta side datastructure.</span>
-
-
+    <span class="n">saved_context</span> <span class="o">=</span> <span class="n">TracingContext</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
 
     <span class="k">class</span> <span class="nc">CompiledFunction</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">Function</span><span class="p">):</span>
         <span class="n">compiled_fw</span> <span class="o">=</span> <span class="n">compiled_fw_func</span>
@@ -2851,7 +2918,7 @@
         <span class="nd">@staticmethod</span>
         <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="o">*</span><span class="n">deduped_flat_tensor_args</span><span class="p">):</span>
             <span class="n">args</span> <span class="o">=</span> <span class="n">deduped_flat_tensor_args</span>
-            <span class="k">if</span> <span class="n">rng_metadata</span><span class="o">.</span><span class="n">is_compiled_with_functional_rng_ops</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">is_rng_op_functionalized</span><span class="p">:</span>
                 <span class="c1"># Add the seed and offset to args</span>
                 <span class="n">seed</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">get_torch_state_as_tuple</span><span class="p">()</span>
                 <span class="n">args</span> <span class="o">=</span> <span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
@@ -2880,8 +2947,16 @@
             <span class="n">num_mutated_metadata_only_inputs</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_mutated_metadata_only_inputs</span>
             <span class="p">)</span>
+            <span class="n">num_outputs_rng_offset</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs_rng_offset</span>
             <span class="c1"># Our forward() returns both (mutated_inputs, outputs, output_intermediate_bases, saved_tensors, saved_symints)</span>
             <span class="n">num_forward_returns</span> <span class="o">=</span> <span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="n">num_outputs</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
+            <span class="c1"># In case of functionalization of rng ops, the fw_module returns one</span>
+            <span class="c1"># additinal output for rng offset. This rng offset is used right</span>
+            <span class="c1"># away to advance the rng state, and is not passed on to the raw</span>
+            <span class="c1"># outputs. However, we need to know the exact boundary to identify</span>
+            <span class="c1"># which tensors to be saved for the bwd graph.  num_forward captures</span>
+            <span class="c1"># this information.</span>
+            <span class="n">num_forward</span> <span class="o">=</span> <span class="n">num_forward_returns</span> <span class="o">+</span> <span class="n">num_outputs_rng_offset</span>
 
             <span class="k">assert</span> <span class="n">num_forward_returns</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span>
                 <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">requires_grad_info</span>
@@ -2890,23 +2965,21 @@
             <span class="c1"># Partitioners must put symint arguments at the end separate from tensor arguments</span>
             <span class="k">if</span> <span class="n">num_symints_saved_for_bw</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">tensors_saved_for_backwards</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span>
-                    <span class="n">num_forward_returns</span><span class="p">:</span><span class="o">-</span><span class="n">num_symints_saved_for_bw</span>
+                    <span class="n">num_forward</span><span class="p">:</span><span class="o">-</span><span class="n">num_symints_saved_for_bw</span>
                 <span class="p">]</span>
                 <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span>
-                    <span class="p">[</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tensors_saved_for_backwards</span><span class="p">]</span>
+                    <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tensors_saved_for_backwards</span>
                 <span class="p">)</span>
                 <span class="c1"># See Note [Detaching saved tensors in AOTAutograd]</span>
                 <span class="n">ctx</span><span class="o">.</span><span class="n">save_for_backward</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">_is_view</span><span class="p">()</span> <span class="k">else</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tensors_saved_for_backwards</span><span class="p">))</span>
                 <span class="n">symint_outs</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span><span class="o">-</span><span class="n">num_symints_saved_for_bw</span><span class="p">:]</span>
                 <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span>
-                    <span class="p">[</span>
-                        <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymInt</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymFloat</span><span class="p">))</span>
-                        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">symint_outs</span>
-                    <span class="p">]</span>
+                    <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymInt</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymFloat</span><span class="p">))</span>
+                    <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">symint_outs</span>
                 <span class="p">)</span>
                 <span class="n">ctx</span><span class="o">.</span><span class="n">symints</span> <span class="o">=</span> <span class="n">symint_outs</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">tensors_saved_for_backwards</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span><span class="n">num_forward_returns</span><span class="p">:]</span>
+                <span class="n">tensors_saved_for_backwards</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span><span class="n">num_forward</span><span class="p">:]</span>
                 <span class="c1"># See Note [Detaching saved tensors in AOTAutograd]</span>
                 <span class="n">ctx</span><span class="o">.</span><span class="n">save_for_backward</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">_is_view</span><span class="p">()</span> <span class="k">else</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tensors_saved_for_backwards</span><span class="p">))</span>
                 <span class="n">ctx</span><span class="o">.</span><span class="n">symints</span> <span class="o">=</span> <span class="p">[]</span>
@@ -2952,10 +3025,11 @@
             <span class="p">]</span>
             <span class="n">ctx</span><span class="o">.</span><span class="n">mark_non_differentiable</span><span class="p">(</span><span class="o">*</span><span class="n">fw_outs_not_requiring_grad</span><span class="p">)</span>
 
-
-            <span class="k">if</span> <span class="n">rng_metadata</span><span class="o">.</span><span class="n">is_compiled_with_functional_rng_ops</span><span class="p">:</span>
-                <span class="c1"># Advance total fwd offset</span>
-                <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">advance_torch_state</span><span class="p">(</span><span class="n">rng_metadata</span><span class="o">.</span><span class="n">philox_total_offsets</span><span class="o">.</span><span class="n">total_fwd_offset</span><span class="p">)</span>
+            <span class="n">functionalized_rng_runtime_epilogue</span><span class="p">(</span>
+                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span>
+                <span class="n">fw_outs</span><span class="p">[</span><span class="n">num_forward_returns</span><span class="p">:</span><span class="n">num_forward</span><span class="p">],</span>
+                <span class="n">return_new_outs</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span>
             <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">raw_returns</span><span class="p">)</span>
 
         <span class="nd">@staticmethod</span>
@@ -3030,7 +3104,7 @@
             <span class="p">]</span>
 
             <span class="n">rng_args</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">if</span> <span class="n">rng_metadata</span><span class="o">.</span><span class="n">is_compiled_with_functional_rng_ops</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">is_rng_op_functionalized</span><span class="p">:</span>
                 <span class="c1"># Add the seed and offset to args</span>
                 <span class="n">rng_args</span> <span class="o">=</span> <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">get_torch_state_as_tuple</span><span class="p">()</span>
 
@@ -3044,9 +3118,9 @@
                 <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">compiled_bw</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">a</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">all_args</span><span class="p">)</span>
                     <span class="n">context</span> <span class="o">=</span> <span class="n">disable_autocast_manager</span> <span class="k">if</span> <span class="n">disable_amp</span> <span class="k">else</span> <span class="n">nullcontext</span>
-                    <span class="k">with</span> <span class="n">context</span><span class="p">(),</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;backward&quot;</span><span class="p">):</span>
+                    <span class="k">with</span> <span class="n">tracing</span><span class="p">(</span><span class="n">saved_context</span><span class="p">),</span> <span class="n">context</span><span class="p">(),</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;backward&quot;</span><span class="p">):</span>
                         <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">compiled_bw</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">bw_compiler</span><span class="p">(</span>
-                            <span class="n">bw_module</span><span class="p">,</span> <span class="n">all_args</span>
+                            <span class="n">bw_module</span><span class="p">,</span> <span class="n">fx_placeholder_vals</span><span class="p">(</span><span class="n">bw_module</span><span class="p">)</span>
                         <span class="p">)</span>
 
                 <span class="n">ctx</span><span class="o">.</span><span class="n">maybe_clear_saved_tensors</span><span class="p">()</span>
@@ -3057,9 +3131,7 @@
                     <span class="n">disable_amp</span><span class="o">=</span><span class="n">disable_amp</span><span class="p">,</span>
                 <span class="p">)</span>
 
-                <span class="k">if</span> <span class="n">rng_metadata</span><span class="o">.</span><span class="n">is_compiled_with_functional_rng_ops</span><span class="p">:</span>
-                    <span class="c1"># Advance total bwd rng offset</span>
-                    <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">advance_torch_state</span><span class="p">(</span><span class="n">rng_metadata</span><span class="o">.</span><span class="n">philox_total_offsets</span><span class="o">.</span><span class="n">total_bwd_offset</span><span class="p">)</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">functionalized_rng_runtime_epilogue</span><span class="p">(</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
                 <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_grad_enabled</span><span class="p">()</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">requires_grad</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">all_args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)):</span>
@@ -3164,75 +3236,56 @@
             <span class="o">**</span><span class="n">aot_config</span><span class="o">.</span><span class="n">decompositions</span><span class="p">,</span>
         <span class="p">}</span>
 
-    <span class="c1"># NB: don&#39;t bother setting allow_fallback_kernels; this should not actually</span>
-    <span class="c1"># be configurable in fake tensor, we should automatically do the right</span>
-    <span class="c1"># thing</span>
-    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_fake_cross_ref</span><span class="p">:</span>
-        <span class="c1"># This is a little messy but TorchDynamo directly changes `use_fake_tensor`</span>
-        <span class="c1"># so it&#39;s not enough for user to change the config manually</span>
-        <span class="c1"># TODO: have TorchDynamo read in `use_fake_tensor` from os environ /</span>
-        <span class="c1"># coordinate flags</span>
-        <span class="n">config</span><span class="o">.</span><span class="n">use_fake_tensor</span> <span class="o">=</span> <span class="kc">False</span>
-
     <span class="c1"># Check flat_args to see if they&#39;re already fake.  If so, use that fake</span>
     <span class="c1"># mode instead.</span>
 
-    <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">flat_args</span><span class="p">:</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">FakeTensor</span><span class="p">):</span>
-            <span class="n">fake_mode</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">fake_mode</span>
-            <span class="n">shape_env</span> <span class="o">=</span> <span class="n">fake_mode</span><span class="o">.</span><span class="n">shape_env</span>
-            <span class="k">break</span>
-    <span class="k">else</span><span class="p">:</span>
+    <span class="n">fake_mode</span> <span class="o">=</span> <span class="n">detect_fake_mode</span><span class="p">(</span><span class="n">flat_args</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">fake_mode</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">shape_env</span> <span class="o">=</span> <span class="n">ShapeEnv</span><span class="p">()</span> <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">dynamic_shapes</span> <span class="k">else</span> <span class="kc">None</span>
-        <span class="n">fake_mode</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">FakeTensorMode</span><span class="p">(</span><span class="n">shape_env</span><span class="o">=</span><span class="n">shape_env</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">use_fake_tensor</span>
-            <span class="k">else</span> <span class="n">nullcontext</span><span class="p">()</span>
-        <span class="p">)</span>
+        <span class="n">fake_mode</span> <span class="o">=</span> <span class="n">FakeTensorMode</span><span class="p">(</span><span class="n">shape_env</span><span class="o">=</span><span class="n">shape_env</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">shape_env</span> <span class="o">=</span> <span class="n">fake_mode</span><span class="o">.</span><span class="n">shape_env</span>
 
-    <span class="n">cross_ref</span> <span class="o">=</span> <span class="n">CrossRefFakeMode</span><span class="p">()</span> <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_fake_cross_ref</span> <span class="k">else</span> <span class="n">nullcontext</span><span class="p">()</span>
     <span class="n">python_dispatcher_mode</span> <span class="o">=</span> <span class="p">(</span>
         <span class="n">enable_python_dispatcher</span><span class="p">()</span> <span class="k">if</span> <span class="n">shape_env</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">nullcontext</span><span class="p">()</span>
     <span class="p">)</span>
 
     <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">set_multithreading_enabled</span><span class="p">(</span>
         <span class="kc">False</span>
-    <span class="p">),</span> <span class="n">preserve_rng_state</span><span class="p">(),</span> <span class="n">cross_ref</span><span class="p">,</span> <span class="n">fake_mode</span><span class="p">,</span> <span class="n">python_dispatcher_mode</span><span class="p">,</span> <span class="n">PhiloxStateTracker</span><span class="p">():</span>
+    <span class="p">),</span> <span class="n">preserve_rng_state</span><span class="p">(),</span> <span class="n">fake_mode</span><span class="p">,</span> <span class="n">python_dispatcher_mode</span><span class="p">,</span> <span class="n">PhiloxStateTracker</span><span class="p">():</span>
 
         <span class="k">def</span> <span class="nf">process_inputs</span><span class="p">(</span><span class="n">flat_args</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">use_fake_tensor</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fake_mode</span><span class="p">,</span> <span class="n">FakeTensorMode</span><span class="p">):</span>
-                <span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-                    <span class="k">if</span> <span class="n">shape_env</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                        <span class="kn">from</span> <span class="nn">torch._dynamo.source</span> <span class="kn">import</span> <span class="n">ConstantSource</span>
-                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
-                            <span class="k">return</span> <span class="n">shape_env</span><span class="o">.</span><span class="n">create_symintnode</span><span class="p">(</span>
-                                <span class="n">shape_env</span><span class="o">.</span><span class="n">create_symbol</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">ConstantSource</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;sym_</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)),</span>
-                                <span class="n">hint</span><span class="o">=</span><span class="n">x</span>
-                            <span class="p">)</span>
-                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-                        <span class="k">return</span> <span class="n">x</span>
-                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">FakeTensor</span><span class="p">):</span>
-                        <span class="k">assert</span> <span class="n">x</span><span class="o">.</span><span class="n">fake_mode</span> <span class="ow">is</span> <span class="n">fake_mode</span>
-                        <span class="k">return</span> <span class="n">x</span>
-                    <span class="c1"># TODO: Ensure that this codepath is never exercised from</span>
-                    <span class="c1"># Dynamo</span>
-                    <span class="k">if</span> <span class="p">(</span>
-                        <span class="n">idx</span> <span class="o">&lt;</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">num_params_buffers</span>
-                        <span class="ow">and</span> <span class="n">config</span><span class="o">.</span><span class="n">static_weight_shapes</span>
-                    <span class="p">):</span>
-                        <span class="k">return</span> <span class="n">fake_mode</span><span class="o">.</span><span class="n">from_tensor</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">static_shapes</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                    <span class="k">return</span> <span class="n">fake_mode</span><span class="o">.</span><span class="n">from_tensor</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">static_shapes</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">shape_env</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="kn">from</span> <span class="nn">torch._dynamo.source</span> <span class="kn">import</span> <span class="n">ConstantSource</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                        <span class="k">return</span> <span class="n">shape_env</span><span class="o">.</span><span class="n">create_symintnode</span><span class="p">(</span>
+                            <span class="n">shape_env</span><span class="o">.</span><span class="n">create_symbol</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">ConstantSource</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;sym_</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)),</span>
+                            <span class="n">hint</span><span class="o">=</span><span class="n">x</span>
+                        <span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="n">x</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">FakeTensor</span><span class="p">):</span>
+                    <span class="k">assert</span> <span class="n">x</span><span class="o">.</span><span class="n">fake_mode</span> <span class="ow">is</span> <span class="n">fake_mode</span>
+                    <span class="k">return</span> <span class="n">x</span>
+                <span class="c1"># TODO: Ensure that this codepath is never exercised from</span>
+                <span class="c1"># Dynamo</span>
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="n">idx</span> <span class="o">&lt;</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">num_params_buffers</span>
+                    <span class="ow">and</span> <span class="n">config</span><span class="o">.</span><span class="n">static_weight_shapes</span>
+                <span class="p">):</span>
+                    <span class="k">return</span> <span class="n">fake_mode</span><span class="o">.</span><span class="n">from_tensor</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">static_shapes</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">fake_mode</span><span class="o">.</span><span class="n">from_tensor</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">static_shapes</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-                <span class="k">return</span> <span class="p">[</span><span class="n">convert</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">flat_args</span><span class="p">)]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">flat_args</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">convert</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">flat_args</span><span class="p">)]</span>
 
         <span class="n">fake_flat_args</span> <span class="o">=</span> <span class="n">process_inputs</span><span class="p">(</span><span class="n">flat_args</span><span class="p">)</span>
 
         <span class="n">needs_autograd</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="nb">any</span><span class="p">([</span><span class="n">x</span><span class="o">.</span><span class="n">requires_grad</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">fake_flat_args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)])</span>
+            <span class="nb">any</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">requires_grad</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">fake_flat_args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">))</span>
             <span class="ow">and</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_grad_enabled</span><span class="p">()</span>
         <span class="p">)</span>
+
         <span class="k">with</span> <span class="n">enable_python_dispatcher</span><span class="p">():</span>
             <span class="c1"># Patch set_rng_state as set_rng_state with fake tensors is</span>
             <span class="c1"># nonsensical. This does not affect the collection of metadata.</span>
@@ -3295,8 +3348,6 @@
     <span class="n">partition_fn</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="n">default_partition</span><span class="p">,</span>
     <span class="n">decompositions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">num_params_buffers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
-    <span class="n">hasher_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># deprecated</span>
-    <span class="n">static_argnums</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># deprecated</span>
     <span class="n">keep_inference_input_mutations</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">inference_compiler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -3355,10 +3406,6 @@
 <span class="sd">        &gt;&gt;&gt; x = torch.randn(4, 5, requires_grad=True)</span>
 <span class="sd">        &gt;&gt;&gt; aot_fn(x)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">static_argnums</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-            <span class="s2">&quot;static_argnums has been deprecated - manually wrap your function or use torchdynamo.&quot;</span>
-        <span class="p">)</span>
 
     <span class="k">if</span> <span class="n">bw_compiler</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">bw_compiler</span> <span class="o">=</span> <span class="n">fw_compiler</span>
@@ -3490,8 +3537,6 @@
     <span class="n">bw_compiler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">partition_fn</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="n">default_partition</span><span class="p">,</span>
     <span class="n">decompositions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">hasher_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">static_argnums</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">keep_inference_input_mutations</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">inference_compiler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
@@ -3538,6 +3583,7 @@
         <span class="k">with</span> <span class="n">stateless</span><span class="o">.</span><span class="n">_reparametrize_module</span><span class="p">(</span>
             <span class="n">mod</span><span class="p">,</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_unflatten</span><span class="p">(</span><span class="n">args</span><span class="p">[:</span><span class="n">params_len</span><span class="p">],</span> <span class="n">params_spec</span><span class="p">)</span>
         <span class="p">):</span>
+
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">):</span>
                 <span class="k">with</span> <span class="n">fx_traceback</span><span class="o">.</span><span class="n">preserve_node_meta</span><span class="p">(),</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
                     <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span>
@@ -3556,7 +3602,6 @@
             <span class="p">)</span>
         <span class="k">return</span> <span class="n">out</span>
 
-    <span class="k">assert</span> <span class="n">static_argnums</span> <span class="ow">is</span> <span class="kc">None</span>
     <span class="k">if</span> <span class="n">bw_compiler</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">bw_compiler</span> <span class="o">=</span> <span class="n">fw_compiler</span>
     <span class="k">if</span> <span class="n">inference_compiler</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
