@@ -27,9 +27,10 @@
 
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/copybutton.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/togglebutton.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/mystnb.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" type="text/css" />
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
@@ -221,7 +222,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gitb6d3182) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git3362c1d) &#x25BC</a>
     </div>
     
 
@@ -245,19 +246,19 @@
               
             
             
-              <p class="caption"><span class="caption-text">functorch: Getting Started</span></p>
+              <p class="caption" role="heading"><span class="caption-text">functorch: Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../install.html">Install functorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="whirlwind_tour.html">Whirlwind Tour</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ux_limitations.html">UX Limitations</a></li>
 </ul>
-<p class="caption"><span class="caption-text">functorch API Reference and Notes</span></p>
+<p class="caption" role="heading"><span class="caption-text">functorch API Reference and Notes</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../functorch.html">functorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../experimental.html">functorch.experimental</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
-<p class="caption"><span class="caption-text">functorch Tutorials</span></p>
+<p class="caption" role="heading"><span class="caption-text">functorch Tutorials</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="jacobians_hessians.html">Jacobians, Hessians, hvp, vhp, and more: composing functorch transforms</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ensembling.html">Model ensembling</a></li>
@@ -337,13 +338,13 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="tex2jax_ignore mathjax_ignore section" id="per-sample-gradients">
-<h1>Per-sample-gradients<a class="headerlink" href="#per-sample-gradients" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="per-sample-gradients">
+<h1>Per-sample-gradients<a class="headerlink" href="#per-sample-gradients" title="Permalink to this heading">¶</a></h1>
 <a href="https://colab.research.google.com/github/pytorch/pytorch/blob/master/functorch/notebooks/per_sample_grads.ipynb">
   <img style="width: auto" src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a>
 <div class="section" id="what-is-it">
-<h2>What is it?<a class="headerlink" href="#what-is-it" title="Permalink to this headline">¶</a></h2>
+<h2>What is it?<a class="headerlink" href="#what-is-it" title="Permalink to this heading">¶</a></h2>
 <p>Per-sample-gradient computation is computing the gradient for each and every
 sample in a batch of data. It is a useful quantity in differential privacy, meta-learning,
 and optimization research.</p>
@@ -462,7 +463,7 @@ and optimization research.</p>
 </div>
 </div>
 <div class="section" id="per-sample-grads-the-efficient-way-using-functorch">
-<h2>Per-sample-grads, <em>the efficient way</em>, using functorch<a class="headerlink" href="#per-sample-grads-the-efficient-way-using-functorch" title="Permalink to this headline">¶</a></h2>
+<h2>Per-sample-grads, <em>the efficient way</em>, using functorch<a class="headerlink" href="#per-sample-grads-the-efficient-way-using-functorch" title="Permalink to this heading">¶</a></h2>
 <p>We can compute per-sample-gradients efficiently by using function transforms.</p>
 <p>First, let’s create a stateless functional version of <code class="docutils literal notranslate"><span class="pre">model</span></code> by using <code class="docutils literal notranslate"><span class="pre">functorch.make_functional_with_buffers</span></code>.</p>
 <p>This will separate state (the parameters) from the model and turn the model into a pure function:</p>
@@ -566,7 +567,7 @@ torch.Size([10])
 <p>A quick note: there are limitations around what types of functions can be transformed by vmap. The best functions to transform are ones that are pure functions: a function where the outputs are only determined by the inputs, and that have no side effects (e.g. mutation). vmap is unable to handle mutation of arbitrary Python data structures, but it is able to handle many in-place PyTorch operations.</p>
 </div>
 <div class="section" id="performance-comparison">
-<h2>Performance comparison<a class="headerlink" href="#performance-comparison" title="Permalink to this headline">¶</a></h2>
+<h2>Performance comparison<a class="headerlink" href="#performance-comparison" title="Permalink to this heading">¶</a></h2>
 <p>Curious about how the performance of vmap compares?</p>
 <p>Currently the best results are obtained on newer GPU’s such as the A100 (Ampere) where we’ve seen up to 25x speedups on this example, but here are some results done in Colab:</p>
 <div class="cell docutils container">
@@ -693,16 +694,13 @@ ft_compute_sample_grad(params, buffers, data, targets)
 
      
        <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
          <script src="../_static/jquery.js"></script>
          <script src="../_static/underscore.js"></script>
+         <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../_static/doctools.js"></script>
          <script src="../_static/clipboard.min.js"></script>
          <script src="../_static/copybutton.js"></script>
-         <script >let toggleHintShow = 'Click to show';</script>
-         <script >let toggleHintHide = 'Click to hide';</script>
-         <script >let toggleOpenOnPrint = 'true';</script>
-         <script src="../_static/togglebutton.js"></script>
-         <script >var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
      
 
   

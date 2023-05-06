@@ -27,9 +27,10 @@
 
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/copybutton.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/togglebutton.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/mystnb.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" type="text/css" />
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
@@ -221,7 +222,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gitb6d3182) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git3362c1d) &#x25BC</a>
     </div>
     
 
@@ -245,19 +246,19 @@
               
             
             
-              <p class="caption"><span class="caption-text">functorch: Getting Started</span></p>
+              <p class="caption" role="heading"><span class="caption-text">functorch: Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../install.html">Install functorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../notebooks/whirlwind_tour.html">Whirlwind Tour</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ux_limitations.html">UX Limitations</a></li>
 </ul>
-<p class="caption"><span class="caption-text">functorch API Reference and Notes</span></p>
+<p class="caption" role="heading"><span class="caption-text">functorch API Reference and Notes</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="../functorch.html">functorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../experimental.html">functorch.experimental</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../aot_autograd.html">functorch.compile (experimental)</a></li>
 </ul>
-<p class="caption"><span class="caption-text">functorch Tutorials</span></p>
+<p class="caption" role="heading"><span class="caption-text">functorch Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../notebooks/jacobians_hessians.html">Jacobians, Hessians, hvp, vhp, and more: composing functorch transforms</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../notebooks/ensembling.html">Model ensembling</a></li>
@@ -340,10 +341,10 @@
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
   <div class="section" id="functorch-jacrev">
-<h1>functorch.jacrev<a class="headerlink" href="#functorch-jacrev" title="Permalink to this headline">¶</a></h1>
+<h1>functorch.jacrev<a class="headerlink" href="#functorch-jacrev" title="Permalink to this heading">¶</a></h1>
 <dl class="py function">
-<dt id="functorch.jacrev">
-<code class="sig-prename descclassname"><span class="pre">functorch.</span></code><code class="sig-name descname"><span class="pre">jacrev</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">argnums</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">has_aux</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_preallocate_and_copy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch/_functorch/deprecated.html#jacrev"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.jacrev" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="functorch.jacrev">
+<span class="sig-prename descclassname"><span class="pre">functorch.</span></span><span class="sig-name descname"><span class="pre">jacrev</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">argnums</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">has_aux</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_preallocate_and_copy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch/_functorch/deprecated.html#jacrev"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.jacrev" title="Permalink to this definition">¶</a></dt>
 <dd><p>Computes the Jacobian of <code class="docutils literal notranslate"><span class="pre">func</span></code> with respect to the arg(s) at index
 <code class="docutils literal notranslate"><span class="pre">argnum</span></code> using reverse mode autodiff</p>
 <div class="admonition note">
@@ -365,7 +366,7 @@ Default: 0.</p></li>
 the function to be differentiated and the second element is
 auxiliary objects that will not be differentiated.
 Default: False.</p></li>
-<li><p><strong>chunk_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><em>None</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – If None (default), use the maximum chunk size
+<li><p><strong>chunk_size</strong> (<em>None</em><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – If None (default), use the maximum chunk size
 (equivalent to doing a single vmap over vjp to compute the jacobian).
 If 1, then compute the jacobian row-by-row with a for-loop.
 If not None, then compute the jacobian <code class="xref py py-attr docutils literal notranslate"><span class="pre">chunk_size</span></code> rows at a time
@@ -545,16 +546,13 @@ and/or the torch.func migration guide for more details
 
      
        <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
          <script src="../_static/jquery.js"></script>
          <script src="../_static/underscore.js"></script>
+         <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../_static/doctools.js"></script>
          <script src="../_static/clipboard.min.js"></script>
          <script src="../_static/copybutton.js"></script>
-         <script >let toggleHintShow = 'Click to show';</script>
-         <script >let toggleHintHide = 'Click to hide';</script>
-         <script >let toggleOpenOnPrint = 'true';</script>
-         <script src="../_static/togglebutton.js"></script>
-         <script >var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
      
 
   
