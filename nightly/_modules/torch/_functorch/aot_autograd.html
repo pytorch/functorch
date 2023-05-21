@@ -220,7 +220,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git48346a4) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git66a2600) &#x25BC</a>
     </div>
     
 
@@ -3535,6 +3535,7 @@
 <span class="s2">This is currently banned in the aot_export workflow. If you need this functionality, please file a github issue.</span>
 
 <span class="s2">fw_metadata=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">fw_metadata</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+
             <span class="c1"># Need to decide on a strategy for functionalized RNG: toggling via global config seems bad,</span>
             <span class="c1"># and turning it on will require a non-trivial calling convention change for any export runtime.</span>
             <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">functionalize_rng_ops</span><span class="p">:</span>
@@ -3561,6 +3562,19 @@
 
         <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">compiler_fn</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">,</span> <span class="n">fake_flat_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fw_metadata</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">is_export</span><span class="p">:</span>
+
+            <span class="n">mutated_user_inp_locs</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">idx</span> <span class="o">-</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">num_params_buffers</span>
+                <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">mutated_inp_indices</span>
+                <span class="k">if</span> <span class="n">idx</span> <span class="o">&gt;=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">num_params_buffers</span>
+            <span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">mutated_user_inp_locs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">Found following user inputs located at </span><span class="si">{</span><span class="n">mutated_user_inp_locs</span><span class="si">}</span><span class="s2"> are mutated. This is currently banned in the aot_export workflow.</span>
+<span class="s2">If you need this functionality, please file a github issue.</span>
+
+<span class="s2">fw_metadata=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">fw_metadata</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+
             <span class="c1"># During export, we don&#39;t get back a callable - we get back the raw fx graph</span>
             <span class="c1"># (either a joint or an inference-only graph)</span>
             <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">compiled_fn</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">)</span>
