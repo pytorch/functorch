@@ -220,7 +220,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gitae5606b) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git267a181) &#x25BC</a>
     </div>
     
 
@@ -1859,14 +1859,12 @@
 
     <span class="k">with</span> <span class="n">context</span><span class="p">(),</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;inference&quot;</span><span class="p">):</span>
         <span class="n">compiler</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">inference_compiler</span> <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">inference_compiler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">fw_compiler</span>
-        <span class="n">adjusted_flat_args</span> <span class="o">=</span> <span class="n">flat_args</span>
         <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">functionalize_rng_ops</span><span class="p">:</span>
             <span class="c1"># Add the seed and offset as example inputs to pass to the compiler</span>
             <span class="n">fake_mode</span> <span class="o">=</span> <span class="n">detect_fake_mode</span><span class="p">()</span>
             <span class="n">seed</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">get_torch_state_as_tuple</span><span class="p">(</span><span class="n">fake_mode</span><span class="p">)</span>
-            <span class="n">adjusted_flat_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">seed</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="o">*</span><span class="n">flat_args</span><span class="p">]</span>
-            <span class="n">flat_args</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>  <span class="c1"># Don&#39;t hold extra reference</span>
-        <span class="n">compiled_fw</span> <span class="o">=</span> <span class="n">compiler</span><span class="p">(</span><span class="n">fw_module</span><span class="p">,</span> <span class="n">adjusted_flat_args</span><span class="p">)</span>
+            <span class="n">flat_args</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">seed</span><span class="p">,</span> <span class="n">offset</span><span class="p">])</span>
+        <span class="n">compiled_fw</span> <span class="o">=</span> <span class="n">compiler</span><span class="p">(</span><span class="n">fw_module</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">)</span>
 
     <span class="c1"># This boxed_call handling happens inside create_runtime_wrapper as well.</span>
     <span class="c1"># However, create_runtime_wrapper does not expect the rng offsets in the</span>
@@ -1882,11 +1880,8 @@
         <span class="k">if</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">is_rng_op_functionalized</span><span class="p">:</span>
             <span class="c1"># Add the seed and offset to args</span>
             <span class="n">seed</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">get_torch_state_as_tuple</span><span class="p">()</span>
-            <span class="n">new_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">seed</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">]</span>
-            <span class="n">args</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>  <span class="c1"># Remove the reference of inputs from the args itself</span>
-
-            <span class="n">out</span> <span class="o">=</span> <span class="n">compiled_fw</span><span class="p">(</span><span class="n">new_args</span><span class="p">)</span>
-
+            <span class="n">args</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">seed</span><span class="p">,</span> <span class="n">offset</span><span class="p">])</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">compiled_fw</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
             <span class="n">out</span> <span class="o">=</span> <span class="n">functionalized_rng_runtime_epilogue</span><span class="p">(</span><span class="n">fw_metadata</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">out</span>
         <span class="k">else</span><span class="p">:</span>
@@ -2945,13 +2940,14 @@
             <span class="k">return</span> <span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">PhiloxStateTracker</span><span class="o">.</span><span class="n">get_updated_fwd_offset</span><span class="p">())</span>
 
 
-    <span class="k">def</span> <span class="nf">traced_joint</span><span class="p">(</span><span class="n">fwd_seed</span><span class="p">,</span> <span class="n">fwd_base_offset</span><span class="p">,</span> <span class="n">bwd_seed</span><span class="p">,</span> <span class="n">bwd_base_offset</span><span class="p">,</span> <span class="n">primals</span><span class="p">,</span> <span class="n">tangents</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">traced_joint</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">tangents</span><span class="p">,</span> <span class="n">fwd_seed</span><span class="p">,</span> <span class="n">fwd_base_offset</span><span class="p">,</span> <span class="n">bwd_seed</span><span class="p">,</span> <span class="n">bwd_base_offset</span><span class="p">):</span>
         <span class="k">with</span> <span class="n">patch</span><span class="p">(</span><span class="s2">&quot;torch.cuda.get_rng_state&quot;</span><span class="p">,</span> <span class="n">override_get_rng_state</span><span class="p">),</span> <span class="n">patch</span><span class="p">(</span><span class="s2">&quot;torch.cuda.set_rng_state&quot;</span><span class="p">,</span> <span class="n">override_set_rng_state</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">append_rng_offsets</span><span class="p">(</span><span class="n">func</span><span class="p">(</span><span class="n">primals</span><span class="p">,</span> <span class="n">tangents</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">traced_forward</span><span class="p">(</span><span class="n">fwd_seed</span><span class="p">,</span> <span class="n">fwd_base_offset</span><span class="p">,</span> <span class="o">*</span><span class="n">primals</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">traced_forward</span><span class="p">(</span><span class="o">*</span><span class="n">primals_fwd_seed_fwd_base_offset</span><span class="p">):</span>
+        <span class="c1"># The signature is (*primals, seed, offset)</span>
         <span class="k">with</span> <span class="n">patch</span><span class="p">(</span><span class="s2">&quot;torch.cuda.get_rng_state&quot;</span><span class="p">,</span> <span class="n">override_get_rng_state</span><span class="p">),</span> <span class="n">patch</span><span class="p">(</span><span class="s2">&quot;torch.cuda.set_rng_state&quot;</span><span class="p">,</span> <span class="n">override_set_rng_state</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">append_rng_offsets</span><span class="p">(</span><span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">primals</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">append_rng_offsets</span><span class="p">(</span><span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">primals_fwd_seed_fwd_base_offset</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">]))</span>
 
     <span class="k">if</span> <span class="n">trace_joint</span><span class="p">:</span>
         <span class="c1"># Get the current seed and offset to setup tracing.</span>
@@ -2959,12 +2955,12 @@
         <span class="n">bwd_seed</span><span class="p">,</span> <span class="n">bwd_base_offset</span> <span class="o">=</span> <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">get_torch_state_as_tuple</span><span class="p">(</span><span class="n">fake_mode</span><span class="p">)</span>
         <span class="n">PhiloxStateTracker</span><span class="o">.</span><span class="n">record_state</span><span class="p">(</span><span class="n">fwd_seed</span><span class="p">,</span> <span class="n">fwd_base_offset</span><span class="p">,</span> <span class="s2">&quot;forward&quot;</span><span class="p">)</span>
         <span class="n">PhiloxStateTracker</span><span class="o">.</span><span class="n">record_state</span><span class="p">(</span><span class="n">bwd_seed</span><span class="p">,</span> <span class="n">bwd_base_offset</span><span class="p">,</span> <span class="s2">&quot;backward&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">traced_joint</span><span class="p">,</span> <span class="p">(</span><span class="n">fwd_seed</span><span class="p">,</span> <span class="n">fwd_base_offset</span><span class="p">,</span> <span class="n">bwd_seed</span><span class="p">,</span> <span class="n">bwd_base_offset</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">traced_joint</span><span class="p">,</span> <span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">fwd_seed</span><span class="p">,</span> <span class="n">fwd_base_offset</span><span class="p">,</span> <span class="n">bwd_seed</span><span class="p">,</span> <span class="n">bwd_base_offset</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="c1"># Get the current seed and offset to setup tracing.</span>
         <span class="n">fwd_seed</span><span class="p">,</span> <span class="n">fwd_base_offset</span> <span class="o">=</span> <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">get_torch_state_as_tuple</span><span class="p">(</span><span class="n">fake_mode</span><span class="p">)</span>
         <span class="n">PhiloxStateTracker</span><span class="o">.</span><span class="n">record_state</span><span class="p">(</span><span class="n">fwd_seed</span><span class="p">,</span> <span class="n">fwd_base_offset</span><span class="p">,</span> <span class="s2">&quot;forward&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">traced_forward</span><span class="p">,</span> <span class="p">(</span><span class="n">fwd_seed</span><span class="p">,</span> <span class="n">fwd_base_offset</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">traced_forward</span><span class="p">,</span> <span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">fwd_seed</span><span class="p">,</span> <span class="n">fwd_base_offset</span><span class="p">)</span>
 
 <span class="c1"># Has the precondition that there</span>
 <span class="c1"># are no duplicate arguments in flat_args (e.g., the same Tensor</span>
@@ -3114,7 +3110,7 @@
                 <span class="c1"># Update example inputs for the fw_compiler</span>
                 <span class="n">fake_mode</span> <span class="o">=</span> <span class="n">detect_fake_mode</span><span class="p">()</span>
                 <span class="n">seed</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">get_torch_state_as_tuple</span><span class="p">(</span><span class="n">fake_mode</span><span class="p">)</span>
-                <span class="n">adjusted_flat_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">seed</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="o">*</span><span class="n">flat_args</span><span class="p">]</span>
+                <span class="n">adjusted_flat_args</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">seed</span><span class="p">,</span> <span class="n">offset</span><span class="p">])</span>
                 <span class="c1"># We are not clearing flat_args here because</span>
                 <span class="c1"># 1) There is a check in the the debug compiler at the end</span>
                 <span class="c1"># 2) It does not matter as these are fake tensors</span>
@@ -3137,7 +3133,7 @@
             <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">is_rng_op_functionalized</span><span class="p">:</span>
                 <span class="c1"># Add the seed and offset to args</span>
                 <span class="n">seed</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">get_torch_state_as_tuple</span><span class="p">()</span>
-                <span class="n">args</span> <span class="o">=</span> <span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+                <span class="n">args</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="n">offset</span><span class="p">)</span>
             <span class="c1"># There is a pretty complicated calling convention around what the compiled fw returns.</span>
             <span class="c1"># The full list of outputs and their relative order is:</span>
             <span class="c1"># (*mutated_inputs, *fw_outs, *fw_intermediate_bases, *saved_tensors, *saved_symints)</span>
@@ -3325,7 +3321,7 @@
                 <span class="n">rng_args</span> <span class="o">=</span> <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">get_torch_state_as_tuple</span><span class="p">()</span>
 
             <span class="n">all_args</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="nb">list</span><span class="p">(</span><span class="n">rng_args</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">symints</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">saved_tensors</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">contiguous_args</span><span class="p">)</span>
+                <span class="nb">list</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">symints</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">saved_tensors</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">contiguous_args</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">rng_args</span><span class="p">)</span>
             <span class="p">)</span>
 
             <span class="k">del</span> <span class="n">contiguous_args</span>
