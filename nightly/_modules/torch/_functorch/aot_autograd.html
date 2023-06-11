@@ -220,7 +220,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git443edb9) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git03101a2) &#x25BC</a>
     </div>
     
 
@@ -999,6 +999,16 @@
     <span class="n">torch</span><span class="o">.</span><span class="n">_sync</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">_from_functional_tensor</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
 
+<span class="k">def</span> <span class="nf">_get_hints</span><span class="p">(</span><span class="n">exprs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the hints of a list/tuple of int/SymInt.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exprs</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">exprs</span><span class="p">)(</span><span class="n">_get_hints</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">exprs</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exprs</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymInt</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">exprs</span><span class="o">.</span><span class="n">node</span><span class="o">.</span><span class="n">shape_env</span><span class="o">.</span><span class="n">size_hint</span><span class="p">(</span><span class="n">exprs</span><span class="o">.</span><span class="n">node</span><span class="o">.</span><span class="n">expr</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">exprs</span>
 
 <span class="c1"># This is a version of functionalization that is specifically designed</span>
 <span class="c1"># for the AOTAutograd use case.</span>
@@ -3338,7 +3348,26 @@
                         <span class="n">real_arg</span> <span class="o">=</span> <span class="n">all_args</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
                         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ph_arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
                             <span class="k">continue</span>
-                        <span class="k">if</span> <span class="n">ph_arg</span><span class="o">.</span><span class="n">stride</span><span class="p">()</span> <span class="o">!=</span> <span class="n">real_arg</span><span class="o">.</span><span class="n">stride</span><span class="p">():</span>
+
+                        <span class="c1"># Comparing ph_arg.stride() with real_arg.stride() directly may</span>
+                        <span class="c1"># cause dynamic dimensions in ph_arg being specialized to static</span>
+                        <span class="c1"># value. Using the hints to avoid that.</span>
+                        <span class="k">if</span> <span class="n">_get_hints</span><span class="p">(</span><span class="n">ph_arg</span><span class="o">.</span><span class="n">stride</span><span class="p">())</span> <span class="o">!=</span> <span class="n">real_arg</span><span class="o">.</span><span class="n">stride</span><span class="p">():</span>
+                            <span class="c1"># Note that here we use the stride of the real tensor to</span>
+                            <span class="c1"># restride a FakeTensor. This does not cause trouble</span>
+                            <span class="c1"># for dynamic shape since this code path only get</span>
+                            <span class="c1"># executed if layout optimization is enabled. And we</span>
+                            <span class="c1"># disable layout optimization for dynamic shape right</span>
+                            <span class="c1"># now.</span>
+                            <span class="c1">#</span>
+                            <span class="c1"># A solution that decide stride order based on real</span>
+                            <span class="c1"># tensor&#39;s stride and then apply that stride order to</span>
+                            <span class="c1"># the FakeTensor does not work smoothly since some</span>
+                            <span class="c1"># tensor&#39;s layout is not &#39;dense&#39;. E.g. mixnet_l has a</span>
+                            <span class="c1"># tensor with size [8, 64, 112, 112] and strides</span>
+                            <span class="c1"># (2408448, 1, 21504, 192). The solution mentioned will</span>
+                            <span class="c1"># decide a stride of (802816, 1, 7168, 64) for this</span>
+                            <span class="c1"># tensor which is wrong.</span>
                             <span class="n">placeholder_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ph_arg</span><span class="o">.</span><span class="n">as_strided</span><span class="p">(</span><span class="n">ph_arg</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">real_arg</span><span class="o">.</span><span class="n">stride</span><span class="p">())</span>
 
                     <span class="k">with</span> <span class="n">tracing</span><span class="p">(</span><span class="n">saved_context</span><span class="p">),</span> <span class="n">context</span><span class="p">(),</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;backward&quot;</span><span class="p">):</span>
