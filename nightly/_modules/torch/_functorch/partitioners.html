@@ -220,7 +220,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git93b0410) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gitddf4cd6) &#x25BC</a>
     </div>
     
 
@@ -363,6 +363,21 @@
     <span class="k">assert</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="s1">&#39;meta&#39;</span><span class="p">),</span> <span class="s2">&quot;All nodes traced with proxy_tensor should have meta&quot;</span>
     <span class="k">return</span> <span class="s2">&quot;val&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;val&#39;</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymInt</span><span class="p">)</span>
 
+<span class="k">def</span> <span class="nf">must_recompute</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;recompute&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">has_recomputable_ops</span><span class="p">(</span><span class="n">fx_g</span><span class="p">):</span>
+    <span class="n">found</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">must_recompute</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+<span class="k">def</span> <span class="nf">has_recomputable_rng_ops</span><span class="p">(</span><span class="n">fx_g</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">must_recompute</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="s2">&quot;tags&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tag</span><span class="o">.</span><span class="n">nondeterministic_seeded</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">tags</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="kc">False</span>
 
 <span class="k">class</span> <span class="nc">InvalidNodeBase</span><span class="p">:</span>
     <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -435,7 +450,6 @@
 
 <span class="k">def</span> <span class="nf">_is_tangent</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span> <span class="ow">and</span> <span class="s2">&quot;tangents&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span>
-
 
 <span class="k">def</span> <span class="nf">_is_bwd_seed_offset</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span> <span class="ow">and</span> <span class="p">(</span><span class="s2">&quot;bwd_seed&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="ow">or</span> <span class="s2">&quot;bwd_base_offset&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="p">)</span>
@@ -568,6 +582,8 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        Returns the generated forward and backward Fx graph modules.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">has_recomputable_ops</span><span class="p">(</span><span class="n">joint_module</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">min_cut_rematerialization_partition</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">_joint_inputs</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span>
     <span class="n">primal_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_primal</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
     <span class="n">fwd_seed_offset_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_fwd_seed_offset</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
     <span class="n">inputs</span> <span class="o">=</span> <span class="n">primal_inputs</span> <span class="o">+</span> <span class="n">fwd_seed_offset_inputs</span>
@@ -693,6 +709,241 @@
 
     <span class="k">return</span> <span class="n">ops</span>
 
+<span class="k">def</span> <span class="nf">get_depth</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">depth_map</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">depth_map</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">depth_map</span><span class="p">[</span><span class="n">node</span><span class="p">]</span>
+
+    <span class="c1"># Base case</span>
+    <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span><span class="p">:</span>
+        <span class="n">depth_map</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">return</span> <span class="n">depth_map</span><span class="p">[</span><span class="n">node</span><span class="p">]</span>
+
+    <span class="c1"># Handle output node</span>
+    <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;output&quot;</span><span class="p">:</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">node</span><span class="o">.</span><span class="n">Node</span><span class="p">):</span>
+                <span class="n">get_depth</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">depth_map</span><span class="p">)</span>
+        <span class="k">return</span>
+
+    <span class="c1"># Get the depth of args and set the depth of this node</span>
+    <span class="n">arg_depths</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_depth</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">depth_map</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">all_input_nodes</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">node</span><span class="o">.</span><span class="n">Node</span><span class="p">)]</span>
+    <span class="c1"># factory ops like full, rand might not have any input args</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">arg_depths</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">arg_depths</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">depth_map</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">arg_depths</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">depth_map</span><span class="p">[</span><span class="n">node</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">sort_depths</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">depth_map</span><span class="p">):</span>
+    <span class="n">arg_depths</span> <span class="o">=</span> <span class="p">{</span><span class="n">arg</span><span class="p">:</span> <span class="n">depth_map</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">node</span><span class="o">.</span><span class="n">Node</span><span class="p">)}</span>
+    <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">arg_depths</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">reordering_to_mimic_autograd_engine</span><span class="p">(</span><span class="n">gm</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This pass finds the first bwd node in the graph (by looking at users of</span>
+<span class="sd">    tangents) and then reorders the graph by walking from this node to all the</span>
+<span class="sd">    way to the end of the graph. At each op in this traveral, we insert this op</span>
+<span class="sd">    in a new graph and try to bring only the relevant subgraph from the other</span>
+<span class="sd">    non-bwd edges relevant for this op. This closely mimics the behavior of</span>
+<span class="sd">    autograd engine.</span>
+
+<span class="sd">    Why is this pass required in the first place?</span>
+
+<span class="sd">    This is an artifact of how partitioners work today. The starting point of</span>
+<span class="sd">    partitioner is a joint graph, which is fwd and then bwd graph. In the case</span>
+<span class="sd">    of checkpointing, we keep portions of fwd graph in their original place in</span>
+<span class="sd">    the joint graph, while obtaining a bwd graph. As a result, the resulting bwd</span>
+<span class="sd">    graph has copies of recomputed fwd subgraphs followed by the original bwd</span>
+<span class="sd">    graph. If we run this naively, this leads to bad memory footprint, because</span>
+<span class="sd">    the fwd subgraphs are live for way longer duration than necessary. This pass</span>
+<span class="sd">    reorders the operations such that we prioritize the ops for the original bwd</span>
+<span class="sd">    graph while only realizing those ops from the fwd graph that are necessary</span>
+<span class="sd">    at any given point in the graph.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">new_graph</span> <span class="o">=</span> <span class="n">fx</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span>
+    <span class="n">env</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># Add new placeholder nodes in the order specified by the inputs</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">gm</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span><span class="p">:</span>
+            <span class="n">new_node</span> <span class="o">=</span> <span class="n">new_graph</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="c1"># Can&#39;t use node_copy here as we may be turning previous call_function into placeholders</span>
+            <span class="n">new_node</span><span class="o">.</span><span class="n">meta</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span>
+            <span class="n">env</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_node</span>
+
+
+    <span class="n">order</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">gm</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">):</span>
+        <span class="n">order</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">idx</span>
+
+    <span class="c1"># Populate depth for the nodes. Depth is the distance from the inputs.</span>
+    <span class="n">depths</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">output_node</span> <span class="o">=</span> <span class="p">[</span><span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">gm</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;output&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">get_depth</span><span class="p">(</span><span class="n">output_node</span><span class="p">,</span> <span class="n">depths</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">insert_node_in_graph</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">env</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">env</span><span class="p">[</span><span class="n">node</span><span class="p">]</span>
+
+        <span class="c1"># Bias traversal towards the nodes that have higher depth - prioritizes</span>
+        <span class="c1"># critical path first.</span>
+        <span class="k">for</span> <span class="n">arg</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">sort_depths</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">all_input_nodes</span><span class="p">,</span> <span class="n">depths</span><span class="p">):</span>
+            <span class="n">env</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="o">=</span> <span class="n">insert_node_in_graph</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+        <span class="n">env</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_graph</span><span class="o">.</span><span class="n">node_copy</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">env</span><span class="p">[</span><span class="n">x</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">env</span><span class="p">[</span><span class="n">node</span><span class="p">]</span>
+
+    <span class="c1"># Find first bwd node in the graph</span>
+    <span class="n">tangent_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_tangent</span><span class="p">,</span> <span class="n">gm</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
+    <span class="n">first_node_in_bwd</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">minimum_order</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">inf</span>
+    <span class="k">for</span> <span class="n">tangent</span> <span class="ow">in</span> <span class="n">tangent_inputs</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">tangent</span><span class="o">.</span><span class="n">users</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">order</span><span class="p">[</span><span class="n">user</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">minimum_order</span><span class="p">:</span>
+                <span class="n">minimum_order</span> <span class="o">=</span> <span class="n">order</span><span class="p">[</span><span class="n">user</span><span class="p">]</span>
+                <span class="n">first_node_in_bwd</span> <span class="o">=</span> <span class="n">user</span>
+    <span class="k">assert</span> <span class="n">first_node_in_bwd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+    <span class="c1"># Build the graph op-by-op by starting from the node all the way to the end</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">gm</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">)[</span><span class="n">order</span><span class="p">[</span><span class="n">first_node_in_bwd</span><span class="p">]:]:</span>
+        <span class="n">insert_node_in_graph</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+
+    <span class="c1"># Build the output node</span>
+    <span class="n">new_outputs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">output_node</span> <span class="o">=</span> <span class="p">[</span><span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">gm</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;output&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">output</span> <span class="ow">in</span> <span class="n">output_node</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">node</span><span class="o">.</span><span class="n">Node</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">output</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">env</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;output gradient dependent only on fwd&quot;</span><span class="p">,</span> <span class="n">output</span><span class="p">)</span>
+            <span class="n">new_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">insert_node_in_graph</span><span class="p">(</span><span class="n">output</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">new_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+
+    <span class="n">new_graph</span><span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="n">new_outputs</span><span class="p">)</span>
+    <span class="n">new_gm</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">(</span><span class="n">gm</span><span class="p">,</span> <span class="n">new_graph</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">new_gm</span>
+
+
+<span class="k">def</span> <span class="nf">functionalize_rng_ops</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span><span class="p">):</span>
+    <span class="c1"># During user-driven activation checkpointing, we have to ensure that a rng</span>
+    <span class="c1"># op in fwd yields the same output as the recomputed rng op in the bwd.  To</span>
+    <span class="c1"># do this, we use functionalize wrappers to wrap the random ops and share</span>
+    <span class="c1"># rng state between the fwd and bwd graphs.</span>
+
+    <span class="c1"># There are 3 main steps to do this</span>
+    <span class="c1"># Step 1 - Construct a mapping of rng node between the fwd and its counterpart in bwd.</span>
+    <span class="c1"># Step 2 - Modify the fwd pass such that</span>
+    <span class="c1">#   1) Replace rand with run_and_save_rng_state wrapper</span>
+    <span class="c1">#   2) Replace the users of the original op with the output[1] of this op.</span>
+    <span class="c1">#   3) Collect all the rng_state - output[0] of each op, and make them output nodes.</span>
+    <span class="c1"># Step 3 - Modify the bwd pass such that</span>
+    <span class="c1">#   1) Add the input nodes just before the tangents for the stashed rng states</span>
+    <span class="c1">#   2) Replace rand with run_with_save_rng_state wrappers</span>
+    <span class="c1">#   3) Use the stashed states as inputs to these ops</span>
+
+    <span class="c1"># Unique id to generate name</span>
+    <span class="n">uid</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">get_rng_ops</span><span class="p">(</span><span class="n">gmod</span><span class="p">):</span>
+        <span class="n">random_nodes</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">gmod</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;call_function&quot;</span>
+                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="s2">&quot;tags&quot;</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tag</span><span class="o">.</span><span class="n">nondeterministic_seeded</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">tags</span>
+            <span class="p">):</span>
+                <span class="n">random_nodes</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">node</span>
+        <span class="k">return</span> <span class="n">random_nodes</span>
+
+    <span class="c1"># Step 1 - Construct a mapping of rng node between the fwd and its counterpart in bwd.</span>
+    <span class="n">joint_graph_rng_ops</span> <span class="o">=</span> <span class="n">get_rng_ops</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
+    <span class="n">fw_graph_rng_ops</span> <span class="o">=</span> <span class="n">get_rng_ops</span><span class="p">(</span><span class="n">fw_module</span><span class="p">)</span>
+    <span class="n">bw_graph_rng_ops</span> <span class="o">=</span> <span class="n">get_rng_ops</span><span class="p">(</span><span class="n">bw_module</span><span class="p">)</span>
+    <span class="n">recomputable_rng_ops_map</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">must_recompute</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="s2">&quot;tags&quot;</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tag</span><span class="o">.</span><span class="n">nondeterministic_seeded</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">tags</span>
+        <span class="p">):</span>
+            <span class="n">base_node</span> <span class="o">=</span> <span class="n">joint_graph_rng_ops</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+            <span class="n">fw_node</span> <span class="o">=</span> <span class="n">fw_graph_rng_ops</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+            <span class="n">bw_node</span> <span class="o">=</span> <span class="n">bw_graph_rng_ops</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+            <span class="n">recomputable_rng_ops_map</span><span class="p">[</span><span class="n">base_node</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;fwd&quot;</span><span class="p">:</span> <span class="n">fw_node</span><span class="p">,</span> <span class="s2">&quot;bwd&quot;</span><span class="p">:</span> <span class="n">bw_node</span><span class="p">}</span>
+
+    <span class="n">run_and_save_rng</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_prims</span><span class="o">.</span><span class="n">rng_prims</span><span class="o">.</span><span class="n">run_and_save_rng_state</span>
+    <span class="n">run_with_rng_state</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_prims</span><span class="o">.</span><span class="n">rng_prims</span><span class="o">.</span><span class="n">run_with_rng_state</span>
+
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span> <span class="ow">and</span> <span class="s2">&quot;tangent&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="n">bw_tangent_start_node</span> <span class="o">=</span> <span class="n">node</span>
+            <span class="k">break</span>
+
+    <span class="n">fw_rng_state_outputs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">base_node</span><span class="p">,</span> <span class="n">node_pair</span> <span class="ow">in</span> <span class="n">recomputable_rng_ops_map</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="c1"># Step 2 - Modify the fwd pass such that</span>
+        <span class="n">fw_node</span> <span class="o">=</span> <span class="n">node_pair</span><span class="p">[</span><span class="s2">&quot;fwd&quot;</span><span class="p">]</span>
+        <span class="n">bw_node</span> <span class="o">=</span> <span class="n">node_pair</span><span class="p">[</span><span class="s2">&quot;bwd&quot;</span><span class="p">]</span>
+        <span class="n">fw_graph</span> <span class="o">=</span> <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span>
+        <span class="k">with</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">inserting_before</span><span class="p">(</span><span class="n">fw_node</span><span class="p">):</span>
+            <span class="n">functional_fw_node</span> <span class="o">=</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span>
+                <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
+                <span class="n">run_and_save_rng</span><span class="p">,</span>
+                <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">fw_node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="o">*</span><span class="n">fw_node</span><span class="o">.</span><span class="n">args</span><span class="p">),</span>
+                <span class="n">kwargs</span><span class="o">=</span><span class="n">fw_node</span><span class="o">.</span><span class="n">kwargs</span>
+            <span class="p">)</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span><span class="s2">&quot;call_function&quot;</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">functional_fw_node</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">kwargs</span><span class="o">=</span><span class="p">{})</span>
+            <span class="n">rng_output</span> <span class="o">=</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span><span class="s2">&quot;call_function&quot;</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">functional_fw_node</span><span class="p">,</span> <span class="mi">1</span><span class="p">,),</span> <span class="n">kwargs</span><span class="o">=</span><span class="p">{})</span>
+            <span class="n">fw_node</span><span class="o">.</span><span class="n">replace_all_uses_with</span><span class="p">(</span><span class="n">rng_output</span><span class="p">)</span>
+            <span class="n">fw_graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">fw_node</span><span class="p">)</span>
+            <span class="n">fw_rng_state_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+
+
+        <span class="c1"># Step 3 - Modify the bwd pass such that</span>
+        <span class="n">bw_graph</span> <span class="o">=</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span>
+        <span class="k">with</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">inserting_before</span><span class="p">(</span><span class="n">bw_tangent_start_node</span><span class="p">):</span>
+            <span class="n">state_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rng_state_output_</span><span class="si">{</span><span class="nb">next</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">bw_rng_state_node</span> <span class="o">=</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="n">state_name</span><span class="p">)</span>
+            <span class="n">bw_rng_state_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_rng_state</span><span class="p">()</span>
+
+        <span class="k">with</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">inserting_before</span><span class="p">(</span><span class="n">bw_node</span><span class="p">):</span>
+            <span class="n">rng_output</span> <span class="o">=</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span>
+                <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
+                <span class="n">run_with_rng_state</span><span class="p">,</span>
+                <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">bw_rng_state_node</span><span class="p">,</span> <span class="n">bw_node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="o">*</span><span class="n">bw_node</span><span class="o">.</span><span class="n">args</span><span class="p">),</span>
+                <span class="n">kwargs</span><span class="o">=</span><span class="n">bw_node</span><span class="o">.</span><span class="n">kwargs</span>
+            <span class="p">)</span>
+
+            <span class="n">bw_node</span><span class="o">.</span><span class="n">replace_all_uses_with</span><span class="p">(</span><span class="n">rng_output</span><span class="p">)</span>
+            <span class="n">bw_graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">bw_node</span><span class="p">)</span>
+
+
+    <span class="c1"># Add the rng states in the output of the fwd graph</span>
+    <span class="n">fw_output</span> <span class="o">=</span> <span class="p">[</span><span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;output&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="n">fw_output</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">fw_rng_state_outputs</span>
+    <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+    <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">fw_output</span><span class="p">)</span>
+    <span class="n">fw_module</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
+    <span class="n">bw_module</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span>
+
+
+<span class="k">def</span> <span class="nf">cleanup_recompute_tags</span><span class="p">(</span><span class="n">joint_module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    If there are two consecutive checkpointed blocks with no operator in</span>
+<span class="sd">    between, we would still want to stash the tensor at the boundary of</span>
+<span class="sd">    checkpointed blocks. The following pass makes the last output node</span>
+<span class="sd">    non-recomputable to allow for that.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">must_recompute</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">users</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">must_recompute</span><span class="p">(</span><span class="n">user</span><span class="p">)</span> <span class="ow">and</span> <span class="n">user</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]:</span>
+                    <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">return</span> <span class="n">joint_module</span>
+
 
 <div class="viewcode-block" id="min_cut_rematerialization_partition"><a class="viewcode-back" href="../../../generated/functorch.compile.min_cut_rematerialization_partition.html#functorch.compile.min_cut_rematerialization_partition">[docs]</a><span class="k">def</span> <span class="nf">min_cut_rematerialization_partition</span><span class="p">(</span>
     <span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">_joint_inputs</span><span class="p">,</span> <span class="n">compiler</span><span class="o">=</span><span class="s2">&quot;nvfuser&quot;</span><span class="p">,</span> <span class="n">recomputable_ops</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -739,6 +990,11 @@
         <span class="n">cse_graph</span> <span class="o">=</span> <span class="n">fx_graph_cse</span><span class="p">(</span><span class="n">fx_g</span><span class="p">)</span>
         <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span> <span class="o">=</span> <span class="n">cse_graph</span>
     <span class="n">full_bw_graph</span> <span class="o">=</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span>
+
+    <span class="n">graph_has_recomputable_ops</span> <span class="o">=</span> <span class="n">has_recomputable_ops</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
+    <span class="n">graph_has_recomputable_rng_ops</span> <span class="o">=</span> <span class="n">has_recomputable_rng_ops</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">graph_has_recomputable_ops</span><span class="p">:</span>
+        <span class="n">joint_module</span> <span class="o">=</span> <span class="n">cleanup_recompute_tags</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
 
     <span class="n">name_to_node</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
@@ -838,7 +1094,9 @@
         <span class="k">return</span> <span class="kc">False</span>
 
     <span class="k">def</span> <span class="nf">ban_recomputation</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">AGGRESSIVE_RECOMPUTATION</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s2">&quot;recompute&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="k">elif</span> <span class="n">AGGRESSIVE_RECOMPUTATION</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span> <span class="ow">and</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">in</span> <span class="n">unrecomputable_ops</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s1">&#39;call_function&#39;</span><span class="p">:</span>
@@ -948,12 +1206,19 @@
     <span class="c1"># To make this stuff deterministic</span>
     <span class="n">node_idx</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span><span class="p">:</span> <span class="n">idx</span> <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">)}</span>
     <span class="n">saved_values</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">((</span><span class="n">name_to_node</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">cut_nodes</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">node_idx</span><span class="p">[</span><span class="n">x</span><span class="p">])</span>
-    <span class="c1"># Symints must be kept separate from tensors so that PythonFunction only calls</span>
     <span class="c1"># save_for_backward on tensors and stashes symints in autograd .ctx</span>
     <span class="n">saved_sym_nodes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">n</span><span class="p">:</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">saved_values</span><span class="p">))</span>
     <span class="n">saved_values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">n</span><span class="p">:</span> <span class="ow">not</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">saved_values</span><span class="p">))</span>
     <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_modules</span><span class="p">(</span>
         <span class="n">joint_module</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">,</span> <span class="n">saved_sym_nodes</span><span class="o">=</span><span class="n">saved_sym_nodes</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">graph_has_recomputable_ops</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">graph_has_recomputable_rng_ops</span><span class="p">:</span>
+            <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span> <span class="o">=</span> <span class="n">functionalize_rng_ops</span><span class="p">(</span>
+                <span class="n">joint_module</span><span class="p">,</span> <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span>
+            <span class="p">)</span>
+        <span class="n">bw_module</span> <span class="o">=</span> <span class="n">reordering_to_mimic_autograd_engine</span><span class="p">(</span><span class="n">bw_module</span><span class="p">)</span>
+
     <span class="k">if</span> <span class="n">AOT_PARTITIONER_DEBUG</span><span class="p">:</span>
         <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Theoretical Activations Stored: &quot;</span><span class="p">,</span> <span class="nb">sum</span><span class="p">([</span><span class="n">_size_of</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">saved_values</span><span class="p">])</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">)</span>
         <span class="n">fw_module_nodes</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span><span class="p">}</span>
