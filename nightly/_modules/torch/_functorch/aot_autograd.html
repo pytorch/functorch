@@ -220,7 +220,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gitddf4cd6) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git38f35b4) &#x25BC</a>
     </div>
     
 
@@ -358,7 +358,7 @@
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">torch._subclasses.meta_utils</span> <span class="kn">import</span> <span class="n">safe_is_leaf</span>
 <span class="kn">from</span> <span class="nn">torch._dispatch.python</span> <span class="kn">import</span> <span class="n">enable_python_dispatcher</span>
-<span class="kn">from</span> <span class="nn">torch._dynamo.utils</span> <span class="kn">import</span> <span class="n">dynamo_timed</span><span class="p">,</span> <span class="n">lazy_format_graph_code</span>
+<span class="kn">from</span> <span class="nn">torch._dynamo.utils</span> <span class="kn">import</span> <span class="n">dynamo_timed</span><span class="p">,</span> <span class="n">lazy_format_graph_code</span><span class="p">,</span> <span class="n">preserve_rng_state</span>
 <span class="kn">from</span> <span class="nn">torch._guards</span> <span class="kn">import</span> <span class="n">detect_fake_mode</span><span class="p">,</span> <span class="n">tracing</span>
 <span class="kn">from</span> <span class="nn">torch._prims_common</span> <span class="kn">import</span> <span class="n">CUDARngStateHelper</span>
 <span class="kn">from</span> <span class="nn">torch._logging</span> <span class="kn">import</span> <span class="n">getArtifactLogger</span>
@@ -448,26 +448,8 @@
     <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">bool</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">)]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">py_sym_types</span><span class="p">)</span>
 <span class="p">)</span>
 
-
-<span class="nd">@contextmanager</span>
-<span class="k">def</span> <span class="nf">preserve_rng_state</span><span class="p">():</span>
-    <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">_python_dispatch</span><span class="o">.</span><span class="n">_disable_current_modes</span><span class="p">():</span>
-        <span class="n">rng_state</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clone</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">get_rng_state</span><span class="p">())</span>
-        <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
-            <span class="n">cuda_rng_state</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clone</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_rng_state</span><span class="p">())</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="k">yield</span>
-    <span class="k">finally</span><span class="p">:</span>
-        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">_python_dispatch</span><span class="o">.</span><span class="n">_disable_current_modes</span><span class="p">():</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">set_rng_state</span><span class="p">(</span><span class="n">rng_state</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
-                <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">set_rng_state</span><span class="p">(</span><span class="n">cuda_rng_state</span><span class="p">)</span>
-
-
-
 <span class="c1"># Set up hooks so that during backward the fx&#39;s stack_trace is properly set</span>
 <span class="n">callback_set</span> <span class="o">=</span> <span class="kc">False</span>
-
 
 <span class="k">def</span> <span class="nf">setup_stacktrace_preservation_hooks</span><span class="p">(</span><span class="n">roots</span><span class="p">:</span> <span class="n">List</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">iter_graph</span><span class="p">(</span><span class="n">roots</span><span class="p">):</span>
