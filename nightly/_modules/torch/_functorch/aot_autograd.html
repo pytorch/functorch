@@ -220,7 +220,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git38f35b4) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git918fe51) &#x25BC</a>
     </div>
     
 
@@ -3641,23 +3641,7 @@
 
 <span class="k">def</span> <span class="nf">create_functional_call</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">params_spec</span><span class="p">,</span> <span class="n">params_len</span><span class="p">):</span>
     <span class="c1"># Redudant with dynamo, but worth having in case this gets invoked elsewhere.</span>
-
-    <span class="c1"># Note [Fake Modules and AOTAutograd]</span>
-    <span class="c1">#</span>
-    <span class="c1"># A simple heuristic for when to use fake versus real tensors is that fake tensors are for compile time</span>
-    <span class="c1"># (when we don&#39;t want to actually run the compute, but we do want to know about metadata),</span>
-    <span class="c1"># and real tensors are for runtime (when we actually want to do the compute.) However, in AOTAutograd,</span>
-    <span class="c1"># modules are the exception: we always pass AOTAutograd modules with real tensors.</span>
-    <span class="c1"># This is because AOTAutograd will produce a compiled function which needs to directly access any</span>
-    <span class="c1"># parameters the compiled function may need, but these parameters will NOT be passed in by the caller (aka Dynamo).</span>
-    <span class="c1"># So at compile time, the compiled function we produce must close over any parameters, and those parameters must be</span>
-    <span class="c1"># real parameters, and we cannot do this unless at compile time we get a module with real tensors.</span>
-
-    <span class="c1"># Even if Dynamo did pass all parameters explicitly at runtime, which would eliminate the need to close over</span>
-    <span class="c1"># the parameters, it would still be profitable to pass real tensor parameters to the compiler at compile time,</span>
-    <span class="c1"># because some compilation strategies like CUDA graphs want to burn in the pointer addresses where the parameter data live,</span>
-    <span class="c1"># and of course we can&#39;t do that unless we give the backend a real tensor.</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">_dynamo</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">assert_no_fake_params_or_buffers</span><span class="p">(</span><span class="n">mod</span><span class="p">)</span>
+    <span class="c1"># https://github.com/pytorch/pytorch/issues/103569</span>
 
     <span class="k">def</span> <span class="nf">functional_call</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">with</span> <span class="n">stateless</span><span class="o">.</span><span class="n">_reparametrize_module</span><span class="p">(</span>
