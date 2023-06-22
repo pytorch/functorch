@@ -220,7 +220,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gite5e9d56) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gitcd05c3b) &#x25BC</a>
     </div>
     
 
@@ -1120,8 +1120,12 @@
             <span class="c1"># modification appears to have made this heuristic a lot less critical</span>
             <span class="c1"># for performance.</span>
             <span class="c1"># TODO: Investigate why this hack helps.</span>
-            <span class="k">if</span> <span class="n">compiler</span> <span class="o">==</span> <span class="s2">&quot;inductor&quot;</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">dist_from_bw</span> <span class="o">&gt;</span> <span class="n">config</span><span class="o">.</span><span class="n">max_dist_from_bw</span><span class="p">:</span>
-                <span class="k">return</span> <span class="kc">True</span>
+            <span class="c1"># TODO: Investigate the interaction with compiler assisted</span>
+            <span class="c1"># activation checkpointing. Removing the heuristic improves both</span>
+            <span class="c1"># memory footprint and speedup.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">graph_has_recomputable_ops</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">compiler</span> <span class="o">==</span> <span class="s2">&quot;inductor&quot;</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">dist_from_bw</span> <span class="o">&gt;</span> <span class="n">config</span><span class="o">.</span><span class="n">max_dist_from_bw</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">True</span>
             <span class="c1"># If the output of an op is 4x smaller (arbitrary choice),</span>
             <span class="c1"># then we don&#39;t allow recomputation.</span>
             <span class="n">input_tensors_size</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">_size_of</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">))</span>
