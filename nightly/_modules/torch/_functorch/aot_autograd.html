@@ -215,7 +215,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git980fb94) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git59bb07c) &#x25BC</a>
     </div>
     
 
@@ -795,6 +795,8 @@
     <span class="c1"># pass once, and re-use the output throughout AOTAutograd</span>
     <span class="n">traced_tangents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
 
+    <span class="n">num_symints_saved_for_bw</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
     <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">mutated_inp_indices</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span> <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">mutates_metadata</span> <span class="ow">or</span> <span class="n">m</span><span class="o">.</span><span class="n">mutates_data</span>
@@ -884,6 +886,32 @@
         <span class="c1"># independent and simpler to handle. Therefore, we track them</span>
         <span class="c1"># separately.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs_rng_offset</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_rng_op_functionalized</span> <span class="k">else</span> <span class="mi">0</span>
+
+        <span class="c1"># Our forward() returns both (mutated_inputs, outputs, output_intermediate_bases, saved_tensors, saved_symints)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_forward_returns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
+        <span class="c1"># In case of functionalization of rng ops, the fw_module returns one</span>
+        <span class="c1"># additinal output for rng offset. This rng offset is used right</span>
+        <span class="c1"># away to advance the rng state, and is not passed on to the raw</span>
+        <span class="c1"># outputs. However, we need to know the exact boundary to identify</span>
+        <span class="c1"># which tensors to be saved for the bwd graph.  num_forward captures</span>
+        <span class="c1"># this information.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_forward</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_forward_returns</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs_rng_offset</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">tensors_saved_for_backwards_slice</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_symints_saved_for_bw</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_symints_saved_for_bw</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">slice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_forward</span><span class="p">,</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">num_symints_saved_for_bw</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">slice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_forward</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">symints_saved_for_backwards_slice</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_symints_saved_for_bw</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_symints_saved_for_bw</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">slice</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">num_symints_saved_for_bw</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># empty slice</span>
 
     <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">ViewAndMutationMeta</span><span class="p">):</span>
@@ -3022,6 +3050,7 @@
             <span class="n">symint_outs_saved_for_bw</span> <span class="o">=</span> <span class="p">[</span>
                 <span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">fw_outs_saved_for_bw</span> <span class="k">if</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
             <span class="p">]</span>
+            <span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_symints_saved_for_bw</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">symint_outs_saved_for_bw</span><span class="p">)</span>
             <span class="n">_num_symints_saved_for_bw</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">symint_outs_saved_for_bw</span><span class="p">)</span>
 
         <span class="c1"># Note [Detaching inputs that never need gradients]</span>
@@ -3103,9 +3132,10 @@
                 <span class="n">torch</span><span class="o">.</span><span class="n">_guards</span><span class="o">.</span><span class="n">TracingContext</span><span class="o">.</span><span class="n">get</span><span class="p">()</span><span class="o">.</span><span class="n">fw_metadata</span> <span class="o">=</span> <span class="n">fw_metadata</span>
 
 
-            <span class="n">compiled_fw_func</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">fw_compiler</span><span class="p">(</span>
-                <span class="n">fw_module</span><span class="p">,</span> <span class="n">adjusted_flat_args</span>
-            <span class="p">)</span>
+            <span class="k">with</span> <span class="n">TracingContext</span><span class="o">.</span><span class="n">report_output_strides</span><span class="p">()</span> <span class="k">as</span> <span class="n">fwd_output_strides</span><span class="p">:</span>
+                <span class="n">compiled_fw_func</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">fw_compiler</span><span class="p">(</span>
+                    <span class="n">fw_module</span><span class="p">,</span> <span class="n">adjusted_flat_args</span>
+                <span class="p">)</span>
 
 
     <span class="n">saved_context</span> <span class="o">=</span> <span class="n">TracingContext</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
@@ -3142,42 +3172,28 @@
             <span class="n">num_mutated_metadata_only_inputs</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_mutated_metadata_only_inputs</span>
             <span class="p">)</span>
-            <span class="n">num_outputs_rng_offset</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs_rng_offset</span>
-            <span class="c1"># Our forward() returns both (mutated_inputs, outputs, output_intermediate_bases, saved_tensors, saved_symints)</span>
-            <span class="n">num_forward_returns</span> <span class="o">=</span> <span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="n">num_outputs</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
-            <span class="c1"># In case of functionalization of rng ops, the fw_module returns one</span>
-            <span class="c1"># additinal output for rng offset. This rng offset is used right</span>
-            <span class="c1"># away to advance the rng state, and is not passed on to the raw</span>
-            <span class="c1"># outputs. However, we need to know the exact boundary to identify</span>
-            <span class="c1"># which tensors to be saved for the bwd graph.  num_forward captures</span>
-            <span class="c1"># this information.</span>
-            <span class="n">num_forward</span> <span class="o">=</span> <span class="n">num_forward_returns</span> <span class="o">+</span> <span class="n">num_outputs_rng_offset</span>
+            <span class="n">num_forward_returns</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_forward_returns</span>
+            <span class="n">num_forward</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_forward</span>
 
             <span class="k">assert</span> <span class="n">num_forward_returns</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span>
                 <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">requires_grad_info</span>
             <span class="p">)</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
 
             <span class="c1"># Partitioners must put symint arguments at the end separate from tensor arguments</span>
-            <span class="k">if</span> <span class="n">num_symints_saved_for_bw</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">tensors_saved_for_backwards</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span>
-                    <span class="n">num_forward</span><span class="p">:</span><span class="o">-</span><span class="n">num_symints_saved_for_bw</span>
-                <span class="p">]</span>
-                <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span>
-                    <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tensors_saved_for_backwards</span>
-                <span class="p">)</span>
-                <span class="c1"># See Note [Detaching saved tensors in AOTAutograd]</span>
-                <span class="n">ctx</span><span class="o">.</span><span class="n">save_for_backward</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">_is_view</span><span class="p">()</span> <span class="k">else</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tensors_saved_for_backwards</span><span class="p">))</span>
-                <span class="n">symint_outs</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span><span class="o">-</span><span class="n">num_symints_saved_for_bw</span><span class="p">:]</span>
-                <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span>
-                    <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymInt</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymFloat</span><span class="p">))</span>
-                    <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">symint_outs</span>
-                <span class="p">)</span>
-                <span class="n">ctx</span><span class="o">.</span><span class="n">symints</span> <span class="o">=</span> <span class="n">symint_outs</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">tensors_saved_for_backwards</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span><span class="n">num_forward</span><span class="p">:]</span>
-                <span class="c1"># See Note [Detaching saved tensors in AOTAutograd]</span>
-                <span class="n">ctx</span><span class="o">.</span><span class="n">save_for_backward</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">_is_view</span><span class="p">()</span> <span class="k">else</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tensors_saved_for_backwards</span><span class="p">))</span>
-                <span class="n">ctx</span><span class="o">.</span><span class="n">symints</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">tensors_saved_for_backwards</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span>
+                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">tensors_saved_for_backwards_slice</span>
+            <span class="p">]</span>
+            <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span>
+                <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tensors_saved_for_backwards</span>
+            <span class="p">)</span>
+            <span class="c1"># See Note [Detaching saved tensors in AOTAutograd]</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">save_for_backward</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">_is_view</span><span class="p">()</span> <span class="k">else</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tensors_saved_for_backwards</span><span class="p">))</span>
+            <span class="n">symint_outs</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">symints_saved_for_backwards_slice</span><span class="p">]</span>
+            <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span>
+                <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymInt</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymFloat</span><span class="p">))</span>
+                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">symint_outs</span>
+            <span class="p">)</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">symints</span> <span class="o">=</span> <span class="n">symint_outs</span>
 
             <span class="n">raw_returns</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">num_forward_returns</span><span class="p">]</span>
 
@@ -3324,20 +3340,35 @@
 
                     <span class="n">placeholder_list</span> <span class="o">=</span> <span class="n">fx_placeholder_vals</span><span class="p">(</span><span class="n">bw_module</span><span class="p">)</span>
 
+                    <span class="n">forward_saved_for_backwards_strides</span> <span class="o">=</span> <span class="kc">None</span>
+                    <span class="k">if</span> <span class="n">fwd_output_strides</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">forward_saved_for_backwards_strides</span> <span class="o">=</span> <span class="n">fwd_output_strides</span><span class="p">[</span>
+                            <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">tensors_saved_for_backwards_slice</span>
+                        <span class="p">]</span>
+
                     <span class="c1"># saved activations can have different stride to eager if</span>
                     <span class="c1"># the compiler does layout optimization. We should restride the</span>
                     <span class="c1"># tensor passed in for compiling the backward graph using the</span>
                     <span class="c1"># saved tensor&#39;s stride.</span>
                     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">placeholder_list</span><span class="p">)):</span>
                         <span class="n">ph_arg</span> <span class="o">=</span> <span class="n">placeholder_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-                        <span class="n">real_arg</span> <span class="o">=</span> <span class="n">all_args</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
                         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ph_arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
                             <span class="k">continue</span>
 
-                        <span class="c1"># Comparing ph_arg.stride() with real_arg.stride() directly may</span>
+                        <span class="k">if</span> <span class="n">forward_saved_for_backwards_strides</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="k">continue</span>
+
+                        <span class="n">real_stride</span> <span class="o">=</span> <span class="kc">None</span>
+                        <span class="c1"># Per all_args calling convention</span>
+                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">symints</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">symints</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">forward_saved_for_backwards_strides</span><span class="p">):</span>
+                            <span class="n">real_stride</span> <span class="o">=</span> <span class="n">forward_saved_for_backwards_strides</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">symints</span><span class="p">)]</span>
+                        <span class="k">if</span> <span class="n">real_stride</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="k">continue</span>
+
+                        <span class="c1"># Comparing ph_arg.stride() with real_stride directly may</span>
                         <span class="c1"># cause dynamic dimensions in ph_arg being specialized to static</span>
                         <span class="c1"># value. Using the hints to avoid that.</span>
-                        <span class="k">if</span> <span class="n">_get_hints</span><span class="p">(</span><span class="n">ph_arg</span><span class="o">.</span><span class="n">stride</span><span class="p">())</span> <span class="o">!=</span> <span class="n">real_arg</span><span class="o">.</span><span class="n">stride</span><span class="p">():</span>
+                        <span class="k">if</span> <span class="n">_get_hints</span><span class="p">(</span><span class="n">ph_arg</span><span class="o">.</span><span class="n">stride</span><span class="p">())</span> <span class="o">!=</span> <span class="n">real_stride</span><span class="p">:</span>
                             <span class="c1"># Note that here we use the stride of the real tensor to</span>
                             <span class="c1"># restride a FakeTensor. This does not cause trouble</span>
                             <span class="c1"># for dynamic shape since this code path only get</span>
@@ -3353,7 +3384,15 @@
                             <span class="c1"># (2408448, 1, 21504, 192). The solution mentioned will</span>
                             <span class="c1"># decide a stride of (802816, 1, 7168, 64) for this</span>
                             <span class="c1"># tensor which is wrong.</span>
-                            <span class="n">placeholder_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ph_arg</span><span class="o">.</span><span class="n">as_strided</span><span class="p">(</span><span class="n">ph_arg</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">real_arg</span><span class="o">.</span><span class="n">stride</span><span class="p">())</span>
+                            <span class="c1">#</span>
+                            <span class="c1"># NB: Occasionally, we will do a restride even</span>
+                            <span class="c1"># though it is not necessarily.  This concretely</span>
+                            <span class="c1"># happens in XLNetLMHeadModel where inductor</span>
+                            <span class="c1"># thinks that the tensor will have (1024, 1024, 1)</span>
+                            <span class="c1"># stride but it actually gets (1024, 524288, 1).</span>
+                            <span class="c1"># The stride difference here is non-substantive</span>
+                            <span class="c1"># as dim 1&#39;s size is 1.</span>
+                            <span class="n">placeholder_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ph_arg</span><span class="o">.</span><span class="n">as_strided</span><span class="p">(</span><span class="n">ph_arg</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">real_stride</span><span class="p">)</span>
 
                     <span class="k">with</span> <span class="n">tracing</span><span class="p">(</span><span class="n">saved_context</span><span class="p">),</span> <span class="n">context</span><span class="p">(),</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;backward&quot;</span><span class="p">):</span>
                         <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">compiled_bw</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">bw_compiler</span><span class="p">(</span>
