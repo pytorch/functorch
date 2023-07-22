@@ -215,7 +215,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gite985719) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gita6b8c30) &#x25BC</a>
     </div>
     
 
@@ -1014,7 +1014,7 @@
     <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">_from_functional_tensor</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">_get_hints</span><span class="p">(</span><span class="n">exprs</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get the hints of a list/tuple of int/SymInt.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exprs</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
@@ -1287,7 +1287,7 @@
 
 <span class="nd">@dataclass</span>
 <span class="k">class</span> <span class="nc">BackwardSignature</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Provides information about the backward section of an exported</span>
 <span class="sd">    joint forward-backward graph.</span>
 <span class="sd">    For a particular fx GraphModule, this class contains information on:</span>
@@ -1309,7 +1309,7 @@
 
 <span class="nd">@dataclass</span>
 <span class="k">class</span> <span class="nc">GraphSignature</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Provides information about an exported module.</span>
 <span class="sd">    For a particular fx GraphModule, this class contains information on:</span>
 <span class="sd">    (1) Which graph inputs are parameters, buffers, or user inputs</span>
@@ -1420,7 +1420,7 @@
 
 <span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
 <span class="k">class</span> <span class="nc">AOTConfig</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Configuration for AOTDispatcher</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
@@ -1769,7 +1769,7 @@
 
 
 <span class="k">def</span> <span class="nf">get_aot_graph_name</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns the name of the graph being compiled.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">global</span> <span class="n">model_name</span><span class="p">,</span> <span class="n">graph_being_compiled</span><span class="p">,</span> <span class="n">nth_graph</span>
@@ -2439,7 +2439,7 @@
 <span class="s2">Encountered duplicated inputs that are mutated in the graph you are trying to export.</span>
 <span class="s2">This functionality is currently not supported. If needed, please file a github issue.</span>
 
-<span class="s2">fw_metadata=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">fw_metadata</span><span class="p">)</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">fw_metadata=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">fw_metadata</span><span class="p">)</span><span class="si">}</span>
 <span class="s2">        &quot;&quot;&quot;</span><span class="p">)</span>
 
     <span class="c1"># Strategy 2: Duplicate specialize.</span>
@@ -2564,8 +2564,8 @@
             <span class="n">seen</span><span class="p">[</span><span class="n">y</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="k">assert</span> <span class="n">x</span> <span class="ow">is</span> <span class="n">y</span><span class="p">,</span> <span class="n">format_guard_bug_msg</span><span class="p">(</span>
                 <span class="n">aot_config</span><span class="p">,</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">describe_input</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">)</span><span class="si">}</span><span class="s2"> would be a duplicate of &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">describe_input</span><span class="p">(</span><span class="n">add_dupe_map</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">aot_config</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">describe_input</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">aot_config</span><span class="p">)</span><span class="si">}</span><span class="s2"> would be a duplicate of &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">describe_input</span><span class="p">(</span><span class="n">add_dupe_map</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="n">aot_config</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="c1"># This is only an error if there is metadata mutation on both of</span>
         <span class="c1"># the duped arguments; in this case, we need to know what order</span>
@@ -2575,7 +2575,7 @@
         <span class="c1"># will get summed up appropriately.)</span>
         <span class="c1">#</span>
         <span class="c1"># TODO: work out how to setup this assert correctly</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        assert len(seen) == unique_args, format_guard_bug_msg(aot_config,</span>
 <span class="sd">            f&quot;there would be {unique_args} distinct arguments&quot;</span>
 <span class="sd">        )</span>
@@ -2619,9 +2619,9 @@
 <span class="s2">Encountered aliased inputs that are mutated in the graph you are trying to export.</span>
 <span class="s2">This functionality is currently not supported. If needed, please file a github issue.</span>
 
-<span class="s2">synthetic_base_info=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">synthetic_base_info</span><span class="p">)</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">synthetic_base_info=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">synthetic_base_info</span><span class="p">)</span><span class="si">}</span>
 
-<span class="s2">fw_metadata=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">fw_metadata</span><span class="p">)</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">fw_metadata=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">fw_metadata</span><span class="p">)</span><span class="si">}</span>
 <span class="s2">        &quot;&quot;&quot;</span><span class="p">)</span>
 
     <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">synthetic_base_info</span><span class="p">)</span>
@@ -2716,7 +2716,7 @@
     <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">num_params_buffers</span><span class="p">:</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;parameter/buffer </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;input </span><span class="si">{</span><span class="n">i</span> <span class="o">-</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">num_params_buffers</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;input </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">aot_config</span><span class="o">.</span><span class="n">num_params_buffers</span><span class="si">}</span><span class="s2">&quot;</span>
 
 <span class="c1"># The wrapper created by this function handles all of the runtime aliasing and mutation &quot;epilogue&quot; logic</span>
 <span class="c1"># that needs to run after the compiled function.</span>
@@ -3467,7 +3467,7 @@
             <span class="k">elif</span> <span class="ow">not</span> <span class="n">can_require_grad</span><span class="p">:</span>
                 <span class="k">assert</span> <span class="ow">not</span> <span class="n">a</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">,</span> <span class="n">format_guard_bug_msg</span><span class="p">(</span>
                     <span class="n">aot_config</span><span class="p">,</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">describe_input</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">)</span><span class="si">}</span><span class="s2"> would not require grad&quot;</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">describe_input</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">aot_config</span><span class="p">)</span><span class="si">}</span><span class="s2"> would not require grad&quot;</span><span class="p">,</span>
                 <span class="p">)</span>
 
         <span class="k">return</span> <span class="n">compiled_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
@@ -3479,7 +3479,7 @@
 <span class="k">def</span> <span class="nf">create_aot_dispatcher_function</span><span class="p">(</span>
     <span class="n">flat_fn</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">aot_config</span><span class="p">:</span> <span class="n">AOTConfig</span>
 <span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Traces the forward and backward graphs of the attr:`flat_fn` to generate a</span>
 <span class="sd">    joint graph. The joint graph is an Fx graph with Aten ops. Please refer to</span>
 <span class="sd">    the tracing mechanism to understand the graph capturing details.</span>
@@ -3840,7 +3840,7 @@
     <span class="n">dynamic</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">enable_log</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Traces the forward and backward graph of :attr:`fn` using torch dispatch</span>
 <span class="sd">    mechanism, and then compiles the generated forward and backward graphs</span>
 <span class="sd">    through :attr:`fw_compiler` and :attr:`bw_compiler`.</span>
@@ -3938,7 +3938,7 @@
 
 
 <div class="viewcode-block" id="aot_module"><a class="viewcode-back" href="../../../generated/functorch.compile.aot_module.html#functorch.compile.aot_module">[docs]</a><span class="k">def</span> <span class="nf">aot_module</span><span class="p">(</span><span class="n">mod</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Traces the forward and backward graph of :attr:`mod` using torch dispatch</span>
 <span class="sd">    tracing mechanism. It is wrapper function, that underneath uses</span>
 <span class="sd">    :func:`aot_function` to perform tracing and compilation.</span>
@@ -3999,7 +3999,7 @@
     <span class="n">keep_inference_input_mutations</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">inference_compiler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This is the simplified or low overhead version of aot_module. For frontends</span>
 <span class="sd">    like TorchDynamo, the input functions/modules to AOT are static and have</span>
 <span class="sd">    unpacked inputs/outputs. This gives us an opportunity to remove the</span>
@@ -4123,7 +4123,7 @@
     <span class="c1"># Your module can return multiple outputs, so you must specify which output the loss is.</span>
     <span class="n">output_loss_index</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">GraphSignature</span><span class="p">]:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This function takes in a module, and returns:</span>
 <span class="sd">    (1) an FX graph that can be exported</span>
 <span class="sd">    (2) some metadata about the graph</span>
@@ -4292,7 +4292,7 @@
     <span class="n">num_params_buffers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="n">decompositions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A simplified version of export. Used by higher order operators.</span>
 
 <span class="sd">    This function makes a high-level &quot;no calling convention changes&quot; guarantee:</span>
