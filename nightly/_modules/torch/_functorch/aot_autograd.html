@@ -215,7 +215,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git32b67b5) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git65bce81) &#x25BC</a>
     </div>
     
 
@@ -357,6 +357,7 @@
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">torch._subclasses.meta_utils</span> <span class="kn">import</span> <span class="n">safe_is_leaf</span>
 <span class="kn">from</span> <span class="nn">torch._dispatch.python</span> <span class="kn">import</span> <span class="n">enable_python_dispatcher</span>
+<span class="kn">from</span> <span class="nn">torch._dynamo</span> <span class="kn">import</span> <span class="n">compiled_autograd</span>
 <span class="kn">from</span> <span class="nn">torch._dynamo.utils</span> <span class="kn">import</span> <span class="n">dynamo_timed</span><span class="p">,</span> <span class="n">lazy_format_graph_code</span><span class="p">,</span> <span class="n">preserve_rng_state</span>
 <span class="kn">from</span> <span class="nn">torch._guards</span> <span class="kn">import</span> <span class="n">detect_fake_mode</span><span class="p">,</span> <span class="n">tracing</span>
 <span class="kn">from</span> <span class="nn">torch._prims_common</span> <span class="kn">import</span> <span class="n">CUDARngStateHelper</span>
@@ -3210,6 +3211,10 @@
         <span class="n">num_symints_saved_for_bw</span> <span class="o">=</span> <span class="n">_num_symints_saved_for_bw</span>
 
         <span class="nd">@staticmethod</span>
+        <span class="k">def</span> <span class="nf">_compiled_autograd_key</span><span class="p">(</span><span class="n">ctx</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">aot_config</span><span class="o">.</span><span class="n">aot_id</span><span class="p">,</span> <span class="o">*</span><span class="n">ctx</span><span class="o">.</span><span class="n">symints</span><span class="p">)</span>
+
+        <span class="nd">@staticmethod</span>
         <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="o">*</span><span class="n">deduped_flat_tensor_args</span><span class="p">):</span>
             <span class="n">args</span> <span class="o">=</span> <span class="n">deduped_flat_tensor_args</span>
             <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">is_rng_op_functionalized</span><span class="p">:</span>
@@ -3397,6 +3402,16 @@
             <span class="k">del</span> <span class="n">contiguous_args</span>
 
             <span class="k">def</span> <span class="nf">call_compiled_backward</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">ctx</span><span class="o">.</span><span class="n">_is_compiled_autograd_tracing</span><span class="p">():</span>
+                    <span class="c1"># For compiled autograd, run raw FX graph so that it can be inlined into the larger graph</span>
+                    <span class="n">symints</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">_get_compiled_autograd_symints</span><span class="p">()</span>
+                    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">symints</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">symints</span><span class="p">)</span>
+                    <span class="n">all_args</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">symints</span><span class="p">)]</span> <span class="o">=</span> <span class="n">symints</span>
+                    <span class="n">context</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_C</span><span class="o">.</span><span class="n">_DisableAutocast</span> <span class="k">if</span> <span class="n">disable_amp</span> <span class="k">else</span> <span class="n">nullcontext</span>
+                    <span class="k">with</span> <span class="n">context</span><span class="p">():</span>
+                        <span class="n">out</span> <span class="o">=</span> <span class="n">normalize_as_list</span><span class="p">(</span><span class="n">bw_module</span><span class="p">(</span><span class="o">*</span><span class="n">all_args</span><span class="p">))</span>
+                    <span class="n">out</span> <span class="o">=</span> <span class="n">functionalized_rng_runtime_epilogue</span><span class="p">(</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
                 <span class="n">ctx</span><span class="o">.</span><span class="n">maybe_clear_saved_tensors</span><span class="p">()</span>
                 <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">compiled_bw</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="n">context</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_C</span><span class="o">.</span><span class="n">_DisableAutocast</span> <span class="k">if</span> <span class="n">disable_amp</span> <span class="k">else</span> <span class="n">nullcontext</span>
@@ -3427,6 +3442,9 @@
                     <span class="nd">@staticmethod</span>
                     <span class="k">def</span> <span class="nf">backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
                         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;torch.compile with aot_autograd does not currently support double backward&quot;</span><span class="p">)</span>
+
+                <span class="n">CompiledFunctionBackward</span><span class="o">.</span><span class="n">_compiled_autograd_key</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">_compiled_autograd_key</span>
+
                 <span class="c1"># Pass args even though they&#39;re unused, so that the graph is built</span>
                 <span class="n">out</span> <span class="o">=</span> <span class="n">CompiledFunctionBackward</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="o">*</span><span class="n">all_args</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -4088,11 +4106,12 @@
         <span class="n">no_tangents</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">create_aot_dispatcher_function</span><span class="p">(</span>
-        <span class="n">functional_call</span><span class="p">,</span>
-        <span class="n">full_args</span><span class="p">,</span>
-        <span class="n">aot_config</span><span class="p">,</span>
-    <span class="p">)</span>
+    <span class="k">with</span> <span class="n">compiled_autograd</span><span class="o">.</span><span class="n">disable</span><span class="p">():</span>
+        <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">create_aot_dispatcher_function</span><span class="p">(</span>
+            <span class="n">functional_call</span><span class="p">,</span>
+            <span class="n">full_args</span><span class="p">,</span>
+            <span class="n">aot_config</span><span class="p">,</span>
+        <span class="p">)</span>
 
     <span class="c1"># TODO: There is something deeply wrong here; compiled_fn running with</span>
     <span class="c1"># the boxed calling convention, but aot_module_simplified somehow</span>
