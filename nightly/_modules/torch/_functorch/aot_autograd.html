@@ -215,7 +215,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git3c70d4b) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git55f9359) &#x25BC</a>
     </div>
     
 
@@ -403,6 +403,10 @@
         <span class="s2">&quot;alias_of_intermediate_base_is_user_output&quot;</span><span class="p">,</span>
         <span class="c1"># See Note [Intermediate Bases Optimization]</span>
         <span class="s2">&quot;unsafe_view_alias&quot;</span><span class="p">,</span>
+        <span class="c1"># output is an alias, but has a custom autograd.Function backward.</span>
+        <span class="c1"># In this case, we don&#39;t want to do view-replay, since we won&#39;t be able to replay the custom function.</span>
+        <span class="c1"># Instead, we&#39;ll treat this output &quot;normally&quot;, and trace its backward into the graph.</span>
+        <span class="s2">&quot;custom_function_view&quot;</span><span class="p">,</span>
     <span class="p">)</span>
 <span class="p">)</span>
 
@@ -811,7 +815,7 @@
         <span class="n">aliased_out_indices</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">i</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">custom_function_view</span><span class="p">]</span>
         <span class="p">]</span>
         <span class="n">unsafe_view_out_indices</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span> <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">is</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span>
@@ -829,7 +833,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">unsafe_view_out_indices</span> <span class="o">=</span> <span class="n">unsafe_view_out_indices</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs_non_aliased</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_info</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">]]</span>
+            <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_info</span>
+             <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">custom_function_view</span><span class="p">]]</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs_aliased_to_inputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
             <span class="p">[</span>
@@ -1157,8 +1162,20 @@
                 <span class="n">curr</span> <span class="k">for</span> <span class="n">curr</span> <span class="ow">in</span> <span class="n">out_storage_to_tensors</span><span class="p">[</span><span class="n">curr_storage</span><span class="p">]</span>
                 <span class="k">if</span> <span class="n">has_same_metadata</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">curr</span><span class="p">)</span> <span class="ow">and</span> <span class="n">curr</span><span class="o">.</span><span class="n">requires_grad</span> <span class="ow">and</span> <span class="n">o</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">curr</span>
             <span class="p">]</span>
+            <span class="n">is_result_of_custom_autograd_fn</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                <span class="c1"># Need to check for both custom cpp (CppFunction) and python (BackwardCFunction) autograd fns</span>
+                <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">grad_fn</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;CppFunction&quot;</span><span class="p">:</span>
+                    <span class="n">is_result_of_custom_autograd_fn</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">grad_fn</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">function</span><span class="o">.</span><span class="n">BackwardCFunction</span><span class="p">):</span>
+                    <span class="n">is_result_of_custom_autograd_fn</span> <span class="o">=</span> <span class="kc">True</span>
+
             <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
                 <span class="n">output_type</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span>
+                <span class="n">base_idx</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">elif</span> <span class="n">curr_storage</span> <span class="ow">in</span> <span class="n">inp_storage_refs</span> <span class="ow">and</span> <span class="n">o</span><span class="o">.</span><span class="n">grad_fn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> \
+                    <span class="ow">and</span> <span class="n">is_result_of_custom_autograd_fn</span><span class="p">:</span>
+                <span class="n">output_type</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">custom_function_view</span>
                 <span class="n">base_idx</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="k">elif</span> <span class="n">curr_storage</span> <span class="ow">in</span> <span class="n">inp_storage_refs</span><span class="p">:</span>
                 <span class="n">base_idx</span> <span class="o">=</span> <span class="n">inp_storage_refs</span><span class="p">[</span><span class="n">curr_storage</span><span class="p">]</span>
@@ -1267,7 +1284,8 @@
         <span class="n">f_output_tangents</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">o</span>
             <span class="k">for</span> <span class="n">o</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">flat_f_outs</span><span class="p">,</span> <span class="n">output_info</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">]</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">raw_type</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">custom_function_view</span><span class="p">]</span>
+            <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">raw_type</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
         <span class="p">]</span>
         <span class="c1"># intermediate bases are also included in the backward graph</span>
         <span class="n">f_tangents</span> <span class="o">=</span> <span class="n">f_input_tangents</span> <span class="o">+</span> <span class="n">f_output_tangents</span> <span class="o">+</span> <span class="n">intermediate_bases</span>
@@ -1544,7 +1562,7 @@
         <span class="c1"># For outputs that are aliases of intermediates, we will have returned the output&#39;s _base as an output in the graph instead,</span>
         <span class="c1"># which we *should* send to grad()</span>
         <span class="n">output_grad_mask</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">]</span>
+            <span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">custom_function_view</span><span class="p">]</span>
             <span class="c1"># Also, only tensor outputs should participate in the backward</span>
             <span class="c1"># (in particular, Symint outputs in the forward graph shouldn&#39;t get tangents)</span>
             <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">output_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">raw_type</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
@@ -2862,7 +2880,7 @@
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span>
                 <span class="n">fw_outs_no_intermediate_bases</span><span class="p">,</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">output_info</span>
             <span class="p">)):</span>
-                <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span> <span class="ow">or</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">custom_function_view</span><span class="p">]:</span>
                     <span class="n">fw_outs_including_aliases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
                     <span class="k">continue</span>
                 <span class="k">if</span> <span class="n">trace_joint</span><span class="p">:</span>
@@ -3360,7 +3378,7 @@
                 <span class="n">out_tangents_filtered</span> <span class="o">=</span> <span class="p">[</span>
                     <span class="n">x</span>
                     <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">out_tangents</span><span class="p">,</span> <span class="n">out_info</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span> <span class="ow">or</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="o">==</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">output_type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span><span class="p">,</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">custom_function_view</span><span class="p">]</span>
                     <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">raw_type</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
                 <span class="p">]</span>
                 <span class="c1"># intermediate bases always require gradients, and always participate in the backward graph.</span>
