@@ -215,7 +215,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gitddf36c8) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git22f5889) &#x25BC</a>
     </div>
     
 
@@ -1735,7 +1735,6 @@
                     <span class="c1"># Since keep_input_mutations is set, we need to faithfully apply a copy_()</span>
                     <span class="c1"># so the compiler will see the input mutation in the graph.</span>
                     <span class="k">assert</span> <span class="n">inpt_new</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">inpt_old</span>
-                    <span class="k">assert</span> <span class="n">has_same_metadata</span><span class="p">(</span><span class="n">inpt_new</span><span class="p">,</span> <span class="n">inpt_old</span><span class="p">)</span>
                     <span class="n">inpt_old</span><span class="o">.</span><span class="n">copy_</span><span class="p">(</span><span class="n">inpt_new</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">from_fun</span><span class="p">,</span> <span class="n">f_outs</span><span class="p">)</span>
@@ -1985,6 +1984,86 @@
     <span class="k">return</span> <span class="kc">True</span>
 
 
+
+<span class="c1"># Assumption: x and y are known to share a storage, and we are trying to determine</span>
+<span class="c1"># if their memory is actually completely disjoint, based on sizes/strides/storage_offset</span>
+<span class="k">def</span> <span class="nf">tensors_definitely_do_not_overlap</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="n">y</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">y</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="c1"># Make x always on the left</span>
+    <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">y</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">():</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span>
+    <span class="c1"># Short-circuit in the &quot;obvious&quot; overlapping case: both tensors are contiguous</span>
+    <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">is_contiguous</span><span class="p">()</span> <span class="ow">and</span> <span class="n">y</span><span class="o">.</span><span class="n">is_contiguous</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">()</span> <span class="o">+</span> <span class="n">x</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">y</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">():</span>
+            <span class="c1"># definitely overlap</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># definitely no overlap</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">y</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">x</span><span class="o">.</span><span class="n">stride</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">y</span><span class="o">.</span><span class="n">stride</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="c1"># This cases is needed for the shampoo optimizer.</span>
+        <span class="c1"># All tensors are 2d (non-contiguous), have the same outer stride, and have an inner stride of 1</span>
+        <span class="c1"># (so rows are contiguous)</span>
+        <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">stride</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="n">y</span><span class="o">.</span><span class="n">stride</span><span class="p">(</span><span class="mi">0</span><span class="p">):</span>
+            <span class="n">offset_delta</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">()</span> <span class="o">-</span> <span class="n">x</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">offset_delta</span> <span class="o">&lt;</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">1</span><span class="p">):</span>
+                <span class="c1"># definitely overlaps (row 0 of y overlaps with row 0 of x)</span>
+                <span class="c1"># Example:</span>
+                <span class="c1">#   base = torch.arange(32).reshape(4, 8)</span>
+                <span class="c1">#   x = base.narrow(1, 0, 4)</span>
+                <span class="c1">#     x: size=(4, 4), stride=(8, 1), offset=0</span>
+                <span class="c1">#   y = base.narrow(1, 3, 4)</span>
+                <span class="c1">#     y: size=(4, 4), stride=(8, 1), offset=3</span>
+                <span class="k">return</span> <span class="kc">False</span>
+            <span class="n">x_total_elems_covered</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">stride</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">x_total_elems_covered</span> <span class="o">&lt;=</span> <span class="n">offset_delta</span><span class="p">:</span>
+                <span class="c1"># definitely does not overlap (last byte of x is before start of y)</span>
+                <span class="c1"># Example:</span>
+                <span class="c1">#   x: size=(4, 4), stride=(8, 1), offset=0 (last byte is 27)</span>
+                <span class="c1">#   y: size=(4, 4), stride=(8, 1), offset=28 (start byte is 28)</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="c1"># At this point, we want to check if the 0th row of y</span>
+            <span class="c1"># overlaps with **some** row of x.</span>
+            <span class="c1"># We can check this by shifting y backward by the shared stride, repeatedly,</span>
+            <span class="c1"># until the first row of y is before the first row of x.</span>
+            <span class="c1"># Then we can check if these rows overlap.</span>
+            <span class="c1"># We can accomplish this by modding our offset by the stride.</span>
+            <span class="n">offset_delta_mod</span> <span class="o">=</span> <span class="n">offset_delta</span> <span class="o">%</span> <span class="n">x</span><span class="o">.</span><span class="n">stride</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="c1"># Example:</span>
+            <span class="c1"># 0 1 2 3</span>
+            <span class="c1"># 9 10 11 12</span>
+            <span class="c1"># 18 19 20 21</span>
+            <span class="c1"># 27 28 29 30</span>
+            <span class="c1">#   x: size=(4, 4), stride=(9, 1), offset=0</span>
+            <span class="c1">#   y: size=(4, 4), stride=(9, 1), offset=22 (this would not overlap)</span>
+            <span class="c1">#   y: size=(4, 4), stride=(9, 1), offset=23 (this would not overlap)</span>
+            <span class="c1">#   y: size=(4, 4), stride=(9, 1), offset=24 (this would overlap)</span>
+            <span class="c1">#   y: size=(4, 4), stride=(9, 1), offset=25 (this would overlap)</span>
+            <span class="c1"># If the interval [modded_offset, modded_offset + x_size] falls entirely</span>
+            <span class="c1"># without</span>
+            <span class="k">if</span> <span class="n">offset_delta_mod</span> <span class="o">+</span> <span class="n">y</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">x</span><span class="o">.</span><span class="n">stride</span><span class="p">(</span><span class="mi">0</span><span class="p">):</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+
+<span class="k">def</span> <span class="nf">compute_overlapping_inputs</span><span class="p">(</span><span class="n">fwd_inputs</span><span class="p">,</span> <span class="n">aliased_input_indices</span><span class="p">):</span>
+    <span class="n">actual_aliased_indices</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">aliased_input_indices</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">j</span><span class="p">):</span>
+            <span class="n">i_</span> <span class="o">=</span> <span class="n">aliased_input_indices</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">j_</span> <span class="o">=</span> <span class="n">aliased_input_indices</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">tensors_definitely_do_not_overlap</span><span class="p">(</span><span class="n">fwd_inputs</span><span class="p">[</span><span class="n">i_</span><span class="p">],</span> <span class="n">fwd_inputs</span><span class="p">[</span><span class="n">j_</span><span class="p">]):</span>
+                <span class="n">actual_aliased_indices</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">i_</span><span class="p">)</span>
+                <span class="n">actual_aliased_indices</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">j_</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">actual_aliased_indices</span>
+
 <span class="c1"># Note [Handling mutations on an input that aliases other inputs]</span>
 <span class="c1"># The easiest example to show-case this edge case is here:</span>
 <span class="c1">#</span>
@@ -2085,6 +2164,19 @@
             <span class="k">for</span> <span class="n">curr_idx</span> <span class="ow">in</span> <span class="n">aliased_input_indices</span><span class="p">:</span>
                 <span class="n">other_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fwd_inputs</span><span class="p">[</span><span class="n">curr_idx</span><span class="p">])</span>
             <span class="k">continue</span>
+
+        <span class="c1"># Here, we attempt to do a more complicated check to detect false aliasing</span>
+        <span class="c1"># (e.g. if all the tensors have the same storage, but don&#39;t actually overlap)</span>
+        <span class="c1"># In theory, we could have a large group of tensors that all share storages, where only *some* of them</span>
+        <span class="c1"># have overlapping memory.</span>
+        <span class="c1"># I don&#39;t bother with that case for now: here, we only bail out earlier if we detect that **every** pair</span>
+        <span class="c1"># of tensors in the current group that shares a storage is non-overlapping.</span>
+        <span class="n">aliased_input_indices_no_false_sharing</span> <span class="o">=</span> <span class="n">compute_overlapping_inputs</span><span class="p">(</span><span class="n">fwd_inputs</span><span class="p">,</span> <span class="n">aliased_input_indices</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">aliased_input_indices_no_false_sharing</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">curr_idx</span> <span class="ow">in</span> <span class="n">aliased_input_indices</span><span class="p">:</span>
+                <span class="n">other_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fwd_inputs</span><span class="p">[</span><span class="n">curr_idx</span><span class="p">])</span>
+            <span class="k">continue</span>
+
         <span class="c1"># We detected an input that was mutated, AND aliases with another input.</span>
         <span class="c1"># we need to replace this set of aliased inputs with a single synthetic base.</span>
         <span class="c1"># For now, I&#39;m banning a bunch of cases. We expect dynamo to properly detect these cases</span>
@@ -2824,8 +2916,12 @@
                 <span class="c1"># We can&#39;t just check of original_inpt.storage_size != updated_inpt.storage_size,</span>
                 <span class="c1"># Because the original_inpt might be a view of some larger tensor,</span>
                 <span class="c1"># and updated_inpt is always densely packed.</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">trace_joint</span> <span class="ow">and</span> <span class="n">original_inpt</span><span class="o">.</span><span class="n">storage</span><span class="p">()</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">!=</span> <span class="n">updated_inpt</span><span class="o">.</span><span class="n">storage</span><span class="p">()</span><span class="o">.</span><span class="n">size</span><span class="p">():</span>
-                    <span class="n">original_inpt</span><span class="o">.</span><span class="n">resize_</span><span class="p">(</span><span class="n">updated_inpt</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">trace_joint</span> <span class="ow">and</span> <span class="n">original_inpt</span><span class="o">.</span><span class="n">untyped_storage</span><span class="p">()</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">!=</span> <span class="n">updated_inpt</span><span class="o">.</span><span class="n">untyped_storage</span><span class="p">()</span><span class="o">.</span><span class="n">size</span><span class="p">():</span>
+                    <span class="c1"># It actually isn&#39;t enough just to see if the storage sizes are different between old and new inputs.</span>
+                    <span class="c1"># If the original input was a slice into some larger storage, the same will not be true for the updated input.</span>
+                    <span class="c1"># So before doing the resize_(), we **also** check that functionalization detected a metadata mutation.</span>
+                    <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_metadata</span><span class="p">:</span>
+                        <span class="n">original_inpt</span><span class="o">.</span><span class="n">resize_</span><span class="p">(</span><span class="n">updated_inpt</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
                 <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_metadata</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_data</span><span class="p">:</span>
                     <span class="k">if</span> <span class="n">trace_joint</span><span class="p">:</span>
                         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">updated_inpt</span><span class="p">,</span> <span class="n">TensorAlias</span><span class="p">)</span>
