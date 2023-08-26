@@ -215,7 +215,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+git7dd1113) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.1.0a0+gitee17146) &#x25BC</a>
     </div>
     
 
@@ -834,6 +834,29 @@
                 <span class="n">random_nodes</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">node</span>
         <span class="k">return</span> <span class="n">random_nodes</span>
 
+    <span class="k">def</span> <span class="nf">get_device</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check the example value of the node outputs to find the device type.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;val&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">candidates</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">candidates</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="n">candidates</span> <span class="o">=</span> <span class="p">(</span><span class="n">candidates</span><span class="p">,)</span>
+
+        <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">candidate</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">candidate</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;cuda&quot;</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="s2">&quot;cuda&quot;</span>
+
+        <span class="k">return</span> <span class="s2">&quot;cpu&quot;</span>
+
+    <span class="k">def</span> <span class="nf">get_sample_rng_state</span><span class="p">(</span><span class="n">device</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">device</span> <span class="o">==</span> <span class="s2">&quot;cuda&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_rng_state</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">get_rng_state</span><span class="p">()</span>
+
     <span class="c1"># Step 1 - Construct a mapping of rng node between the fwd and its counterpart in bwd.</span>
     <span class="n">joint_graph_rng_ops</span> <span class="o">=</span> <span class="n">get_rng_ops</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
     <span class="n">fw_graph_rng_ops</span> <span class="o">=</span> <span class="n">get_rng_ops</span><span class="p">(</span><span class="n">fw_module</span><span class="p">)</span>
@@ -857,6 +880,7 @@
         <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span> <span class="ow">and</span> <span class="s2">&quot;tangent&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
             <span class="n">bw_tangent_start_node</span> <span class="o">=</span> <span class="n">node</span>
             <span class="k">break</span>
+
 
     <span class="n">fw_rng_state_outputs</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">base_node</span><span class="p">,</span> <span class="n">node_pair</span> <span class="ow">in</span> <span class="n">recomputable_rng_ops_map</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -883,7 +907,7 @@
         <span class="k">with</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">inserting_before</span><span class="p">(</span><span class="n">bw_tangent_start_node</span><span class="p">):</span>
             <span class="n">state_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rng_state_output_</span><span class="si">{</span><span class="nb">next</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="n">bw_rng_state_node</span> <span class="o">=</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="n">state_name</span><span class="p">)</span>
-            <span class="n">bw_rng_state_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_rng_state</span><span class="p">()</span>
+            <span class="n">bw_rng_state_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_sample_rng_state</span><span class="p">(</span><span class="n">get_device</span><span class="p">(</span><span class="n">fw_node</span><span class="p">))</span>
 
         <span class="k">with</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">inserting_before</span><span class="p">(</span><span class="n">bw_node</span><span class="p">):</span>
             <span class="n">rng_output</span> <span class="o">=</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span>
