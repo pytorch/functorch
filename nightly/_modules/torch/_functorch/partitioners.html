@@ -215,7 +215,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+git95c59b3) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+git330db82) &#x25BC</a>
     </div>
     
 
@@ -1138,6 +1138,10 @@
             <span class="k">return</span> <span class="p">(</span><span class="n">output_size</span> <span class="o">*</span> <span class="mi">4</span> <span class="o">&lt;</span> <span class="n">input_tensors_size</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">is_fusible</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+        <span class="c1"># We can perform &quot;memory fusion&quot; into a cat, but cat cannot be a</span>
+        <span class="c1"># producer to a fusion</span>
+        <span class="k">if</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="o">==</span> <span class="n">aten</span><span class="o">.</span><span class="n">cat</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
         <span class="k">return</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="ow">in</span> <span class="n">fusible_ops</span> <span class="ow">and</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="ow">in</span> <span class="n">fusible_ops</span>
 
     <span class="k">def</span> <span class="nf">is_materialized</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
