@@ -215,7 +215,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+git330db82) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+git1c97808) &#x25BC</a>
     </div>
     
 
@@ -374,6 +374,21 @@
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">config</span>
 <span class="kn">from</span> <span class="nn">.partitioners</span> <span class="kn">import</span> <span class="n">default_partition</span>
 <span class="kn">from</span> <span class="nn">torch._guards</span> <span class="kn">import</span> <span class="n">TracingContext</span><span class="p">,</span> <span class="n">DuplicateInputs</span><span class="p">,</span> <span class="n">Source</span>
+
+<span class="n">original_zip</span> <span class="o">=</span> <span class="nb">zip</span>
+
+<span class="k">def</span> <span class="nf">strict_zip</span><span class="p">(</span><span class="o">*</span><span class="n">iterables</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">strict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">original_zip</span><span class="p">(</span><span class="o">*</span><span class="n">iterables</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="n">shortest_length</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">it</span><span class="p">)</span> <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="n">iterables</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">iterable</span> <span class="ow">in</span> <span class="n">iterables</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">iterable</span><span class="p">)</span> <span class="o">!=</span> <span class="n">shortest_length</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The iterables have different lengths and strict mode is enabled.&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">original_zip</span><span class="p">(</span><span class="o">*</span><span class="n">iterables</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<span class="nb">zip</span> <span class="o">=</span> <span class="n">strict_zip</span>
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 <span class="n">aot_joint_log</span> <span class="o">=</span> <span class="n">getArtifactLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">,</span> <span class="s2">&quot;aot_joint_graph&quot;</span><span class="p">)</span>
@@ -2198,7 +2213,7 @@
         <span class="c1"># For now, I&#39;m banning a bunch of cases. We expect dynamo to properly detect these cases</span>
         <span class="c1"># and error out. We can fix them later.</span>
         <span class="c1"># These checks are transitive, so we don&#39;t need to check every pair.</span>
-        <span class="k">for</span> <span class="n">idx1</span><span class="p">,</span> <span class="n">idx2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">aliased_input_indices</span><span class="p">,</span> <span class="n">aliased_input_indices</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
+        <span class="k">for</span> <span class="n">idx1</span><span class="p">,</span> <span class="n">idx2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">aliased_input_indices</span><span class="p">,</span> <span class="n">aliased_input_indices</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
             <span class="n">view1</span> <span class="o">=</span> <span class="n">fwd_inputs</span><span class="p">[</span><span class="n">idx1</span><span class="p">]</span>
             <span class="n">view2</span> <span class="o">=</span> <span class="n">fwd_inputs</span><span class="p">[</span><span class="n">idx2</span><span class="p">]</span>
             <span class="c1"># The &quot;inputs that are aliased but have different differentiable bases&quot; case</span>
