@@ -215,7 +215,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+git19a6487) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+giteafce23) &#x25BC</a>
     </div>
     
 
@@ -375,6 +375,7 @@
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">config</span>
 <span class="kn">from</span> <span class="nn">.partitioners</span> <span class="kn">import</span> <span class="n">default_partition</span>
 <span class="kn">from</span> <span class="nn">torch._guards</span> <span class="kn">import</span> <span class="n">TracingContext</span><span class="p">,</span> <span class="n">DuplicateInputs</span><span class="p">,</span> <span class="n">Source</span>
+
 
 <span class="n">original_zip</span> <span class="o">=</span> <span class="nb">zip</span>
 
@@ -741,6 +742,38 @@
 <span class="c1">#     # x and x_view are aliased in eager mode, so this mutation to x will automatically affect x_view.</span>
 <span class="c1">#     x.copy_(x_updated)</span>
 <span class="c1">#     return out</span>
+
+
+<span class="c1"># Note [AOT Autograd: Views to avoid tangents aliasing inputs]</span>
+<span class="c1">#</span>
+<span class="c1"># We view every forward output when creating out tangent tensors to handle the problematic</span>
+<span class="c1"># case in which a subclass does extra aliasing between graph outputs/inputs in a way that</span>
+<span class="c1"># is not visible above the sublass.</span>
+<span class="c1">#</span>
+<span class="c1"># Ordinarily, when constructing the joint function that we want to trace in AOTAutograd,</span>
+<span class="c1"># we&#39;re guaranteed that the tangent tensors that we pass</span>
+<span class="c1"># into the joint are distinct tensors from the primals. This is because when</span>
+<span class="c1"># decide which forward outputs to create tangents for, we only create tangents</span>
+<span class="c1"># for forward outputs that are not aliases of inputs (See Note</span>
+<span class="c1"># [AOT Autograd: outputs aliasing inputs or intermediates!]).</span>
+<span class="c1">#</span>
+<span class="c1"># However, when wrapper tensor subclasses enter the picture, it is possible</span>
+<span class="c1"># to have an output of the forward that is a subclass that is not an</span>
+<span class="c1"># input / alias of an input, but one of its inner tensors is an alias!</span>
+<span class="c1"># NestedTensor is an example: Performing an out-of-place pointwise op on a</span>
+<span class="c1"># NestedTensor constructs a fresh NestedTensor that holds onto the input&#39;s</span>
+<span class="c1"># offsets tensor directly.</span>
+<span class="c1">#</span>
+<span class="c1"># Having tangent tensors that are the same as the (primal) forward inputs,</span>
+<span class="c1"># can cause problems during tracing as make_fx() will specialize on our</span>
+<span class="c1"># duplicate inputs: If we passed in the same tensor for primals_1 and</span>
+<span class="c1"># tangents_1 during tracing, make_fx() will happily sub out all usages of</span>
+<span class="c1"># tangents_1 with primals_1 in the graph, which is not what we want.</span>
+<span class="c1">#</span>
+<span class="c1"># To work around this, we view every forward output when creating out tangent</span>
+<span class="c1"># tensors so that tangents can never be the same as forward inputs even if</span>
+<span class="c1"># forward inputs alias forward outputs.</span>
+<span class="c1">#</span>
 <span class="c1">#</span>
 <span class="c1"># ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</span>
 <span class="c1"># ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</span>
@@ -1540,6 +1573,14 @@
             <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">input_info</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">or</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_metadata</span><span class="p">]</span>
         <span class="p">)</span>
 
+        <span class="c1"># See Note [AOT Autograd: Views to avoid tangents aliasing inputs]</span>
+        <span class="k">def</span> <span class="nf">view_avoid_dupes_with_primals</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">is_traceable_wrapper_subclass</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">transform_subclass</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">_</span><span class="p">,</span> <span class="n">inner_t</span><span class="p">:</span> <span class="n">view_avoid_dupes_with_primals</span><span class="p">(</span><span class="n">inner_t</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">t</span>
+
         <span class="c1"># This analysis function returns *only* the outputs that are meant to be tangents to the backwards.</span>
         <span class="c1"># Anything that aliases (inputs returned in the fw due to metadata mutations, or outputs that alias inputs/intermediates)</span>
         <span class="c1"># are *regenerated* later, and not used directly in the autograd graph</span>
@@ -1558,6 +1599,7 @@
         <span class="c1"># intermediate bases are also included in the backward graph</span>
         <span class="n">f_tangents</span> <span class="o">=</span> <span class="n">f_input_tangents</span> <span class="o">+</span> <span class="n">f_output_tangents</span> <span class="o">+</span> <span class="n">intermediate_bases</span>
         <span class="n">traced_tangents</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">from_fun</span><span class="p">,</span> <span class="n">f_tangents</span><span class="p">)</span>
+        <span class="n">traced_tangents</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">view_avoid_dupes_with_primals</span><span class="p">,</span> <span class="n">traced_tangents</span><span class="p">)</span>
         <span class="n">user_outs</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">from_fun</span><span class="p">,</span> <span class="n">f_output_tangents</span><span class="p">)</span>
 
         <span class="n">f_mutated_inputs</span> <span class="o">=</span> <span class="p">[</span>
@@ -3844,6 +3886,7 @@
                 <span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">fw_outs_saved_for_bw</span> <span class="k">if</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
             <span class="p">]</span>
             <span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_symints_saved_for_bw</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">symint_outs_saved_for_bw</span><span class="p">)</span>
+            <span class="n">inner_meta</span><span class="o">.</span><span class="n">num_symints_saved_for_bw</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">symint_outs_saved_for_bw</span><span class="p">)</span>
             <span class="n">_num_symints_saved_for_bw</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">symint_outs_saved_for_bw</span><span class="p">)</span>
 
         <span class="c1"># Note [Detaching inputs that never need gradients]</span>
@@ -3961,7 +4004,7 @@
 
             <span class="n">forward_saved_for_backwards_strides</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="k">if</span> <span class="n">fwd_output_strides</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">forward_saved_for_backwards_strides</span> <span class="o">=</span> <span class="n">fwd_output_strides</span><span class="p">[</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">tensors_saved_for_backwards_slice</span><span class="p">]</span>
+                <span class="n">forward_saved_for_backwards_strides</span> <span class="o">=</span> <span class="n">fwd_output_strides</span><span class="p">[</span><span class="n">inner_meta</span><span class="o">.</span><span class="n">tensors_saved_for_backwards_slice</span><span class="p">]</span>
 
             <span class="c1"># saved activations can have different stride to eager if</span>
             <span class="c1"># the compiler does layout optimization. We should restride the</span>
@@ -4188,7 +4231,8 @@
                 <span class="ow">and</span> <span class="n">info</span><span class="o">.</span><span class="n">requires_grad</span>
             <span class="p">]</span>
             <span class="c1"># intermediate bases always require gradients, and always participate in the backward graph.</span>
-            <span class="n">flat_bw_args_with_grads</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span><span class="n">inp_tangents_filtered</span><span class="p">,</span> <span class="n">out_tangents_filtered</span><span class="p">,</span> <span class="n">intermediate_base_tangents</span><span class="p">)</span>
+            <span class="n">flat_bw_args_with_grads</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">inp_tangents_filtered</span><span class="p">,</span> <span class="o">*</span><span class="n">out_tangents_filtered</span><span class="p">,</span> <span class="o">*</span><span class="n">intermediate_base_tangents</span><span class="p">]</span>
+            <span class="n">num_flat_bw_args_with_grads</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">flat_bw_args_with_grads</span><span class="p">)</span>
 
             <span class="c1"># sanity asserts</span>
             <span class="c1"># metadata_only_inps = [</span>
@@ -4200,11 +4244,6 @@
             <span class="c1"># assert all(x is None for x in metadata_only_inps)</span>
             <span class="c1"># assert all(x is None for x in aliased_outputs)</span>
 
-            <span class="n">contiguous_args</span> <span class="o">=</span> <span class="p">[</span>
-                <span class="n">t</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">else</span> <span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">flat_bw_args_with_grads</span>
-            <span class="p">]</span>
-            <span class="n">num_contiguous_args</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">contiguous_args</span><span class="p">)</span>
-
             <span class="n">rng_args</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">is_rng_op_functionalized</span><span class="p">:</span>
                 <span class="c1"># Add the seed and offset to args</span>
@@ -4213,9 +4252,13 @@
             <span class="n">all_args</span> <span class="o">=</span> <span class="p">[</span>
                 <span class="o">*</span><span class="n">ctx</span><span class="o">.</span><span class="n">symints</span><span class="p">,</span>
                 <span class="o">*</span><span class="n">ctx</span><span class="o">.</span><span class="n">saved_tensors</span><span class="p">,</span>
-                <span class="o">*</span><span class="n">contiguous_args</span><span class="p">,</span>
+                <span class="o">*</span><span class="n">flat_bw_args_with_grads</span><span class="p">,</span>
                 <span class="o">*</span><span class="n">rng_args</span>
             <span class="p">]</span>
+            <span class="k">del</span> <span class="n">flat_bw_args_with_grads</span>
+
+            <span class="n">tangents_start_idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_args</span><span class="p">)</span> <span class="o">-</span> <span class="n">num_flat_bw_args_with_grads</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">rng_args</span><span class="p">)</span>
+            <span class="n">tangents_end_idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_args</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">rng_args</span><span class="p">)</span>
 
             <span class="c1"># Note: [AOTAutograd Backward Guards]</span>
             <span class="c1"># During AOTDispatch, we eagerly create and trace out a joint fw-bw graph.</span>
@@ -4239,8 +4282,8 @@
             <span class="c1"># In the future, we should add backward guards that would allow us to</span>
             <span class="c1"># properly handle this case instead of erroring: we would need to retrace the backward graph,</span>
             <span class="c1"># since we might produce an entirely different trace if our grad_outputs are subclass or not.</span>
-            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">output_types</span><span class="p">)</span> <span class="o">==</span> <span class="n">num_contiguous_args</span>
-            <span class="n">grad_output_types</span> <span class="o">=</span> <span class="p">[</span><span class="nb">type</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">all_args</span><span class="p">[</span><span class="o">-</span><span class="n">num_contiguous_args</span><span class="p">:]]</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">output_types</span><span class="p">)</span> <span class="o">==</span> <span class="n">num_flat_bw_args_with_grads</span>
+            <span class="n">grad_output_types</span> <span class="o">=</span> <span class="p">[</span><span class="nb">type</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">all_args</span><span class="p">[</span><span class="o">-</span><span class="n">num_flat_bw_args_with_grads</span><span class="p">:]]</span>
             <span class="c1"># In general, we can add more asserts/guards here for when we partitioned</span>
             <span class="c1"># with incorrect assumptions about the grad_outputs.</span>
             <span class="c1"># Normalize FakeTensor -&gt; torch.Tensor</span>
@@ -4254,11 +4297,22 @@
 <span class="s2">Expected grad_output types: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">output_types</span><span class="p">)</span><span class="si">}</span>
 <span class="s2">Got grad_output types: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">grad_output_types</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;&quot;&quot;</span>
 
-            <span class="k">del</span> <span class="n">contiguous_args</span>
-
             <span class="c1"># TODO: figure out how to refactor the backward properly so I can use aot_dispatch_subclass_wrapper() here.</span>
             <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">maybe_subclass_metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># Get the number of tangents after unwrapping</span>
+                <span class="n">len_tangents</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">unwrap_tensor_subclasses</span><span class="p">(</span>
+                    <span class="n">all_args</span><span class="p">[</span><span class="n">tangents_start_idx</span><span class="p">:</span> <span class="n">tangents_end_idx</span><span class="p">],</span> <span class="n">is_joint_structure</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">))</span>
                 <span class="n">all_args</span> <span class="o">=</span> <span class="n">unwrap_tensor_subclasses</span><span class="p">(</span><span class="n">all_args</span><span class="p">,</span> <span class="n">is_joint_structure</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="n">tangents_start_idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_args</span><span class="p">)</span> <span class="o">-</span> <span class="n">len_tangents</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">rng_args</span><span class="p">)</span>
+                <span class="n">tangents_end_idx</span> <span class="o">=</span> <span class="n">tangents_start_idx</span> <span class="o">+</span> <span class="n">len_tangents</span>
+
+            <span class="c1"># Make the tangents contiguous. Note that we must do this after subclass desugaring</span>
+            <span class="c1"># because inputs to inductor have to be contiguous</span>
+            <span class="n">all_args</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">t</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span> <span class="k">if</span> <span class="n">tangents_start_idx</span> <span class="o">&lt;=</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">tangents_end_idx</span> <span class="k">else</span> <span class="n">t</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">all_args</span><span class="p">)</span>
+            <span class="p">]</span>
 
             <span class="k">def</span> <span class="nf">call_compiled_backward</span><span class="p">():</span>
                 <span class="k">if</span> <span class="n">ctx</span><span class="o">.</span><span class="n">_is_compiled_autograd_tracing</span><span class="p">():</span>
