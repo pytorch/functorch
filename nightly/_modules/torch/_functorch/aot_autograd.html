@@ -227,7 +227,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+git0ed461a) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+git1569df7) &#x25BC</a>
     </div>
     
 
@@ -1456,11 +1456,96 @@
 
         <span class="c1"># Keep track of which outputs alias other outputs</span>
         <span class="n">out_tensor_alias_counts</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="c1"># This tells us, for a given group of outputs that alias each other,</span>
+        <span class="c1"># whether they e.g. all came from an unbind call</span>
+        <span class="n">num_aliased_tensors_that_are_multi_output_views</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
         <span class="n">out_storage_to_tensors</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">set</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">flat_f_outs</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
                 <span class="n">curr_storage</span> <span class="o">=</span> <span class="n">StorageWeakRef</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">untyped_storage</span><span class="p">())</span>
                 <span class="n">out_tensor_alias_counts</span><span class="p">[</span><span class="n">curr_storage</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="c1"># Note: [AOTAutograd: differentiable outputs that alias each other from a multi-output view call]</span>
+                <span class="c1"># This is an optimization on top of the &quot;alias of intermediates&quot; logic,</span>
+                <span class="c1"># which you can read more about under Note [AOT Autograd: outputs aliasing inputs or intermediates!]</span>
+                <span class="c1">#</span>
+                <span class="c1"># Before describing the optimization: this is important for AOTAutograd to have good</span>
+                <span class="c1"># perf around, multi-output views. HOWEVER:</span>
+                <span class="c1"># - There is a more generic change to AOTAutograd that we&#39;d like to make, that subsumes this case,</span>
+                <span class="c1">#   around using pre-dispatch tracing to partition out a graph so we can faithfully replay all</span>
+                <span class="c1">#   views without having to regenerate them at runtime.</span>
+                <span class="c1"># - It&#39;s loosely described in this doc (more details will be added soon):</span>
+                <span class="c1">#   https://docs.google.com/document/d/1DlfFq8TKbuAn2zyJxLfoW-X1qkkm5PLdHFtySo03QAk/edit</span>
+                <span class="c1"># - Once that change lands, we should just rip out this &quot;optimization&quot;, since:</span>
+                <span class="c1">#   (1) It will be fully unnecessary</span>
+                <span class="c1">#   (2) Although it is only a few lines of code, it is a bit difficult to reason about</span>
+                <span class="c1">#       its correctness with the autograd engine in all cases.</span>
+                <span class="c1">#</span>
+                <span class="c1">#</span>
+                <span class="c1"># What is this optimization? Consider the below case:</span>
+                <span class="c1"># def f(x):</span>
+                <span class="c1">#     intermediate = x.mul(2)</span>
+                <span class="c1">#     # x and intermediate here require grad</span>
+                <span class="c1">#     o1, o2, ... o10 = intermediate.unbind(-1)</span>
+                <span class="c1">#     return intermediate, o1, o2, ... o10</span>
+                <span class="c1"># Now, the &quot;intermediate base&quot; handling in AOTAutograd implies that we must do the following:</span>
+                <span class="c1">#   (1) return &quot;intermediate as an extra output of the compiled graph</span>
+                <span class="c1">#   (2) regenerate each aliased output off of &quot;intermediate&quot;, **outside** of the autograd.Function.</span>
+                <span class="c1"># The reason AOTAutograd ordinarily does this is for safety: the autograd engine needs to know</span>
+                <span class="c1"># that o1 through o10 are all aliased, and if we blindly return o1 through o10 from the autograd.Function,</span>
+                <span class="c1"># this information will be hidden.</span>
+                <span class="c1"># In particular, mutating one alias might require autograd to update autograd metadata on the other aliases</span>
+                <span class="c1"># (like their grad_fn, for example, when the autograd engine needs to do view-replay).</span>
+                <span class="c1">#</span>
+                <span class="c1"># However, intermediate_base logic can be bad for backward performance (we sometimes generate</span>
+                <span class="c1"># as_strided calls during the intermediate base logic, which can have a slow backward formula).</span>
+                <span class="c1"># Is it possible to find a set of conditions where it is **safe** to hide the output aliasing from autograd?</span>
+                <span class="c1">#</span>
+                <span class="c1"># For a set of outputs of the graph that alias each other, o_1...o_k, consider:</span>
+                <span class="c1"># (1) They came from the same multi-output view op, e.g. o_1, ..., o_k = intermediate.unbind(0)</span>
+                <span class="c1"># (2) If there are any other aliases of o_1 through o_k (in the example above, intermediate),</span>
+                <span class="c1">#     **at most** 1 can escape from the graph (e.g. there is not some other graph input/output</span>
+                <span class="c1">#     o_other, that aliases these outputs)</span>
+                <span class="c1"># (3) o_1...o_k all require_grad, they all share the same ._base, and their ._base requires grad.</span>
+                <span class="c1">#     This condition is important because it&#39;s what causes slowness in the intermediate_base</span>
+                <span class="c1">#     codepath of aot_autograd. Ordinarily, o_1...o_k would all get a grad_fn, and</span>
+                <span class="c1">#     aot_autograd&#39;s view-replay might give each output an AsStridedBackward as its grad_fn.</span>
+                <span class="c1">#     &quot;K&quot; AsStridedBackward calls will be *much* slower than a single UnbindBackward.</span>
+                <span class="c1"># In this setup, is it possible to mutate one of the outputs o_i in a way that would affect the autograd meta</span>
+                <span class="c1"># of the other aliases?</span>
+                <span class="c1">#</span>
+                <span class="c1"># Claim: No! Consider a few example (which I&#39;m pretty sure cover all cases of mutation w.r.t. autograd):</span>
+                <span class="c1"># (a) What happens if we mutate any of o_1 through o_k directly?</span>
+                <span class="c1">#     Autograd raises an error:</span>
+                <span class="c1">#     &quot;RuntimeError: Output 0 of UnbindBackward0 is a view and is being modified inplace. This view is</span>
+                <span class="c1">#      the output of a function that returns multiple views. Such functions do not allow the output</span>
+                <span class="c1">#      views to be modified inplace. You should replace the inplace operation by an out-of-place one.&quot;</span>
+                <span class="c1"># (b) What if we take a view of o_k and mutate it, o_k.view(o_k.shape).mul_(2)?</span>
+                <span class="c1">#     Autograd raises the same error- the &quot;multi-output-view&quot;ness of an alias propagates to future views.</span>
+                <span class="c1"># (c) What if we mutate o_k under no_grad?</span>
+                <span class="c1">#     Autograd raises the same error</span>
+                <span class="c1"># (d) What if we detach and mutate, e.g. o_k.detach().mul_(2)?</span>
+                <span class="c1">#     Autograd allows this, *but* autograd updates all alias&#39;s grad_fn&#39;s to be error functions when accessed.</span>
+                <span class="c1">#     Autograd raises the same error</span>
+                <span class="c1"># (e) What if we try to mutate another alias of o_1...o_k, that was **not** created from a multi-output view?</span>
+                <span class="c1">#     We promised that there is at most **one** such alias, e.g. intermediate in the example above.</span>
+                <span class="c1">#     You can mutate intermediate, but in eager mode this will change the grad_fn of o_1...o_k</span>
+                <span class="c1">#     to be error fn&#39;s.</span>
+                <span class="c1">#     Since intermediate was the *only* non-multi-output-alias, there are no other aliases</span>
+                <span class="c1">#     of `intermediate` around that were produced by the compiled fn and have a valid grad_fn.</span>
+                <span class="c1">#</span>
+                <span class="c1"># Coming back to this optimization:</span>
+                <span class="c1"># Given that it is not possible for mutating one of these aliases to affect the autograd metadata of another alias</span>
+                <span class="c1"># without causing an error in eager mode, we will simple hide the aliasing from autograd during torch.compile</span>
+                <span class="c1"># if all of the above conditions are met.</span>
+                <span class="c1"># This has the slight downside that it&#39;s possible to write some &quot;bad&quot; code that autograd will raise an error on</span>
+                <span class="c1"># in eager but fail to during torch.compile, but it has the benefit that this code has much better performance.</span>
+                <span class="c1"># NOTE: if and when we eventually update AOTAutograd to do the &quot;view graph slicing&quot; defined here:</span>
+                <span class="c1"># https://docs.google.com/document/d/1DlfFq8TKbuAn2zyJxLfoW-X1qkkm5PLdHFtySo03QAk/edit,</span>
+                <span class="c1"># then this optimization will probably matter less and might be ok to remove.</span>
+                <span class="n">is_cur_tensor_multi_out_view</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">FunctionalTensor</span><span class="p">)</span> \
+                    <span class="ow">and</span> <span class="n">torch</span><span class="o">.</span><span class="n">_functionalize_is_multi_output_view</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">elem</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">is_cur_tensor_multi_out_view</span><span class="p">:</span>
+                    <span class="n">num_aliased_tensors_that_are_multi_output_views</span><span class="p">[</span><span class="n">curr_storage</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
                 <span class="n">out_storage_to_tensors</span><span class="p">[</span><span class="n">curr_storage</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
 
         <span class="c1"># maps the id of an intermediate base to its index in the output of the compiled forward</span>
@@ -1490,7 +1575,24 @@
             <span class="k">elif</span> <span class="n">curr_storage</span> <span class="ow">in</span> <span class="n">inp_storage_refs</span><span class="p">:</span>
                 <span class="n">base_idx</span> <span class="o">=</span> <span class="n">inp_storage_refs</span><span class="p">[</span><span class="n">curr_storage</span><span class="p">]</span>
                 <span class="n">is_input_tensor</span> <span class="o">=</span> <span class="nb">id</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> <span class="ow">in</span> <span class="n">inp_tensor_ids</span>
-                <span class="k">if</span> <span class="n">is_input_tensor</span><span class="p">:</span>
+                <span class="n">num_aliased_outs</span> <span class="o">=</span> <span class="n">out_tensor_alias_counts</span><span class="p">[</span><span class="n">curr_storage</span><span class="p">]</span>
+                <span class="n">num_multi_output_view_outs</span> <span class="o">=</span> <span class="n">num_aliased_tensors_that_are_multi_output_views</span><span class="p">[</span><span class="n">curr_storage</span><span class="p">]</span>
+                <span class="n">num_aliased_outs_that_are_not_multi_output_views</span> <span class="o">=</span> <span class="n">num_aliased_outs</span> <span class="o">-</span> <span class="n">num_multi_output_view_outs</span>
+                <span class="k">if</span> <span class="n">o</span><span class="o">.</span><span class="n">grad_fn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">num_aliased_outs_that_are_not_multi_output_views</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="c1"># See Note: [AOTAutograd: differentiable outputs that alias each other from a multi-output view call]</span>
+                    <span class="c1"># In particular, given:</span>
+                    <span class="c1"># def f(x):</span>
+                    <span class="c1">#     return list(x.unbind(0))</span>
+                    <span class="c1"># The main reason we ordinarily try to regenerate these output aliases outside of the</span>
+                    <span class="c1"># compiled autograd.Function is because if any of the outputs are later mutated,</span>
+                    <span class="c1"># autograd needs to perform view-replay to regenerate them.</span>
+                    <span class="c1"># However, autograd does not allow users to mutate multi-output views</span>
+                    <span class="c1"># in any way that can change the autograd metadata of other aliases.</span>
+                    <span class="c1"># So we hide this aliasing from autograd here.</span>
+                    <span class="n">aot_graphs_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Encountered AOTAutograd case: differentiable outputs that </span><span class="se">\</span>
+<span class="s2">alias each other from a multi-output view call&quot;</span><span class="p">)</span>
+                    <span class="n">output_type</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">non_alias</span>
+                <span class="k">elif</span> <span class="n">is_input_tensor</span><span class="p">:</span>
                     <span class="n">output_type</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">is_input</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">output_type</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_input</span>
@@ -1503,7 +1605,11 @@
                 <span class="ow">and</span> <span class="n">o</span><span class="o">.</span><span class="n">requires_grad</span>
                 <span class="ow">and</span> <span class="n">o</span><span class="o">.</span><span class="n">_base</span><span class="o">.</span><span class="n">requires_grad</span>
             <span class="p">):</span>
-                <span class="k">if</span> <span class="n">out_tensor_alias_counts</span><span class="p">[</span><span class="n">curr_storage</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">num_aliased_outs</span> <span class="o">=</span> <span class="n">out_tensor_alias_counts</span><span class="p">[</span><span class="n">curr_storage</span><span class="p">]</span>
+                <span class="n">num_multi_output_view_outs</span> <span class="o">=</span> <span class="n">num_aliased_tensors_that_are_multi_output_views</span><span class="p">[</span><span class="n">curr_storage</span><span class="p">]</span>
+                <span class="n">num_aliased_outs_that_are_not_multi_output_views</span> <span class="o">=</span> <span class="n">num_aliased_outs</span> <span class="o">-</span> <span class="n">num_multi_output_view_outs</span>
+                <span class="c1"># Note: [AOTAutograd: differentiable outputs that alias each other from a multi-output view call]</span>
+                <span class="k">if</span> <span class="n">out_tensor_alias_counts</span><span class="p">[</span><span class="n">curr_storage</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">num_aliased_outs_that_are_not_multi_output_views</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
                     <span class="c1"># Note [Intermediate Bases Optimization]</span>
                     <span class="c1"># Normally if we have an output that aliases an intermediate,</span>
                     <span class="c1"># we need to add the extra &quot;intermediate base&quot; logic further down</span>
@@ -1516,6 +1622,9 @@
                     <span class="c1"># The &quot;intermediate bases&quot; can hurt inductor perf by forcing more variables to become outputs.</span>
                     <span class="c1"># So as an optimization, we won&#39;t do intermediate base handling in this case.</span>
                     <span class="c1"># Instead, we&#39;ll hide the aliasing from autograd using aten._unsafe_view().</span>
+                    <span class="k">if</span> <span class="n">out_tensor_alias_counts</span><span class="p">[</span><span class="n">curr_storage</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">num_aliased_outs_that_are_not_multi_output_views</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="n">aot_graphs_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Encountered AOTAutograd case: differentiable outputs that alias each other </span><span class="se">\</span>
+<span class="s2">from a multi-output view call&quot;</span><span class="p">)</span>
                     <span class="n">output_type</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">unsafe_view_alias</span>
                     <span class="n">base_idx</span> <span class="o">=</span> <span class="kc">None</span>
                 <span class="k">else</span><span class="p">:</span>
