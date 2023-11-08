@@ -227,7 +227,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+git24b61a4) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+giteb54873) &#x25BC</a>
     </div>
     
 
@@ -3986,7 +3986,7 @@
             <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">partition_fn</span><span class="p">(</span>
                 <span class="n">fx_g</span><span class="p">,</span> <span class="n">joint_inputs</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_inner_fwd_outputs</span>
             <span class="p">)</span>
-            <span class="n">fw_outs</span> <span class="o">=</span> <span class="p">[</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;output&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">fw_outs</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;output&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="c1"># we only need to bookkeep the symints that are saved for bw, not any symints</span>
             <span class="c1"># the user forward might have returned in its own output</span>
             <span class="n">fw_outs_saved_for_bw</span> <span class="o">=</span> <span class="n">fw_outs</span><span class="p">[</span><span class="n">num_inner_fwd_outputs</span><span class="p">:]</span>
@@ -4052,7 +4052,7 @@
         <span class="c1"># If we later backprop through the second output, this will also require backprop&#39;ing through x.</span>
         <span class="c1"># Meaning we&#39;ll need to use `retain_graph=True` to be able to backprop through x the second time.</span>
         <span class="n">_indices_of_inps_to_detach</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">bw_outs</span> <span class="o">=</span> <span class="p">[</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;output&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">bw_outs</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;output&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c1"># TODO: we should apply the below &quot;detach inputs if their gradients are statically known to be None&quot;</span>
         <span class="c1"># optimization even if we have subclass inputs/outputs (we do not handle this today).</span>
@@ -5064,7 +5064,7 @@
     <span class="n">named_buffers</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">named_buffers</span><span class="p">(</span><span class="n">remove_duplicate</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
     <span class="n">num_params_buffers</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">named_params</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">named_buffers</span><span class="p">)</span>
     <span class="n">compiled_f</span> <span class="o">=</span> <span class="n">aot_function</span><span class="p">(</span>
-        <span class="n">functional_call</span><span class="p">,</span> <span class="n">num_params_buffers</span><span class="o">=</span><span class="n">num_params_buffers</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+        <span class="n">functional_call</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">num_params_buffers</span><span class="o">=</span><span class="n">num_params_buffers</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span>
 
     <span class="k">class</span> <span class="nc">AOTModule</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
