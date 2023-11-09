@@ -227,7 +227,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+giteb54873) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+git12c257c) &#x25BC</a>
     </div>
     
 
@@ -377,9 +377,11 @@
 <span class="kn">from</span> <span class="nn">torch._subclasses</span> <span class="kn">import</span> <span class="n">FakeTensor</span><span class="p">,</span> <span class="n">FakeTensorMode</span>
 <span class="kn">from</span> <span class="nn">torch._subclasses.fake_tensor</span> <span class="kn">import</span> <span class="n">is_fake</span>
 <span class="kn">from</span> <span class="nn">torch._subclasses.functional_tensor</span> <span class="kn">import</span> <span class="n">FunctionalTensor</span><span class="p">,</span> <span class="n">FunctionalTensorMode</span>
-<span class="kn">from</span> <span class="nn">torch.fx</span> <span class="kn">import</span> <span class="n">immutable_collections</span><span class="p">,</span> <span class="n">Interpreter</span>
+<span class="kn">from</span> <span class="nn">torch.fx</span> <span class="kn">import</span> <span class="n">Interpreter</span>
 <span class="kn">from</span> <span class="nn">torch.fx.experimental.proxy_tensor</span> <span class="kn">import</span> <span class="n">is_sym_node</span><span class="p">,</span> <span class="n">py_sym_types</span>
-<span class="kn">from</span> <span class="nn">torch.fx.experimental.symbolic_shapes</span> <span class="kn">import</span> <span class="n">ShapeEnv</span><span class="p">,</span> <span class="n">is_concrete_int</span><span class="p">,</span> <span class="n">fx_placeholder_vals</span>
+<span class="kn">from</span> <span class="nn">torch.fx.experimental.symbolic_shapes</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ShapeEnv</span><span class="p">,</span> <span class="n">is_concrete_int</span><span class="p">,</span> <span class="n">fx_placeholder_vals</span><span class="p">,</span> <span class="n">definitely_true</span><span class="p">,</span> <span class="n">definitely_false</span><span class="p">,</span> <span class="n">sym_eq</span>
+<span class="p">)</span>
 <span class="kn">from</span> <span class="nn">torch.multiprocessing.reductions</span> <span class="kn">import</span> <span class="n">StorageWeakRef</span>
 <span class="kn">from</span> <span class="nn">torch.nn.utils</span> <span class="kn">import</span> <span class="n">stateless</span>
 <span class="kn">from</span> <span class="nn">torch.utils._python_dispatch</span> <span class="kn">import</span> <span class="n">is_traceable_wrapper_subclass</span><span class="p">,</span> <span class="n">transform_subclass</span>
@@ -439,19 +441,6 @@
         <span class="c1"># Instead, we&#39;ll treat this output &quot;normally&quot;, and trace its backward into the graph.</span>
         <span class="s2">&quot;custom_function_view&quot;</span><span class="p">,</span>
     <span class="p">)</span>
-<span class="p">)</span>
-
-<span class="n">pytree</span><span class="o">.</span><span class="n">_register_pytree_node</span><span class="p">(</span>
-    <span class="n">immutable_collections</span><span class="o">.</span><span class="n">immutable_list</span><span class="p">,</span>
-    <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="kc">None</span><span class="p">),</span>
-    <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">c</span><span class="p">:</span> <span class="n">immutable_collections</span><span class="o">.</span><span class="n">immutable_list</span><span class="p">(</span><span class="n">x</span><span class="p">),</span>
-<span class="p">)</span>
-<span class="n">pytree</span><span class="o">.</span><span class="n">_register_pytree_node</span><span class="p">(</span>
-    <span class="n">immutable_collections</span><span class="o">.</span><span class="n">immutable_dict</span><span class="p">,</span>
-    <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span> <span class="nb">list</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">keys</span><span class="p">())),</span>
-    <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">c</span><span class="p">:</span> <span class="n">immutable_collections</span><span class="o">.</span><span class="n">immutable_dict</span><span class="p">(</span>
-        <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
-    <span class="p">),</span>
 <span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">partial_asdict</span><span class="p">(</span><span class="n">obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
@@ -1134,10 +1123,10 @@
 
 <span class="k">def</span> <span class="nf">has_same_metadata</span><span class="p">(</span><span class="n">t1</span><span class="p">,</span> <span class="n">t2</span><span class="p">):</span>
     <span class="k">return</span> <span class="p">(</span>
-        <span class="n">t1</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="n">t2</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
-        <span class="ow">and</span> <span class="n">t1</span><span class="o">.</span><span class="n">stride</span><span class="p">()</span> <span class="o">==</span> <span class="n">t2</span><span class="o">.</span><span class="n">stride</span><span class="p">()</span>
-        <span class="ow">and</span> <span class="n">t1</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">()</span> <span class="o">==</span> <span class="n">t2</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">()</span>
-        <span class="ow">and</span> <span class="n">t1</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">()</span> <span class="o">==</span> <span class="n">t2</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">()</span>
+        <span class="n">definitely_true</span><span class="p">(</span><span class="n">sym_eq</span><span class="p">(</span><span class="n">t1</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">t2</span><span class="o">.</span><span class="n">size</span><span class="p">()))</span>
+        <span class="ow">and</span> <span class="n">definitely_true</span><span class="p">(</span><span class="n">sym_eq</span><span class="p">(</span><span class="n">t1</span><span class="o">.</span><span class="n">stride</span><span class="p">(),</span> <span class="n">t2</span><span class="o">.</span><span class="n">stride</span><span class="p">()))</span>
+        <span class="ow">and</span> <span class="n">definitely_true</span><span class="p">(</span><span class="n">t1</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">()</span> <span class="o">==</span> <span class="n">t2</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">())</span>
+        <span class="ow">and</span> <span class="n">definitely_true</span><span class="p">(</span><span class="n">t1</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">()</span> <span class="o">==</span> <span class="n">t2</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">())</span>
         <span class="ow">and</span> <span class="n">t1</span><span class="o">.</span><span class="n">is_conj</span><span class="p">()</span> <span class="o">==</span> <span class="n">t2</span><span class="o">.</span><span class="n">is_conj</span><span class="p">()</span>
         <span class="ow">and</span> <span class="n">t1</span><span class="o">.</span><span class="n">is_neg</span><span class="p">()</span> <span class="o">==</span> <span class="n">t2</span><span class="o">.</span><span class="n">is_neg</span><span class="p">()</span>
     <span class="p">)</span>
@@ -2117,8 +2106,11 @@
                 <span class="c1"># A bit sketchy, but fixes e.g. test_aot_autograd_exhaustive_matmul_cpu_float32</span>
                 <span class="c1"># The issue is that we are sensitive to decomps that don&#39;t accurately maintain</span>
                 <span class="c1"># their output&#39;s _base.shape compared to eager mode, and this helps mitigate a bit.</span>
+                <span class="c1"># The not definitely_false is also sketchy; if unbacked</span>
+                <span class="c1"># symints are involved, we&#39;re just going to assume that the</span>
+                <span class="c1"># decomps setup the base shape correctly</span>
                 <span class="n">needed_outs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                    <span class="n">out</span> <span class="k">if</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">tangent</span><span class="o">.</span><span class="n">shape</span> <span class="k">else</span> <span class="n">out</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">tangent</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+                    <span class="n">out</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">definitely_false</span><span class="p">(</span><span class="n">sym_eq</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">tangent</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span> <span class="k">else</span> <span class="n">out</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">tangent</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
                 <span class="p">)</span>
                 <span class="n">needed_tangents</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tangent</span><span class="p">)</span>
 
