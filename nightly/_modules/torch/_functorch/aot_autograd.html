@@ -227,7 +227,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+git12c257c) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+gitbf452dc) &#x25BC</a>
     </div>
     
 
@@ -812,6 +812,12 @@
     <span class="n">requires_grad</span><span class="p">:</span> <span class="nb">bool</span>
 
 
+<span class="k">class</span> <span class="nc">MutationType</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="n">NOT_MUTATED</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">MUTATED_IN_GRAPH</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">MUTATED_OUT_GRAPH</span> <span class="o">=</span> <span class="mi">3</span>
+
+
 <span class="c1"># This class tells us info about user inputs.</span>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span> <span class="nc">InputAliasInfo</span><span class="p">:</span>
@@ -820,6 +826,7 @@
     <span class="n">mutates_metadata</span><span class="p">:</span> <span class="nb">bool</span>
     <span class="n">mutations_hidden_from_autograd</span><span class="p">:</span> <span class="nb">bool</span>
     <span class="n">requires_grad</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">mutation_type</span><span class="p">:</span> <span class="n">MutationType</span>
 
 
 <span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
@@ -869,6 +876,7 @@
     <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># sanity assert to make sure we don&#39;t leak memory</span>
         <span class="k">assert</span> <span class="n">is_fake</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">original_subclass</span><span class="p">)</span>
+
 
 <span class="c1"># This class encapsulates all aliasing + mutation info we need about the forward graph</span>
 <span class="c1"># See a more detailed overview of the edge case handling at</span>
@@ -928,6 +936,9 @@
     <span class="c1"># TODO: we should kill this</span>
     <span class="c1"># (need to default it to not break internal)</span>
     <span class="n">is_train</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="c1"># We&#39;re plumbing this requires_subclass_dispatch here is because it&#39;s painful to support input mutations</span>
+    <span class="c1"># on subclasses, and that info isn&#39;t easily available.</span>
+    <span class="n">requires_subclass_dispatch</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="n">num_symints_saved_for_bw</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -940,14 +951,31 @@
 
     <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">mutated_inp_indices</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span> <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">mutates_metadata</span> <span class="ow">or</span> <span class="n">m</span><span class="o">.</span><span class="n">mutates_data</span>
+            <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">mutation_type</span> <span class="ow">in</span> <span class="p">(</span><span class="n">MutationType</span><span class="o">.</span><span class="n">MUTATED_IN_GRAPH</span><span class="p">,</span> <span class="n">MutationType</span><span class="o">.</span><span class="n">MUTATED_OUT_GRAPH</span><span class="p">)</span>
         <span class="p">]</span>
         <span class="c1"># pre-compute the indices of the inputs that are mutated.</span>
         <span class="c1"># When keep_input_mutations is set, we don&#39;t need to worry about our epilogue</span>
         <span class="c1"># handling data-only mutations, because we keep them directly in the graph.</span>
-        <span class="n">mutated_inp_runtime_indices</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span> <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">mutates_metadata</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_input_mutations</span> <span class="ow">and</span> <span class="n">m</span><span class="o">.</span><span class="n">mutates_data</span><span class="p">)</span>
+
+        <span class="c1"># TODO (tmanlaibaatar) Ideally input mutation type should be calculated</span>
+        <span class="c1"># based on requires_subclass_dispatch argument but this is not easy to do because you would</span>
+        <span class="c1"># have to pass around this argument multiple level down.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">requires_subclass_dispatch</span><span class="p">:</span>
+            <span class="n">mutated_inp_runtime_indices</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">mutation_type</span> <span class="o">==</span> <span class="n">MutationType</span><span class="o">.</span><span class="n">MUTATED_OUT_GRAPH</span><span class="p">)</span>
+            <span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mutated_inp_runtime_indices</span> <span class="o">=</span> <span class="n">mutated_inp_indices</span>
+
+        <span class="n">mutated_graph_handled_indices</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_info</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">mutation_type</span> <span class="o">==</span> <span class="n">MutationType</span><span class="o">.</span><span class="n">MUTATED_IN_GRAPH</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">requires_subclass_dispatch</span>
         <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mutated_graph_handled_indices</span> <span class="o">=</span> <span class="n">mutated_graph_handled_indices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_graph_handled_indices</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mutated_graph_handled_indices</span><span class="p">)</span>
+
         <span class="n">aliased_out_indices</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">i</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span>
@@ -962,6 +990,13 @@
         <span class="c1"># It contains the index of every element</span>
         <span class="c1"># of input_info that corresponds to a mutation (data or metadata or both)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mutated_inp_runtime_indices</span> <span class="o">=</span> <span class="n">mutated_inp_runtime_indices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_inp_runtime_indices</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mutated_inp_runtime_indices</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_graph_handled_indices</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_inp_runtime_indices</span> <span class="o">==</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">mutated_inp_indices</span><span class="p">)</span>
+        <span class="p">)</span>
+
         <span class="c1"># This is pre-computed for perf.</span>
         <span class="c1"># It contains the index of every element</span>
         <span class="c1"># of output_info that corresponds to an alias (either of an input or intermediate)</span>
@@ -1000,6 +1035,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_data_inputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
             <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_info</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_data</span><span class="p">]</span>
         <span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_metadata_inputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
             <span class="p">[</span>
                 <span class="n">x</span>
@@ -1035,7 +1071,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs_rng_offset</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_rng_op_functionalized</span> <span class="k">else</span> <span class="mi">0</span>
 
         <span class="c1"># Our forward() returns both (mutated_inputs, outputs, output_intermediate_bases, saved_tensors, saved_symints)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">num_forward_returns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_forward_returns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_mutated_inp_runtime_indices</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
         <span class="c1"># In case of functionalization of rng ops, the fw_module returns one</span>
         <span class="c1"># additional output for rng offset. This rng offset is used right</span>
         <span class="c1"># away to advance the rng state, and is not passed on to the raw</span>
@@ -1383,6 +1419,7 @@
     <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
     <span class="c1"># TODO: refactor to kill this flag</span>
     <span class="n">is_train</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">requires_subclass_dispatch</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ViewAndMutationMeta</span><span class="p">:</span>
     <span class="n">memo</span> <span class="o">=</span> <span class="p">{}</span>
 
@@ -1443,12 +1480,15 @@
                 <span class="n">mutates_metadata</span> <span class="o">=</span> <span class="kc">False</span>
                 <span class="n">mutations_hidden_from_autograd</span> <span class="o">=</span> <span class="kc">False</span>
 
+            <span class="n">requires_grad</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">f_arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">f_arg</span><span class="o">.</span><span class="n">requires_grad</span>
+
             <span class="n">input_info</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">InputAliasInfo</span><span class="p">(</span>
                 <span class="n">is_leaf</span><span class="o">=</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">safe_is_leaf</span><span class="p">(</span><span class="n">arg</span><span class="p">),</span>
                 <span class="n">mutates_data</span><span class="o">=</span><span class="n">mutates_data</span><span class="p">,</span>
                 <span class="n">mutates_metadata</span><span class="o">=</span><span class="n">mutates_metadata</span><span class="p">,</span>
                 <span class="n">mutations_hidden_from_autograd</span><span class="o">=</span><span class="n">mutations_hidden_from_autograd</span><span class="p">,</span>
-                <span class="n">requires_grad</span><span class="o">=</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">f_arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">f_arg</span><span class="o">.</span><span class="n">requires_grad</span>
+                <span class="n">requires_grad</span><span class="o">=</span><span class="n">requires_grad</span><span class="p">,</span>
+                <span class="n">mutation_type</span><span class="o">=</span><span class="n">_get_mutation_type</span><span class="p">(</span><span class="n">keep_input_mutations</span><span class="p">,</span> <span class="n">is_train</span><span class="p">,</span> <span class="n">mutates_data</span><span class="p">,</span> <span class="n">mutates_metadata</span><span class="p">,</span> <span class="n">requires_grad</span><span class="p">)</span>
             <span class="p">))</span>
 
         <span class="c1"># If a function involves creating a tensor, and returning a view of it, such that its _base is the intermediate,</span>
@@ -1778,6 +1818,7 @@
             <span class="n">subclass_tangent_meta</span><span class="o">=</span><span class="n">create_subclass_meta</span><span class="p">(</span><span class="n">traced_tangents</span><span class="p">),</span>
             <span class="n">is_train</span><span class="o">=</span><span class="n">is_train</span><span class="p">,</span>
             <span class="n">grad_enabled_mutation</span><span class="o">=</span><span class="n">grad_enabled_mutation</span><span class="p">,</span>
+            <span class="n">requires_subclass_dispatch</span><span class="o">=</span><span class="n">requires_subclass_dispatch</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">metadata</span>
 
@@ -1953,9 +1994,9 @@
 <span class="k">def</span> <span class="nf">maybe_to_fresh_input</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">meta</span><span class="p">):</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">t</span>
-    <span class="k">if</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutated_inp_indices</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutated_inp_runtime_indices</span><span class="p">:</span>
         <span class="c1"># We only need to bother cloning mutated inputs that participate in autograd.</span>
-        <span class="n">mutated_inp_idx</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutated_inp_indices</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+        <span class="n">mutated_inp_idx</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutated_inp_runtime_indices</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">requires_grad</span> <span class="ow">and</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span><span class="p">:</span>
             <span class="c1"># Make sure the primal we pass to autograd.grad()</span>
             <span class="c1"># sees the tensor before the mutation</span>
@@ -2019,7 +2060,7 @@
         <span class="n">mutated_inputs_to_return</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">x</span>
             <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args_maybe_cloned</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_metadata</span> <span class="ow">or</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutated_inp_runtime_indices</span>
         <span class="p">]</span>
 
         <span class="n">intermediate_bases</span> <span class="o">=</span> <span class="p">[]</span>
@@ -2034,7 +2075,8 @@
 
         <span class="c1"># Also return a boolean mask specifying which outputs to this function will be used as tangents</span>
         <span class="n">mutated_inputs_grad_mask</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">meta</span><span class="o">.</span><span class="n">mutated_inp_indices</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">and</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">meta</span><span class="o">.</span><span class="n">mutated_inp_indices</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span><span class="o">.</span><span class="n">requires_grad</span>
+            <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">meta</span><span class="o">.</span><span class="n">mutated_inp_runtime_indices</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">and</span>
+            <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">meta</span><span class="o">.</span><span class="n">mutated_inp_runtime_indices</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span><span class="o">.</span><span class="n">requires_grad</span>
             <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">mutated_inputs_to_return</span><span class="p">)</span>
         <span class="p">]</span>
 
@@ -2182,7 +2224,7 @@
             <span class="c1"># Run the joint</span>
             <span class="n">f_outs</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">f_args</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">trace_joint</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">:</span>
             <span class="c1"># Note: This is a bit annoying. There&#39;s a layering issue here, where:</span>
             <span class="c1"># (1) functionalization needs to operate on **synthetic base** inputs, before unpacking them into the &quot;real&quot; inputs.</span>
             <span class="c1"># (2) For keep_input_mutations, we support tracing a call to copy_() directly on mutated inputs.</span>
@@ -2207,16 +2249,15 @@
             <span class="c1"># we will materialize an &quot;updated&quot; synthetic base, and copy it back to the synthetic input base.</span>
             <span class="c1"># This allows us to factor aot autograd much more nicely, since only one area of the code needs to worry</span>
             <span class="c1"># about synthetic bases.</span>
-            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">inpt_old</span><span class="p">,</span> <span class="n">inpt_f</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">f_args</span><span class="p">)):</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">inpt_old</span><span class="p">,</span> <span class="n">inpt_f</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">f_args</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">trace_joint</span> <span class="k">else</span> <span class="nb">zip</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">f_args</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inpt_f</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
                     <span class="k">continue</span>
                 <span class="k">assert</span> <span class="n">is_fun</span><span class="p">(</span><span class="n">inpt_f</span><span class="p">)</span>
                 <span class="n">inpt_new</span> <span class="o">=</span> <span class="n">from_fun</span><span class="p">(</span><span class="n">inpt_f</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_metadata</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutation_type</span> <span class="o">==</span> <span class="n">MutationType</span><span class="o">.</span><span class="n">MUTATED_IN_GRAPH</span><span class="p">:</span>
                     <span class="c1"># We found an input that had a (data-only) mutation.</span>
                     <span class="c1"># Since keep_input_mutations is set, we need to faithfully apply a copy_()</span>
                     <span class="c1"># so the compiler will see the input mutation in the graph.</span>
-                    <span class="k">assert</span> <span class="n">inpt_new</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">inpt_old</span>
                     <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mutations_hidden_from_autograd</span><span class="p">:</span>
                         <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">(),</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">_unsafe_preserve_version_counter</span><span class="p">(</span><span class="n">inpt_old</span><span class="p">):</span>
                             <span class="n">inpt_old</span><span class="o">.</span><span class="n">copy_</span><span class="p">(</span><span class="n">inpt_new</span><span class="p">)</span>
@@ -2364,7 +2405,8 @@
         <span class="n">fn_to_trace</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">=</span><span class="n">aot_config</span><span class="p">,</span> <span class="n">trace_joint</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
     <span class="n">fn_to_trace</span><span class="p">,</span> <span class="n">updated_flat_args_subclasses_desugared</span><span class="p">,</span> <span class="n">maybe_subclass_meta</span> <span class="o">=</span> <span class="n">aot_dispatch_subclass</span><span class="p">(</span>
-        <span class="n">fn_to_trace</span><span class="p">,</span> <span class="n">updated_flat_args</span><span class="p">,</span> <span class="n">is_joint_structure</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span> <span class="n">fw_only</span><span class="o">=</span><span class="n">flat_fn</span><span class="p">)</span>
+        <span class="n">fn_to_trace</span><span class="p">,</span> <span class="n">updated_flat_args</span><span class="p">,</span> <span class="n">is_joint_structure</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span> <span class="n">fw_only</span><span class="o">=</span><span class="n">flat_fn</span>
+    <span class="p">)</span>
 
     <span class="n">fw_module</span> <span class="o">=</span> <span class="n">create_graph</span><span class="p">(</span>
         <span class="n">fn_to_trace</span><span class="p">,</span>
@@ -2576,6 +2618,25 @@
                 <span class="n">actual_aliased_indices</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">i_</span><span class="p">)</span>
                 <span class="n">actual_aliased_indices</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">j_</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">actual_aliased_indices</span>
+
+
+<span class="k">def</span> <span class="nf">_check_if_mutation_can_be_in_graph</span><span class="p">(</span><span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">is_train</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">mutates_data</span><span class="p">,</span> <span class="n">mutates_metadata</span><span class="p">,</span> <span class="n">requires_grad</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">keep_input_mutations</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">is_train</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">mutates_data</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">mutates_metadata</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">requires_grad</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="n">mutates_metadata</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+
+<span class="k">def</span> <span class="nf">_get_mutation_type</span><span class="p">(</span><span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">is_train</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">mutates_data</span><span class="p">,</span> <span class="n">mutates_metadata</span><span class="p">,</span> <span class="n">requires_grad</span><span class="p">):</span>
+    <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">mutates_data</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">mutates_metadata</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">MutationType</span><span class="o">.</span><span class="n">NOT_MUTATED</span>
+
+    <span class="k">if</span> <span class="n">_check_if_mutation_can_be_in_graph</span><span class="p">(</span><span class="n">keep_input_mutations</span><span class="p">,</span> <span class="n">is_train</span><span class="p">,</span> <span class="n">mutates_data</span><span class="p">,</span> <span class="n">mutates_metadata</span><span class="p">,</span> <span class="n">requires_grad</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">MutationType</span><span class="o">.</span><span class="n">MUTATED_IN_GRAPH</span>
+
+    <span class="k">return</span> <span class="n">MutationType</span><span class="o">.</span><span class="n">MUTATED_OUT_GRAPH</span>
+
 
 <span class="c1"># Note [Handling mutations on an input that aliases other inputs]</span>
 <span class="c1"># The easiest example to show-case this edge case is here:</span>
@@ -2815,7 +2876,7 @@
     <span class="n">num_data_mutations</span> <span class="o">=</span> <span class="nb">len</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">m</span><span class="o">.</span><span class="n">input_info</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_data</span><span class="p">])</span>
     <span class="n">other_traced_tangents</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">traced_tangents</span><span class="p">[</span><span class="n">num_data_mutations</span><span class="p">:]</span>
     <span class="n">inp_traced_tangents</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">traced_tangents</span><span class="p">[:</span><span class="n">num_data_mutations</span><span class="p">]</span>
-    <span class="n">filtered_inp_traced_tangents</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inp_traced_tangents</span><span class="p">)</span> <span class="k">if</span> <span class="n">keep_arg_mask</span><span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">mutated_inp_indices</span><span class="p">[</span><span class="n">i</span><span class="p">]]]</span>
+    <span class="n">filtered_inp_traced_tangents</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inp_traced_tangents</span><span class="p">)</span> <span class="k">if</span> <span class="n">keep_arg_mask</span><span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">mutated_inp_runtime_indices</span><span class="p">[</span><span class="n">i</span><span class="p">]]]</span>
     <span class="n">traced_tangents</span> <span class="o">=</span> <span class="n">filtered_inp_traced_tangents</span> <span class="o">+</span> <span class="n">other_traced_tangents</span>
 
     <span class="k">return</span> <span class="n">ViewAndMutationMeta</span><span class="p">(</span>
@@ -2839,7 +2900,7 @@
         <span class="n">subclass_inp_meta</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">subclass_fw_graph_out_meta</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">subclass_tangent_meta</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">is_train</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">is_train</span><span class="p">,</span>
+        <span class="n">is_train</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">is_train</span>
     <span class="p">)</span>
 
 <span class="c1"># Given our ViewAndMutation metadata, this fn constructs a new set of metadata,</span>
@@ -2881,18 +2942,25 @@
         <span class="n">any_leaf</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">is_leaf</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">outer_indices</span><span class="p">)</span>
         <span class="n">all_leaf</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">is_leaf</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">outer_indices</span><span class="p">)</span>
         <span class="k">assert</span> <span class="n">any_leaf</span> <span class="o">==</span> <span class="n">all_leaf</span>
+
+        <span class="n">mutates_data</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">outer_indices</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">m</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">outer_indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">mutates_data</span>
+        <span class="n">mutates_metadata</span> <span class="o">=</span> <span class="kc">False</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">outer_indices</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">m</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">outer_indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">mutates_metadata</span>
+        <span class="n">requires_grad</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">requires_grad</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">outer_indices</span><span class="p">)</span>
+
         <span class="n">inpt_info</span> <span class="o">=</span> <span class="n">InputAliasInfo</span><span class="p">(</span>
             <span class="c1"># If len(outer_indices) &gt; 1, then this input is a synthetic base.</span>
             <span class="c1"># The invariant is that to the rest of aot autograd, synthetic bases only show up if</span>
             <span class="c1"># one of their aliases gets a data mutation. And if any of their aliases get metadata</span>
             <span class="c1"># mutations, they will be hidden from the rest of aot autograd.</span>
-            <span class="n">mutates_data</span><span class="o">=</span><span class="kc">True</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">outer_indices</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">m</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">outer_indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">mutates_data</span><span class="p">,</span>
-            <span class="n">mutates_metadata</span><span class="o">=</span><span class="kc">False</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">outer_indices</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">m</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">outer_indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">mutates_metadata</span><span class="p">,</span>
+            <span class="n">mutates_data</span><span class="o">=</span><span class="n">mutates_data</span><span class="p">,</span>
+            <span class="n">mutates_metadata</span><span class="o">=</span><span class="n">mutates_metadata</span><span class="p">,</span>
             <span class="n">mutations_hidden_from_autograd</span><span class="o">=</span><span class="nb">all</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">mutations_hidden_from_autograd</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">outer_indices</span><span class="p">),</span>
             <span class="n">is_leaf</span><span class="o">=</span><span class="n">any_leaf</span><span class="p">,</span>
-            <span class="n">requires_grad</span><span class="o">=</span><span class="nb">any</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">requires_grad</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">outer_indices</span><span class="p">)</span>
+            <span class="n">requires_grad</span><span class="o">=</span><span class="n">requires_grad</span><span class="p">,</span>
+            <span class="n">mutation_type</span><span class="o">=</span><span class="n">_get_mutation_type</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">keep_input_mutations</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">is_train</span><span class="p">,</span> <span class="n">mutates_data</span><span class="p">,</span> <span class="n">mutates_metadata</span><span class="p">,</span> <span class="n">requires_grad</span><span class="p">)</span>
         <span class="p">)</span>
         <span class="n">input_infos</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">inpt_info</span><span class="p">)</span>
+
 
     <span class="c1"># Find any inputs that fulfill the following criteria:</span>
     <span class="c1"># (1) They are part of a synthetic base (because they alias another input,</span>
@@ -2947,7 +3015,7 @@
         <span class="n">subclass_inp_meta</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">subclass_fw_graph_out_meta</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">subclass_tangent_meta</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">is_train</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">is_train</span><span class="p">,</span>
+        <span class="n">is_train</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">is_train</span>
     <span class="p">),</span> <span class="n">outer_aliased_arg_idx_with_metadata_mutations</span>
 
 <span class="c1"># MOTIVATION:</span>
@@ -3408,27 +3476,43 @@
                 <span class="p">)</span>
 
         <span class="n">num_mutated_inps</span> <span class="o">=</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_mutated_inputs</span>
+        <span class="n">num_mutated_runtime_inps</span> <span class="o">=</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_mutated_inp_runtime_indices</span>
         <span class="n">num_metadata_mutated_inps</span> <span class="o">=</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_mutated_metadata_inputs</span>
         <span class="n">num_intermediate_bases</span> <span class="o">=</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
 
         <span class="k">if</span> <span class="n">keep_input_mutations</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="p">(</span>
-                <span class="nb">len</span><span class="p">(</span><span class="n">all_outs</span><span class="p">)</span>
-                <span class="o">==</span> <span class="n">num_metadata_mutated_inps</span> <span class="o">+</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
-            <span class="p">)</span>
-            <span class="k">assert</span> <span class="p">(</span>
-                <span class="nb">len</span><span class="p">(</span><span class="n">runtime_metadata</span><span class="o">.</span><span class="n">mutated_inp_runtime_indices</span><span class="p">)</span> <span class="o">==</span> <span class="n">num_metadata_mutated_inps</span>
-            <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">trace_joint</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="p">(</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">all_outs</span><span class="p">)</span>
+                    <span class="o">==</span> <span class="n">num_metadata_mutated_inps</span> <span class="o">+</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
+                <span class="p">)</span>
+                <span class="k">assert</span> <span class="p">(</span>
+                    <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_mutated_inp_runtime_indices</span> <span class="o">==</span> <span class="n">num_metadata_mutated_inps</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">num_graph_handled</span> <span class="o">=</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_mutated_graph_handled_indices</span>
+                <span class="c1"># autograd.Function requires us to return the mutated inputs as extra outputs to the autograd.Function.forward</span>
+                <span class="k">if</span> <span class="n">num_graph_handled</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">all_outs</span> <span class="o">=</span> <span class="n">all_outs</span><span class="p">[:</span><span class="o">-</span><span class="n">num_graph_handled</span><span class="p">]</span>
+                <span class="k">assert</span> <span class="p">(</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">all_outs</span><span class="p">)</span>
+                    <span class="o">==</span> <span class="n">num_mutated_runtime_inps</span> <span class="o">+</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
+                <span class="p">)</span>
+                <span class="k">assert</span> <span class="p">(</span>
+                    <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_mutated_inp_runtime_indices</span> <span class="o">==</span> <span class="n">num_mutated_runtime_inps</span>
+                <span class="p">)</span>
+
         <span class="k">else</span><span class="p">:</span>
             <span class="k">assert</span> <span class="p">(</span>
                 <span class="nb">len</span><span class="p">(</span><span class="n">all_outs</span><span class="p">)</span>
                 <span class="o">==</span> <span class="n">num_mutated_inps</span> <span class="o">+</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
             <span class="p">)</span>
             <span class="k">assert</span> <span class="p">(</span>
-                <span class="nb">len</span><span class="p">(</span><span class="n">runtime_metadata</span><span class="o">.</span><span class="n">mutated_inp_runtime_indices</span><span class="p">)</span> <span class="o">==</span> <span class="n">num_mutated_inps</span>
+                <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_mutated_inp_runtime_indices</span> <span class="o">==</span> <span class="n">num_mutated_inps</span>
             <span class="p">)</span>
+
         <span class="c1"># Step 3: After running the compiled fw, apply updates to mutated inputs</span>
-        <span class="n">num_mutations_to_apply</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">runtime_metadata</span><span class="o">.</span><span class="n">mutated_inp_runtime_indices</span><span class="p">)</span>
+        <span class="n">num_mutations_to_apply</span> <span class="o">=</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">num_mutated_inp_runtime_indices</span>
         <span class="k">if</span> <span class="n">num_mutations_to_apply</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">updated_inputs</span> <span class="o">=</span> <span class="n">all_outs</span><span class="p">[:</span> <span class="n">num_mutations_to_apply</span><span class="p">]</span>
             <span class="n">fw_outs</span> <span class="o">=</span> <span class="n">all_outs</span><span class="p">[</span><span class="n">num_mutations_to_apply</span> <span class="p">:]</span>
@@ -3492,8 +3576,8 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">fw_outs_no_intermediate_bases</span> <span class="o">=</span> <span class="n">fw_outs</span>
                 <span class="n">intermediate_bases</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_outs_no_intermediate_bases</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">runtime_metadata</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span>
 
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_outs_no_intermediate_bases</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">runtime_metadata</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span>
             <span class="n">fw_outs_including_aliases</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span>
                 <span class="n">fw_outs_no_intermediate_bases</span><span class="p">,</span> <span class="n">runtime_metadata</span><span class="o">.</span><span class="n">output_info</span>
@@ -3886,6 +3970,7 @@
         <span class="n">metadata_fn</span><span class="p">,</span>
         <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">keep_input_mutations</span><span class="p">,</span>
         <span class="n">is_train</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">is_train</span><span class="p">,</span>
+        <span class="n">requires_subclass_dispatch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)(</span><span class="o">*</span><span class="n">primals_unwrapped</span><span class="p">)</span>
 
     <span class="n">subclass_meta</span><span class="o">.</span><span class="n">fw_metadata</span> <span class="o">=</span> <span class="n">meta_updated</span>
@@ -3927,7 +4012,8 @@
     <span class="p">)</span>
 
     <span class="n">subclass_tracing_info</span> <span class="o">=</span> <span class="n">aot_dispatch_subclass</span><span class="p">(</span>
-        <span class="n">joint_fn_to_trace</span><span class="p">,</span> <span class="n">updated_joint_inputs</span><span class="p">,</span> <span class="n">is_joint_structure</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span> <span class="n">fw_only</span><span class="o">=</span><span class="n">flat_fn</span><span class="p">)</span>
+        <span class="n">joint_fn_to_trace</span><span class="p">,</span> <span class="n">updated_joint_inputs</span><span class="p">,</span> <span class="n">is_joint_structure</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span> <span class="n">fw_only</span><span class="o">=</span><span class="n">flat_fn</span>
+    <span class="p">)</span>
 
     <span class="n">joint_fn_to_trace</span> <span class="o">=</span> <span class="n">subclass_tracing_info</span><span class="o">.</span><span class="n">plain_tensor_trace_fn</span>
     <span class="n">updated_joint_inputs</span> <span class="o">=</span> <span class="n">subclass_tracing_info</span><span class="o">.</span><span class="n">plain_tensor_args</span>
@@ -3936,7 +4022,7 @@
     <span class="n">fx_g</span> <span class="o">=</span> <span class="n">create_graph</span><span class="p">(</span><span class="n">joint_fn_to_trace</span><span class="p">,</span> <span class="n">updated_joint_inputs</span><span class="p">,</span> <span class="n">aot_config</span><span class="o">=</span><span class="n">aot_config</span><span class="p">)</span>
 
     <span class="c1"># There should be *NO* mutating ops in the graph at this point.</span>
-    <span class="n">assert_functional_graph</span><span class="p">(</span><span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
+    <span class="n">assert_functional_graph</span><span class="p">(</span><span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">allow_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">)</span>
 
     <span class="c1"># Redundant with the check above, but worth having in case tracing introduced</span>
     <span class="c1"># a fake tensor. Unlikely.</span>
@@ -3970,7 +4056,7 @@
         <span class="k">with</span> <span class="n">track_graph_compiling</span><span class="p">(</span><span class="n">aot_config</span><span class="p">,</span> <span class="s2">&quot;joint&quot;</span><span class="p">):</span>
             <span class="c1"># See Note: [Partitioner handling for Subclasses, Part 1]</span>
             <span class="n">num_inner_fwd_outputs</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">inner_meta</span><span class="o">.</span><span class="n">num_mutated_inputs</span>
+                <span class="n">inner_meta</span><span class="o">.</span><span class="n">num_mutated_inp_runtime_indices</span>
                 <span class="o">+</span> <span class="n">inner_meta</span><span class="o">.</span><span class="n">num_outputs</span>
                 <span class="o">+</span> <span class="n">inner_meta</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
                 <span class="o">+</span> <span class="n">inner_meta</span><span class="o">.</span><span class="n">num_outputs_rng_offset</span>
@@ -4178,6 +4264,12 @@
         <span class="nd">@staticmethod</span>
         <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="o">*</span><span class="n">deduped_flat_tensor_args</span><span class="p">):</span>
             <span class="n">args</span> <span class="o">=</span> <span class="n">deduped_flat_tensor_args</span>
+
+            <span class="n">marked_dirty_inps</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">mutated_graph_handled_indices</span><span class="p">:</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">mark_dirty</span><span class="p">(</span><span class="n">deduped_flat_tensor_args</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                <span class="n">marked_dirty_inps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">deduped_flat_tensor_args</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+
             <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">is_rng_op_functionalized</span><span class="p">:</span>
                 <span class="c1"># Add the seed and offset to args</span>
                 <span class="n">seed</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">CUDARngStateHelper</span><span class="o">.</span><span class="n">get_torch_state_as_tuple</span><span class="p">()</span>
@@ -4198,6 +4290,7 @@
             <span class="n">num_intermediate_bases</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
             <span class="n">num_symints_saved_for_bw</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">num_symints_saved_for_bw</span>
             <span class="n">num_mutated_inputs</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_mutated_inputs</span>
+            <span class="n">num_mutated_runtime_inps</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_mutated_inp_runtime_indices</span>
             <span class="n">num_mutated_metadata_only_inputs</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_mutated_metadata_only_inputs</span>
             <span class="p">)</span>
@@ -4243,26 +4336,27 @@
 
             <span class="k">if</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_unsafe_view_outputs</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">unsafe_view_out_indices</span><span class="p">:</span>
-                    <span class="n">raw_return_idx</span> <span class="o">=</span> <span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="n">idx</span>
+                    <span class="n">raw_return_idx</span> <span class="o">=</span> <span class="n">num_mutated_runtime_inps</span> <span class="o">+</span> <span class="n">idx</span>
                     <span class="n">o</span> <span class="o">=</span> <span class="n">raw_returns</span><span class="p">[</span><span class="n">raw_return_idx</span><span class="p">]</span>
                     <span class="n">raw_returns</span><span class="p">[</span><span class="n">raw_return_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">_unsafe_view</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">o</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="n">num_outputs_aliased</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">aliased_out_indices</span><span class="p">:</span>
-                    <span class="n">raw_return_idx</span> <span class="o">=</span> <span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="n">idx</span>
+                    <span class="n">raw_return_idx</span> <span class="o">=</span> <span class="n">num_mutated_runtime_inps</span> <span class="o">+</span> <span class="n">idx</span>
                     <span class="n">raw_returns</span><span class="p">[</span><span class="n">raw_return_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">TensorAlias</span><span class="p">(</span><span class="n">raw_returns</span><span class="p">[</span><span class="n">raw_return_idx</span><span class="p">])</span>
 
                 <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_assert</span><span class="p">:</span>
-                    <span class="n">intermediates_raw</span> <span class="o">=</span> <span class="n">raw_returns</span><span class="p">[</span><span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="n">num_outputs</span><span class="p">:]</span>
+                    <span class="n">intermediates_raw</span> <span class="o">=</span> <span class="n">raw_returns</span><span class="p">[</span><span class="n">num_mutated_runtime_inps</span> <span class="o">+</span> <span class="n">num_outputs</span><span class="p">:]</span>
                     <span class="k">assert</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">TensorAlias</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">intermediates_raw</span><span class="p">)</span>
 
             <span class="c1"># invariant: intermediate bases always require gradients, so we don&#39;t have to</span>
             <span class="c1"># consider marking them as non-differentiable.</span>
-            <span class="n">raw_returns_not_including_intermediate_bases</span> <span class="o">=</span> <span class="n">raw_returns</span><span class="p">[:</span><span class="n">num_mutated_inputs</span> <span class="o">+</span> <span class="n">num_outputs</span><span class="p">]</span>
-
+            <span class="n">raw_returns_not_including_intermediate_bases</span> <span class="o">=</span> <span class="n">raw_returns</span><span class="p">[:</span><span class="n">num_mutated_runtime_inps</span> <span class="o">+</span> <span class="n">num_outputs</span><span class="p">]</span>
             <span class="n">raw_returns_meta</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">input_info</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">or</span> <span class="n">x</span><span class="o">.</span><span class="n">mutates_metadata</span><span class="p">]</span>
-                <span class="o">+</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">output_info</span>
+                <span class="p">[</span>
+                    <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">input_info</span>
+                    <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">mutation_type</span> <span class="o">==</span> <span class="n">MutationType</span><span class="o">.</span><span class="n">MUTATED_OUT_GRAPH</span>
+                <span class="p">]</span> <span class="o">+</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">output_info</span>
             <span class="p">)</span>
 
             <span class="n">fw_outs_not_requiring_grad</span> <span class="o">=</span> <span class="p">[</span>
@@ -4279,7 +4373,7 @@
                 <span class="n">fw_outs</span><span class="p">[</span><span class="n">num_forward_returns</span><span class="p">:</span><span class="n">num_forward</span><span class="p">],</span>
                 <span class="n">return_new_outs</span><span class="o">=</span><span class="kc">False</span>
             <span class="p">)</span>
-            <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">raw_returns</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">raw_returns</span><span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">marked_dirty_inps</span><span class="p">)</span>
 
         <span class="nd">@staticmethod</span>
         <span class="k">def</span> <span class="nf">backward</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="o">*</span><span class="n">flat_args</span><span class="p">):</span>
@@ -4294,27 +4388,31 @@
             <span class="c1"># and we filter them out here before passing the remaining grad_outputs into the compiled backward.</span>
             <span class="n">num_mutated_inps</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_mutated_inputs</span>
             <span class="n">num_intermediate_bases</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span>
+            <span class="n">num_graph_handled_inputs</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_mutated_graph_handled_indices</span>
+            <span class="n">num_mutated_runtime_inps</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_mutated_inp_runtime_indices</span>
             <span class="n">expected_grad_outs</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="n">num_mutated_inps</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
+                <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs</span> <span class="o">+</span> <span class="n">num_mutated_runtime_inps</span> <span class="o">+</span> <span class="n">num_intermediate_bases</span>
             <span class="p">)</span>
 
+            <span class="k">if</span> <span class="n">num_graph_handled_inputs</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">flat_args</span> <span class="o">=</span> <span class="n">flat_args</span><span class="p">[:</span><span class="o">-</span><span class="n">num_graph_handled_inputs</span><span class="p">]</span>
             <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">flat_args</span><span class="p">)</span> <span class="o">==</span> <span class="n">expected_grad_outs</span>
             <span class="n">out_info</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">output_info</span>
 
+            <span class="n">num_mutated_inps_returned</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_mutated_inp_runtime_indices</span>
+
             <span class="n">inp_tangents</span><span class="p">,</span> <span class="n">out_tangents</span><span class="p">,</span> <span class="n">intermediate_base_tangents</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">flat_args</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">num_mutated_inps</span><span class="p">],</span>
-                <span class="n">flat_args</span><span class="p">[</span><span class="n">num_mutated_inps</span><span class="p">:</span><span class="n">num_mutated_inps</span> <span class="o">+</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs</span><span class="p">],</span>
-                <span class="n">flat_args</span><span class="p">[</span><span class="n">num_mutated_inps</span> <span class="o">+</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs</span><span class="p">:],</span>
+                <span class="n">flat_args</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">num_mutated_inps_returned</span><span class="p">],</span>
+                <span class="n">flat_args</span><span class="p">[</span><span class="n">num_mutated_inps_returned</span><span class="p">:</span><span class="n">num_mutated_inps_returned</span> <span class="o">+</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs</span><span class="p">],</span>
+                <span class="n">flat_args</span><span class="p">[</span><span class="n">num_mutated_inps_returned</span> <span class="o">+</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">num_outputs</span><span class="p">:],</span>
             <span class="p">)</span>
             <span class="c1"># input_info contains info on *every* input,</span>
             <span class="c1"># But in the backward(), we are only given grad outputs for every mutated input</span>
             <span class="c1"># We then need to filter out the grad outputs that correspond to metadata-only mutations or don&#39;t require grad</span>
-            <span class="n">mutated_inp_indices</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">mutated_inp_indices</span>
             <span class="n">input_info</span> <span class="o">=</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">input_info</span>
-            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">inp_tangents</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">mutated_inp_indices</span><span class="p">)</span>
             <span class="n">inp_tangents_filtered</span> <span class="o">=</span> <span class="p">[</span>
                 <span class="n">x</span>
-                <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">info_idx</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">inp_tangents</span><span class="p">,</span> <span class="n">mutated_inp_indices</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">info_idx</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">inp_tangents</span><span class="p">,</span> <span class="n">CompiledFunction</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">mutated_inp_runtime_indices</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">input_info</span><span class="p">[</span><span class="n">info_idx</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_data</span> <span class="ow">and</span> <span class="n">input_info</span><span class="p">[</span><span class="n">info_idx</span><span class="p">]</span><span class="o">.</span><span class="n">requires_grad</span>
             <span class="p">]</span>
             <span class="c1"># We also need to filter out grad outputs that correspond to outputs aliasing inputs/intermediates</span>
@@ -4476,7 +4574,7 @@
         <span class="n">runtime_metadata</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span>
         <span class="n">indices_of_inps_to_detach</span><span class="o">=</span><span class="n">_indices_of_inps_to_detach</span><span class="p">,</span>
         <span class="n">trace_joint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">keep_input_mutations</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
         <span class="n">disable_amp</span><span class="o">=</span><span class="n">disable_amp</span>
     <span class="p">)</span>
 
@@ -4622,7 +4720,7 @@
             <span class="k">with</span> <span class="n">patch</span><span class="p">(</span><span class="s2">&quot;torch.cuda.set_rng_state&quot;</span><span class="p">,</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="kc">None</span><span class="p">):</span>
                 <span class="n">fw_metadata</span> <span class="o">=</span> <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">(</span>
                     <span class="n">flat_fn</span><span class="p">,</span>
-                    <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">needs_autograd</span><span class="p">,</span>
+                    <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
                     <span class="n">is_train</span><span class="o">=</span><span class="n">needs_autograd</span><span class="p">,</span>
                 <span class="p">)(</span><span class="o">*</span><span class="n">fake_flat_args</span><span class="p">)</span>
 
@@ -4715,7 +4813,6 @@
 
         <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">compiler_fn</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">,</span> <span class="n">fake_flat_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fw_metadata</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">is_export</span><span class="p">:</span>
-
             <span class="n">mutated_user_inp_locs</span> <span class="o">=</span> <span class="p">[</span>
                 <span class="n">idx</span> <span class="o">-</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">num_params_buffers</span>
                 <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">mutated_inp_indices</span>
@@ -5314,7 +5411,7 @@
             <span class="n">fn_to_trace</span><span class="p">,</span>
             <span class="n">full_args</span><span class="p">,</span>
             <span class="n">decompositions</span><span class="o">=</span><span class="n">decompositions</span><span class="p">,</span>
-            <span class="n">num_params_buffers</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">params_and_buffers_flat</span><span class="p">),</span>
+            <span class="n">num_params_buffers</span><span class="o">=</span><span class="n">params_len</span><span class="p">,</span>
             <span class="n">no_tangents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
     <span class="k">if</span> <span class="n">trace_joint</span><span class="p">:</span>
