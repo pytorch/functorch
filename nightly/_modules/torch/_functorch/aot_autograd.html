@@ -227,7 +227,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+git995fae6) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+gitf961bda) &#x25BC</a>
     </div>
     
 
@@ -825,18 +825,8 @@
     <span class="n">mutates_data</span><span class="p">:</span> <span class="nb">bool</span>
     <span class="n">mutates_metadata</span><span class="p">:</span> <span class="nb">bool</span>
     <span class="n">mutations_hidden_from_autograd</span><span class="p">:</span> <span class="nb">bool</span>
-    <span class="c1"># This can only happen from a call to aten.set_() on a graph input.</span>
-    <span class="n">mutates_storage_metadata</span><span class="p">:</span> <span class="nb">bool</span>
     <span class="n">requires_grad</span><span class="p">:</span> <span class="nb">bool</span>
     <span class="n">mutation_type</span><span class="p">:</span> <span class="n">MutationType</span>
-
-    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mutates_storage_metadata</span><span class="p">:</span>
-            <span class="c1"># For convenience, we guarantee that this is always true.</span>
-            <span class="c1"># In practice, If we call .set_(), then at runtime there is no need</span>
-            <span class="c1"># to additionally fix  up the tensor metadata, since our runtime</span>
-            <span class="c1"># call to inp.set_(updated_inp) will already have the right metadata</span>
-            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">mutates_metadata</span>
 
 
 <span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
@@ -1294,85 +1284,65 @@
 <span class="c1"># t here is either</span>
 <span class="c1"># (1) A FunctionalTensor(_to_functional_tensor(FakeTensor))</span>
 <span class="c1"># (2) A traceable tensor subclass that holds a FunctionalTensor</span>
-<span class="c1"># (3) Not a tensor</span>
-<span class="k">def</span> <span class="nf">has_data_mutation</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">has_metadata_mutation</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">is_traceable_wrapper_subclass</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
         <span class="n">attrs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">__tensor_flatten__</span><span class="p">()</span>
         <span class="c1"># A tensor subclass was updated if any of its inner elements were updated</span>
-        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">has_data_mutation</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">attr</span><span class="p">))</span> <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">has_metadata_mutation</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">attr</span><span class="p">))</span> <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">FunctionalTensor</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">_functionalize_has_data_mutation</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">elem</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">FunctionalTensor</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">_functionalize_has_metadata_mutation</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">elem</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">are_all_mutations_hidden_from_autograd</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">is_traceable_wrapper_subclass</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
         <span class="n">attrs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">__tensor_flatten__</span><span class="p">()</span>
         <span class="c1"># If all inner elements are mutations hidden from autograd, then it is a mutation hidden from autograd.</span>
         <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">are_all_mutations_hidden_from_autograd</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">attr</span><span class="p">))</span> <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+    <span class="k">else</span><span class="p">:</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">FunctionalTensor</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">_functionalize_are_all_mutations_hidden_from_autograd</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">elem</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="kc">False</span>
 
-<span class="c1"># f_arg here is either</span>
-<span class="c1"># (1) A FunctionalTensor(_to_functional_tensor(FakeTensor))</span>
-<span class="c1"># (2) A traceable tensor subclass that holds a FunctionalTensor</span>
-<span class="c1"># (3) Not a tensor</span>
-<span class="c1"># Assumption: arg promises to be the &quot;original&quot; tensor wrapped by f_arg</span>
-<span class="c1"># Note: &quot;storage mutations&quot; coming from set_() are a type of metadata mutation. So:</span>
-<span class="c1"># - check_only_storage_mutation=True: only return true if there was a storage mutation</span>
-<span class="c1"># - check_only_storage_mutation=Flse: return true if there was any metadata mutation (including a storage mutation)</span>
-<span class="k">def</span> <span class="nf">has_metadata_mutation</span><span class="p">(</span><span class="n">f_arg</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">check_only_storage_mutation</span><span class="p">:</span> <span class="nb">bool</span><span class="p">):</span>
-    <span class="k">if</span> <span class="n">is_traceable_wrapper_subclass</span><span class="p">(</span><span class="n">f_arg</span><span class="p">):</span>
-        <span class="n">attrs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">f_arg</span><span class="o">.</span><span class="n">__tensor_flatten__</span><span class="p">()</span>
+<span class="c1"># new_arg and arg here are either:</span>
+<span class="c1"># (1) both a FakeTensor</span>
+<span class="c1"># (2) both a traceable tensor subclass that holds a FakeTensor</span>
+<span class="c1"># Pre-condition: the two args are the &quot;old&quot; and &quot;new&quot; inputs from running functionalization.</span>
+<span class="c1"># When we run functionalization and wrap our inputs into FunctionalTensors,</span>
+<span class="c1"># we can detect whether or not an input was mutated by checking to see if the inner tensor has changed</span>
+<span class="c1">#</span>
+<span class="c1"># Normally it would be enough just to check if arg is new_arg, which is normally enough for functionalization</span>
+<span class="c1"># to confirm that inputs were not mutated when running the user&#39;s model with functionalization on.</span>
+<span class="c1"># But when we have subclass inputs, we can&#39;t rely on that:</span>
+<span class="c1"># `from_fun(to_fun(x)) is x` will return False, because the call to `from_fun` constructs</span>
+<span class="c1"># a brand new subclass instance: we are calling __tensor_unflatten__, and going</span>
+<span class="c1"># from Subclass(FakeTensor) to Subclass(FunctionalTensor(FakeTensor))</span>
+<span class="k">def</span> <span class="nf">was_updated</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">new_arg</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">is_traceable_wrapper_subclass</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">is_traceable_wrapper_subclass</span><span class="p">(</span><span class="n">new_arg</span><span class="p">)</span>
+        <span class="n">attrs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">__tensor_flatten__</span><span class="p">()</span>
+        <span class="n">new_attrs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">new_arg</span><span class="o">.</span><span class="n">__tensor_flatten__</span><span class="p">()</span>
+        <span class="k">assert</span> <span class="n">attrs</span> <span class="o">==</span> <span class="n">new_attrs</span>
         <span class="c1"># A tensor subclass was updated if any of its inner elements were updated</span>
-        <span class="n">f_inner_ts</span> <span class="o">=</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">f_arg</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span> <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">]</span>
-        <span class="n">inner_ts</span> <span class="o">=</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span> <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">]</span>
-        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">has_metadata_mutation</span><span class="p">(</span><span class="n">f_inner_t</span><span class="p">,</span> <span class="n">inner_t</span><span class="p">,</span> <span class="n">check_only_storage_mutation</span><span class="o">=</span><span class="n">check_only_storage_mutation</span><span class="p">)</span>
-                   <span class="k">for</span> <span class="n">f_inner_t</span><span class="p">,</span> <span class="n">inner_t</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">f_inner_ts</span><span class="p">,</span> <span class="n">inner_ts</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">was_updated</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">attr</span><span class="p">),</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">new_arg</span><span class="p">,</span> <span class="n">attr</span><span class="p">))</span> <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">f_arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-            <span class="k">assert</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">False</span>
-        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">f_arg</span><span class="p">,</span> <span class="n">FunctionalTensor</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">FakeTensor</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">arg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">new_arg</span>
 
-        <span class="n">arg_after</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_from_functional_tensor</span><span class="p">(</span><span class="n">f_arg</span><span class="o">.</span><span class="n">elem</span><span class="p">)</span>
-        <span class="c1"># This is true if the current tensor experienced at least one set_() call</span>
-        <span class="n">maybe_storage_changed</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_functionalize_was_storage_changed</span><span class="p">(</span><span class="n">f_arg</span><span class="o">.</span><span class="n">elem</span><span class="p">)</span>
-        <span class="c1"># However, multiple set_() calls can cancel out. So we also check whether the</span>
-        <span class="c1"># storage of the tensor has changed.</span>
-        <span class="c1"># Note: if an input experienced two set_() calls that cancel out, **and**</span>
-        <span class="c1"># it experiences an data mutation, we pessimistically think that the set_()</span>
-        <span class="c1"># call is necessary here. We could in theory fix this, but this will</span>
-        <span class="c1"># hopefully never happen in user code, and is not needed for fsdp.</span>
-        <span class="n">same_storages</span> <span class="o">=</span> <span class="n">StorageWeakRef</span><span class="p">(</span><span class="n">arg</span><span class="o">.</span><span class="n">untyped_storage</span><span class="p">())</span> <span class="o">==</span> <span class="n">StorageWeakRef</span><span class="p">(</span><span class="n">arg_after</span><span class="o">.</span><span class="n">untyped_storage</span><span class="p">())</span>
-        <span class="n">has_storage_metadata_mutation</span> <span class="o">=</span> <span class="n">maybe_storage_changed</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">same_storages</span>
-        <span class="k">if</span> <span class="n">check_only_storage_mutation</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">has_storage_metadata_mutation</span>
-
-        <span class="c1"># storage metadata mutation is a type of metadata mutation, so return true if we saw one</span>
-        <span class="k">if</span> <span class="n">has_storage_metadata_mutation</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">True</span>
-
-        <span class="n">maybe_metadata_mutated</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_functionalize_has_metadata_mutation</span><span class="p">(</span><span class="n">f_arg</span><span class="o">.</span><span class="n">elem</span><span class="p">)</span>
-        <span class="c1"># This is true if the current tensor experienced at least one metadata mutation.</span>
-        <span class="c1"># So if false, we know there was no metadata mutation</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">maybe_metadata_mutated</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">False</span>
-
-        <span class="c1"># However, multi metadata mutations can cancel out.</span>
-        <span class="c1"># So we also check if the concrete sizes/strides on the tensor have changed.</span>
-        <span class="n">same_sizes</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">arg_after</span><span class="o">.</span><span class="n">shape</span>
-        <span class="n">same_strides</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">stride</span><span class="p">()</span> <span class="o">==</span> <span class="n">arg_after</span><span class="o">.</span><span class="n">stride</span><span class="p">()</span>
-        <span class="n">same_offsets</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">()</span> <span class="o">==</span> <span class="n">arg_after</span><span class="o">.</span><span class="n">storage_offset</span><span class="p">()</span>
-        <span class="n">has_metadata_mutation_</span> <span class="o">=</span> <span class="n">maybe_metadata_mutated</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span><span class="n">same_sizes</span> <span class="ow">and</span> <span class="n">same_strides</span> <span class="ow">and</span> <span class="n">same_offsets</span><span class="p">)</span>
-        <span class="c1"># We consider a tensor to have been metadata mutated if its storage was mutated through a set_() call.</span>
-        <span class="k">return</span> <span class="n">has_metadata_mutation_</span>
-
+<span class="c1"># new_arg and arg here are either:</span>
+<span class="c1"># (1) both a FakeTensor</span>
+<span class="c1"># (2) both a traceable tensor subclass that holds a FakeTensor</span>
+<span class="c1"># Pre-condition: the two args are the &quot;old&quot; and &quot;new&quot; inputs from running functionalization.</span>
+<span class="c1"># When we run functionalization and wrap our inputs into FunctionalTensors,</span>
+<span class="c1"># we can detect whether or not an input was mutated by checking to see if the inner tensor has changed,</span>
+<span class="c1"># but shares storage with the old input</span>
+<span class="k">def</span> <span class="nf">was_metadata_updated</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">new_arg</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">is_traceable_wrapper_subclass</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">is_traceable_wrapper_subclass</span><span class="p">(</span><span class="n">new_arg</span><span class="p">)</span>
+        <span class="n">attrs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">__tensor_flatten__</span><span class="p">()</span>
+        <span class="n">new_attrs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">new_arg</span><span class="o">.</span><span class="n">__tensor_flatten__</span><span class="p">()</span>
+        <span class="k">assert</span> <span class="n">attrs</span> <span class="o">==</span> <span class="n">new_attrs</span>
+        <span class="c1"># A tensor subclass was updated if any of its inner elements were updated</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">was_metadata_updated</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">attr</span><span class="p">),</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">new_arg</span><span class="p">,</span> <span class="n">attr</span><span class="p">))</span> <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">arg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">new_arg</span> <span class="ow">and</span> <span class="n">StorageWeakRef</span><span class="p">(</span><span class="n">arg</span><span class="o">.</span><span class="n">untyped_storage</span><span class="p">())</span> <span class="o">==</span> <span class="n">StorageWeakRef</span><span class="p">(</span><span class="n">new_arg</span><span class="o">.</span><span class="n">untyped_storage</span><span class="p">())</span>
 
 <span class="k">def</span> <span class="nf">_get_hints</span><span class="p">(</span><span class="n">exprs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -1500,27 +1470,18 @@
                 <span class="n">new_arg</span> <span class="o">=</span> <span class="n">arg</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">new_arg</span> <span class="o">=</span> <span class="n">from_fun</span><span class="p">(</span><span class="n">f_arg</span><span class="p">)</span>
-            <span class="n">mutates_metadata</span> <span class="o">=</span> <span class="n">has_metadata_mutation</span><span class="p">(</span><span class="n">f_arg</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">check_only_storage_mutation</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-            <span class="n">mutates_storage_metadata</span> <span class="o">=</span> <span class="n">has_metadata_mutation</span><span class="p">(</span><span class="n">f_arg</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">check_only_storage_mutation</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">mutates_data</span> <span class="o">=</span> <span class="n">has_data_mutation</span><span class="p">(</span><span class="n">f_arg</span><span class="p">)</span>
-            <span class="n">mutations_hidden_from_autograd</span> <span class="o">=</span> <span class="n">are_all_mutations_hidden_from_autograd</span><span class="p">(</span><span class="n">f_arg</span><span class="p">)</span>
-
-            <span class="c1"># Here, we&#39;re saying that if an input experienced a set call, inp.set_(other),</span>
-            <span class="c1"># then we can effectively not have to worry about whether its data was mutated.</span>
-            <span class="c1"># There are 3 cases:</span>
-            <span class="c1"># (1) We mutate inp *after* the set_() call. other is a graph intermediate.</span>
-            <span class="c1">#     In this case, we&#39;re not really mutating the input storage of &quot;inp&quot;;</span>
-            <span class="c1">#     we&#39;re mutating the storage of an intermdiate value (other),</span>
-            <span class="c1">#     and slamming that storage into the input tensor. So no data mutation is necessary.</span>
-            <span class="c1"># (2) We mutate inp *after* the set_() call. other is a graph *input*.</span>
-            <span class="c1">#     In this case, the data mutation will be properly handled in the runtime</span>
-            <span class="c1">#     epilogue during the processing of &quot;other&quot;</span>
-            <span class="c1"># (3) We mutate inp *before* the set_() call.</span>
-            <span class="c1">#     This case is *not* currently handled.</span>
-            <span class="c1">#     TODO: discuss this in the PR. Both supporting this, and detecting + erroring out,</span>
-            <span class="c1">#     seem painful to get working.</span>
-            <span class="k">if</span> <span class="n">mutates_storage_metadata</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">was_updated</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">new_arg</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">was_metadata_updated</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">new_arg</span><span class="p">):</span>
+                    <span class="n">mutates_data</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="n">mutates_metadata</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">mutates_data</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">mutates_metadata</span> <span class="o">=</span> <span class="n">has_metadata_mutation</span><span class="p">(</span><span class="n">f_arg</span><span class="p">)</span>
+                <span class="n">mutations_hidden_from_autograd</span> <span class="o">=</span> <span class="n">are_all_mutations_hidden_from_autograd</span><span class="p">(</span><span class="n">f_arg</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
                 <span class="n">mutates_data</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">mutates_metadata</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">mutations_hidden_from_autograd</span> <span class="o">=</span> <span class="kc">False</span>
 
             <span class="n">requires_grad</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">f_arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">f_arg</span><span class="o">.</span><span class="n">requires_grad</span>
 
@@ -1529,7 +1490,6 @@
                 <span class="n">mutates_data</span><span class="o">=</span><span class="n">mutates_data</span><span class="p">,</span>
                 <span class="n">mutates_metadata</span><span class="o">=</span><span class="n">mutates_metadata</span><span class="p">,</span>
                 <span class="n">mutations_hidden_from_autograd</span><span class="o">=</span><span class="n">mutations_hidden_from_autograd</span><span class="p">,</span>
-                <span class="n">mutates_storage_metadata</span><span class="o">=</span><span class="n">mutates_storage_metadata</span><span class="p">,</span>
                 <span class="n">requires_grad</span><span class="o">=</span><span class="n">requires_grad</span><span class="p">,</span>
                 <span class="n">mutation_type</span><span class="o">=</span><span class="n">_get_mutation_type</span><span class="p">(</span>
                     <span class="n">keep_input_mutations</span><span class="p">,</span>
@@ -2058,8 +2018,6 @@
             <span class="c1"># Make sure the primal we pass to autograd.grad()</span>
             <span class="c1"># sees the tensor before the mutation</span>
             <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
-        <span class="c1"># No need to do anything for  meta.input_info[idx].mutates_storage_metadata,</span>
-        <span class="c1"># Because autograd doesn&#39;t support set_()</span>
         <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="ow">and</span> <span class="n">meta</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">mutates_metadata</span><span class="p">:</span>
             <span class="c1"># Make sure the primal we pass to autograd.grad()</span>
             <span class="c1"># sees the tensor before the metadata mutation</span>
@@ -3037,8 +2995,7 @@
             <span class="c1"># mutations, they will be hidden from the rest of aot autograd.</span>
             <span class="n">mutates_data</span><span class="o">=</span><span class="n">mutates_data</span><span class="p">,</span>
             <span class="n">mutates_metadata</span><span class="o">=</span><span class="n">mutates_metadata</span><span class="p">,</span>
-            <span class="n">mutations_hidden_from_autograd</span><span class="o">=</span><span class="nb">all</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">mutations_hidden_from_autograd</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">outer_indices</span><span class="p">),</span>
-            <span class="n">mutates_storage_metadata</span><span class="o">=</span><span class="kc">False</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">outer_indices</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">m</span><span class="o">.</span><span class="n">input_info</span><span class="p">[</span><span class="n">outer_indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">mutates_storage_metadata</span><span class="p">,</span>
+            <span class="n">mutations_hidden_from_autograd</span><span class="o">=</span><span class="n">mutations_hidden_from_autograd</span><span class="p">,</span>
             <span class="n">is_leaf</span><span class="o">=</span><span class="n">any_leaf</span><span class="p">,</span>
             <span class="n">requires_grad</span><span class="o">=</span><span class="n">requires_grad</span><span class="p">,</span>
             <span class="n">mutation_type</span><span class="o">=</span><span class="n">mutation_type</span><span class="p">,</span>
@@ -3588,22 +3545,6 @@
                     <span class="k">continue</span>
                 <span class="n">original_inpt</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="n">inpt_idx</span><span class="p">]</span>
                 <span class="n">updated_inpt</span> <span class="o">=</span> <span class="n">updated_inputs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-                <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_storage_metadata</span><span class="p">:</span>
-                    <span class="c1"># mutates_storage_metadata means our input saw a x.set_(y) call.</span>
-                    <span class="c1"># What if x **also** saw a data and/or a metadata mutation?</span>
-                    <span class="c1"># (1) If the [meta]data mutation occurred after the set_(),</span>
-                    <span class="c1">#     then there is no need to copy_() the data.</span>
-                    <span class="c1">#     When we perform x.set_(x_updated), we are guaranteed that</span>
-                    <span class="c1">#     x_updated already has the final version of the data/metadata</span>
-                    <span class="c1"># (2) If a data mutation occurred before the set_().</span>
-                    <span class="c1">#     This case seems very difficult to support.</span>
-                    <span class="c1">#     TODO: discuss on the PR and decide if we want to tr to</span>
-                    <span class="c1">#     either support it, or detect and ban it.</span>
-                    <span class="k">if</span> <span class="n">trace_joint</span><span class="p">:</span>
-                        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">updated_inpt</span><span class="p">,</span> <span class="n">TensorAlias</span><span class="p">)</span>
-                        <span class="n">updated_inpt</span> <span class="o">=</span> <span class="n">updated_inpt</span><span class="o">.</span><span class="n">alias</span>
-                    <span class="n">original_inpt</span><span class="o">.</span><span class="n">set_</span><span class="p">(</span><span class="n">updated_inpt</span><span class="p">)</span>
-                    <span class="k">continue</span>
                 <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_metadata</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">meta</span><span class="o">.</span><span class="n">mutates_data</span><span class="p">:</span>
                     <span class="k">if</span> <span class="n">trace_joint</span><span class="p">:</span>
                         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">updated_inpt</span><span class="p">,</span> <span class="n">TensorAlias</span><span class="p">)</span>
@@ -4775,17 +4716,14 @@
                     <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">attr</span><span class="p">),</span> <span class="n">FakeTensor</span><span class="p">)</span> <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">):</span>
                         <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span><span class="o">.</span><span class="n">fake_mode</span> <span class="ow">is</span> <span class="n">fake_mode</span> <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">)</span>
                         <span class="k">return</span> <span class="n">x</span>
-
-
+                <span class="c1"># TODO: Ensure that this codepath is never exercised from</span>
+                <span class="c1"># Dynamo</span>
                 <span class="k">if</span> <span class="p">(</span>
                     <span class="n">idx</span> <span class="o">&lt;</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">num_params_buffers</span>
                     <span class="ow">and</span> <span class="n">config</span><span class="o">.</span><span class="n">static_weight_shapes</span>
                 <span class="p">):</span>
-                    <span class="c1"># TODO: Ensure that this codepath is never exercised from</span>
-                    <span class="c1"># Dynamo</span>
                     <span class="k">return</span> <span class="n">fake_mode</span><span class="o">.</span><span class="n">from_tensor</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">static_shapes</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-                <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">_dynamo</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">to_fake_tensor</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">fake_mode</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">fake_mode</span><span class="o">.</span><span class="n">from_tensor</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">static_shapes</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
             <span class="k">return</span> <span class="p">[</span><span class="n">convert</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">flat_args</span><span class="p">)]</span>
 
