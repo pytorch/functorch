@@ -227,7 +227,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+git721d991) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.2.0a0+git7f40640) &#x25BC</a>
     </div>
     
 
@@ -362,7 +362,7 @@
 <span class="kn">import</span> <span class="nn">sympy</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
 <span class="kn">from</span> <span class="nn">torch.fx.passes</span> <span class="kn">import</span> <span class="n">graph_drawer</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 <span class="kn">from</span> <span class="nn">.compile_utils</span> <span class="kn">import</span> <span class="n">fx_graph_cse</span><span class="p">,</span> <span class="n">get_aten_target</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">config</span>
 <span class="kn">import</span> <span class="nn">functools</span>
@@ -1269,6 +1269,7 @@
     <span class="n">clear_meta</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">prog</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">parse_stack_trace</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">dot_graph_shape</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="k">if</span> <span class="n">clear_meta</span><span class="p">:</span>
         <span class="n">new_graph</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">traced</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
@@ -1279,7 +1280,12 @@
     <span class="k">if</span> <span class="ow">not</span> <span class="n">ext</span><span class="p">:</span>
         <span class="n">ext</span> <span class="o">=</span> <span class="s2">&quot;.svg&quot;</span>
     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Writing FX graph to file: </span><span class="si">{</span><span class="n">base</span><span class="si">}{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="n">g</span> <span class="o">=</span> <span class="n">graph_drawer</span><span class="o">.</span><span class="n">FxGraphDrawer</span><span class="p">(</span><span class="n">traced</span><span class="p">,</span> <span class="n">figname</span><span class="p">,</span> <span class="n">parse_stack_trace</span><span class="o">=</span><span class="n">parse_stack_trace</span><span class="p">)</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">graph_drawer</span><span class="o">.</span><span class="n">FxGraphDrawer</span><span class="p">(</span>
+        <span class="n">traced</span><span class="p">,</span>
+        <span class="n">figname</span><span class="p">,</span>
+        <span class="n">parse_stack_trace</span><span class="o">=</span><span class="n">parse_stack_trace</span><span class="p">,</span>
+        <span class="n">dot_graph_shape</span><span class="o">=</span><span class="n">dot_graph_shape</span><span class="p">,</span>
+    <span class="p">)</span>
     <span class="n">x</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">get_main_dot_graph</span><span class="p">()</span>
     <span class="n">write_method</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s2">&quot;write_&quot;</span> <span class="o">+</span> <span class="n">ext</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">))</span>
     <span class="n">fname</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&quot;</span>
@@ -1289,8 +1295,13 @@
         <span class="n">write_method</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">prog</span><span class="o">=</span><span class="n">prog</span><span class="p">)</span>
 
 
-<span class="k">def</span> <span class="nf">draw_joint_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">joint_inputs</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s2">&quot;full_graph.png&quot;</span><span class="p">):</span>
-    <span class="n">draw_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">draw_joint_graph</span><span class="p">(</span>
+    <span class="n">graph</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span>
+    <span class="n">joint_inputs</span><span class="p">,</span>
+    <span class="n">file_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;full_graph.png&quot;</span><span class="p">,</span>
+    <span class="n">dot_graph_shape</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="n">draw_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">dot_graph_shape</span><span class="o">=</span><span class="n">dot_graph_shape</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">default_partition</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">joint_inputs</span><span class="p">)</span>
 </pre></div>
 
