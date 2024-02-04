@@ -227,7 +227,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.3.0a0+git7bbd9be) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.3.0a0+git3ed9df3) &#x25BC</a>
     </div>
     
 
@@ -1098,12 +1098,6 @@
         <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Ops banned from rematerialization: &quot;</span><span class="p">,</span> <span class="n">ops_ignored</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">()</span>
 
-    <span class="c1"># `AGGRESSIVE_RECOMPUTATION` is a mode that recomputes everything except</span>
-    <span class="c1"># random ops and compute-intensive ops.</span>
-    <span class="c1"># It&#39;s an internal-only debug mode and is not related to user-facing</span>
-    <span class="c1"># (selective) activation checkpointing.</span>
-    <span class="n">AGGRESSIVE_RECOMPUTATION</span> <span class="o">=</span> <span class="kc">False</span>
-
     <span class="k">def</span> <span class="nf">is_materialized_backwards</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
         <span class="n">cur_nodes</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span><span class="p">}</span>
         <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">cur_nodes</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
@@ -1119,7 +1113,7 @@
     <span class="k">def</span> <span class="nf">ban_recomputation</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
         <span class="k">if</span> <span class="s2">&quot;recompute&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
-        <span class="k">elif</span> <span class="n">AGGRESSIVE_RECOMPUTATION</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">config</span><span class="o">.</span><span class="n">aggressive_recomputation</span><span class="p">:</span>
             <span class="n">ignored_ops</span> <span class="o">=</span> <span class="n">random_ops</span> <span class="o">+</span> <span class="n">compute_intensive_ops</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span> <span class="ow">and</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">in</span> <span class="n">ignored_ops</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
