@@ -227,7 +227,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.3.0a0+gita3a8137) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.3.0a0+gitcac36e2) &#x25BC</a>
     </div>
     
 
@@ -723,6 +723,31 @@
 <span class="c1"># To work around this, we view every forward output when creating out tangent</span>
 <span class="c1"># tensors so that tangents can never be the same as forward inputs even if</span>
 <span class="c1"># forward inputs alias forward outputs.</span>
+
+<span class="c1"># Note [Side-Effectful Tokens in AOTAutograd]</span>
+<span class="c1">#</span>
+<span class="c1"># We allow some some side-effectful operators in</span>
+<span class="c1"># the post-AOTAutograd (functional) graph, such as prints and torchbind operations.</span>
+<span class="c1"># To ensure that these side-effects are compatible to future graph passes that</span>
+<span class="c1"># assume that the graph is functional, we will thread &quot;effect tokens&quot; to show</span>
+<span class="c1"># data dependence between these side-effectful operators. Practically speaking,</span>
+<span class="c1"># effect tokens are just dummy values (torch.tensor([])). The graph would look</span>
+<span class="c1"># like the following:</span>
+<span class="c1">#</span>
+<span class="c1"># def gm(self, token0, reader):</span>
+<span class="c1">#    token1, frame = with_token(ordered_effect_op, (reader,), token0)</span>
+<span class="c1">#    frame = frame * 2</span>
+<span class="c1">#    token2, frame2 = with_token(ordered_effect_op, (reader,), token1)</span>
+<span class="c1">#    frame2 = frame2 * 2</span>
+<span class="c1">#    return token2, frame, frame2</span>
+<span class="c1">#</span>
+<span class="c1"># We will pass the token as an input to the graph, thread it through</span>
+<span class="c1"># side-effectful operators using the `with_effects` high order operator, and then</span>
+<span class="c1"># return the updated token as an output.</span>
+<span class="c1"># So the signature of the graph input would look something like</span>
+<span class="c1"># (*tokens, *params_buffers, *user_inputs), and the signature of the graph</span>
+<span class="c1"># output would look something like (*tokens, *outputs).</span>
+
 <span class="c1">#</span>
 <span class="c1">#</span>
 <span class="c1"># ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</span>
