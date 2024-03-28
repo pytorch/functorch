@@ -227,7 +227,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.4.0a0+gitc81c9ba) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.4.0a0+git66510c6) &#x25BC</a>
     </div>
     
 
@@ -358,6 +358,7 @@
 <span class="kn">import</span> <span class="nn">torch.fx</span> <span class="k">as</span> <span class="nn">fx</span>
 <span class="kn">import</span> <span class="nn">operator</span>
 <span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">heapq</span>
 <span class="kn">import</span> <span class="nn">torch.utils._pytree</span> <span class="k">as</span> <span class="nn">pytree</span>
 <span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">os</span>
@@ -369,9 +370,11 @@
 <span class="kn">from</span> <span class="nn">.compile_utils</span> <span class="kn">import</span> <span class="n">fx_graph_cse</span><span class="p">,</span> <span class="n">get_aten_target</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">config</span>
 <span class="kn">import</span> <span class="nn">functools</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 
 
 <span class="n">AOT_PARTITIONER_DEBUG</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_partitioner</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">must_recompute</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
@@ -727,31 +730,6 @@
 
     <span class="k">return</span> <span class="n">ops</span>
 
-<span class="k">def</span> <span class="nf">get_depth</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">depth_map</span><span class="p">):</span>
-    <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">depth_map</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">depth_map</span><span class="p">[</span><span class="n">node</span><span class="p">]</span>
-
-    <span class="c1"># Base case</span>
-    <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span><span class="p">:</span>
-        <span class="n">depth_map</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">return</span> <span class="n">depth_map</span><span class="p">[</span><span class="n">node</span><span class="p">]</span>
-
-    <span class="c1"># Handle output node</span>
-    <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;output&quot;</span><span class="p">:</span>
-        <span class="n">args</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">node</span><span class="o">.</span><span class="n">Node</span><span class="p">):</span>
-                <span class="n">get_depth</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">depth_map</span><span class="p">)</span>
-        <span class="k">return</span>
-
-    <span class="c1"># Get the depth of args and set the depth of this node</span>
-    <span class="n">arg_depths</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_depth</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">depth_map</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">all_input_nodes</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">node</span><span class="o">.</span><span class="n">Node</span><span class="p">)]</span>
-    <span class="c1"># factory ops like full, rand might not have any input args</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">arg_depths</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="n">arg_depths</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">depth_map</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">arg_depths</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
-    <span class="k">return</span> <span class="n">depth_map</span><span class="p">[</span><span class="n">node</span><span class="p">]</span>
-
 
 <span class="k">def</span> <span class="nf">sort_depths</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">depth_map</span><span class="p">):</span>
     <span class="n">arg_depths</span> <span class="o">=</span> <span class="p">{</span><span class="n">arg</span><span class="p">:</span> <span class="n">depth_map</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">node</span><span class="o">.</span><span class="n">Node</span><span class="p">)}</span>
@@ -787,11 +765,7 @@
     <span class="c1"># Add new placeholder nodes in the order specified by the inputs</span>
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">gm</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span><span class="p">:</span>
-            <span class="n">new_node</span> <span class="o">=</span> <span class="n">new_graph</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-            <span class="c1"># Can&#39;t use node_copy here as we may be turning previous call_function into placeholders</span>
-            <span class="n">new_node</span><span class="o">.</span><span class="n">meta</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span>
-            <span class="n">env</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_node</span>
-
+            <span class="n">env</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_graph</span><span class="o">.</span><span class="n">node_copy</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">env</span><span class="p">[</span><span class="n">x</span><span class="p">])</span>
 
     <span class="n">order</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">gm</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">):</span>
@@ -800,7 +774,11 @@
     <span class="c1"># Populate depth for the nodes. Depth is the distance from the inputs.</span>
     <span class="n">depths</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="n">output_node</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">gm</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;output&quot;</span><span class="p">)</span>
-    <span class="n">get_depth</span><span class="p">(</span><span class="n">output_node</span><span class="p">,</span> <span class="n">depths</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">gm</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;placeholder&#39;</span><span class="p">:</span>
+            <span class="n">depths</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">depths</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">depths</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">all_input_nodes</span><span class="p">],</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">insert_node_in_graph</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">env</span><span class="p">:</span>
@@ -822,7 +800,10 @@
             <span class="k">if</span> <span class="n">order</span><span class="p">[</span><span class="n">user</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">minimum_order</span><span class="p">:</span>
                 <span class="n">minimum_order</span> <span class="o">=</span> <span class="n">order</span><span class="p">[</span><span class="n">user</span><span class="p">]</span>
                 <span class="n">first_node_in_bwd</span> <span class="o">=</span> <span class="n">user</span>
-    <span class="k">assert</span> <span class="n">first_node_in_bwd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+    <span class="c1"># If gradInp does not depend upon gradOut, we may not find any nodes in the &quot;backwards pass&quot;</span>
+    <span class="k">if</span> <span class="n">first_node_in_bwd</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">gm</span>
 
     <span class="c1"># Build the graph op-by-op by starting from the node all the way to the end</span>
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">gm</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">)[</span><span class="n">order</span><span class="p">[</span><span class="n">first_node_in_bwd</span><span class="p">]:]:</span>
@@ -1026,7 +1007,7 @@
     <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">cse</span><span class="p">:</span>
         <span class="n">cse_graph</span> <span class="o">=</span> <span class="n">fx_graph_cse</span><span class="p">(</span><span class="n">fx_g</span><span class="p">)</span>
         <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span> <span class="o">=</span> <span class="n">cse_graph</span>
-    <span class="n">full_bw_graph</span> <span class="o">=</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span>
+    <span class="n">joint_graph</span> <span class="o">=</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span>
 
     <span class="n">graph_has_recomputable_ops</span> <span class="o">=</span> <span class="n">has_recomputable_ops</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
     <span class="n">graph_has_recomputable_rng_ops</span> <span class="o">=</span> <span class="n">has_recomputable_rng_ops</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
@@ -1050,7 +1031,7 @@
         <span class="n">fwd_seed_offset_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_fwd_seed_offset</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
         <span class="n">inputs</span> <span class="o">=</span> <span class="n">primal_inputs</span> <span class="o">+</span> <span class="n">fwd_seed_offset_inputs</span>
         <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span>
-        <span class="n">required_bw_nodes</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">o</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">bwd_outputs</span> <span class="k">if</span> <span class="n">o</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">required_bw_nodes</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">o</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">bwd_outputs</span> <span class="k">if</span> <span class="n">o</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">o</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s1">&#39;output&#39;</span><span class="p">)</span>
         <span class="n">forward_only_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">fwd_outputs</span><span class="p">)</span>
         <span class="n">required_fw_nodes</span> <span class="o">=</span> <span class="p">{</span><span class="n">name_to_node</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">forward_only_graph</span><span class="o">.</span><span class="n">nodes</span>
                              <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s1">&#39;output&#39;</span><span class="p">}</span>
@@ -1065,6 +1046,19 @@
     <span class="c1"># this case, send our graph over to the default partitioner.</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">required_bw_nodes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">default_partition</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">_joint_inputs</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">is_fusible</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+        <span class="c1"># We can perform &quot;memory fusion&quot; into a cat, but cat cannot be a</span>
+        <span class="c1"># producer to a fusion</span>
+        <span class="k">if</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="o">==</span> <span class="n">aten</span><span class="o">.</span><span class="n">cat</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="ow">in</span> <span class="n">fusible_ops</span> <span class="ow">and</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="ow">in</span> <span class="n">fusible_ops</span>
+
+    <span class="n">fw_order</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span><span class="p">:</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">fw_order</span> <span class="o">=</span> <span class="n">fw_order</span>
+            <span class="n">fw_order</span> <span class="o">+=</span> <span class="mi">1</span>
 
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">node</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span><span class="p">:</span>
@@ -1081,10 +1075,10 @@
     <span class="n">default_recomputable_ops</span> <span class="o">=</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">add</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">sub</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">div</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">atan2</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">mul</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">max</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">min</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">pow</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">remainder</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">fmod</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="fm">__and__</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="fm">__or__</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="fm">__xor__</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="fm">__lshift__</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="fm">__rshift__</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">eq</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">ne</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">ge</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">gt</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">le</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">lt</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">abs</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">bitwise_not</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">ceil</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">floor</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">frac</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">neg</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">relu</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">round</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">silu</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">trunc</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">log</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">log10</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">log1p</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">log2</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">lgamma</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">exp</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">expm1</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">erf</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">erfc</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">cos</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">acos</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">cosh</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">sin</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">asin</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">sinh</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">tan</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">atan</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">tanh</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">atanh</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">sqrt</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">rsqrt</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">reciprocal</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">softplus</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">threshold</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">threshold_backward</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">clamp</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">where</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">lerp</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">addcmul</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">gelu</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">gelu_backward</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">sum</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">mean</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_grad_sum_to_size</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">sum_to_size</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">amax</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">to</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">type_as</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">squeeze</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">rsub</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_to_copy</span><span class="p">]</span>  <span class="c1"># noqa: E501,B950</span>
     <span class="n">view_ops</span> <span class="o">=</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">squeeze</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">alias</span><span class="p">]</span>
     <span class="k">if</span> <span class="n">compiler</span> <span class="o">==</span> <span class="s2">&quot;inductor&quot;</span><span class="p">:</span>
-        <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="p">[</span><span class="n">prims</span><span class="o">.</span><span class="n">div</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">clone</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_to_copy</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">full_like</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">var</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">sum</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">var</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">std</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">broadcast_in_dim</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">select</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">permute</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_unsafe_view</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">view</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">expand</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">slice</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">reshape</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">broadcast_tensors</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">scalar_tensor</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">ones</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">new_zeros</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">lift_fresh_copy</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">arange</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">triu</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">var_mean</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">isinf</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">any</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">full</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">as_strided</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">zeros</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">argmax</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">maximum</span><span class="p">]</span>  <span class="c1"># noqa: E501,B950</span>
-        <span class="n">view_ops</span> <span class="o">+=</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">view</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">slice</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">permute</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">t</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">broadcast_in_dim</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">expand</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">as_strided</span><span class="p">]</span>
+        <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="p">[</span><span class="n">prims</span><span class="o">.</span><span class="n">div</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">clone</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_to_copy</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">full_like</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">var</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">sum</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">var</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">std</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">broadcast_in_dim</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">select</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_unsafe_view</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">view</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">expand</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">slice</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">reshape</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">broadcast_tensors</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">scalar_tensor</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">ones</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">new_zeros</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">lift_fresh_copy</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">arange</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">triu</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">var_mean</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">isinf</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">any</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">full</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">as_strided</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">zeros</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">argmax</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">maximum</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">iota</span><span class="p">]</span>  <span class="c1"># noqa: E501,B950</span>
+        <span class="n">view_ops</span> <span class="o">+=</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">view</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">slice</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">t</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">broadcast_in_dim</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">expand</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">as_strided</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">permute</span><span class="p">]</span>
         <span class="c1"># Natalia said that we should allow recomputing indexing :)</span>
-        <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">index</span><span class="p">]</span>
+        <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">gather</span><span class="p">]</span>
     <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="n">view_ops</span>
 
     <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="n">pointwise_ops</span><span class="p">()</span>
@@ -1097,11 +1091,10 @@
         <span class="n">method_to_operator</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">magic_methods</span>
     <span class="p">]</span>
-
     <span class="n">recomputable_ops</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">recomputable_ops</span><span class="p">)</span> <span class="k">if</span> <span class="n">recomputable_ops</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">set</span><span class="p">(</span><span class="n">default_recomputable_ops</span><span class="p">)</span>
 
     <span class="n">random_ops</span> <span class="o">=</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">native_dropout</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">rand_like</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">randn_like</span><span class="p">]</span>
-    <span class="n">compute_intensive_ops</span> <span class="o">=</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">mm</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">convolution</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">convolution_backward</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">bmm</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">addmm</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">upsample_bilinear2d</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_softmax</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_softmax_backward_data</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">native_layer_norm</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">native_layer_norm_backward</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">native_batch_norm</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">native_batch_norm_backward</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_native_batch_norm_legit</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_batch_norm_with_update</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">batch_norm_backward</span><span class="p">]</span>  <span class="c1"># noqa: E501,B950</span>
+    <span class="n">compute_intensive_ops</span> <span class="o">=</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">mm</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">convolution</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">convolution_backward</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">bmm</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">addmm</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_scaled_dot_product_flash_attention</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_scaled_dot_product_efficient_attention</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">upsample_bilinear2d</span><span class="p">]</span>  <span class="c1"># noqa: E501,B950</span>
 
     <span class="n">fusible_ops</span> <span class="o">=</span> <span class="n">recomputable_ops</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">random_ops</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">AOT_PARTITIONER_DEBUG</span><span class="p">:</span>
@@ -1114,64 +1107,80 @@
         <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Ops banned from rematerialization: &quot;</span><span class="p">,</span> <span class="n">ops_ignored</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">()</span>
 
+    <span class="n">BAN_IF_USED_FAR_APART</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">ban_recompute_used_far_apart</span>
+    <span class="n">BAN_IF_LONG_FUSIBLE_CHAINS</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">ban_recompute_long_fusible_chains</span>
+    <span class="n">BAN_IF_MATERIALIZED_BACKWARDS</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">ban_recompute_materialized_backward</span>
+    <span class="n">BAN_IF_NOT_IN_ALLOWLIST</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">ban_recompute_not_in_allowlist</span>
+    <span class="n">BAN_IF_REDUCTION</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">ban_recompute_reductions</span>
+
+    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">aggressive_recomputation</span><span class="p">:</span>
+        <span class="n">BAN_IF_MATERIALIZED_BACKWARDS</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">BAN_IF_USED_FAR_APART</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">BAN_IF_LONG_FUSIBLE_CHAINS</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">BAN_IF_NOT_IN_ALLOWLIST</span> <span class="o">=</span> <span class="kc">False</span>
+
     <span class="k">def</span> <span class="nf">is_materialized_backwards</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">in</span> <span class="n">view_ops</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
         <span class="n">cur_nodes</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span><span class="p">}</span>
         <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">cur_nodes</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">cur</span> <span class="o">=</span> <span class="n">cur_nodes</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
             <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">cur</span><span class="o">.</span><span class="n">users</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">user</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_fusible</span><span class="p">(</span><span class="n">cur</span><span class="p">,</span> <span class="n">user</span><span class="p">):</span>
                     <span class="k">return</span> <span class="kc">True</span>
-                <span class="k">if</span> <span class="n">user</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span> <span class="ow">and</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">user</span><span class="p">)</span> <span class="ow">in</span> <span class="n">view_ops</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">user</span><span class="p">)</span> <span class="ow">in</span> <span class="n">view_ops</span><span class="p">:</span>
                     <span class="n">cur_nodes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="kc">False</span>
 
-    <span class="k">def</span> <span class="nf">ban_recomputation</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
-        <span class="k">if</span> <span class="s2">&quot;recompute&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
-        <span class="k">elif</span> <span class="n">config</span><span class="o">.</span><span class="n">aggressive_recomputation</span><span class="p">:</span>
-            <span class="n">ignored_ops</span> <span class="o">=</span> <span class="n">random_ops</span> <span class="o">+</span> <span class="n">compute_intensive_ops</span>
-            <span class="k">return</span> <span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span> <span class="ow">and</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">in</span> <span class="n">ignored_ops</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s1">&#39;call_function&#39;</span><span class="p">:</span>
-                <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">def</span> <span class="nf">should_ban_recomputation</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s1">&#39;call_function&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="o">==</span> <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="ow">in</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">lift_fresh_copy</span><span class="o">.</span><span class="n">default</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">lift_fresh</span><span class="o">.</span><span class="n">default</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;recompute&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="n">BAN_IF_NOT_IN_ALLOWLIST</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">recomputable_ops</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">True</span>
-            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="o">==</span> <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">:</span>
-                <span class="k">return</span> <span class="kc">False</span>
-            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="ow">in</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">lift_fresh_copy</span><span class="o">.</span><span class="n">default</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">lift_fresh</span><span class="o">.</span><span class="n">default</span><span class="p">]:</span>
-                <span class="k">return</span> <span class="kc">False</span>
-
-            <span class="c1"># If a node *must* be materialized in the backwards pass, then we</span>
-            <span class="c1"># should never recompute it. This is a pretty subtle point.  In</span>
-            <span class="c1"># general, the assumption we make is that recomputing a node in the</span>
-            <span class="c1"># backwards pass is &quot;free&quot;. However, if a node must be materialized</span>
-            <span class="c1"># in the backwards pass, then recomputing it is never free.</span>
-            <span class="k">if</span> <span class="n">is_materialized_backwards</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ignored_ops</span> <span class="o">=</span> <span class="n">random_ops</span> <span class="o">+</span> <span class="n">compute_intensive_ops</span>
+            <span class="k">if</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">in</span> <span class="n">ignored_ops</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">True</span>
 
-            <span class="c1"># Arbitrary hack that sometimes seems to help things. The above</span>
-            <span class="c1"># modification appears to have made this heuristic a lot less critical</span>
-            <span class="c1"># for performance.</span>
-            <span class="c1"># TODO: Investigate why this hack helps.</span>
-            <span class="c1"># TODO: Investigate the interaction with compiler assisted</span>
-            <span class="c1"># activation checkpointing. Removing the heuristic improves both</span>
-            <span class="c1"># memory footprint and speedup.</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">graph_has_recomputable_ops</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">compiler</span> <span class="o">==</span> <span class="s2">&quot;inductor&quot;</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">dist_from_bw</span> <span class="o">&gt;</span> <span class="n">config</span><span class="o">.</span><span class="n">max_dist_from_bw</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="kc">True</span>
-            <span class="c1"># If the output of an op is 4x smaller (arbitrary choice),</span>
-            <span class="c1"># then we don&#39;t allow recomputation.</span>
+
+        <span class="c1"># If a node *must* be materialized in the backwards pass, then we</span>
+        <span class="c1"># should never recompute it. This is a pretty subtle point.  In</span>
+        <span class="c1"># general, the assumption we make is that recomputing a node in the</span>
+        <span class="c1"># backwards pass is &quot;free&quot;. However, if a node must be materialized</span>
+        <span class="c1"># in the backwards pass, then recomputing it is never free.</span>
+        <span class="k">if</span> <span class="n">is_materialized_backwards</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">and</span> <span class="n">BAN_IF_MATERIALIZED_BACKWARDS</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;materialized backwards: </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">users</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="c1"># Arbitrary hack that sometimes seems to help things. The above</span>
+        <span class="c1"># modification appears to have made this heuristic a lot less critical</span>
+        <span class="c1"># for performance.</span>
+        <span class="c1"># NB: As of PR #121692, this hack no longer seems necessary.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">graph_has_recomputable_ops</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">compiler</span> <span class="o">==</span> <span class="s2">&quot;inductor&quot;</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">dist_from_bw</span> <span class="o">&gt;</span> <span class="n">config</span><span class="o">.</span><span class="n">max_dist_from_bw</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="c1"># If the output of an op is 4x smaller (arbitrary choice),</span>
+        <span class="c1"># then we don&#39;t allow recomputation. The idea here is that for</span>
+        <span class="c1"># things like reductions, saving the output of the reduction is very</span>
+        <span class="c1"># cheap/small, and it makes sure we don&#39;t do things like recompute</span>
+        <span class="c1"># normalizations in the backwards.</span>
+        <span class="k">if</span> <span class="n">BAN_IF_REDUCTION</span><span class="p">:</span>
             <span class="n">input_tensors_size</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">_size_of</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">))</span>
             <span class="n">output_size</span> <span class="o">=</span> <span class="n">_size_of</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">output_size</span> <span class="o">*</span> <span class="mi">4</span> <span class="o">&lt;</span> <span class="n">input_tensors_size</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
 
-    <span class="k">def</span> <span class="nf">is_fusible</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
-        <span class="c1"># We can perform &quot;memory fusion&quot; into a cat, but cat cannot be a</span>
-        <span class="c1"># producer to a fusion</span>
-        <span class="k">if</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="o">==</span> <span class="n">aten</span><span class="o">.</span><span class="n">cat</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">True</span>
-        <span class="k">return</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="ow">in</span> <span class="n">fusible_ops</span> <span class="ow">and</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="ow">in</span> <span class="n">fusible_ops</span>
 
     <span class="k">def</span> <span class="nf">is_materialized</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;placeholder&#39;</span><span class="p">:</span>
@@ -1185,15 +1194,33 @@
         <span class="c1"># Heuristic to bias towards nodes closer to the backwards pass</span>
         <span class="c1"># Complete guess about current value</span>
         <span class="n">mem_sz</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">mem_sz</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.1</span> <span class="o">**</span> <span class="nb">max</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">dist_from_bw</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span> <span class="mi">1</span><span class="p">)))</span>
-        <span class="c1"># mem_sz = int(mem_sz + node.dist_from_bw)</span>
-
         <span class="k">if</span> <span class="n">is_materialized</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">mem_sz</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">mem_sz</span> <span class="o">*</span> <span class="mi">2</span>
 
     <span class="n">nx_graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">DiGraph</span><span class="p">()</span>
-    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">full_bw_graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+    <span class="n">banned_nodes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">ban_recomputation_if_allowed</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+        <span class="c1"># This bans recomputation of the node unless we&#39;ve been forced not to by</span>
+        <span class="c1"># user annotation</span>
+        <span class="c1"># NB: &quot;recompute&quot; == 0 means it&#39;s not banned from recomputing</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;recompute&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="s1">&#39;val&#39;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;val&#39;</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymFloat</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="n">banned_nodes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+        <span class="c1"># A node will only ever be recomputed if there is a path from an</span>
+        <span class="c1"># ancestor of this node to the backwards path through this node that</span>
+        <span class="c1"># doesn&#39;t go through any saved value. If this node is saved, then that</span>
+        <span class="c1"># condition is not possible.</span>
+        <span class="n">nx_graph</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="s2">&quot;source&quot;</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;_in&quot;</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="n">math</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;output&#39;</span><span class="p">:</span>
             <span class="k">continue</span>
 
@@ -1212,13 +1239,13 @@
             <span class="n">nx_graph</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;_out&quot;</span><span class="p">,</span> <span class="s2">&quot;sink&quot;</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="n">math</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">_is_primal</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">or</span> <span class="n">_is_fwd_seed_offset</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
-            <span class="n">nx_graph</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="s2">&quot;source&quot;</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;_in&quot;</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="n">math</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+            <span class="n">ban_recomputation_if_allowed</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
 
         <span class="c1"># If a node can&#39;t be recomputed (too expensive or involves randomness),</span>
         <span class="c1"># we prevent it from being recomputed by adding an inf edge to the source</span>
         <span class="c1"># We only need to ban nodes in the fw pass, as those are the only ones that would be recomputed.</span>
-        <span class="k">if</span> <span class="n">ban_recomputation</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">and</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span><span class="p">:</span>
-            <span class="n">nx_graph</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="s2">&quot;source&quot;</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;_in&quot;</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="n">math</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span> <span class="ow">and</span> <span class="n">should_ban_recomputation</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+            <span class="n">ban_recomputation_if_allowed</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
 
         <span class="c1"># Checks if a node is actually a tuple. Can be simplified to just an isinstance check if we always use faketensors.</span>
         <span class="n">is_non_tensor_node</span> <span class="o">=</span> <span class="p">((</span><span class="s1">&#39;val&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="s1">&#39;tensor_meta&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">)</span> <span class="ow">or</span>
@@ -1235,6 +1262,93 @@
         <span class="n">nx_graph</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;_in&quot;</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;_out&quot;</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="n">weight</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">users</span><span class="p">:</span>
             <span class="n">nx_graph</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;_out&quot;</span><span class="p">,</span> <span class="n">user</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;_in&quot;</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="n">math</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+
+    <span class="c1"># todo(chilli): This is the most questionable of the 3 heuristics for banning recompute.</span>
+    <span class="c1"># Some example models to look at where this helps perf: poolformer_m36,</span>
+    <span class="c1"># mixer_b16_224, cait_m36_384</span>
+
+    <span class="c1"># The &quot;rough&quot; idea here is that if you have some node that is used by both a</span>
+    <span class="c1"># node nearby downstream as well as a node far downstream, if we recompute</span>
+    <span class="c1"># both of the downstream nodes, we&#39;re unlikely to be able to fuse both</span>
+    <span class="c1"># downstream nodes together.</span>
+
+    <span class="c1"># Thus, we shouldn&#39;t aim to recompute far downstream nodes that depend on</span>
+    <span class="c1"># this node. That intuition of &quot;far downstream&quot; is captured by whether</span>
+    <span class="c1"># there&#39;s an unfusible op along the chain somewhere</span>
+
+    <span class="c1"># It could probably be improved by properly analyzing what&#39;s going on in the</span>
+    <span class="c1"># backwards pass instead of only relying on whether it&#39;s unfusible in the</span>
+    <span class="c1"># forwards.</span>
+
+    <span class="k">def</span> <span class="nf">find_first_unfusible</span><span class="p">(</span><span class="n">start_nodes</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">],</span> <span class="n">max_range</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Finds the first unfusible node in the chain of nodes starting from</span>
+<span class="sd">        `start_nodes` and returns its position.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sorted_nodes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">start_nodes</span><span class="p">:</span>
+            <span class="n">heapq</span><span class="o">.</span><span class="n">heappush</span><span class="p">(</span><span class="n">sorted_nodes</span><span class="p">,</span> <span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">fw_order</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="kc">True</span><span class="p">))</span>
+
+        <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">sorted_nodes</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">node_is_fusible</span> <span class="o">=</span> <span class="n">heapq</span><span class="o">.</span><span class="n">heappop</span><span class="p">(</span><span class="n">sorted_nodes</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">node_is_fusible</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">fw_order</span>
+            <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">users</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">fw_order</span> <span class="o">&gt;</span> <span class="n">max_range</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="n">heapq</span><span class="o">.</span><span class="n">heappush</span><span class="p">(</span><span class="n">sorted_nodes</span><span class="p">,</span> <span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">fw_order</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">is_fusible</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">user</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">max_range</span>
+
+    <span class="k">if</span> <span class="n">BAN_IF_USED_FAR_APART</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">used_node</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span><span class="p">:</span>
+            <span class="n">orders</span> <span class="o">=</span> <span class="p">[</span><span class="n">user</span><span class="o">.</span><span class="n">fw_order</span> <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">used_node</span><span class="o">.</span><span class="n">users</span> <span class="k">if</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span><span class="p">]</span>
+            <span class="n">fw_users</span> <span class="o">=</span> <span class="p">[</span><span class="n">user</span> <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">used_node</span><span class="o">.</span><span class="n">users</span> <span class="k">if</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">orders</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">first_unfusible_use</span> <span class="o">=</span> <span class="n">find_first_unfusible</span><span class="p">(</span><span class="n">fw_users</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">orders</span><span class="p">))</span>
+                <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">used_node</span><span class="o">.</span><span class="n">users</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span> <span class="ow">and</span> <span class="n">user</span><span class="o">.</span><span class="n">fw_order</span> <span class="o">&gt;</span> <span class="n">first_unfusible_use</span> <span class="ow">and</span> <span class="n">is_fusible</span><span class="p">(</span><span class="n">used_node</span><span class="p">,</span> <span class="n">user</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">banned_nodes</span><span class="p">:</span>
+                            <span class="k">continue</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;used above/below fusible </span><span class="si">%s</span><span class="s2">:(</span><span class="si">%s</span><span class="s2">) -&gt; </span><span class="si">%s</span><span class="s2"> -&gt; </span><span class="si">%s</span><span class="s2">:(</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span>
+                            <span class="n">used_node</span><span class="p">,</span> <span class="n">used_node</span><span class="o">.</span><span class="n">fw_order</span><span class="p">,</span> <span class="n">first_unfusible_use</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">user</span><span class="o">.</span><span class="n">fw_order</span>
+                        <span class="p">)</span>
+                        <span class="n">ban_recomputation_if_allowed</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+
+
+    <span class="c1"># This heuristic is fairly straightforward. The idea is that although it is</span>
+    <span class="c1"># cheap to recompute bandwidth-bound ops, we don&#39;t want to end up in a situation</span>
+    <span class="c1"># where we have a long chain of pointwise ops from the beginning to the end</span>
+    <span class="c1"># of the model (like say, residual connections)</span>
+
+    <span class="c1"># todo: I&#39;m not totally sure why this heuristic matters. It&#39;s possible that this is</span>
+    <span class="c1"># working around Inductor fusion decisions, or that it&#39;s a patch over</span>
+    <span class="c1"># suboptimal partitioning decisions</span>
+
+    <span class="c1"># Some models it improves perf on are cait_m36_384, mixer_b16_224, poolformer_m36</span>
+
+    <span class="k">if</span> <span class="n">BAN_IF_LONG_FUSIBLE_CHAINS</span><span class="p">:</span>
+        <span class="n">visited</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">start_node</span> <span class="ow">in</span> <span class="n">joint_graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">start_node</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">fusible</span> <span class="o">=</span> <span class="p">[(</span><span class="n">start_node</span><span class="o">.</span><span class="n">fw_order</span><span class="p">,</span> <span class="n">start_node</span><span class="p">)]</span>
+            <span class="n">start_order</span> <span class="o">=</span> <span class="n">start_node</span><span class="o">.</span><span class="n">fw_order</span>
+            <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">fusible</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">cur</span> <span class="o">=</span> <span class="n">heapq</span><span class="o">.</span><span class="n">heappop</span><span class="p">(</span><span class="n">fusible</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">cur</span> <span class="ow">in</span> <span class="n">visited</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">visited</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">cur</span><span class="p">)</span>
+                <span class="c1"># 100 is arbitrary choice to try and prevent degenerate cases</span>
+                <span class="k">if</span> <span class="n">cur</span><span class="o">.</span><span class="n">fw_order</span> <span class="o">&gt;</span> <span class="n">start_order</span> <span class="o">+</span> <span class="mi">100</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">fusible</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;too long </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">cur</span><span class="p">,</span> <span class="n">start_node</span><span class="p">,</span> <span class="n">cur</span><span class="o">.</span><span class="n">fw_order</span><span class="p">,</span> <span class="n">start_node</span><span class="o">.</span><span class="n">fw_order</span><span class="p">)</span>
+                    <span class="n">ban_recomputation_if_allowed</span><span class="p">(</span><span class="n">cur</span><span class="p">)</span>
+                    <span class="k">break</span>
+
+                <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">cur</span><span class="o">.</span><span class="n">users</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span> <span class="ow">and</span> <span class="n">is_fusible</span><span class="p">(</span><span class="n">cur</span><span class="p">,</span> <span class="n">user</span><span class="p">)</span> <span class="ow">and</span> <span class="n">user</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">banned_nodes</span><span class="p">:</span>
+                        <span class="n">heapq</span><span class="o">.</span><span class="n">heappush</span><span class="p">(</span><span class="n">fusible</span><span class="p">,</span> <span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">fw_order</span><span class="p">,</span> <span class="n">user</span><span class="p">))</span>
 
     <span class="k">try</span><span class="p">:</span>
         <span class="n">cut_value</span><span class="p">,</span> <span class="n">partition</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">minimum_cut</span><span class="p">(</span><span class="n">nx_graph</span><span class="p">,</span> <span class="s2">&quot;source&quot;</span><span class="p">,</span> <span class="s2">&quot;sink&quot;</span><span class="p">)</span>
@@ -1269,10 +1383,13 @@
             <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span> <span class="o">=</span> <span class="n">functionalize_rng_ops</span><span class="p">(</span>
                 <span class="n">joint_module</span><span class="p">,</span> <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">saved_sym_nodes</span><span class="p">)</span>
             <span class="p">)</span>
-        <span class="n">bw_module</span> <span class="o">=</span> <span class="n">reordering_to_mimic_autograd_engine</span><span class="p">(</span><span class="n">bw_module</span><span class="p">)</span>
+    <span class="n">bw_module</span> <span class="o">=</span> <span class="n">reordering_to_mimic_autograd_engine</span><span class="p">(</span><span class="n">bw_module</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">AOT_PARTITIONER_DEBUG</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">torch._inductor.fx_utils</span> <span class="kn">import</span> <span class="n">get_node_storage</span>
+        <span class="n">storages</span> <span class="o">=</span> <span class="p">{</span><span class="n">get_node_storage</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">saved_values</span><span class="p">}</span>
         <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Theoretical Activations Stored: &quot;</span><span class="p">,</span> <span class="nb">sum</span><span class="p">([</span><span class="n">_size_of</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">saved_values</span><span class="p">])</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">)</span>
+        <span class="n">sorted_sizes</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([(</span><span class="n">_size_of</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">saved_values</span><span class="p">])</span>
         <span class="n">fw_module_nodes</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span><span class="p">}</span>
         <span class="n">bw_module_nodes</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span><span class="p">}</span>
         <span class="n">remat_nodes</span> <span class="o">=</span> <span class="n">fw_module_nodes</span> <span class="o">&amp;</span> <span class="n">bw_module_nodes</span>
