@@ -227,7 +227,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.4.0a0+git9faa884) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.4.0a0+git0288fa7) &#x25BC</a>
     </div>
     
 
@@ -747,6 +747,22 @@
 <span class="c1"># So the signature of the graph input would look something like</span>
 <span class="c1"># (*tokens, *params_buffers, *user_inputs), and the signature of the graph</span>
 <span class="c1"># output would look something like (*tokens, *outputs).</span>
+<span class="c1">#</span>
+<span class="c1"># However, Inductor does not want the concept of tokens in the final generated</span>
+<span class="c1"># code&#39;s input and output. Since changing the graph signature inside of inductor</span>
+<span class="c1"># is difficult, after generating the forward graph, we will run a pass to</span>
+<span class="c1"># remove the tokens from the inputgenerate the following graph for Inductor, where</span>
+<span class="c1"># the tokens are created and sunk within the graph, rather than as inputs and</span>
+<span class="c1"># outputs:</span>
+<span class="c1">#</span>
+<span class="c1"># def gm(self, reader):</span>
+<span class="c1">#    token0 = torch.ops.prims._make_token()</span>
+<span class="c1">#    token1, frame = with_token(ordered_effect_op, (reader,), token0)</span>
+<span class="c1">#    frame = frame * 2</span>
+<span class="c1">#    token2, frame2 = with_token(ordered_effect_op, (reader,), token1)</span>
+<span class="c1">#    frame2 = frame2 * 2</span>
+<span class="c1">#    sink_token = torch.ops.prims._sink_tokens([token2])</span>
+<span class="c1">#    return frame, frame2</span>
 
 <span class="c1">#</span>
 <span class="c1">#</span>
