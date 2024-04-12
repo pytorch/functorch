@@ -227,7 +227,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.4.0a0+git4d1d71e) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.4.0a0+git22ba180) &#x25BC</a>
     </div>
     
 
@@ -996,9 +996,6 @@
             <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">compiled_fn</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">compiled_fn</span><span class="p">,</span> <span class="n">fw_metadata</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">compiled_fn</span><span class="p">,</span> <span class="s2">&quot;_boxed_call&quot;</span><span class="p">):</span>
-            <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">make_boxed_func</span><span class="p">(</span><span class="n">compiled_fn</span><span class="p">)</span>
-
         <span class="k">return</span> <span class="n">compiled_fn</span>
 
 
@@ -1273,7 +1270,7 @@
     <span class="c1"># the boxed calling convention, but aot_module_simplified somehow</span>
     <span class="c1"># historically returned a function that was not the boxed calling</span>
     <span class="c1"># convention.  This should get fixed...</span>
-    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="o">*</span><span class="n">runtime_args</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="o">*</span><span class="n">runtime_args</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">]):</span>
         <span class="n">full_args</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">full_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">params_flat</span><span class="p">)</span>
         <span class="n">full_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">runtime_args</span><span class="p">)</span>
