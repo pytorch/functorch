@@ -227,7 +227,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.4.0a0+git22ba180) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.4.0a0+git1d6c597) &#x25BC</a>
     </div>
     
 
@@ -348,29 +348,34 @@
   <h1>Source code for torch._functorch.partitioners</h1><div class="highlight"><pre>
 <span></span><span class="c1"># mypy: ignore-errors</span>
 
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">functools</span>
+<span class="kn">import</span> <span class="nn">heapq</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">operator</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Set</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span> <span class="nn">sympy</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch.fx</span> <span class="k">as</span> <span class="nn">fx</span>
+<span class="kn">import</span> <span class="nn">torch.utils._pytree</span> <span class="k">as</span> <span class="nn">pytree</span>
+<span class="kn">from</span> <span class="nn">torch.fx.experimental._backward_state</span> <span class="kn">import</span> <span class="n">BackwardState</span>
 <span class="kn">from</span> <span class="nn">torch.fx.experimental.proxy_tensor</span> <span class="kn">import</span> <span class="n">is_sym_node</span><span class="p">,</span> <span class="n">py_sym_types</span>
 <span class="kn">from</span> <span class="nn">torch.fx.experimental.sym_node</span> <span class="kn">import</span> <span class="n">magic_methods</span><span class="p">,</span> <span class="n">method_to_operator</span>
 <span class="kn">from</span> <span class="nn">torch.fx.experimental.symbolic_shapes</span> <span class="kn">import</span> <span class="p">(</span>
-    <span class="n">hint_int</span><span class="p">,</span> <span class="n">free_symbols</span><span class="p">,</span> <span class="n">is_symbol_binding_fx_node</span><span class="p">,</span> <span class="n">find_symbol_binding_fx_nodes</span>
+    <span class="n">find_symbol_binding_fx_nodes</span><span class="p">,</span>
+    <span class="n">free_symbols</span><span class="p">,</span>
+    <span class="n">hint_int</span><span class="p">,</span>
+    <span class="n">is_symbol_binding_fx_node</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span> <span class="nn">torch.fx.experimental._backward_state</span> <span class="kn">import</span> <span class="n">BackwardState</span>
-<span class="kn">import</span> <span class="nn">torch</span>
-<span class="kn">import</span> <span class="nn">torch.fx</span> <span class="k">as</span> <span class="nn">fx</span>
-<span class="kn">import</span> <span class="nn">operator</span>
-<span class="kn">import</span> <span class="nn">math</span>
-<span class="kn">import</span> <span class="nn">heapq</span>
-<span class="kn">import</span> <span class="nn">torch.utils._pytree</span> <span class="k">as</span> <span class="nn">pytree</span>
-<span class="kn">import</span> <span class="nn">copy</span>
-<span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">itertools</span>
-<span class="kn">import</span> <span class="nn">sympy</span>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
 <span class="kn">from</span> <span class="nn">torch.fx.passes</span> <span class="kn">import</span> <span class="n">graph_drawer</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Set</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
-<span class="kn">from</span> <span class="nn">.compile_utils</span> <span class="kn">import</span> <span class="n">fx_graph_cse</span><span class="p">,</span> <span class="n">get_aten_target</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">config</span>
-<span class="kn">import</span> <span class="nn">functools</span>
-<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">.compile_utils</span> <span class="kn">import</span> <span class="n">fx_graph_cse</span><span class="p">,</span> <span class="n">get_aten_target</span>
 
 
 <span class="n">AOT_PARTITIONER_DEBUG</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_partitioner</span>
@@ -380,6 +385,7 @@
 <span class="k">def</span> <span class="nf">must_recompute</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;recompute&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
 
+
 <span class="k">def</span> <span class="nf">has_recomputable_ops</span><span class="p">(</span><span class="n">fx_g</span><span class="p">):</span>
     <span class="n">found</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
@@ -387,17 +393,24 @@
             <span class="k">return</span> <span class="kc">True</span>
     <span class="k">return</span> <span class="kc">False</span>
 
+
 <span class="k">def</span> <span class="nf">has_recomputable_rng_ops</span><span class="p">(</span><span class="n">fx_g</span><span class="p">):</span>
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fx_g</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">must_recompute</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="s2">&quot;tags&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tag</span><span class="o">.</span><span class="n">nondeterministic_seeded</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">tags</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">must_recompute</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="s2">&quot;tags&quot;</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tag</span><span class="o">.</span><span class="n">nondeterministic_seeded</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">tags</span>
+        <span class="p">):</span>
             <span class="k">return</span> <span class="kc">True</span>
     <span class="k">return</span> <span class="kc">False</span>
+
 
 <span class="k">def</span> <span class="nf">sym_node_size</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">SymInt</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymBool</span><span class="p">)):</span>
         <span class="k">return</span> <span class="mi">1</span>
     <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymFloat</span><span class="p">)</span>
     <span class="k">return</span> <span class="mi">4</span>
+
 
 <span class="k">class</span> <span class="nc">InvalidNodeBase</span><span class="p">:</span>
     <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -431,25 +444,31 @@
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">inputs</span><span class="p">:</span>
             <span class="k">continue</span>
-        <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;placeholder&#39;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span><span class="p">:</span>
             <span class="n">env</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">InvalidNode</span>
-        <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;call_function&quot;</span><span class="p">:</span>
             <span class="n">all_args</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">arg_tree_leaves</span><span class="p">(</span><span class="o">*</span><span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">node</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
-            <span class="n">all_args</span> <span class="o">=</span> <span class="p">[</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">env</span><span class="p">[</span><span class="n">x</span><span class="p">],</span> <span class="n">InvalidNodeBase</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">all_args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">)]</span>
+            <span class="n">all_args</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="nb">isinstance</span><span class="p">(</span><span class="n">env</span><span class="p">[</span><span class="n">x</span><span class="p">],</span> <span class="n">InvalidNodeBase</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">all_args</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">)</span>
+            <span class="p">]</span>
             <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">all_args</span><span class="p">):</span>
                 <span class="n">env</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">InvalidNode</span>
                 <span class="k">continue</span>
             <span class="n">env</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_graph</span><span class="o">.</span><span class="n">node_copy</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">env</span><span class="p">[</span><span class="n">x</span><span class="p">])</span>
-        <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;get_attr&#39;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;get_attr&quot;</span><span class="p">:</span>
             <span class="n">env</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_graph</span><span class="o">.</span><span class="n">node_copy</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">env</span><span class="p">[</span><span class="n">x</span><span class="p">])</span>
-        <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;output&#39;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;output&quot;</span><span class="p">:</span>
             <span class="k">pass</span>
     <span class="n">output_values</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">outputs</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">x</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">env</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Node </span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2"> couldn&#39;t be found in env&quot;</span><span class="p">)</span>
-            <span class="k">assert</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env</span><span class="p">[</span><span class="n">x</span><span class="p">],</span> <span class="n">InvalidNodeBase</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Node </span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2"> was invalid, but is output&quot;</span>
+            <span class="k">assert</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span>
+                <span class="n">env</span><span class="p">[</span><span class="n">x</span><span class="p">],</span> <span class="n">InvalidNodeBase</span>
+            <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Node </span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2"> was invalid, but is output&quot;</span>
             <span class="n">output_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">env</span><span class="p">[</span><span class="n">x</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">output_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
@@ -468,21 +487,31 @@
         <span class="ow">and</span> <span class="ow">not</span> <span class="n">_is_fwd_seed_offset</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
     <span class="p">)</span>
 
+
 <span class="k">def</span> <span class="nf">_is_tangent</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span> <span class="ow">and</span> <span class="s2">&quot;tangents&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span>
 
+
 <span class="k">def</span> <span class="nf">_is_bwd_seed_offset</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span> <span class="ow">and</span> <span class="p">(</span><span class="s2">&quot;bwd_seed&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="ow">or</span> <span class="s2">&quot;bwd_base_offset&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span> <span class="ow">and</span> <span class="p">(</span>
+        <span class="s2">&quot;bwd_seed&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="ow">or</span> <span class="s2">&quot;bwd_base_offset&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span>
+    <span class="p">)</span>
+
 
 <span class="k">def</span> <span class="nf">_is_fwd_seed_offset</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span> <span class="ow">and</span> <span class="p">(</span><span class="s2">&quot;fwd_seed&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="ow">or</span> <span class="s2">&quot;fwd_base_offset&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span> <span class="ow">and</span> <span class="p">(</span>
+        <span class="s2">&quot;fwd_seed&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="ow">or</span> <span class="s2">&quot;fwd_base_offset&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span>
+    <span class="p">)</span>
+
 
 <span class="k">def</span> <span class="nf">_is_backward_state</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;val&quot;</span><span class="p">),</span> <span class="n">BackwardState</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">_extract_fwd_bwd_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="p">):</span>
-    <span class="n">outputs</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">arg_tree_leaves</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">args</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">)))</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">arg_tree_leaves</span><span class="p">(</span>
+        <span class="o">*</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">args</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">))</span>
+    <span class="p">)</span>
     <span class="n">fwd_outputs</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[:</span><span class="n">num_fwd_outputs</span><span class="p">]</span>
     <span class="n">bwd_outputs</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="n">num_fwd_outputs</span><span class="p">:]</span>
     <span class="k">return</span> <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span>
@@ -495,8 +524,12 @@
             <span class="k">break</span>
 
 
-<span class="k">def</span> <span class="nf">_extract_fwd_bwd_modules</span><span class="p">(</span><span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">,</span> <span class="n">saved_sym_nodes</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="p">):</span>
-    <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_extract_fwd_bwd_modules</span><span class="p">(</span>
+    <span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">,</span> <span class="n">saved_sym_nodes</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">num_fwd_outputs</span>
+<span class="p">):</span>
+    <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span>
+        <span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span>
+    <span class="p">)</span>
     <span class="n">placeholders</span> <span class="o">=</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;placeholder&quot;</span><span class="p">)</span>
     <span class="n">primal_inputs</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_primal</span><span class="p">,</span> <span class="n">placeholders</span><span class="p">)]</span>
     <span class="n">tangent_inputs</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_tangent</span><span class="p">,</span> <span class="n">placeholders</span><span class="p">)]</span>
@@ -507,7 +540,7 @@
     <span class="n">bwd_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span>
         <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span>
         <span class="n">saved_sym_nodes</span> <span class="o">+</span> <span class="n">saved_values</span> <span class="o">+</span> <span class="n">tangent_inputs</span> <span class="o">+</span> <span class="n">bwd_seed_offset_inputs</span><span class="p">,</span>
-        <span class="n">bwd_outputs</span>
+        <span class="n">bwd_outputs</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">bwd_graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;placeholder&quot;</span><span class="p">):</span>
@@ -519,7 +552,6 @@
             <span class="c1"># BackwardState is saved directly</span>
             <span class="n">_remove_by_name</span><span class="p">(</span><span class="n">saved_values</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
             <span class="k">assert</span> <span class="n">backward_state_inputs</span>
-
 
     <span class="c1"># Now that we have the finalized list of saved values, we need to ensure</span>
     <span class="c1"># we propagate all symbols which are referenced by backwards inputs.</span>
@@ -556,7 +588,6 @@
             <span class="n">saved_sym_nodes_binding</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">symbol_bindings</span><span class="p">[</span><span class="n">s</span><span class="p">])</span>
         <span class="n">saved_symbols</span> <span class="o">|=</span> <span class="n">new_symbols</span>
 
-
     <span class="c1"># Update saved_sym_nodes that are now reordered to have all bindings at</span>
     <span class="c1"># front. This can also be used later on to figure out the position of saved</span>
     <span class="c1"># sym nodes in the output of fwd graph.</span>
@@ -568,12 +599,16 @@
     <span class="n">fwd_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span>
         <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span>
         <span class="n">primal_inputs</span> <span class="o">+</span> <span class="n">fwd_seed_offset_inputs</span><span class="p">,</span>
-        <span class="n">fwd_outputs</span> <span class="o">+</span> <span class="n">saved_values</span> <span class="o">+</span> <span class="n">saved_sym_nodes</span>
+        <span class="n">fwd_outputs</span> <span class="o">+</span> <span class="n">saved_values</span> <span class="o">+</span> <span class="n">saved_sym_nodes</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">bwd_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span>
         <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span>
-        <span class="n">saved_sym_nodes</span> <span class="o">+</span> <span class="n">saved_values</span> <span class="o">+</span> <span class="n">tangent_inputs</span> <span class="o">+</span> <span class="n">bwd_seed_offset_inputs</span> <span class="o">+</span> <span class="n">backward_state_inputs</span><span class="p">,</span>
-        <span class="n">bwd_outputs</span>
+        <span class="n">saved_sym_nodes</span>
+        <span class="o">+</span> <span class="n">saved_values</span>
+        <span class="o">+</span> <span class="n">tangent_inputs</span>
+        <span class="o">+</span> <span class="n">bwd_seed_offset_inputs</span>
+        <span class="o">+</span> <span class="n">backward_state_inputs</span><span class="p">,</span>
+        <span class="n">bwd_outputs</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="n">fwd_module</span> <span class="o">=</span> <span class="n">fx</span><span class="o">.</span><span class="n">_lazy_graph_module</span><span class="o">.</span><span class="n">_make_graph_module</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">fwd_graph</span><span class="p">)</span>
@@ -608,13 +643,21 @@
 <span class="sd">        Returns the generated forward and backward Fx graph modules.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">has_recomputable_ops</span><span class="p">(</span><span class="n">joint_module</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">min_cut_rematerialization_partition</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">_joint_inputs</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">min_cut_rematerialization_partition</span><span class="p">(</span>
+            <span class="n">joint_module</span><span class="p">,</span> <span class="n">_joint_inputs</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span>
+        <span class="p">)</span>
     <span class="n">primal_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_primal</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
     <span class="n">fwd_seed_offset_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_fwd_seed_offset</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
     <span class="n">inputs</span> <span class="o">=</span> <span class="n">primal_inputs</span> <span class="o">+</span> <span class="n">fwd_seed_offset_inputs</span>
-    <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span>
-    <span class="n">forward_only_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">fwd_outputs</span><span class="p">)</span>
-    <span class="n">forward_node_names</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">forward_only_graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s1">&#39;output&#39;</span><span class="p">}</span>
+    <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span>
+        <span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span>
+    <span class="p">)</span>
+    <span class="n">forward_only_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span>
+        <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">fwd_outputs</span>
+    <span class="p">)</span>
+    <span class="n">forward_node_names</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">forward_only_graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s2">&quot;output&quot;</span>
+    <span class="p">}</span>
     <span class="n">saved_values</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">saved_sym_nodes</span> <span class="o">=</span> <span class="p">[]</span>
 
@@ -625,17 +668,18 @@
             <span class="c1"># Symints must be kept separate from tensors so that PythonFunction only calls</span>
             <span class="c1"># save_for_backward on tensors and stashes symints in autograd .ctx</span>
             <span class="n">saved_sym_nodes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="p">(</span>
-            <span class="s1">&#39;tensor_meta&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span>
-            <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span>
-        <span class="p">):</span>
+        <span class="k">elif</span> <span class="s2">&quot;tensor_meta&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;call_function&quot;</span><span class="p">:</span>
             <span class="c1"># Since we can&#39;t save tuple of tensor values, we need to flatten out what we&#39;re saving</span>
             <span class="n">users</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">users</span>
             <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">target</span> <span class="o">==</span> <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span> <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">users</span><span class="p">)</span>
             <span class="n">saved_values</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">users</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">backward_usages</span> <span class="o">=</span> <span class="p">[</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">users</span> <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">forward_node_names</span><span class="p">]</span>
-            <span class="k">if</span> <span class="s1">&#39;tensor_meta&#39;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="n">is_sym_node</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">backward_usages</span><span class="p">):</span>
+            <span class="n">backward_usages</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">users</span> <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">forward_node_names</span>
+            <span class="p">]</span>
+            <span class="k">if</span> <span class="s2">&quot;tensor_meta&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span>
+                <span class="n">is_sym_node</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">backward_usages</span>
+            <span class="p">):</span>
                 <span class="c1"># If we have a tensor in the forward, where only its sizes/strides are needed in the backward,</span>
                 <span class="c1"># and not the actual tensor data,</span>
                 <span class="c1"># then it will be a lot cheaper to save only the sizes/strides, and not the actual tensor.</span>
@@ -650,7 +694,12 @@
     <span class="n">saved_values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">dict</span><span class="o">.</span><span class="n">fromkeys</span><span class="p">(</span><span class="n">saved_values</span><span class="p">)</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
     <span class="n">saved_sym_nodes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">dict</span><span class="o">.</span><span class="n">fromkeys</span><span class="p">(</span><span class="n">saved_sym_nodes</span><span class="p">)</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
 
-    <span class="k">return</span> <span class="n">_extract_fwd_bwd_modules</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">,</span> <span class="n">saved_sym_nodes</span><span class="o">=</span><span class="n">saved_sym_nodes</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">_extract_fwd_bwd_modules</span><span class="p">(</span>
+        <span class="n">joint_module</span><span class="p">,</span>
+        <span class="n">saved_values</span><span class="p">,</span>
+        <span class="n">saved_sym_nodes</span><span class="o">=</span><span class="n">saved_sym_nodes</span><span class="p">,</span>
+        <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">,</span>
+    <span class="p">)</span></div>
 
 
 <span class="k">def</span> <span class="nf">_prod</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
@@ -659,12 +708,14 @@
         <span class="n">s</span> <span class="o">*=</span> <span class="n">i</span>
     <span class="k">return</span> <span class="n">s</span>
 
+
 <span class="k">def</span> <span class="nf">_tensor_nbytes</span><span class="p">(</span><span class="n">numel</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">numel</span> <span class="o">*</span> <span class="n">dtype</span><span class="o">.</span><span class="n">itemsize</span>
 
+
 <span class="k">def</span> <span class="nf">_size_of</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-    <span class="k">if</span> <span class="s1">&#39;val&#39;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
-        <span class="n">val</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;val&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s2">&quot;val&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">py_sym_types</span><span class="p">):</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymInt</span><span class="p">):</span>
                 <span class="k">return</span> <span class="mi">1</span>
@@ -674,15 +725,19 @@
         <span class="c1"># torch._inductor.config.unbacked_symint_fallback (but this is a</span>
         <span class="c1"># layering violation)</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
-            <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">_tensor_nbytes</span><span class="p">(</span><span class="n">hint_int</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">numel</span><span class="p">(),</span> <span class="n">fallback</span><span class="o">=</span><span class="mi">4098</span><span class="p">),</span> <span class="n">n</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">val</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">))</span>
+            <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span>
+                <span class="n">_tensor_nbytes</span><span class="p">(</span><span class="n">hint_int</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">numel</span><span class="p">(),</span> <span class="n">fallback</span><span class="o">=</span><span class="mi">4098</span><span class="p">),</span> <span class="n">n</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">val</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
+            <span class="p">)</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">_tensor_nbytes</span><span class="p">(</span><span class="n">hint_int</span><span class="p">(</span><span class="n">val</span><span class="o">.</span><span class="n">numel</span><span class="p">(),</span> <span class="n">fallback</span><span class="o">=</span><span class="mi">4098</span><span class="p">),</span> <span class="n">val</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown metadata type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">val</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="c1"># Only needed since we don&#39;t always trace with fake tensors.</span>
-    <span class="k">if</span> <span class="s1">&#39;tensor_meta&#39;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
-        <span class="n">metadata</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;tensor_meta&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s2">&quot;tensor_meta&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span>
         <span class="c1"># TODO: What is to_size_hint suppose to be?</span>
         <span class="n">numel</span> <span class="o">=</span> <span class="n">_prod</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">to_size_hint</span><span class="p">,</span> <span class="n">metadata</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>  <span class="c1"># noqa: F821</span>
         <span class="n">dtype</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">dtype</span>
@@ -695,9 +750,10 @@
 <span class="c1"># Used for some investigative purposes</span>
 <span class="k">def</span> <span class="nf">_count_ops</span><span class="p">(</span><span class="n">graph</span><span class="p">):</span>
     <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+
     <span class="n">cnt</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;call_function&quot;</span><span class="p">:</span>
             <span class="n">cnt</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="vm">__name__</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
     <span class="nb">print</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">cnt</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
 
@@ -721,7 +777,9 @@
 
 
 <span class="k">def</span> <span class="nf">sort_depths</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">depth_map</span><span class="p">):</span>
-    <span class="n">arg_depths</span> <span class="o">=</span> <span class="p">{</span><span class="n">arg</span><span class="p">:</span> <span class="n">depth_map</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">node</span><span class="o">.</span><span class="n">Node</span><span class="p">)}</span>
+    <span class="n">arg_depths</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">arg</span><span class="p">:</span> <span class="n">depth_map</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">node</span><span class="o">.</span><span class="n">Node</span><span class="p">)</span>
+    <span class="p">}</span>
     <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">arg_depths</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 
@@ -763,7 +821,7 @@
     <span class="n">depths</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="n">output_node</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">gm</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">)))</span>
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">gm</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;placeholder&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span><span class="p">:</span>
             <span class="n">depths</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">depths</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">depths</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">all_input_nodes</span><span class="p">],</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
@@ -794,7 +852,7 @@
         <span class="k">return</span> <span class="n">gm</span>
 
     <span class="c1"># Build the graph op-by-op by starting from the node all the way to the end</span>
-    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">gm</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">)[</span><span class="n">order</span><span class="p">[</span><span class="n">first_node_in_bwd</span><span class="p">]:]:</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">gm</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">)[</span><span class="n">order</span><span class="p">[</span><span class="n">first_node_in_bwd</span><span class="p">]</span> <span class="p">:]:</span>
         <span class="n">insert_node_in_graph</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
 
     <span class="c1"># The output node is already built by the traversal.</span>
@@ -882,7 +940,6 @@
             <span class="n">bw_tangent_start_node</span> <span class="o">=</span> <span class="n">node</span>
             <span class="k">break</span>
 
-
     <span class="n">fw_rng_state_outputs</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">base_node</span><span class="p">,</span> <span class="n">node_pair</span> <span class="ow">in</span> <span class="n">recomputable_rng_ops_map</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
         <span class="c1"># Step 2 - Modify the fwd pass such that</span>
@@ -894,14 +951,26 @@
                 <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
                 <span class="n">run_and_save_rng</span><span class="p">,</span>
                 <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">fw_node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="o">*</span><span class="n">fw_node</span><span class="o">.</span><span class="n">args</span><span class="p">),</span>
-                <span class="n">kwargs</span><span class="o">=</span><span class="n">fw_node</span><span class="o">.</span><span class="n">kwargs</span>
+                <span class="n">kwargs</span><span class="o">=</span><span class="n">fw_node</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">state</span> <span class="o">=</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span><span class="s2">&quot;call_function&quot;</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">functional_fw_node</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">kwargs</span><span class="o">=</span><span class="p">{})</span>
-            <span class="n">rng_output</span> <span class="o">=</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span><span class="s2">&quot;call_function&quot;</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">functional_fw_node</span><span class="p">,</span> <span class="mi">1</span><span class="p">,),</span> <span class="n">kwargs</span><span class="o">=</span><span class="p">{})</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span>
+                <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
+                <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">,</span>
+                <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">functional_fw_node</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                <span class="n">kwargs</span><span class="o">=</span><span class="p">{},</span>
+            <span class="p">)</span>
+            <span class="n">rng_output</span> <span class="o">=</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span>
+                <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
+                <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">,</span>
+                <span class="n">args</span><span class="o">=</span><span class="p">(</span>
+                    <span class="n">functional_fw_node</span><span class="p">,</span>
+                    <span class="mi">1</span><span class="p">,</span>
+                <span class="p">),</span>
+                <span class="n">kwargs</span><span class="o">=</span><span class="p">{},</span>
+            <span class="p">)</span>
             <span class="n">fw_node</span><span class="o">.</span><span class="n">replace_all_uses_with</span><span class="p">(</span><span class="n">rng_output</span><span class="p">)</span>
             <span class="n">fw_graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">fw_node</span><span class="p">)</span>
             <span class="n">fw_rng_state_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
-
 
         <span class="c1"># Step 3 - Modify the bwd pass such that</span>
         <span class="n">bw_graph</span> <span class="o">=</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span>
@@ -915,12 +984,11 @@
                 <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
                 <span class="n">run_with_rng_state</span><span class="p">,</span>
                 <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">bw_rng_state_node</span><span class="p">,</span> <span class="n">bw_node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="o">*</span><span class="n">bw_node</span><span class="o">.</span><span class="n">args</span><span class="p">),</span>
-                <span class="n">kwargs</span><span class="o">=</span><span class="n">bw_node</span><span class="o">.</span><span class="n">kwargs</span>
+                <span class="n">kwargs</span><span class="o">=</span><span class="n">bw_node</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span>
             <span class="p">)</span>
 
             <span class="n">bw_node</span><span class="o">.</span><span class="n">replace_all_uses_with</span><span class="p">(</span><span class="n">rng_output</span><span class="p">)</span>
             <span class="n">bw_graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">bw_node</span><span class="p">)</span>
-
 
     <span class="c1"># Add the rng states in the output of the fwd graph. AOT Autograd assumes</span>
     <span class="c1"># that symints are at the end of forward graph outputs. So, insert the new</span>
@@ -928,7 +996,11 @@
     <span class="n">fw_output_node</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">)))</span>
     <span class="n">fw_outputs</span> <span class="o">=</span> <span class="n">fw_output_node</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="n">sym_node_start_idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_outputs</span><span class="p">)</span> <span class="o">-</span> <span class="n">num_sym_nodes</span>
-    <span class="n">outputs</span> <span class="o">=</span> <span class="n">fw_outputs</span><span class="p">[:</span><span class="n">sym_node_start_idx</span><span class="p">]</span> <span class="o">+</span> <span class="n">fw_rng_state_outputs</span> <span class="o">+</span> <span class="n">fw_outputs</span><span class="p">[</span><span class="n">sym_node_start_idx</span><span class="p">:]</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">fw_outputs</span><span class="p">[:</span><span class="n">sym_node_start_idx</span><span class="p">]</span>
+        <span class="o">+</span> <span class="n">fw_rng_state_outputs</span>
+        <span class="o">+</span> <span class="n">fw_outputs</span><span class="p">[</span><span class="n">sym_node_start_idx</span><span class="p">:]</span>
+    <span class="p">)</span>
     <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
     <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">fw_output_node</span><span class="p">)</span>
     <span class="n">fw_module</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
@@ -946,14 +1018,21 @@
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">must_recompute</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">users</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">must_recompute</span><span class="p">(</span><span class="n">user</span><span class="p">)</span> <span class="ow">and</span> <span class="n">user</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="n">must_recompute</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="n">user</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]</span>
+                <span class="p">):</span>
                     <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="k">return</span> <span class="n">joint_module</span>
 
 
 <div class="viewcode-block" id="min_cut_rematerialization_partition"><a class="viewcode-back" href="../../../generated/functorch.compile.min_cut_rematerialization_partition.html#functorch.compile.min_cut_rematerialization_partition">[docs]</a><span class="k">def</span> <span class="nf">min_cut_rematerialization_partition</span><span class="p">(</span>
-    <span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">_joint_inputs</span><span class="p">,</span> <span class="n">compiler</span><span class="o">=</span><span class="s2">&quot;inductor&quot;</span><span class="p">,</span> <span class="n">recomputable_ops</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span> <span class="n">num_fwd_outputs</span>
+    <span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span>
+    <span class="n">_joint_inputs</span><span class="p">,</span>
+    <span class="n">compiler</span><span class="o">=</span><span class="s2">&quot;inductor&quot;</span><span class="p">,</span>
+    <span class="n">recomputable_ops</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">num_fwd_outputs</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Partitions the joint graph such that the backward recomputes the forward.</span>
@@ -983,8 +1062,9 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="kn">import</span> <span class="nn">networkx</span> <span class="k">as</span> <span class="nn">nx</span>
     <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Need networkx installed to perform smart recomputation &quot;</span>
-                           <span class="s2">&quot;heuristics&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s2">&quot;Need networkx installed to perform smart recomputation &quot;</span> <span class="s2">&quot;heuristics&quot;</span>
+        <span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
 
     <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">eliminate_dead_code</span><span class="p">()</span>
     <span class="n">joint_module</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
@@ -1009,31 +1089,59 @@
     <span class="k">def</span> <span class="nf">classify_nodes</span><span class="p">(</span><span class="n">joint_module</span><span class="p">):</span>
         <span class="n">required_bw_nodes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;placeholder&#39;</span> <span class="ow">and</span> <span class="s2">&quot;tangents&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span> <span class="ow">and</span> <span class="s2">&quot;tangents&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="p">:</span>
                 <span class="n">required_bw_nodes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">required_bw_nodes</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">users</span><span class="p">:</span>
                     <span class="n">required_bw_nodes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
 
         <span class="n">primal_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_primal</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
-        <span class="n">fwd_seed_offset_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_fwd_seed_offset</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
+        <span class="n">fwd_seed_offset_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+            <span class="nb">filter</span><span class="p">(</span><span class="n">_is_fwd_seed_offset</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span>
+        <span class="p">)</span>
         <span class="n">inputs</span> <span class="o">=</span> <span class="n">primal_inputs</span> <span class="o">+</span> <span class="n">fwd_seed_offset_inputs</span>
-        <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span>
-        <span class="n">required_bw_nodes</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">o</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">bwd_outputs</span> <span class="k">if</span> <span class="n">o</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">o</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s1">&#39;output&#39;</span><span class="p">)</span>
-        <span class="n">forward_only_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">fwd_outputs</span><span class="p">)</span>
-        <span class="n">required_fw_nodes</span> <span class="o">=</span> <span class="p">{</span><span class="n">name_to_node</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">forward_only_graph</span><span class="o">.</span><span class="n">nodes</span>
-                             <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s1">&#39;output&#39;</span><span class="p">}</span>
-        <span class="n">unclaimed_nodes</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span>
-                           <span class="k">if</span> <span class="n">node</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span> <span class="ow">and</span> <span class="n">node</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">required_bw_nodes</span><span class="p">}</span>
-        <span class="k">return</span> <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">required_fw_nodes</span><span class="p">,</span> <span class="n">required_bw_nodes</span><span class="p">,</span> <span class="n">unclaimed_nodes</span><span class="p">,</span> <span class="n">inputs</span>
+        <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span>
+            <span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span>
+        <span class="p">)</span>
+        <span class="n">required_bw_nodes</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="n">o</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">bwd_outputs</span> <span class="k">if</span> <span class="n">o</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">o</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s2">&quot;output&quot;</span>
+        <span class="p">)</span>
+        <span class="n">forward_only_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span>
+            <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">fwd_outputs</span>
+        <span class="p">)</span>
+        <span class="n">required_fw_nodes</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">name_to_node</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">forward_only_graph</span><span class="o">.</span><span class="n">nodes</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s2">&quot;output&quot;</span>
+        <span class="p">}</span>
+        <span class="n">unclaimed_nodes</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">node</span>
+            <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span>
+            <span class="k">if</span> <span class="n">node</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span> <span class="ow">and</span> <span class="n">node</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">required_bw_nodes</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">fwd_outputs</span><span class="p">,</span>
+            <span class="n">required_fw_nodes</span><span class="p">,</span>
+            <span class="n">required_bw_nodes</span><span class="p">,</span>
+            <span class="n">unclaimed_nodes</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="p">,</span>
+        <span class="p">)</span>
 
-    <span class="n">orig_fw_outputs</span><span class="p">,</span> <span class="n">required_fw_nodes</span><span class="p">,</span> <span class="n">required_bw_nodes</span><span class="p">,</span> <span class="n">unclaimed_nodes</span><span class="p">,</span> <span class="n">inputs</span> <span class="o">=</span> <span class="n">classify_nodes</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
+    <span class="p">(</span>
+        <span class="n">orig_fw_outputs</span><span class="p">,</span>
+        <span class="n">required_fw_nodes</span><span class="p">,</span>
+        <span class="n">required_bw_nodes</span><span class="p">,</span>
+        <span class="n">unclaimed_nodes</span><span class="p">,</span>
+        <span class="n">inputs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">=</span> <span class="n">classify_nodes</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
 
     <span class="c1"># networkx blows up on graphs with no required backward nodes</span>
     <span class="c1"># Since there&#39;s nothing to partition anyway, and the default partitioner can &quot;handle&quot;</span>
     <span class="c1"># this case, send our graph over to the default partitioner.</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">required_bw_nodes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">default_partition</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">_joint_inputs</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">default_partition</span><span class="p">(</span>
+            <span class="n">joint_module</span><span class="p">,</span> <span class="n">_joint_inputs</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span>
+        <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">is_fusible</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
         <span class="c1"># We can perform &quot;memory fusion&quot; into a cat, but cat cannot be a</span>
@@ -1060,11 +1168,128 @@
     <span class="n">prims</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span>
 
     <span class="c1"># compiler == &quot;nvfuser&quot; is the default set of recomputable ops</span>
-    <span class="n">default_recomputable_ops</span> <span class="o">=</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">add</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">sub</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">div</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">atan2</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">mul</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">max</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">min</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">pow</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">remainder</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">fmod</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="fm">__and__</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="fm">__or__</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="fm">__xor__</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="fm">__lshift__</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="fm">__rshift__</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">eq</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">ne</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">ge</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">gt</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">le</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">lt</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">abs</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">bitwise_not</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">ceil</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">floor</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">frac</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">neg</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">relu</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">round</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">silu</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">trunc</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">log</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">log10</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">log1p</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">log2</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">lgamma</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">exp</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">expm1</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">erf</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">erfc</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">cos</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">acos</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">cosh</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">sin</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">asin</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">sinh</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">tan</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">atan</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">tanh</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">atanh</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">sqrt</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">rsqrt</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">reciprocal</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">softplus</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">threshold</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">threshold_backward</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">clamp</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">where</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">lerp</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">addcmul</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">gelu</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">gelu_backward</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">sum</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">mean</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_grad_sum_to_size</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">sum_to_size</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">amax</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">to</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">type_as</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">squeeze</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">rsub</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_to_copy</span><span class="p">]</span>  <span class="c1"># noqa: E501,B950</span>
+    <span class="n">default_recomputable_ops</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">add</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">sub</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">div</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">atan2</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">mul</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">max</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">min</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">pow</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">remainder</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">fmod</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="fm">__and__</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="fm">__or__</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="fm">__xor__</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="fm">__lshift__</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="fm">__rshift__</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">eq</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">ne</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">ge</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">gt</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">le</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">lt</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">abs</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">bitwise_not</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">ceil</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">floor</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">frac</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">neg</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">relu</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">round</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">silu</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">trunc</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">log</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">log10</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">log1p</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">log2</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">lgamma</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">exp</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">expm1</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">erf</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">erfc</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">cos</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">acos</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">cosh</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">sin</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">asin</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">sinh</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">tan</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">atan</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">tanh</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">atanh</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">sqrt</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">rsqrt</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">reciprocal</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">softplus</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">threshold</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">threshold_backward</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">clamp</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">where</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">lerp</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">addcmul</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">gelu</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">gelu_backward</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">sum</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">mean</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">_grad_sum_to_size</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">sum_to_size</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">amax</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">to</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">type_as</span><span class="p">,</span>
+        <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">squeeze</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">rsub</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">_to_copy</span><span class="p">,</span>
+    <span class="p">]</span>  <span class="c1"># noqa: E501,B950</span>
     <span class="n">view_ops</span> <span class="o">=</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">squeeze</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">alias</span><span class="p">]</span>
     <span class="k">if</span> <span class="n">compiler</span> <span class="o">==</span> <span class="s2">&quot;inductor&quot;</span><span class="p">:</span>
-        <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="p">[</span><span class="n">prims</span><span class="o">.</span><span class="n">div</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">clone</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_to_copy</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">full_like</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">var</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">sum</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">var</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">std</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">broadcast_in_dim</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">select</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_unsafe_view</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">view</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">expand</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">slice</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">reshape</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">broadcast_tensors</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">scalar_tensor</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">ones</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">new_zeros</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">lift_fresh_copy</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">arange</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">triu</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">var_mean</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">isinf</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">any</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">full</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">as_strided</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">zeros</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">argmax</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">maximum</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">iota</span><span class="p">]</span>  <span class="c1"># noqa: E501,B950</span>
-        <span class="n">view_ops</span> <span class="o">+=</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">view</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">slice</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">t</span><span class="p">,</span> <span class="n">prims</span><span class="o">.</span><span class="n">broadcast_in_dim</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">expand</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">as_strided</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">permute</span><span class="p">]</span>
+        <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="p">[</span>
+            <span class="n">prims</span><span class="o">.</span><span class="n">div</span><span class="p">,</span>
+            <span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">clone</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">_to_copy</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">full_like</span><span class="p">,</span>
+            <span class="n">prims</span><span class="o">.</span><span class="n">var</span><span class="p">,</span>
+            <span class="n">prims</span><span class="o">.</span><span class="n">sum</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">var</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">std</span><span class="p">,</span>
+            <span class="n">prims</span><span class="o">.</span><span class="n">broadcast_in_dim</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">select</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">_unsafe_view</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">view</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">expand</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">slice</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">reshape</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">broadcast_tensors</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">scalar_tensor</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">ones</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">new_zeros</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">lift_fresh_copy</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">arange</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">triu</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">var_mean</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">isinf</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">any</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">full</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">as_strided</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">zeros</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">argmax</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">maximum</span><span class="p">,</span>
+            <span class="n">prims</span><span class="o">.</span><span class="n">iota</span><span class="p">,</span>
+        <span class="p">]</span>  <span class="c1"># noqa: E501,B950</span>
+        <span class="n">view_ops</span> <span class="o">+=</span> <span class="p">[</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">view</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">slice</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">t</span><span class="p">,</span>
+            <span class="n">prims</span><span class="o">.</span><span class="n">broadcast_in_dim</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">expand</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">as_strided</span><span class="p">,</span>
+            <span class="n">aten</span><span class="o">.</span><span class="n">permute</span><span class="p">,</span>
+        <span class="p">]</span>
         <span class="c1"># Natalia said that we should allow recomputing indexing :)</span>
         <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">gather</span><span class="p">]</span>
     <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="n">view_ops</span>
@@ -1075,14 +1300,24 @@
         <span class="n">aten</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">,</span>
     <span class="p">]</span>
 
-    <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="p">[</span>
-        <span class="n">method_to_operator</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">magic_methods</span>
-    <span class="p">]</span>
-    <span class="n">recomputable_ops</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">recomputable_ops</span><span class="p">)</span> <span class="k">if</span> <span class="n">recomputable_ops</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">set</span><span class="p">(</span><span class="n">default_recomputable_ops</span><span class="p">)</span>
+    <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="p">[</span><span class="n">method_to_operator</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">magic_methods</span><span class="p">]</span>
+    <span class="n">recomputable_ops</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">set</span><span class="p">(</span><span class="n">recomputable_ops</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">recomputable_ops</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">else</span> <span class="nb">set</span><span class="p">(</span><span class="n">default_recomputable_ops</span><span class="p">)</span>
+    <span class="p">)</span>
 
     <span class="n">random_ops</span> <span class="o">=</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">native_dropout</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">rand_like</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">randn_like</span><span class="p">]</span>
-    <span class="n">compute_intensive_ops</span> <span class="o">=</span> <span class="p">[</span><span class="n">aten</span><span class="o">.</span><span class="n">mm</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">convolution</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">convolution_backward</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">bmm</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">addmm</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_scaled_dot_product_flash_attention</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">_scaled_dot_product_efficient_attention</span><span class="p">,</span> <span class="n">aten</span><span class="o">.</span><span class="n">upsample_bilinear2d</span><span class="p">]</span>  <span class="c1"># noqa: E501,B950</span>
+    <span class="n">compute_intensive_ops</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">mm</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">convolution</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">convolution_backward</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">bmm</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">addmm</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">_scaled_dot_product_flash_attention</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">_scaled_dot_product_efficient_attention</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">upsample_bilinear2d</span><span class="p">,</span>
+    <span class="p">]</span>  <span class="c1"># noqa: E501,B950</span>
 
     <span class="n">fusible_ops</span> <span class="o">=</span> <span class="n">recomputable_ops</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">random_ops</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">AOT_PARTITIONER_DEBUG</span><span class="p">:</span>
@@ -1122,7 +1357,7 @@
         <span class="k">return</span> <span class="kc">False</span>
 
     <span class="k">def</span> <span class="nf">should_ban_recomputation</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s1">&#39;call_function&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s2">&quot;call_function&quot;</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">False</span>
         <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="o">==</span> <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">False</span>
@@ -1140,7 +1375,6 @@
             <span class="n">ignored_ops</span> <span class="o">=</span> <span class="n">random_ops</span> <span class="o">+</span> <span class="n">compute_intensive_ops</span>
             <span class="k">if</span> <span class="n">get_aten_target</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">in</span> <span class="n">ignored_ops</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">True</span>
-
 
         <span class="c1"># If a node *must* be materialized in the backwards pass, then we</span>
         <span class="c1"># should never recompute it. This is a pretty subtle point.  In</span>
@@ -1165,14 +1399,15 @@
         <span class="c1"># cheap/small, and it makes sure we don&#39;t do things like recompute</span>
         <span class="c1"># normalizations in the backwards.</span>
         <span class="k">if</span> <span class="n">BAN_IF_REDUCTION</span><span class="p">:</span>
-            <span class="n">input_tensors_size</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">_size_of</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">))</span>
+            <span class="n">input_tensors_size</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+                <span class="n">_size_of</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">)</span>
+            <span class="p">)</span>
             <span class="n">output_size</span> <span class="o">=</span> <span class="n">_size_of</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
-            <span class="k">return</span> <span class="p">(</span><span class="n">output_size</span> <span class="o">*</span> <span class="mi">4</span> <span class="o">&lt;</span> <span class="n">input_tensors_size</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">output_size</span> <span class="o">*</span> <span class="mi">4</span> <span class="o">&lt;</span> <span class="n">input_tensors_size</span>
         <span class="k">return</span> <span class="kc">False</span>
 
-
     <span class="k">def</span> <span class="nf">is_materialized</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;placeholder&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">True</span>
 
         <span class="k">return</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">is_fusible</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">user</span><span class="p">)</span> <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">users</span><span class="p">)</span>
@@ -1199,7 +1434,7 @@
         <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;recompute&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">False</span>
 
-        <span class="k">if</span> <span class="s1">&#39;val&#39;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;val&#39;</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymFloat</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;val&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymFloat</span><span class="p">):</span>
             <span class="k">return</span> <span class="kc">False</span>
 
         <span class="n">banned_nodes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
@@ -1211,7 +1446,7 @@
         <span class="k">return</span> <span class="kc">True</span>
 
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;output&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;output&quot;</span><span class="p">:</span>
             <span class="k">continue</span>
 
         <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">required_bw_nodes</span><span class="p">:</span>
@@ -1238,8 +1473,9 @@
             <span class="n">ban_recomputation_if_allowed</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
 
         <span class="c1"># Checks if a node is actually a tuple. Can be simplified to just an isinstance check if we always use faketensors.</span>
-        <span class="n">is_non_tensor_node</span> <span class="o">=</span> <span class="p">((</span><span class="s1">&#39;val&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="s1">&#39;tensor_meta&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">)</span> <span class="ow">or</span>
-                              <span class="p">(</span><span class="s1">&#39;val&#39;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;val&#39;</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)))</span>
+        <span class="n">is_non_tensor_node</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s2">&quot;val&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="s2">&quot;tensor_meta&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span>
+        <span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="s2">&quot;val&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">))</span>
 
         <span class="k">if</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
             <span class="n">weight</span> <span class="o">=</span> <span class="n">sym_node_size</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
@@ -1287,25 +1523,36 @@
                 <span class="k">if</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span><span class="p">:</span>
                     <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">fw_order</span> <span class="o">&gt;</span> <span class="n">max_range</span><span class="p">:</span>
                         <span class="k">continue</span>
-                    <span class="n">heapq</span><span class="o">.</span><span class="n">heappush</span><span class="p">(</span><span class="n">sorted_nodes</span><span class="p">,</span> <span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">fw_order</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">is_fusible</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">user</span><span class="p">)))</span>
+                    <span class="n">heapq</span><span class="o">.</span><span class="n">heappush</span><span class="p">(</span>
+                        <span class="n">sorted_nodes</span><span class="p">,</span> <span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">fw_order</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">is_fusible</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">user</span><span class="p">))</span>
+                    <span class="p">)</span>
         <span class="k">return</span> <span class="n">max_range</span>
 
     <span class="k">if</span> <span class="n">BAN_IF_USED_FAR_APART</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">used_node</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span><span class="p">:</span>
-            <span class="n">orders</span> <span class="o">=</span> <span class="p">[</span><span class="n">user</span><span class="o">.</span><span class="n">fw_order</span> <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">used_node</span><span class="o">.</span><span class="n">users</span> <span class="k">if</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span><span class="p">]</span>
+            <span class="n">orders</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">user</span><span class="o">.</span><span class="n">fw_order</span> <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">used_node</span><span class="o">.</span><span class="n">users</span> <span class="k">if</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span>
+            <span class="p">]</span>
             <span class="n">fw_users</span> <span class="o">=</span> <span class="p">[</span><span class="n">user</span> <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">used_node</span><span class="o">.</span><span class="n">users</span> <span class="k">if</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span><span class="p">]</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">orders</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">first_unfusible_use</span> <span class="o">=</span> <span class="n">find_first_unfusible</span><span class="p">(</span><span class="n">fw_users</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">orders</span><span class="p">))</span>
                 <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">used_node</span><span class="o">.</span><span class="n">users</span><span class="p">):</span>
-                    <span class="k">if</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span> <span class="ow">and</span> <span class="n">user</span><span class="o">.</span><span class="n">fw_order</span> <span class="o">&gt;</span> <span class="n">first_unfusible_use</span> <span class="ow">and</span> <span class="n">is_fusible</span><span class="p">(</span><span class="n">used_node</span><span class="p">,</span> <span class="n">user</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="p">(</span>
+                        <span class="n">user</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span>
+                        <span class="ow">and</span> <span class="n">user</span><span class="o">.</span><span class="n">fw_order</span> <span class="o">&gt;</span> <span class="n">first_unfusible_use</span>
+                        <span class="ow">and</span> <span class="n">is_fusible</span><span class="p">(</span><span class="n">used_node</span><span class="p">,</span> <span class="n">user</span><span class="p">)</span>
+                    <span class="p">):</span>
                         <span class="k">if</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">banned_nodes</span><span class="p">:</span>
                             <span class="k">continue</span>
                         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
                             <span class="s2">&quot;used above/below fusible </span><span class="si">%s</span><span class="s2">:(</span><span class="si">%s</span><span class="s2">) -&gt; </span><span class="si">%s</span><span class="s2"> -&gt; </span><span class="si">%s</span><span class="s2">:(</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span>
-                            <span class="n">used_node</span><span class="p">,</span> <span class="n">used_node</span><span class="o">.</span><span class="n">fw_order</span><span class="p">,</span> <span class="n">first_unfusible_use</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">user</span><span class="o">.</span><span class="n">fw_order</span>
+                            <span class="n">used_node</span><span class="p">,</span>
+                            <span class="n">used_node</span><span class="o">.</span><span class="n">fw_order</span><span class="p">,</span>
+                            <span class="n">first_unfusible_use</span><span class="p">,</span>
+                            <span class="n">user</span><span class="p">,</span>
+                            <span class="n">user</span><span class="o">.</span><span class="n">fw_order</span><span class="p">,</span>
                         <span class="p">)</span>
                         <span class="n">ban_recomputation_if_allowed</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
-
 
     <span class="c1"># This heuristic is fairly straightforward. The idea is that although it is</span>
     <span class="c1"># cheap to recompute bandwidth-bound ops, we don&#39;t want to end up in a situation</span>
@@ -1332,19 +1579,29 @@
                 <span class="n">visited</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">cur</span><span class="p">)</span>
                 <span class="c1"># 100 is arbitrary choice to try and prevent degenerate cases</span>
                 <span class="k">if</span> <span class="n">cur</span><span class="o">.</span><span class="n">fw_order</span> <span class="o">&gt;</span> <span class="n">start_order</span> <span class="o">+</span> <span class="mi">100</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">fusible</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;too long </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">cur</span><span class="p">,</span> <span class="n">start_node</span><span class="p">,</span> <span class="n">cur</span><span class="o">.</span><span class="n">fw_order</span><span class="p">,</span> <span class="n">start_node</span><span class="o">.</span><span class="n">fw_order</span><span class="p">)</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;too long </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                        <span class="n">cur</span><span class="p">,</span>
+                        <span class="n">start_node</span><span class="p">,</span>
+                        <span class="n">cur</span><span class="o">.</span><span class="n">fw_order</span><span class="p">,</span>
+                        <span class="n">start_node</span><span class="o">.</span><span class="n">fw_order</span><span class="p">,</span>
+                    <span class="p">)</span>
                     <span class="n">ban_recomputation_if_allowed</span><span class="p">(</span><span class="n">cur</span><span class="p">)</span>
                     <span class="k">break</span>
 
                 <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">cur</span><span class="o">.</span><span class="n">users</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span> <span class="ow">and</span> <span class="n">is_fusible</span><span class="p">(</span><span class="n">cur</span><span class="p">,</span> <span class="n">user</span><span class="p">)</span> <span class="ow">and</span> <span class="n">user</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">banned_nodes</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="p">(</span>
+                        <span class="n">user</span> <span class="ow">in</span> <span class="n">required_fw_nodes</span>
+                        <span class="ow">and</span> <span class="n">is_fusible</span><span class="p">(</span><span class="n">cur</span><span class="p">,</span> <span class="n">user</span><span class="p">)</span>
+                        <span class="ow">and</span> <span class="n">user</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">banned_nodes</span>
+                    <span class="p">):</span>
                         <span class="n">heapq</span><span class="o">.</span><span class="n">heappush</span><span class="p">(</span><span class="n">fusible</span><span class="p">,</span> <span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">fw_order</span><span class="p">,</span> <span class="n">user</span><span class="p">))</span>
 
     <span class="k">try</span><span class="p">:</span>
         <span class="n">cut_value</span><span class="p">,</span> <span class="n">partition</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">minimum_cut</span><span class="p">(</span><span class="n">nx_graph</span><span class="p">,</span> <span class="s2">&quot;source&quot;</span><span class="p">,</span> <span class="s2">&quot;sink&quot;</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Failed to compute min-cut on following graph:&#39;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">readwrite</span><span class="o">.</span><span class="n">edgelist</span><span class="o">.</span><span class="n">generate_edgelist</span><span class="p">(</span><span class="n">nx_graph</span><span class="p">)))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Failed to compute min-cut on following graph:&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">readwrite</span><span class="o">.</span><span class="n">edgelist</span><span class="o">.</span><span class="n">generate_edgelist</span><span class="p">(</span><span class="n">nx_graph</span><span class="p">)))</span>
         <span class="k">raise</span>
 
     <span class="n">reachable</span><span class="p">,</span> <span class="n">non_reachable</span> <span class="o">=</span> <span class="n">partition</span>
@@ -1360,13 +1617,19 @@
 
     <span class="c1"># To make this stuff deterministic</span>
     <span class="n">node_idx</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span><span class="p">:</span> <span class="n">idx</span> <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">)}</span>
-    <span class="n">saved_values</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">((</span><span class="n">name_to_node</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">cut_nodes</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">node_idx</span><span class="p">[</span><span class="n">x</span><span class="p">])</span>
+    <span class="n">saved_values</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">name_to_node</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">cut_nodes</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">node_idx</span><span class="p">[</span><span class="n">x</span><span class="p">]</span>
+    <span class="p">)</span>
     <span class="c1"># save_for_backward on tensors and stashes symints in autograd .ctx</span>
     <span class="n">saved_sym_nodes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">is_sym_node</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">))</span>
     <span class="n">saved_values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">n</span><span class="p">:</span> <span class="ow">not</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">saved_values</span><span class="p">))</span>
     <span class="c1"># NB: saved_sym_nodes will be mutated to reflect the actual saved symbols</span>
     <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_modules</span><span class="p">(</span>
-        <span class="n">joint_module</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">,</span> <span class="n">saved_sym_nodes</span><span class="o">=</span><span class="n">saved_sym_nodes</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span>
+        <span class="n">joint_module</span><span class="p">,</span>
+        <span class="n">saved_values</span><span class="p">,</span>
+        <span class="n">saved_sym_nodes</span><span class="o">=</span><span class="n">saved_sym_nodes</span><span class="p">,</span>
+        <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">,</span>
+    <span class="p">)</span>
 
     <span class="k">if</span> <span class="n">graph_has_recomputable_ops</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">graph_has_recomputable_rng_ops</span><span class="p">:</span>
@@ -1377,19 +1640,32 @@
 
     <span class="k">if</span> <span class="n">AOT_PARTITIONER_DEBUG</span><span class="p">:</span>
         <span class="kn">from</span> <span class="nn">torch._inductor.fx_utils</span> <span class="kn">import</span> <span class="n">get_node_storage</span>
+
         <span class="n">storages</span> <span class="o">=</span> <span class="p">{</span><span class="n">get_node_storage</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">saved_values</span><span class="p">}</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Theoretical Activations Stored: &quot;</span><span class="p">,</span> <span class="nb">sum</span><span class="p">([</span><span class="n">_size_of</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">saved_values</span><span class="p">])</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="s2">&quot;Theoretical Activations Stored: &quot;</span><span class="p">,</span>
+            <span class="nb">sum</span><span class="p">(</span><span class="n">_size_of</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">saved_values</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span>
+        <span class="p">)</span>
         <span class="n">sorted_sizes</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([(</span><span class="n">_size_of</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">saved_values</span><span class="p">])</span>
-        <span class="n">fw_module_nodes</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span><span class="p">}</span>
-        <span class="n">bw_module_nodes</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s1">&#39;call_function&#39;</span><span class="p">}</span>
+        <span class="n">fw_module_nodes</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;call_function&quot;</span>
+        <span class="p">}</span>
+        <span class="n">bw_module_nodes</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;call_function&quot;</span>
+        <span class="p">}</span>
         <span class="n">remat_nodes</span> <span class="o">=</span> <span class="n">fw_module_nodes</span> <span class="o">&amp;</span> <span class="n">bw_module_nodes</span>
 
         <span class="n">counts</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">remat_nodes</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="s1">&#39;_overloadpacket&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">remat_nodes</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="s2">&quot;_overloadpacket&quot;</span><span class="p">):</span>
                 <span class="n">counts</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">_overloadpacket</span><span class="p">)]</span> <span class="o">+=</span> <span class="mi">1</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;# remat/fw/bw: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">remat_nodes</span><span class="p">)</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">fw_module_nodes</span><span class="p">)</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">bw_module_nodes</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Count of Ops Rematerialized: &quot;</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">counts</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;# remat/fw/bw: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">remat_nodes</span><span class="p">)</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">fw_module_nodes</span><span class="p">)</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">bw_module_nodes</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="s2">&quot;Count of Ops Rematerialized: &quot;</span><span class="p">,</span>
+            <span class="nb">sorted</span><span class="p">(</span><span class="n">counts</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="p">)</span>
     <span class="k">return</span> <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span></div>
 
 
