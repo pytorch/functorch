@@ -227,7 +227,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.4.0a0+git1d6c597) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.4.0a0+git88a7159) &#x25BC</a>
     </div>
     
 
@@ -349,7 +349,7 @@
 <span></span><span class="c1"># mypy: ignore-errors</span>
 
 <span class="kn">import</span> <span class="nn">itertools</span>
-<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">nullcontext</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span><span class="p">,</span> <span class="n">nullcontext</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span><span class="p">,</span> <span class="n">wraps</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
 <span class="kn">from</span> <span class="nn">unittest.mock</span> <span class="kn">import</span> <span class="n">patch</span>
@@ -466,6 +466,7 @@
     <span class="n">maybe_to_fresh_input</span><span class="p">,</span>
     <span class="n">normalize_as_list</span><span class="p">,</span>
     <span class="n">partial_flatten_asdict</span><span class="p">,</span>
+    <span class="n">root_module_when_exporting_non_strict</span><span class="p">,</span>
     <span class="n">strict_zip</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">.partitioners</span> <span class="kn">import</span> <span class="n">default_partition</span>
@@ -896,12 +897,18 @@
             <span class="c1"># Patch set_rng_state as set_rng_state with fake tensors is</span>
             <span class="c1"># nonsensical. This does not affect the collection of metadata.</span>
             <span class="k">with</span> <span class="n">patch</span><span class="p">(</span><span class="s2">&quot;torch.cuda.set_rng_state&quot;</span><span class="p">,</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="kc">None</span><span class="p">):</span>
-                <span class="n">fw_metadata</span> <span class="o">=</span> <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">(</span>
-                    <span class="n">flat_fn</span><span class="p">,</span>
-                    <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
-                    <span class="n">is_train</span><span class="o">=</span><span class="n">needs_autograd</span><span class="p">,</span>
-                    <span class="n">pre_dispatch</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">pre_dispatch</span><span class="p">,</span>
-                <span class="p">)(</span><span class="o">*</span><span class="n">fake_flat_args</span><span class="p">)</span>
+                <span class="n">mod</span> <span class="o">=</span> <span class="n">root_module_when_exporting_non_strict</span><span class="p">(</span><span class="n">flat_fn</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">mod</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">ctx</span> <span class="o">=</span> <span class="n">_detect_attribute_assignment</span><span class="p">(</span><span class="n">mod</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">ctx</span> <span class="o">=</span> <span class="n">nullcontext</span><span class="p">()</span>
+                <span class="k">with</span> <span class="n">ctx</span><span class="p">:</span>
+                    <span class="n">fw_metadata</span> <span class="o">=</span> <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">(</span>
+                        <span class="n">flat_fn</span><span class="p">,</span>
+                        <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
+                        <span class="n">is_train</span><span class="o">=</span><span class="n">needs_autograd</span><span class="p">,</span>
+                        <span class="n">pre_dispatch</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">pre_dispatch</span><span class="p">,</span>
+                    <span class="p">)(</span><span class="o">*</span><span class="n">fake_flat_args</span><span class="p">)</span>
 
                 <span class="n">req_subclass_dispatch</span> <span class="o">=</span> <span class="n">requires_subclass_dispatch</span><span class="p">(</span>
                     <span class="n">fake_flat_args</span><span class="p">,</span> <span class="n">fw_metadata</span>
@@ -1698,6 +1705,72 @@
         <span class="n">aot_config</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">return</span> <span class="n">fx_g</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">in_spec</span><span class="p">,</span> <span class="n">out_spec</span><span class="o">.</span><span class="n">spec</span>
+
+
+<span class="nd">@contextmanager</span>
+<span class="k">def</span> <span class="nf">_detect_attribute_assignment</span><span class="p">(</span><span class="n">mod</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="c1"># Do not allow assignment of tensor attributes during export unless</span>
+    <span class="c1"># the attribute is registered as a buffer.</span>
+
+    <span class="n">STD_ATTRS</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;_backward_hooks&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_backward_pre_hooks&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_buffers&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_forward_hooks&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_forward_hooks_always_called&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_forward_hooks_with_kwargs&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_forward_pre_hooks&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_forward_pre_hooks_with_kwargs&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_is_full_backward_hook&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_load_state_dict_post_hooks&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_load_state_dict_pre_hooks&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_modules&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_non_persistent_buffers_set&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_parameters&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_state_dict_hooks&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_state_dict_pre_hooks&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;training&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_get_attributes</span><span class="p">(</span><span class="n">mod</span><span class="p">):</span>
+        <span class="c1"># return any attributes of a module that are not standard attributes</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">mod</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">STD_ATTRS</span><span class="p">}</span>
+
+    <span class="c1"># save state of attributes before enter</span>
+    <span class="n">snapshot</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span> <span class="n">_get_attributes</span><span class="p">(</span><span class="n">mod</span><span class="p">))</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="c1"># after exit, compare state of attributes with snapshot</span>
+        <span class="c1"># to detect which tensor attributes were assigned</span>
+        <span class="n">assigned_tensor_attributes</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">def</span> <span class="nf">_collect_assigned_tensor_attributes</span><span class="p">(</span><span class="n">kp</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">_v</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">_v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">v</span><span class="p">:</span>
+                <span class="n">attr</span><span class="p">,</span> <span class="o">*</span><span class="n">rest</span> <span class="o">=</span> <span class="n">kp</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                    <span class="n">assigned_tensor_attributes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;self.</span><span class="si">{</span><span class="n">attr</span><span class="o">.</span><span class="n">key</span><span class="si">}{</span><span class="n">pytree</span><span class="o">.</span><span class="n">keystr</span><span class="p">(</span><span class="n">rest</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+                <span class="c1"># TODO(avik): Assigning all other types are allowed right now.</span>
+                <span class="c1"># Maybe in the future we want to limit this to primitive types?</span>
+
+        <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map_with_path</span><span class="p">(</span>
+            <span class="n">_collect_assigned_tensor_attributes</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">,</span> <span class="n">_get_attributes</span><span class="p">(</span><span class="n">mod</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="c1"># restore state of all attributes (including, e.g., of primitive types)</span>
+        <span class="n">mod</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">snapshot</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">assigned_tensor_attributes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">assigned_tensor_attributes</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">noun</span><span class="p">,</span> <span class="n">verb</span> <span class="o">=</span> <span class="s2">&quot;attributes&quot;</span><span class="p">,</span> <span class="s2">&quot;were&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">noun</span><span class="p">,</span> <span class="n">verb</span> <span class="o">=</span> <span class="s2">&quot;attribute&quot;</span><span class="p">,</span> <span class="s2">&quot;was&quot;</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;The tensor </span><span class="si">{</span><span class="n">noun</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">assigned_tensor_attributes</span><span class="p">)</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">verb</span><span class="si">}</span><span class="s2"> assigned during export. &quot;</span>
+                <span class="s2">&quot;Such attributes must be registered as buffers using the `register_buffer` API &quot;</span>
+                <span class="s2">&quot;(https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.register_buffer).&quot;</span>
+            <span class="p">)</span>
 
 
 <span class="n">compiled_function</span> <span class="o">=</span> <span class="n">aot_function</span>
