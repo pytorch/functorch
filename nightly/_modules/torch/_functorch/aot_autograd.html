@@ -227,7 +227,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.4.0a0+gitc9a258e) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.4.0a0+git4457cd9) &#x25BC</a>
     </div>
     
 
@@ -350,7 +350,7 @@
 
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span><span class="p">,</span> <span class="n">nullcontext</span>
-<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span><span class="p">,</span> <span class="n">wraps</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
 <span class="kn">from</span> <span class="nn">unittest.mock</span> <span class="kn">import</span> <span class="n">patch</span>
 
@@ -415,10 +415,8 @@
     <span class="n">track_graph_compiling</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">._aot_autograd.runtime_wrappers</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># noqa: F401</span>
-    <span class="n">aot_dispatch_subclass_wrapper</span><span class="p">,</span>
-    <span class="n">aot_wrapper_dedupe</span><span class="p">,</span>
-    <span class="n">aot_wrapper_synthetic_base</span><span class="p">,</span>
-    <span class="n">functionalized_rng_runtime_epilogue</span><span class="p">,</span>
+    <span class="n">AOTDedupeWrapper</span><span class="p">,</span>
+    <span class="n">AOTSyntheticBaseWrapper</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">._aot_autograd.schemas</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># noqa: F401</span>
     <span class="n">AOTConfig</span><span class="p">,</span>
@@ -1020,17 +1018,25 @@
                 <span class="n">aot_dispatch_base_graph</span> <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">is_export</span> <span class="k">else</span> <span class="n">aot_dispatch_base</span>
             <span class="p">)</span>
 
-        <span class="n">compiler_fn</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
-            <span class="n">aot_wrapper_synthetic_base</span><span class="p">,</span>
-            <span class="n">compiler_fn</span><span class="o">=</span><span class="n">compiler_fn</span><span class="p">,</span>
-            <span class="n">needs_autograd</span><span class="o">=</span><span class="n">needs_autograd</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">compiler_fn</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">aot_wrapper_dedupe</span><span class="p">,</span> <span class="n">compiler_fn</span><span class="o">=</span><span class="n">compiler_fn</span><span class="p">)</span>
-        <span class="c1"># You can put more passes here</span>
+        <span class="n">wrappers</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">AOTDedupeWrapper</span><span class="p">(),</span>
+            <span class="n">AOTSyntheticBaseWrapper</span><span class="p">(</span><span class="n">trace_joint</span><span class="o">=</span><span class="n">needs_autograd</span><span class="p">),</span>
+            <span class="c1"># Add more passes here</span>
+        <span class="p">]</span>
+        <span class="k">for</span> <span class="n">wrapper</span> <span class="ow">in</span> <span class="n">wrappers</span><span class="p">:</span>
+            <span class="n">flat_fn</span><span class="p">,</span> <span class="n">fake_flat_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fw_metadata</span> <span class="o">=</span> <span class="n">wrapper</span><span class="o">.</span><span class="n">pre_compile</span><span class="p">(</span>
+                <span class="n">flat_fn</span><span class="p">,</span> <span class="n">fake_flat_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fw_metadata</span><span class="o">=</span><span class="n">fw_metadata</span>
+            <span class="p">)</span>
 
         <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">compiler_fn</span><span class="p">(</span>
             <span class="n">flat_fn</span><span class="p">,</span> <span class="n">fake_flat_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fw_metadata</span><span class="o">=</span><span class="n">fw_metadata</span>
         <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">wrapper</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">wrappers</span><span class="p">):</span>
+            <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">wrapper</span><span class="o">.</span><span class="n">post_compile</span><span class="p">(</span>
+                <span class="n">compiled_fn</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fw_metadata</span><span class="o">=</span><span class="n">fw_metadata</span>
+            <span class="p">)</span>
+
         <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">is_export</span><span class="p">:</span>
             <span class="c1"># During export, we don&#39;t get back a callable - we get back the raw fx graph</span>
             <span class="c1"># (either a joint or an inference-only graph)</span>
