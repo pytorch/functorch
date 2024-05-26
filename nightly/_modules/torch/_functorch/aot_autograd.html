@@ -265,7 +265,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.4.0a0+gitbbeb090) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.4.0a0+gitf8c4c26) &#x25BC</a>
     </div>
     
 
@@ -388,7 +388,7 @@
 
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span><span class="p">,</span> <span class="n">nullcontext</span>
-<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span><span class="p">,</span> <span class="n">wraps</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
 <span class="kn">from</span> <span class="nn">unittest.mock</span> <span class="kn">import</span> <span class="n">patch</span>
 
@@ -409,10 +409,6 @@
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">config</span>
 <span class="kn">from</span> <span class="nn">._aot_autograd.collect_metadata_analysis</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># noqa: F401</span>
     <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">,</span>
-<span class="p">)</span>
-<span class="kn">from</span> <span class="nn">._aot_autograd.dispatch_and_compile_graph</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># noqa: F401</span>
-    <span class="n">aot_dispatch_autograd_graph</span><span class="p">,</span>
-    <span class="n">aot_dispatch_base_graph</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">._aot_autograd.functional_utils</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># noqa: F401</span>
     <span class="n">_check_if_mutation_can_be_in_graph</span><span class="p">,</span>
@@ -437,6 +433,7 @@
 <span class="kn">from</span> <span class="nn">._aot_autograd.jit_compile_runtime_wrappers</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># noqa: F401</span>
     <span class="n">aot_dispatch_autograd</span><span class="p">,</span>
     <span class="n">aot_dispatch_base</span><span class="p">,</span>
+    <span class="n">aot_dispatch_export</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">._aot_autograd.logging_utils</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># noqa: F401</span>
     <span class="n">callback_set</span><span class="p">,</span>
@@ -809,7 +806,7 @@
 <span class="nd">@dynamo_timed</span>
 <span class="k">def</span> <span class="nf">create_aot_dispatcher_function</span><span class="p">(</span>
     <span class="n">flat_fn</span><span class="p">,</span> <span class="n">flat_args</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">aot_config</span><span class="p">:</span> <span class="n">AOTConfig</span>
-<span class="p">):</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">ViewAndMutationMeta</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Traces the forward and backward graphs of the attr:`flat_fn` to generate a</span>
 <span class="sd">    joint graph. The joint graph is an Fx graph with Aten ops. Please refer to</span>
@@ -1038,53 +1035,25 @@
 <span class="sd">or otherwise set torch._functorch.config.functionalize_rng_ops = False.&quot;&quot;&quot;</span>
                 <span class="p">)</span>
 
-        <span class="c1"># crappy version of dispatcher</span>
-        <span class="c1"># TODO: Do this properly</span>
-        <span class="k">if</span> <span class="n">needs_autograd</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">pre_dispatch</span><span class="p">:</span>
-            <span class="c1"># For now, aot_dispatch_autograd knows to explicitly return a graph</span>
-            <span class="c1"># when run with export, and an opaque callable otherwise.</span>
-            <span class="c1"># In theory we could factor these out, but I wanted to let the dust</span>
-            <span class="c1"># settle on how functionalized rng fits into export first.</span>
-            <span class="n">compiler_fn</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">aot_dispatch_autograd_graph</span>
-                <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">is_export</span>
-                <span class="k">else</span> <span class="n">aot_dispatch_autograd</span>
-            <span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># aot_dispatch_base_graph contains only the &quot;graph bits&quot;, while aot_dispatch_base</span>
-            <span class="c1"># includes some extra work around handling a runtime epilogue.</span>
-            <span class="n">compiler_fn</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">aot_dispatch_base_graph</span> <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">is_export</span> <span class="k">else</span> <span class="n">aot_dispatch_base</span>
-            <span class="p">)</span>
+        <span class="k">def</span> <span class="nf">choose_dispatcher</span><span class="p">(</span><span class="n">needs_autograd</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Pick a dispatcher based on the config rules.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">is_export</span><span class="p">:</span>
+                <span class="c1"># export uses just the &quot;graph bits&quot;, whereas the other</span>
+                <span class="c1"># two dispatchers include some extra work around handling a runtime epilogue</span>
+                <span class="k">return</span> <span class="n">partial</span><span class="p">(</span><span class="n">aot_dispatch_export</span><span class="p">,</span> <span class="n">needs_autograd</span><span class="o">=</span><span class="n">needs_autograd</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">needs_autograd</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">pre_dispatch</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">aot_dispatch_autograd</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">aot_dispatch_base</span>
 
-        <span class="c1"># Wrappers that edit fw_metadata</span>
-        <span class="n">fw_metadata_wrappers</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">AOTDedupeWrapper</span><span class="p">(),</span>
-            <span class="n">AOTSyntheticBaseWrapper</span><span class="p">(</span><span class="n">trace_joint</span><span class="o">=</span><span class="n">needs_autograd</span><span class="p">),</span>
-            <span class="c1"># Add more passes here</span>
-        <span class="p">]</span>
-        <span class="k">for</span> <span class="n">wrapper</span> <span class="ow">in</span> <span class="n">fw_metadata_wrappers</span><span class="p">:</span>
-            <span class="n">flat_fn</span><span class="p">,</span> <span class="n">fake_flat_args</span><span class="p">,</span> <span class="n">fw_metadata</span> <span class="o">=</span> <span class="n">wrapper</span><span class="o">.</span><span class="n">pre_compile</span><span class="p">(</span>
-                <span class="n">flat_fn</span><span class="p">,</span> <span class="n">fake_flat_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fw_metadata</span><span class="o">=</span><span class="n">fw_metadata</span>
-            <span class="p">)</span>
-        <span class="c1"># Once all fw_metadata_wrappers have run, runtime_metadata is fixed</span>
-        <span class="n">runtime_metadata</span> <span class="o">=</span> <span class="n">fw_metadata</span>
-        <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">compiler_fn</span><span class="p">(</span>
-            <span class="n">flat_fn</span><span class="p">,</span> <span class="n">fake_flat_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fw_metadata</span><span class="o">=</span><span class="n">runtime_metadata</span>
+        <span class="n">compiler_fn</span> <span class="o">=</span> <span class="n">choose_dispatcher</span><span class="p">(</span><span class="n">needs_autograd</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">)</span>
+
+        <span class="n">compiled_fn</span><span class="p">,</span> <span class="n">fw_metadata</span> <span class="o">=</span> <span class="n">compiler_fn</span><span class="p">(</span>
+            <span class="n">flat_fn</span><span class="p">,</span> <span class="n">fake_flat_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fw_metadata</span><span class="o">=</span><span class="n">fw_metadata</span>
         <span class="p">)</span>
-
-        <span class="k">for</span> <span class="n">wrapper</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">fw_metadata_wrappers</span><span class="p">):</span>
-            <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">wrapper</span><span class="o">.</span><span class="n">post_compile</span><span class="p">(</span>
-                <span class="n">compiled_fn</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">runtime_metadata</span><span class="o">=</span><span class="n">runtime_metadata</span>
-            <span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">is_export</span><span class="p">:</span>
-            <span class="c1"># During export, we don&#39;t get back a callable - we get back the raw fx graph</span>
-            <span class="c1"># (either a joint or an inference-only graph)</span>
-            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">compiled_fn</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">compiled_fn</span><span class="p">,</span> <span class="n">fw_metadata</span>
-
-        <span class="k">return</span> <span class="n">compiled_fn</span>
+        <span class="k">return</span> <span class="n">compiled_fn</span><span class="p">,</span> <span class="n">fw_metadata</span>
 
 
 <div class="viewcode-block" id="aot_function"><a class="viewcode-back" href="../../../generated/functorch.compile.aot_function.html#functorch.compile.aot_function">[docs]</a><span class="k">def</span> <span class="nf">aot_function</span><span class="p">(</span>
@@ -1184,7 +1153,7 @@
         <span class="k">if</span> <span class="n">cached_res</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">flat_fn</span><span class="p">,</span> <span class="n">out_spec</span> <span class="o">=</span> <span class="n">create_tree_flattened_fn</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
 
-            <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">create_aot_dispatcher_function</span><span class="p">(</span>
+            <span class="n">compiled_fn</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">create_aot_dispatcher_function</span><span class="p">(</span>
                 <span class="n">flat_fn</span><span class="p">,</span>
                 <span class="n">flat_args</span><span class="p">,</span>
                 <span class="n">aot_config</span><span class="p">,</span>
@@ -1348,7 +1317,7 @@
     <span class="p">)</span>
 
     <span class="k">with</span> <span class="n">compiled_autograd</span><span class="o">.</span><span class="n">disable</span><span class="p">():</span>
-        <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">create_aot_dispatcher_function</span><span class="p">(</span>
+        <span class="n">compiled_fn</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">create_aot_dispatcher_function</span><span class="p">(</span>
             <span class="n">functional_call</span><span class="p">,</span>
             <span class="n">full_args</span><span class="p">,</span>
             <span class="n">aot_config</span><span class="p">,</span>
