@@ -265,7 +265,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.4.0a0+git5d8c7f3) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.5.0a0+gitc1cd946) &#x25BC</a>
     </div>
     
 
@@ -407,6 +407,11 @@
 <span class="kn">from</span> <span class="nn">torch.fx.experimental.symbolic_shapes</span> <span class="kn">import</span> <span class="n">ShapeEnv</span>
 <span class="kn">from</span> <span class="nn">torch.utils._python_dispatch</span> <span class="kn">import</span> <span class="n">is_traceable_wrapper_subclass</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">config</span>
+<span class="kn">from</span> <span class="nn">._aot_autograd.autograd_cache</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># noqa: F401</span>
+    <span class="n">AOTAutogradCache</span><span class="p">,</span>
+    <span class="n">autograd_cache_key</span><span class="p">,</span>
+<span class="p">)</span>
+
 <span class="kn">from</span> <span class="nn">._aot_autograd.collect_metadata_analysis</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># noqa: F401</span>
     <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">,</span>
 <span class="p">)</span>
@@ -1266,8 +1271,6 @@
     <span class="n">params_flat</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">params_flat</span><span class="p">)</span>
     <span class="n">params_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">params_flat</span><span class="p">)</span>
 
-    <span class="n">functional_call</span> <span class="o">=</span> <span class="n">create_functional_call</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">params_spec</span><span class="p">,</span> <span class="n">params_len</span><span class="p">)</span>
-
     <span class="k">if</span> <span class="n">bw_compiler</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">bw_compiler</span> <span class="o">=</span> <span class="n">fw_compiler</span>
     <span class="k">if</span> <span class="n">inference_compiler</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -1333,14 +1336,24 @@
         <span class="n">aot_autograd_arg_pos_to_source</span><span class="o">=</span><span class="n">aot_autograd_arg_pos_to_source</span><span class="p">,</span>
         <span class="n">is_export</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">no_tangents</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">cache_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="k">with</span> <span class="n">compiled_autograd</span><span class="o">.</span><span class="n">disable</span><span class="p">():</span>
-        <span class="n">compiled_fn</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">create_aot_dispatcher_function</span><span class="p">(</span>
-            <span class="n">functional_call</span><span class="p">,</span>
-            <span class="n">full_args</span><span class="p">,</span>
-            <span class="n">aot_config</span><span class="p">,</span>
-        <span class="p">)</span>
+    <span class="k">def</span> <span class="nf">dispatch_and_compile</span><span class="p">():</span>
+        <span class="n">functional_call</span> <span class="o">=</span> <span class="n">create_functional_call</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">params_spec</span><span class="p">,</span> <span class="n">params_len</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">compiled_autograd</span><span class="o">.</span><span class="n">disable</span><span class="p">():</span>
+            <span class="n">compiled_fn</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">create_aot_dispatcher_function</span><span class="p">(</span>
+                <span class="n">functional_call</span><span class="p">,</span>
+                <span class="n">full_args</span><span class="p">,</span>
+                <span class="n">aot_config</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">compiled_fn</span>
+
+    <span class="c1"># Autograd cache stuff</span>
+    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">enable_autograd_cache</span><span class="p">:</span>
+        <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">AOTAutogradCache</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">dispatch_and_compile</span><span class="p">,</span> <span class="n">mod</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">dispatch_and_compile</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">_dynamo</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">GmWrapper</span><span class="p">):</span>
         <span class="c1"># This function is called by the flatten_graph_inputs wrapper, which boxes</span>
