@@ -265,7 +265,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.5.0a0+git9dd8f8c) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.5.0a0+gitc5b9ee7) &#x25BC</a>
     </div>
     
 
@@ -988,9 +988,8 @@
                     <span class="k">if</span> <span class="n">req_subclass_dispatch</span><span class="p">:</span>
                         <span class="n">fw_metadata</span> <span class="o">=</span> <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">(</span>
                             <span class="n">flat_fn</span><span class="p">,</span>
-                            <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span>
-                            <span class="ow">and</span> <span class="ow">not</span> <span class="n">needs_autograd</span><span class="p">,</span>
-                            <span class="n">is_train</span><span class="o">=</span><span class="n">needs_autograd</span><span class="p">,</span>
+                            <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
+                            <span class="n">is_train</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                             <span class="n">pre_dispatch</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">pre_dispatch</span><span class="p">,</span>
                         <span class="p">)(</span><span class="o">*</span><span class="n">fake_flat_args</span><span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>
@@ -998,14 +997,14 @@
                             <span class="n">input_info</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">input_info</span><span class="p">,</span>
                             <span class="n">output_info</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_info</span><span class="p">,</span>
                             <span class="n">num_intermediate_bases</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span><span class="p">,</span>
-                            <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span>
-                            <span class="ow">and</span> <span class="ow">not</span> <span class="n">needs_autograd</span><span class="p">,</span>
+                            <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
                             <span class="n">traced_tangents</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">traced_tangents</span><span class="p">,</span>
                             <span class="n">subclass_inp_meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">subclass_inp_meta</span><span class="p">,</span>
                             <span class="n">subclass_fw_graph_out_meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">subclass_fw_graph_out_meta</span><span class="p">,</span>
                             <span class="n">subclass_tangent_meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">subclass_tangent_meta</span><span class="p">,</span>
-                            <span class="n">is_train</span><span class="o">=</span><span class="n">needs_autograd</span><span class="p">,</span>
+                            <span class="n">is_train</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                             <span class="n">tokens</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">tokens</span><span class="p">,</span>
+                            <span class="n">static_parameter_indices</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">static_parameter_indices</span><span class="p">,</span>
                         <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
