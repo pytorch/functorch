@@ -265,7 +265,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.5.0a0+git7b9e643) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.5.0a0+git14dc08d) &#x25BC</a>
     </div>
     
 
@@ -937,6 +937,19 @@
 
             <span class="k">return</span> <span class="p">[</span><span class="n">convert</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">flat_args</span><span class="p">)]</span>
 
+        <span class="kn">from</span> <span class="nn">torch._library.fake_class_registry</span> <span class="kn">import</span> <span class="n">FakeScriptObject</span><span class="p">,</span> <span class="n">to_fake_obj</span>
+
+        <span class="c1"># Tracing may mutate the states the fake script object,</span>
+        <span class="c1"># so we need to duplicate the fake script objects so that subsequent tracing</span>
+        <span class="c1"># won&#39;t be affected.</span>
+        <span class="k">def</span> <span class="nf">_dup_fake_script_obj</span><span class="p">(</span><span class="n">fake_flat_args</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">[</span>
+                <span class="n">to_fake_obj</span><span class="p">(</span><span class="n">detect_fake_mode</span><span class="p">(</span><span class="n">fake_flat_args</span><span class="p">),</span> <span class="n">arg</span><span class="o">.</span><span class="n">real_obj</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">FakeScriptObject</span><span class="p">)</span>
+                <span class="k">else</span> <span class="n">arg</span>
+                <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">fake_flat_args</span>
+            <span class="p">]</span>
+
         <span class="n">fake_flat_args</span> <span class="o">=</span> <span class="n">process_inputs</span><span class="p">(</span><span class="n">flat_args</span><span class="p">)</span>
 
         <span class="n">needs_autograd</span> <span class="o">=</span> <span class="p">(</span>
@@ -959,7 +972,7 @@
                         <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
                         <span class="n">is_train</span><span class="o">=</span><span class="n">needs_autograd</span><span class="p">,</span>
                         <span class="n">pre_dispatch</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">pre_dispatch</span><span class="p">,</span>
-                    <span class="p">)(</span><span class="o">*</span><span class="n">fake_flat_args</span><span class="p">)</span>
+                    <span class="p">)(</span><span class="o">*</span><span class="n">_dup_fake_script_obj</span><span class="p">(</span><span class="n">fake_flat_args</span><span class="p">))</span>
 
                 <span class="n">req_subclass_dispatch</span> <span class="o">=</span> <span class="n">requires_subclass_dispatch</span><span class="p">(</span>
                     <span class="n">fake_flat_args</span><span class="p">,</span> <span class="n">fw_metadata</span>
@@ -1079,7 +1092,10 @@
         <span class="n">compiler_fn</span> <span class="o">=</span> <span class="n">choose_dispatcher</span><span class="p">(</span><span class="n">needs_autograd</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">)</span>
 
         <span class="n">compiled_fn</span><span class="p">,</span> <span class="n">fw_metadata</span> <span class="o">=</span> <span class="n">compiler_fn</span><span class="p">(</span>
-            <span class="n">flat_fn</span><span class="p">,</span> <span class="n">fake_flat_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fw_metadata</span><span class="o">=</span><span class="n">fw_metadata</span>
+            <span class="n">flat_fn</span><span class="p">,</span>
+            <span class="n">_dup_fake_script_obj</span><span class="p">(</span><span class="n">fake_flat_args</span><span class="p">),</span>
+            <span class="n">aot_config</span><span class="p">,</span>
+            <span class="n">fw_metadata</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">compiled_fn</span><span class="p">,</span> <span class="n">fw_metadata</span>
 
