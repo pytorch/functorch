@@ -265,7 +265,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.5.0a0+giteca0cb0) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.5.0a0+gitcbee9c1) &#x25BC</a>
     </div>
     
 
@@ -393,6 +393,7 @@
 <span class="kn">from</span> <span class="nn">unittest.mock</span> <span class="kn">import</span> <span class="n">patch</span>
 
 <span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch._dynamo.logging</span>
 <span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
 <span class="kn">import</span> <span class="nn">torch.utils._pytree</span> <span class="k">as</span> <span class="nn">pytree</span>
 <span class="kn">import</span> <span class="nn">torch.utils.dlpack</span>
@@ -406,6 +407,11 @@
 <span class="kn">from</span> <span class="nn">torch.fx.experimental.proxy_tensor</span> <span class="kn">import</span> <span class="n">make_fx</span>
 <span class="kn">from</span> <span class="nn">torch.fx.experimental.symbolic_shapes</span> <span class="kn">import</span> <span class="n">ShapeEnv</span>
 <span class="kn">from</span> <span class="nn">torch.utils._python_dispatch</span> <span class="kn">import</span> <span class="n">is_traceable_wrapper_subclass</span>
+
+
+<span class="n">static_inputs_log</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_logging</span><span class="o">.</span><span class="n">getArtifactLogger</span><span class="p">(</span>
+    <span class="vm">__name__</span><span class="p">,</span> <span class="s2">&quot;cudagraph_static_inputs&quot;</span>
+<span class="p">)</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">config</span>
 <span class="kn">from</span> <span class="nn">._aot_autograd.autograd_cache</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># noqa: F401</span>
@@ -1356,11 +1362,19 @@
                 <span class="k">assert</span> <span class="n">source</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen_sources</span><span class="p">,</span> <span class="n">source</span>
                 <span class="n">seen_sources</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
                 <span class="n">aot_autograd_arg_pos_to_source</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
+                <span class="n">source_name</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">name</span><span class="p">()</span> <span class="k">if</span> <span class="n">source</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
 
                 <span class="k">if</span> <span class="s2">&quot;tensor_dict&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_dict&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                     <span class="s2">&quot;_dynamo_static_input_type&quot;</span><span class="p">,</span> <span class="kc">None</span>
                 <span class="p">):</span>
+                    <span class="n">static_inputs_log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                        <span class="s2">&quot;Adding static input pos </span><span class="si">%s</span><span class="s2"> for source </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">source_name</span>
+                    <span class="p">)</span>
                     <span class="n">static_input_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">static_inputs_log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                        <span class="s2">&quot;Non-static input pos </span><span class="si">%s</span><span class="s2"> for source </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">source_name</span>
+                    <span class="p">)</span>
 
     <span class="k">if</span> <span class="n">aot_autograd_arg_pos_to_source</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">full_args</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">aot_autograd_arg_pos_to_source</span><span class="p">)</span>
