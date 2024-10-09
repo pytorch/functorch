@@ -265,7 +265,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.6.0a0+git395e098) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.6.0a0+git23c531b) &#x25BC</a>
     </div>
     
 
@@ -1919,8 +1919,18 @@
         <span class="c1"># return any attributes of a module that are not standard attributes</span>
         <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">mod</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">STD_ATTRS</span><span class="p">}</span>
 
+    <span class="k">def</span> <span class="nf">is_leaf</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+        <span class="c1"># Ideally is_leaf should not be needed when mapping, but it seems that</span>
+        <span class="c1"># subclasses of a standard container X may sometimes map to X, which</span>
+        <span class="c1"># destroys information and can cause future mapping to fail.</span>
+        <span class="n">known_subclasses_that_lose_info</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">Size</span><span class="p">,</span>
+            <span class="c1"># add more here if needed</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">known_subclasses_that_lose_info</span><span class="p">)</span>
+
     <span class="c1"># save state of attributes before enter</span>
-    <span class="n">snapshot</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span> <span class="n">_get_attributes</span><span class="p">(</span><span class="n">mod</span><span class="p">))</span>
+    <span class="n">snapshot</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span> <span class="n">_get_attributes</span><span class="p">(</span><span class="n">mod</span><span class="p">),</span> <span class="n">is_leaf</span><span class="o">=</span><span class="n">is_leaf</span><span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="k">yield</span>
     <span class="k">finally</span><span class="p">:</span>
