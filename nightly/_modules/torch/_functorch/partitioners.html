@@ -283,7 +283,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.7.0a0+git057bcd3) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.7.0a0+gita9ae334) &#x25BC</a>
     </div>
     
 
@@ -419,6 +419,9 @@
 <span class="kn">import</span> <span class="nn">torch._inductor.inductor_prims</span>
 <span class="kn">import</span> <span class="nn">torch.fx</span> <span class="k">as</span> <span class="nn">fx</span>
 <span class="kn">import</span> <span class="nn">torch.utils._pytree</span> <span class="k">as</span> <span class="nn">pytree</span>
+<span class="kn">from</span> <span class="nn">torch._functorch._activation_checkpointing.ac_logging_utils</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">create_structured_trace_for_min_cut_info</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span> <span class="nn">torch.fx.experimental._backward_state</span> <span class="kn">import</span> <span class="n">BackwardState</span>
 <span class="kn">from</span> <span class="nn">torch.fx.experimental.proxy_tensor</span> <span class="kn">import</span> <span class="n">is_sym_node</span><span class="p">,</span> <span class="n">py_sym_types</span>
 <span class="kn">from</span> <span class="nn">torch.fx.experimental.sym_node</span> <span class="kn">import</span> <span class="n">magic_methods</span><span class="p">,</span> <span class="n">method_to_operator</span>
@@ -2027,44 +2030,6 @@
                 <span class="n">node_info</span><span class="p">,</span>
                 <span class="n">all_recomputable_banned_nodes</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="k">if</span> <span class="n">AOT_PARTITIONER_DEBUG</span><span class="p">:</span>
-                <span class="n">max_runtime</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
-                    <span class="n">runtimes_banned_nodes</span>
-                <span class="p">)</span>  <span class="c1"># For normalizing runtimes in logs</span>
-                <span class="n">input_summary</span> <span class="o">=</span> <span class="p">[</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n\t\t\t</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">memory</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">runtime</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">max_runtime</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">op</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="si">}</span><span class="s2">&quot;</span>
-                    <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="p">(</span><span class="n">memory</span><span class="p">,</span> <span class="n">runtime</span><span class="p">,</span> <span class="n">node</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span>
-                        <span class="nb">zip</span><span class="p">(</span>
-                            <span class="n">memories_banned_nodes</span><span class="p">,</span>
-                            <span class="n">runtimes_banned_nodes</span><span class="p">,</span>
-                            <span class="n">all_recomputable_banned_nodes</span><span class="p">,</span>
-                        <span class="p">)</span>
-                    <span class="p">)</span>
-                <span class="p">]</span>
-                <span class="n">joint_graph_nodes</span> <span class="o">=</span> <span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">]</span>
-                <span class="n">joint_graph_edges</span> <span class="o">=</span> <span class="p">[</span>
-                    <span class="p">(</span><span class="n">inp</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-                    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_graph</span><span class="o">.</span><span class="n">nodes</span>
-                    <span class="k">for</span> <span class="n">inp</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">all_input_nodes</span>
-                <span class="p">]</span>
-                <span class="n">knapsack_summary</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">Activation Checkpointing - Knapsack Problem Summary:</span>
-<span class="s2">    Input:</span>
-<span class="s2">        Solver: </span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">activation_memory_budget_solver</span><span class="si">}</span>
-<span class="s2">        Max Memory: </span><span class="si">{</span><span class="nb">max</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">activation_memory_budget</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="si">}</span>
-<span class="s2">        Graph Nodes: </span><span class="si">{</span><span class="n">joint_graph_nodes</span><span class="si">}</span>
-<span class="s2">        Graph Edges: </span><span class="si">{</span><span class="n">joint_graph_edges</span><span class="si">}</span>
-<span class="s2">        (Index, Memory, Runtime, Node.Op, Node.Target, Metadata): </span><span class="si">{</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">input_summary</span><span class="p">)</span><span class="si">}</span>
-<span class="s2">    Output:</span>
-<span class="s2">        Expected Runtime: </span><span class="si">{</span><span class="n">expected_runtime</span><span class="si">}</span>
-<span class="s2">        Saved Nodes: </span><span class="si">{</span><span class="n">saved_node_idxs</span><span class="si">}</span>
-<span class="s2">        Recomputable Nodes: </span><span class="si">{</span><span class="n">recomputable_node_idxs</span><span class="si">}</span>
-<span class="s2">            &quot;&quot;&quot;</span>
-                <span class="n">torch</span><span class="o">.</span><span class="n">_logging</span><span class="o">.</span><span class="n">trace_structured</span><span class="p">(</span>
-                    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;artifact&quot;</span><span class="p">,</span>
-                    <span class="n">payload_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">knapsack_summary</span><span class="p">,</span>
-                <span class="p">)</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">knapsack_summary</span><span class="p">)</span>
         <span class="n">dont_ban</span><span class="p">:</span> <span class="n">OrderedSet</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedSet</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">recomputable_node_idxs</span><span class="p">:</span>
             <span class="c1"># if idx in all_recomputable_banned_nodes:</span>
@@ -2081,6 +2046,17 @@
             <span class="n">aggressive_options</span><span class="p">,</span>
             <span class="n">dont_ban</span><span class="p">,</span>
         <span class="p">)</span>
+        <span class="k">if</span> <span class="n">AOT_PARTITIONER_DEBUG</span><span class="p">:</span>
+            <span class="n">create_structured_trace_for_min_cut_info</span><span class="p">(</span>
+                <span class="n">joint_graph</span><span class="o">=</span><span class="n">joint_graph</span><span class="p">,</span>
+                <span class="n">all_recomputable_banned_nodes</span><span class="o">=</span><span class="n">all_recomputable_banned_nodes</span><span class="p">,</span>
+                <span class="n">saved_node_idxs</span><span class="o">=</span><span class="n">saved_node_idxs</span><span class="p">,</span>
+                <span class="n">recomputable_node_idxs</span><span class="o">=</span><span class="n">recomputable_node_idxs</span><span class="p">,</span>
+                <span class="n">expected_runtime</span><span class="o">=</span><span class="n">expected_runtime</span><span class="p">,</span>
+                <span class="n">memories_banned_nodes</span><span class="o">=</span><span class="n">memories_banned_nodes</span><span class="p">,</span>
+                <span class="n">runtimes_banned_nodes</span><span class="o">=</span><span class="n">runtimes_banned_nodes</span><span class="p">,</span>
+                <span class="n">min_cut_saved_values</span><span class="o">=</span><span class="n">saved_values</span><span class="p">,</span>
+            <span class="p">)</span>
         <span class="k">return</span> <span class="n">saved_values</span><span class="p">,</span> <span class="n">expected_runtime</span>
 
     <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">visualize_memory_budget_pareto</span><span class="p">:</span>
