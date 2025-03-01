@@ -283,7 +283,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.7.0a0+git40ad5e0) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.7.0a0+git83fb974) &#x25BC</a>
     </div>
     
 
@@ -444,7 +444,7 @@
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">._activation_checkpointing.knapsack_evaluator</span> <span class="kn">import</span> <span class="n">KnapsackEvaluator</span>
 <span class="kn">from</span> <span class="nn">._aot_autograd.logging_utils</span> <span class="kn">import</span> <span class="n">get_aot_graph_name</span>
-<span class="kn">from</span> <span class="nn">._aot_autograd.utils</span> <span class="kn">import</span> <span class="n">is_with_effects</span>
+<span class="kn">from</span> <span class="nn">._aot_autograd.utils</span> <span class="kn">import</span> <span class="n">get_cuda_generator_meta_val</span><span class="p">,</span> <span class="n">is_with_effects</span>
 <span class="kn">from</span> <span class="nn">.compile_utils</span> <span class="kn">import</span> <span class="n">fx_graph_cse</span><span class="p">,</span> <span class="n">get_aten_target</span>
 
 
@@ -1026,6 +1026,99 @@
     <span class="k">return</span> <span class="n">new_gm</span>
 
 
+<span class="k">def</span> <span class="nf">apply_graphsafe_rng_functionalization</span><span class="p">(</span>
+    <span class="n">fw_module</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span>
+    <span class="n">bw_module</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span>
+    <span class="n">fw_node</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">,</span>
+    <span class="n">bw_node</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">,</span>
+    <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+    <span class="n">rng_count</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">last_fwd_input</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">,</span>
+    <span class="n">last_bwd_input</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Note [CUDA Graph Safe RNG Functionalization]</span>
+
+<span class="sd">    CUDA Graph capture doesn&#39;t work with get_rng_state and set_rng_state because these functions operate on CPU values,</span>
+<span class="sd">    while CUDA Graph RNG capture uses on-device CUDA tensors. To solve this, we use graphsafe_set_state with a</span>
+<span class="sd">    CUDA Generator registered to the CUDA Graph before capture begins. graphsafe_set_state updates the generator&#39;s pointer</span>
+<span class="sd">    to reference a different GeneratorImpl, ensuring subsequent calls are correctly forwarded to the desired generator</span>
+<span class="sd">    (and its cuda-tensor RNG state during graph capture).</span>
+
+<span class="sd">    For each RNG operation&#39;s forward/backward pair:</span>
+
+<span class="sd">    - We create two generators initialized with identical values</span>
+<span class="sd">    - Each forward and backward call advances its respective generator equally</span>
+<span class="sd">    - This keeps generators synchronized so forward and backward operations use matching RNG values</span>
+
+<span class="sd">    When forward is called multiple times before backward (causing desynchronization):</span>
+
+<span class="sd">    - We save the forward RNG state</span>
+<span class="sd">    - We update the backward Generator&#39;s state before executing backward</span>
+
+<span class="sd">    Before each CUDA Graph replay, replay_prologue updates captured RNG pointers with current states, ensuring backward Generator</span>
+<span class="sd">    changes are reflected during replay.</span>
+
+<span class="sd">    This function modifies both forward and backward computation graphs by:</span>
+
+<span class="sd">    Creating RNG state placeholders for both passes</span>
+<span class="sd">    Updating the forward node to use graph-safe RNG state</span>
+<span class="sd">    Updating the backward node to use graph-safe RNG state</span>
+
+<span class="sd">    For more details: https://github.com/pytorch/pytorch/issues/113541</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">device_idx</span> <span class="o">=</span> <span class="n">device</span><span class="o">.</span><span class="n">index</span>
+    <span class="k">assert</span> <span class="n">device_idx</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="n">fw_graph</span> <span class="o">=</span> <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span>
+    <span class="n">bw_graph</span> <span class="o">=</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span>
+    <span class="n">graphsafe_run_with_rng_state</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_prims</span><span class="o">.</span><span class="n">rng_prims</span><span class="o">.</span><span class="n">graphsafe_run_with_rng_state</span>
+
+    <span class="c1"># Handle forward pass</span>
+
+    <span class="c1"># Note: [Generator arguments in AOTDispatcher]</span>
+    <span class="c1"># Generator arguments in AOTDispatcher are added to support graphsafe rng</span>
+    <span class="c1"># functionalization. See note above [CUDA Graph Safe RNG Functionalization]</span>
+    <span class="k">with</span> <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">last_fwd_input</span><span class="p">):</span>
+        <span class="n">fwd_rng_state</span> <span class="o">=</span> <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;fwd_rng_state_</span><span class="si">{</span><span class="n">rng_count</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">fwd_rng_state</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_cuda_generator_meta_val</span><span class="p">(</span><span class="n">device_idx</span><span class="p">)</span>
+        <span class="n">last_fwd_input</span> <span class="o">=</span> <span class="n">fwd_rng_state</span>
+
+    <span class="c1"># Handle backward pass</span>
+    <span class="k">with</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">last_bwd_input</span><span class="p">):</span>
+        <span class="n">bwd_rng_state</span> <span class="o">=</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;bwd_rng_state_</span><span class="si">{</span><span class="n">rng_count</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="c1"># as above, clone so that meta val generator will not contain tensors</span>
+        <span class="n">bwd_rng_state</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_cuda_generator_meta_val</span><span class="p">(</span><span class="n">device_idx</span><span class="p">)</span>
+        <span class="n">last_bwd_input</span> <span class="o">=</span> <span class="n">bwd_rng_state</span>
+
+    <span class="c1"># Update forward node</span>
+    <span class="n">fw_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">fw_node</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">fw_kwargs</span><span class="p">[</span><span class="s2">&quot;rng_state&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fwd_rng_state</span>
+    <span class="k">with</span> <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">fw_node</span><span class="p">):</span>
+        <span class="n">functional_fw_node</span> <span class="o">=</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span>
+            <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
+            <span class="n">graphsafe_run_with_rng_state</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">fw_node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="o">*</span><span class="n">fw_node</span><span class="o">.</span><span class="n">args</span><span class="p">),</span>  <span class="c1"># type: ignore[arg-type]</span>
+            <span class="n">kwargs</span><span class="o">=</span><span class="n">fw_kwargs</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="n">fw_node</span><span class="o">.</span><span class="n">replace_all_uses_with</span><span class="p">(</span><span class="n">functional_fw_node</span><span class="p">)</span>
+    <span class="n">fw_graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">fw_node</span><span class="p">)</span>
+
+    <span class="c1"># Update backward node</span>
+    <span class="n">bwd_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">bw_node</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">bwd_kwargs</span><span class="p">[</span><span class="s2">&quot;rng_state&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">bwd_rng_state</span>
+    <span class="k">with</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">inserting_before</span><span class="p">(</span><span class="n">bw_node</span><span class="p">):</span>
+        <span class="n">rng_output</span> <span class="o">=</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span>
+            <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
+            <span class="n">graphsafe_run_with_rng_state</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">bw_node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="o">*</span><span class="n">bw_node</span><span class="o">.</span><span class="n">args</span><span class="p">),</span>  <span class="c1"># type: ignore[arg-type]</span>
+            <span class="n">kwargs</span><span class="o">=</span><span class="n">bwd_kwargs</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">bw_node</span><span class="o">.</span><span class="n">replace_all_uses_with</span><span class="p">(</span><span class="n">rng_output</span><span class="p">)</span>
+        <span class="n">bw_graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">bw_node</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">last_fwd_input</span><span class="p">,</span> <span class="n">last_bwd_input</span>
+
+
 <span class="k">def</span> <span class="nf">functionalize_rng_ops</span><span class="p">(</span>
     <span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span>
     <span class="n">fw_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span>
@@ -1064,7 +1157,7 @@
                 <span class="n">random_nodes</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">node</span>
         <span class="k">return</span> <span class="n">random_nodes</span>
 
-    <span class="k">def</span> <span class="nf">get_device</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">get_device</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Check the example value of the node outputs to find the device type.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1078,12 +1171,12 @@
         <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">candidate</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">candidate</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;cuda&quot;</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="s2">&quot;cuda&quot;</span>
+                    <span class="k">return</span> <span class="n">candidate</span><span class="o">.</span><span class="n">device</span>
 
-        <span class="k">return</span> <span class="s2">&quot;cpu&quot;</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">get_sample_rng_state</span><span class="p">(</span><span class="n">device</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">device</span> <span class="o">==</span> <span class="s2">&quot;cuda&quot;</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">get_sample_rng_state</span><span class="p">(</span><span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">]):</span>
+        <span class="k">if</span> <span class="n">device</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">device</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;cuda&quot;</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_rng_state</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">get_rng_state</span><span class="p">()</span>
 
@@ -1105,6 +1198,7 @@
 
     <span class="n">run_and_save_rng</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_prims</span><span class="o">.</span><span class="n">rng_prims</span><span class="o">.</span><span class="n">run_and_save_rng_state</span>
     <span class="n">run_with_rng_state</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_prims</span><span class="o">.</span><span class="n">rng_prims</span><span class="o">.</span><span class="n">run_with_rng_state</span>
+
     <span class="n">bw_tangent_start_node</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;placeholder&quot;</span><span class="p">):</span>
         <span class="k">if</span> <span class="s2">&quot;tangent&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
@@ -1116,68 +1210,113 @@
         <span class="p">)</span>
 
     <span class="n">fw_rng_state_outputs</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">base_node</span><span class="p">,</span> <span class="n">node_pair</span> <span class="ow">in</span> <span class="n">recomputable_rng_ops_map</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+    <span class="n">last_fwd_input</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;placeholder&quot;</span><span class="p">)))</span>
+    <span class="n">last_bwd_input</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;placeholder&quot;</span><span class="p">)))</span>
+
+    <span class="n">devices</span> <span class="o">=</span> <span class="n">OrderedSet</span><span class="p">(</span>
+        <span class="n">get_device</span><span class="p">(</span><span class="n">node_pair</span><span class="p">[</span><span class="s2">&quot;fwd&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">node_pair</span> <span class="ow">in</span> <span class="n">recomputable_rng_ops_map</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="n">devices</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cpu&quot;</span><span class="p">))</span>
+    <span class="c1"># multiple cuda devices wont work with cudagraphs anyway,</span>
+    <span class="c1"># fallback to non graphsafe rng checkpointing</span>
+    <span class="n">multi_cuda_devices</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">devices</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span>
+
+    <span class="c1"># this changes numerics, so if fallback_random is set we will not use it</span>
+    <span class="n">ind_config</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_inductor</span><span class="o">.</span><span class="n">config</span>
+    <span class="n">use_rng_graphsafe_rng_functionalization</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">graphsafe_rng_functionalization</span>
+        <span class="ow">and</span> <span class="ow">not</span> <span class="n">multi_cuda_devices</span>
+        <span class="ow">and</span> <span class="p">(</span>
+            <span class="ow">not</span> <span class="n">ind_config</span><span class="o">.</span><span class="n">fallback_random</span>
+            <span class="ow">or</span> <span class="n">ind_config</span><span class="o">.</span><span class="n">test_configs</span><span class="o">.</span><span class="n">graphsafe_rng_func_ignores_fallback_random</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">rng_count</span><span class="p">,</span> <span class="p">(</span><span class="n">base_node</span><span class="p">,</span> <span class="n">node_pair</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span>
+        <span class="n">recomputable_rng_ops_map</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+    <span class="p">):</span>
         <span class="c1"># Step 2 - Modify the fwd pass such that</span>
         <span class="n">fw_node</span> <span class="o">=</span> <span class="n">node_pair</span><span class="p">[</span><span class="s2">&quot;fwd&quot;</span><span class="p">]</span>
         <span class="n">bw_node</span> <span class="o">=</span> <span class="n">node_pair</span><span class="p">[</span><span class="s2">&quot;bwd&quot;</span><span class="p">]</span>
+        <span class="n">device</span> <span class="o">=</span> <span class="n">get_device</span><span class="p">(</span><span class="n">fw_node</span><span class="p">)</span>
+
         <span class="n">fw_graph</span> <span class="o">=</span> <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span>
-        <span class="k">with</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">inserting_before</span><span class="p">(</span><span class="n">fw_node</span><span class="p">):</span>
-            <span class="n">functional_fw_node</span> <span class="o">=</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span>
-                <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
-                <span class="n">run_and_save_rng</span><span class="p">,</span>
-                <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">fw_node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="o">*</span><span class="n">fw_node</span><span class="o">.</span><span class="n">args</span><span class="p">),</span>
-                <span class="n">kwargs</span><span class="o">=</span><span class="n">fw_node</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span>
-            <span class="p">)</span>
-            <span class="n">state</span> <span class="o">=</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span>
-                <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
-                <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">,</span>
-                <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">functional_fw_node</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
-                <span class="n">kwargs</span><span class="o">=</span><span class="p">{},</span>
-            <span class="p">)</span>
-            <span class="n">rng_output</span> <span class="o">=</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span>
-                <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
-                <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">,</span>
-                <span class="n">args</span><span class="o">=</span><span class="p">(</span>
-                    <span class="n">functional_fw_node</span><span class="p">,</span>
-                    <span class="mi">1</span><span class="p">,</span>
-                <span class="p">),</span>
-                <span class="n">kwargs</span><span class="o">=</span><span class="p">{},</span>
-            <span class="p">)</span>
-            <span class="n">fw_node</span><span class="o">.</span><span class="n">replace_all_uses_with</span><span class="p">(</span><span class="n">rng_output</span><span class="p">)</span>
-            <span class="n">fw_graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">fw_node</span><span class="p">)</span>
-            <span class="n">fw_rng_state_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
-
-        <span class="c1"># Step 3 - Modify the bwd pass such that</span>
         <span class="n">bw_graph</span> <span class="o">=</span> <span class="n">bw_module</span><span class="o">.</span><span class="n">graph</span>
-        <span class="k">with</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">inserting_before</span><span class="p">(</span><span class="n">bw_tangent_start_node</span><span class="p">):</span>
-            <span class="n">state_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rng_state_output_</span><span class="si">{</span><span class="nb">next</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="n">bw_rng_state_node</span> <span class="o">=</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="n">state_name</span><span class="p">)</span>
-            <span class="n">bw_rng_state_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_sample_rng_state</span><span class="p">(</span><span class="n">get_device</span><span class="p">(</span><span class="n">fw_node</span><span class="p">))</span>
 
-        <span class="k">with</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">inserting_before</span><span class="p">(</span><span class="n">bw_node</span><span class="p">):</span>
-            <span class="n">rng_output</span> <span class="o">=</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span>
-                <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
-                <span class="n">run_with_rng_state</span><span class="p">,</span>
-                <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">bw_rng_state_node</span><span class="p">,</span> <span class="n">bw_node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="o">*</span><span class="n">bw_node</span><span class="o">.</span><span class="n">args</span><span class="p">),</span>
-                <span class="n">kwargs</span><span class="o">=</span><span class="n">bw_node</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">use_rng_graphsafe_rng_functionalization</span>
+            <span class="ow">and</span> <span class="n">device</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="ow">and</span> <span class="n">device</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;cuda&quot;</span>
+        <span class="p">):</span>
+            <span class="n">last_fwd_input</span><span class="p">,</span> <span class="n">last_bwd_input</span> <span class="o">=</span> <span class="n">apply_graphsafe_rng_functionalization</span><span class="p">(</span>
+                <span class="n">fw_module</span><span class="p">,</span>
+                <span class="n">bw_module</span><span class="p">,</span>
+                <span class="n">fw_node</span><span class="p">,</span>
+                <span class="n">bw_node</span><span class="p">,</span>
+                <span class="n">device</span><span class="p">,</span>
+                <span class="n">rng_count</span><span class="p">,</span>
+                <span class="n">last_fwd_input</span><span class="p">,</span>
+                <span class="n">last_bwd_input</span><span class="p">,</span>
             <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">inserting_before</span><span class="p">(</span><span class="n">fw_node</span><span class="p">):</span>
+                <span class="n">functional_fw_node</span> <span class="o">=</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span>
+                    <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
+                    <span class="n">run_and_save_rng</span><span class="p">,</span>
+                    <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">fw_node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="o">*</span><span class="n">fw_node</span><span class="o">.</span><span class="n">args</span><span class="p">),</span>
+                    <span class="n">kwargs</span><span class="o">=</span><span class="n">fw_node</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">state</span> <span class="o">=</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span>
+                    <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
+                    <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">,</span>
+                    <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">functional_fw_node</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                    <span class="n">kwargs</span><span class="o">=</span><span class="p">{},</span>
+                <span class="p">)</span>
+                <span class="n">rng_output</span> <span class="o">=</span> <span class="n">fw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span>
+                    <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
+                    <span class="n">operator</span><span class="o">.</span><span class="n">getitem</span><span class="p">,</span>
+                    <span class="n">args</span><span class="o">=</span><span class="p">(</span>
+                        <span class="n">functional_fw_node</span><span class="p">,</span>
+                        <span class="mi">1</span><span class="p">,</span>
+                    <span class="p">),</span>
+                    <span class="n">kwargs</span><span class="o">=</span><span class="p">{},</span>
+                <span class="p">)</span>
+                <span class="n">fw_node</span><span class="o">.</span><span class="n">replace_all_uses_with</span><span class="p">(</span><span class="n">rng_output</span><span class="p">)</span>
+                <span class="n">fw_graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">fw_node</span><span class="p">)</span>
+                <span class="n">fw_rng_state_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
 
-            <span class="n">bw_node</span><span class="o">.</span><span class="n">replace_all_uses_with</span><span class="p">(</span><span class="n">rng_output</span><span class="p">)</span>
-            <span class="n">bw_graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">bw_node</span><span class="p">)</span>
+            <span class="c1"># Step 3 - Modify the bwd pass such that</span>
+            <span class="k">with</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">inserting_before</span><span class="p">(</span><span class="n">bw_tangent_start_node</span><span class="p">):</span>
+                <span class="n">state_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rng_state_output_</span><span class="si">{</span><span class="nb">next</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">bw_rng_state_node</span> <span class="o">=</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="n">state_name</span><span class="p">)</span>
+                <span class="n">bw_rng_state_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_sample_rng_state</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+
+            <span class="k">with</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">inserting_before</span><span class="p">(</span><span class="n">bw_node</span><span class="p">):</span>
+                <span class="n">rng_output</span> <span class="o">=</span> <span class="n">bw_graph</span><span class="o">.</span><span class="n">create_node</span><span class="p">(</span>
+                    <span class="s2">&quot;call_function&quot;</span><span class="p">,</span>
+                    <span class="n">run_with_rng_state</span><span class="p">,</span>
+                    <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">bw_rng_state_node</span><span class="p">,</span> <span class="n">bw_node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="o">*</span><span class="n">bw_node</span><span class="o">.</span><span class="n">args</span><span class="p">),</span>
+                    <span class="n">kwargs</span><span class="o">=</span><span class="n">bw_node</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span>
+                <span class="p">)</span>
+
+                <span class="n">bw_node</span><span class="o">.</span><span class="n">replace_all_uses_with</span><span class="p">(</span><span class="n">rng_output</span><span class="p">)</span>
+                <span class="n">bw_graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">bw_node</span><span class="p">)</span>
 
     <span class="c1"># Add the rng states in the output of the fwd graph. AOT Autograd assumes</span>
     <span class="c1"># that symints are at the end of forward graph outputs. So, insert the new</span>
     <span class="c1"># rng states accordingly.</span>
-    <span class="n">fw_output_node</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">)))</span>
-    <span class="n">fw_outputs</span> <span class="o">=</span> <span class="n">fw_output_node</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">sym_node_start_idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_outputs</span><span class="p">)</span> <span class="o">-</span> <span class="n">num_sym_nodes</span>
-    <span class="n">outputs</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">fw_outputs</span><span class="p">[:</span><span class="n">sym_node_start_idx</span><span class="p">]</span>
-        <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">fw_rng_state_outputs</span><span class="p">)</span>
-        <span class="o">+</span> <span class="n">fw_outputs</span><span class="p">[</span><span class="n">sym_node_start_idx</span><span class="p">:]</span>
-    <span class="p">)</span>
-    <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
-    <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">fw_output_node</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">fw_rng_state_outputs</span><span class="p">:</span>
+        <span class="n">fw_output_node</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">)))</span>
+        <span class="n">fw_outputs</span> <span class="o">=</span> <span class="n">fw_output_node</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">sym_node_start_idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">fw_outputs</span><span class="p">)</span> <span class="o">-</span> <span class="n">num_sym_nodes</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">fw_outputs</span><span class="p">[:</span><span class="n">sym_node_start_idx</span><span class="p">]</span>
+            <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">fw_rng_state_outputs</span><span class="p">)</span>
+            <span class="o">+</span> <span class="n">fw_outputs</span><span class="p">[</span><span class="n">sym_node_start_idx</span><span class="p">:]</span>
+        <span class="p">)</span>
+        <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+        <span class="n">fw_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">fw_output_node</span><span class="p">)</span>
     <span class="n">fw_module</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
     <span class="n">bw_module</span><span class="o">.</span><span class="n">recompile</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span>
@@ -2253,7 +2392,6 @@
         <span class="n">saved_sym_nodes</span><span class="o">=</span><span class="n">saved_sym_nodes</span><span class="p">,</span>
         <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">,</span>
     <span class="p">)</span>
-
     <span class="k">if</span> <span class="n">graph_has_recomputable_ops</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">graph_has_recomputable_rng_ops</span><span class="p">:</span>
             <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span> <span class="o">=</span> <span class="n">functionalize_rng_ops</span><span class="p">(</span>
