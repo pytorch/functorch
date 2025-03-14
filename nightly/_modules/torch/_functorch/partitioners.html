@@ -283,7 +283,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.8.0a0+git1e37e5b) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.8.0a0+git49570cb) &#x25BC</a>
     </div>
     
 
@@ -1324,6 +1324,21 @@
     <span class="k">return</span> <span class="n">fw_module</span><span class="p">,</span> <span class="n">bw_module</span>
 
 
+<span class="k">def</span> <span class="nf">force_save_collectives</span><span class="p">(</span><span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    By default, the partitioner is not allowed to recompute collectives</span>
+<span class="sd">    unless they come from a user-annotated AC region.</span>
+<span class="sd">    See Note [Recomputing collectives in the partitioner]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">_ops</span><span class="o">.</span><span class="n">OpOverload</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">namespace</span> <span class="o">==</span> <span class="s2">&quot;_c10d_functional&quot;</span>
+            <span class="ow">and</span> <span class="ow">not</span> <span class="n">must_recompute</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CheckpointPolicy</span><span class="o">.</span><span class="n">MUST_SAVE</span>
+
+
 <span class="k">def</span> <span class="nf">cleanup_recompute_tags</span><span class="p">(</span><span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    If there are two consecutive checkpointed blocks with no operator in</span>
@@ -1538,7 +1553,14 @@
         <span class="k">if</span> <span class="n">op_types</span><span class="o">.</span><span class="n">is_view</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
             <span class="k">return</span> <span class="kc">False</span>
         <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">dont_ban</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">False</span>
+            <span class="c1"># collectives are *always* banned from recompute, overriding `dont_ban`</span>
+            <span class="c1"># (in particular, the activation memory budget logic is not allowed to recompute collectives)</span>
+            <span class="n">is_collective</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">_ops</span><span class="o">.</span><span class="n">OpOverload</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">namespace</span> <span class="o">==</span> <span class="s2">&quot;_c10d_functional&quot;</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">unsafe_allow_optimization_of_collectives</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">is_collective</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
         <span class="c1"># This bans recomputation of the node unless we&#39;ve been forced not to by</span>
         <span class="c1"># user annotation</span>
         <span class="k">if</span> <span class="n">must_recompute</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
@@ -1546,7 +1568,6 @@
 
         <span class="k">if</span> <span class="s2">&quot;val&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">SymFloat</span><span class="p">):</span>
             <span class="k">return</span> <span class="kc">False</span>
-
         <span class="n">banned_nodes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
         <span class="c1"># A node will only ever be recomputed if there is a path from an</span>
         <span class="c1"># ancestor of this node to the backwards path through this node that</span>
@@ -2330,6 +2351,8 @@
     <span class="n">graph_has_recomputable_rng_ops</span> <span class="o">=</span> <span class="n">has_recomputable_rng_ops</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">graph_has_recomputable_ops</span><span class="p">:</span>
         <span class="n">joint_module</span> <span class="o">=</span> <span class="n">cleanup_recompute_tags</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">unsafe_allow_optimization_of_collectives</span><span class="p">:</span>
+        <span class="n">force_save_collectives</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">classify_nodes</span><span class="p">(</span><span class="n">joint_module</span><span class="p">):</span>
         <span class="n">name_to_node</span> <span class="o">=</span> <span class="n">get_name_to_node</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
