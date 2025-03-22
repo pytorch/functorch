@@ -283,7 +283,7 @@
           <div class="pytorch-left-menu-search">
             
     <div class="version">
-      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.8.0a0+gitf47aa08) &#x25BC</a>
+      <a href='https://pytorch.org/functorch/versions.html'>nightly (2.8.0a0+gitc73a526) &#x25BC</a>
     </div>
     
 
@@ -724,9 +724,22 @@
         <span class="s2">&quot;backward&quot;</span><span class="p">,</span>
     <span class="p">)</span>
 
+    <span class="n">distributed_enabled</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span>
+
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">bwd_graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;placeholder&quot;</span><span class="p">):</span>
         <span class="c1"># This is to filter out saved values that don&#39;t actually end up being used by the backwards pass</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">node</span><span class="o">.</span><span class="n">users</span><span class="p">:</span>
+            <span class="n">_remove_by_name</span><span class="p">(</span><span class="n">saved_values</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">_remove_by_name</span><span class="p">(</span><span class="n">saved_sym_nodes</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="c1"># wait_tensor is a bit special: if we have a &quot;dead activation&quot; that is not used in the bw,</span>
+        <span class="c1"># but this dead activation is actually a collective,</span>
+        <span class="c1"># then the collective will generally by followed by a wait_tensor() call.</span>
+        <span class="c1"># we need to peak one node further to see if this wait_tensor is dead as well.</span>
+        <span class="k">elif</span> <span class="n">distributed_enabled</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span>
+            <span class="n">n</span><span class="o">.</span><span class="n">target</span> <span class="ow">is</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">_c10d_functional</span><span class="o">.</span><span class="n">wait_tensor</span><span class="o">.</span><span class="n">default</span>
+            <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">users</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">users</span>
+        <span class="p">):</span>
             <span class="n">_remove_by_name</span><span class="p">(</span><span class="n">saved_values</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
             <span class="n">_remove_by_name</span><span class="p">(</span><span class="n">saved_sym_nodes</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">_is_backward_state</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
