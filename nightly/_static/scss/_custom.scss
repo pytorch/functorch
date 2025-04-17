@@ -1,0 +1,61 @@
+@use 'variables' as *;
+
+.prev-next-footer {
+  display: none;
+}
+
+.table {
+  tbody {
+    tr {
+      &:hover {
+        background: var(--pst-color-table-row-hover-bg);
+      }
+    }
+  }
+}
+
+dt {
+  &:target {
+    background-color: transparent;
+  }
+}
+
+span.highlighted {
+  background-color: $pytorch-red;
+}
+
+.form-control {
+  border: none;
+}
+
+// Remove link styling from TOC backref links
+h1, h2, h3, h4, h5, h6 {
+  .toc-backref {
+    color: inherit !important;
+    text-decoration: none !important;
+
+    &:hover, &:active, &:visited, &:focus {
+      text-decoration: none !important;
+      color: inherit !important;
+    }
+  }
+}
+
+.div.math {
+  overflow-x: auto;
+}
+
+.katex-display {
+  width: 100%;
+}
+
+.version {
+  font-weight: 600;
+}
+
+// Hide logo on mobile
+.navbar-brand {
+  @media (max-width: 767px) {
+    display: none;
+  }
+}

@@ -1,0 +1,45 @@
+// Theme colors
+$pytorch-red: #ee4c2c;
+$pytorch-blue: #F2765D;
+$dark-text: #262626;
+$light-text: #ffffff;
+$muted-text: #6c6c6d;
+$border-color: #e2e2e2;
+$background-light: #f3f4f7;
+$background-dark: #000000;
+$pytorch-indigo: #812CE5;
+$pytorch-violet: #B932CC;
+$pytorch-light-gray: #F6F6F6;
+
+
+:root {
+  --header-height: 68px;
+  --header-height-desktop: 90px;
+}
+
+// Theme color variables
+html[data-theme="light"] {
+  --pst-color-primary: #{$pytorch-red};
+  --pst-color-secondary: #{$pytorch-red};
+  --pst-color-inline-code-links: #{$pytorch-red};
+  --bs-link-hover-color: #{$pytorch-red};
+  --bs-emphasis-color-rgb: #{$pytorch-red};
+  --bs-emphasis-color: #{$pytorch-red};
+  --bs-btn-focus-box-shadow: #{$pytorch-red};
+  --pst-color-accent: transparent !important;
+  --pst-color-table-row-hover-bg: #F9BFB4;
+  --sg-script-pre: #FBEEF6;
+}
+
+html[data-theme="dark"] {
+  --pst-color-primary: #{$pytorch-blue};
+  --pst-color-secondary: #{$pytorch-blue};
+  --pst-color-inline-code-links: #{$pytorch-blue};
+  --bs-link-hover-color: #{$pytorch-blue};
+  --bs-emphasis-color-rgb: #{$pytorch-blue};
+  --bs-emphasis-color: #{$pytorch-blue};
+  --pst-color-inline-code: #BBBBBB;
+  --bs-btn-focus-box-shadow: #{$pytorch-blue};
+  --pst-color-accent: transparent !important;
+  --pst-color-table-row-hover-bg: #711B09;
+}

@@ -1,0 +1,125 @@
+// Layout styles
+@use 'variables';
+
+// Header positioning
+.bd-header {
+  top: var(--header-height-desktop) !important;
+  position: sticky !important;
+
+  @media (max-width: 1200px) {
+    top: var(--header-height) !important;
+  }
+
+  @media (max-width: 960px) {
+    top: var(--header-height) !important;
+  }
+}
+
+// Sidebar positioning
+.bd-sidebar-primary {
+  top: 150px !important;
+}
+
+.bd-sidebar-secondary {
+  top: 150px !important;
+}
+
+// Hide Home button on mobile
+@media (max-width: 959px) {
+  .navbar-brand logo {
+    display: none;
+  }
+}
+
+// Article heading styles
+article h1, article .h1 {
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+  max-width: 100%;
+  hyphens: auto;
+
+  a {
+    display: inline-block;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    hyphens: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  article h1, article .h1,
+  article h1 a, article .h1 a {
+    word-break: break-all;
+  }
+}
+
+// Navigation area
+.prev-next-area {
+  display: block;
+  margin-bottom: 20px;
+
+  p {
+    word-break: break-word;
+  }
+}
+
+// Footer info
+.footer-info {
+  display: block;
+  clear: both;
+  padding-top: 10px;
+  font-size: 0.8rem;
+  padding-left: 10px;
+  line-height: 0.1;
+}
+
+// Version switcher
+button.btn.version-switcher__button {
+  margin-bottom: 0 !important;
+}
+
+.version-switcher__menu {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+// Hide default Sphinx footer
+.bd-footer {
+  display: none;
+}
+
+// Math display
+div.math {
+  flex-direction: column;
+}
+
+// Fix search page scrolling
+body.search-page {
+  height: auto !important;
+  overflow: visible !important;
+
+  .bd-main {
+    height: auto !important;
+    overflow: visible !important;
+
+    .bd-content {
+      height: auto !important;
+      overflow: visible !important;
+
+      #search-results {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+      }
+    }
+  }
+}
+
+// Ensure search results container doesn't have restricted height
+.search-results-container {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}

@@ -1,0 +1,273 @@
+// Footer styles
+@use 'variables' as *;
+
+// Hide default Sphinx footer
+.bd-footer {
+  display: none !important;
+}
+
+// Footer info for documentation pages
+.footer-info {
+  display: block;
+  clear: both;
+  padding-top: 10px;
+  font-size: 0.8rem;
+  padding-left: 10px;
+  line-height: 0.1;
+}
+
+// Main site footer
+.site-footer {
+  padding: 2.5rem 0;
+  width: 100%;
+  background: $background-dark;
+  background-size: 100%;
+  margin-left: 0;
+  margin-right: 0;
+  position: relative;
+  z-index: 201;
+
+  @media screen and (min-width: 768px) {
+    padding: 5rem 0;
+  }
+
+  p {
+    color: $light-text;
+  }
+
+  ul {
+    list-style-type: none;
+    padding-left: 0;
+    margin-bottom: 0;
+
+    li {
+      font-size: 1.125rem;
+      line-height: 2rem;
+      color: #A0A0A1;
+      padding-bottom: 0.375rem;
+
+      &.list-title {
+        padding-bottom: 0.75rem;
+        color: $light-text;
+      }
+    }
+  }
+
+  a {
+    &:link,
+    &:visited {
+      color: inherit;
+    }
+
+    @media screen and (min-width: 768px) {
+      &:hover {
+        color: $pytorch-red;
+      }
+    }
+  }
+
+  .privacy-policy {
+    background: $background-dark;
+    display: flex;
+    border-bottom: 1px solid $light-text;
+    padding-bottom: 10px;
+  }
+
+  .privacy-policy-links {
+    background: $background-dark;
+    display: flex;
+    padding-top: 1rem;
+    padding-right: 1rem;
+    display: inline-flex;
+    color: $light-text;
+  }
+
+  .footer-links-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    border-bottom: 1px solid $light-text;
+    padding-bottom: 1rem;
+  }
+
+  .copyright {
+    padding-top: 1rem;
+    padding-right: 1rem;
+    display: inline-flex;
+    color: $light-text;
+
+    p {
+      color: $light-text;
+    }
+
+    a {
+      color: red;
+    }
+  }
+}
+
+// Footer container and logo
+.footer-container {
+  position: relative;
+}
+
+.footer-logo-wrapper {
+  @media screen and (min-width: 768px) {
+    position: absolute;
+    top: 0;
+    left: 30px;
+  }
+}
+
+.footer-logo {
+  background-image: url("../img/logo-icon.svg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 20px 24px;
+  display: block;
+  height: 24px;
+  margin-bottom: 2.8125rem;
+  width: 20px;
+
+  @media screen and (min-width: 768px) {
+    background-size: 29px 36px;
+    height: 36px;
+    margin-bottom: 0;
+    width: 29px;
+  }
+}
+
+// Footer links
+.footer-links-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+
+  @media screen and (min-width: 768px) {
+    flex-wrap: initial;
+    justify-content: flex-end;
+  }
+}
+
+.footer-links-col {
+  margin-bottom: 3.75rem;
+  width: 50%;
+
+  @media screen and (min-width: 768px) {
+    margin-bottom: 0;
+    width: 14%;
+    margin-right: 23px;
+
+    &.follow-us-col {
+      width: 18%;
+      margin-right: 0;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1239px) {
+    width: 18%;
+    margin-right: 30px;
+  }
+}
+
+// Social icons
+.footer-social-icons {
+  margin: 8.5625rem 0 2.5rem 0;
+
+  a {
+    height: 32px;
+    width: 32px;
+    display: inline-block;
+    background-color: #CCCDD1;
+    border-radius: 50%;
+    margin-right: 5px;
+
+    &.facebook {
+      background-image: url("../images/logo-facebook-dark.svg");
+      background-position: center center;
+      background-size: 9px 18px;
+      background-repeat: no-repeat;
+    }
+
+    &.twitter {
+      background-image: url("../images/logo-twitter-dark.svg");
+      background-position: center center;
+      background-size: 17px 17px;
+      background-repeat: no-repeat;
+    }
+
+    &.youtube {
+      background-image: url("../images/logo-youtube-dark.svg");
+      background-position: center center;
+      background-repeat: no-repeat;
+    }
+  }
+}
+
+// Mailchimp signup
+.site-footer .mc-field-group {
+  margin-top: -2px;
+}
+
+// Docs, tutorials, resources section
+.docs-tutorials-resources {
+  background-color: $dark-text;
+  color: $light-text;
+  padding-top: 2.5rem;
+  padding-bottom: 2.5rem;
+  position: relative;
+  z-index: 20;
+
+  @media screen and (min-width: 768px) {
+    padding-top: 5rem;
+    padding-bottom: 5rem;
+  }
+
+  p {
+    color: #929292;
+    font-size: 1rem;
+    line-height: 1.5rem;
+    letter-spacing: 0.22px;
+    margin-bottom: 0;
+
+    @media screen and (min-width: 768px) {
+      margin-bottom: 1.25rem;
+    }
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    letter-spacing: -0.25px;
+    text-transform: none;
+    margin-bottom: 0.25rem;
+    color: $light-text;
+
+    @media screen and (min-width: 768px) {
+      margin-bottom: 1.25rem;
+    }
+  }
+
+  .col-md-4 {
+    margin-bottom: 2rem;
+    text-align: center;
+
+    @media screen and (min-width: 768px) {
+      margin-bottom: 0;
+    }
+  }
+
+  .with-right-arrow {
+    margin-left: 12px;
+
+    &:hover {
+      background-image: url("../img/chevron-right-white.svg");
+    }
+  }
+
+  a {
+    font-size: 1.125rem;
+    color: $pytorch-red;
+
+    &:hover {
+      color: $light-text;
+    }
+  }
+}
