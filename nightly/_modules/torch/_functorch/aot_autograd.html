@@ -96,7 +96,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git470132c)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git80a3877)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1710,17 +1710,7 @@ document.write(`
                     <span class="n">ctx</span> <span class="o">=</span> <span class="n">_detect_attribute_assignment</span><span class="p">(</span><span class="n">mod</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">ctx</span> <span class="o">=</span> <span class="n">nullcontext</span><span class="p">()</span>
-
-                <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">_functorch</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">fake_tensor_propagate_real_tensors</span><span class="p">:</span>
-                    <span class="c1"># Running dynamo_timed causes fake tensor issues when</span>
-                    <span class="c1"># propagate real tensor is switched on.</span>
-                    <span class="n">dynamo_timed_ctx</span> <span class="o">=</span> <span class="n">nullcontext</span><span class="p">()</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">dynamo_timed_ctx</span> <span class="o">=</span> <span class="n">dynamo_timed</span><span class="p">(</span>
-                        <span class="s2">&quot;aot_collect_metadata&quot;</span><span class="p">,</span> <span class="n">log_pt2_compile_event</span><span class="o">=</span><span class="kc">True</span>
-                    <span class="p">)</span>
-
-                <span class="k">with</span> <span class="n">dynamo_timed_ctx</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">ctx</span><span class="p">:</span>
                     <span class="n">fw_metadata</span> <span class="o">=</span> <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">(</span>
                         <span class="n">flat_fn</span><span class="p">,</span>
                         <span class="n">static_input_indices</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">static_input_indices</span><span class="p">,</span>
