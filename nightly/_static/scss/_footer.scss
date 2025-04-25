@@ -256,10 +256,12 @@
 
   .with-right-arrow {
     margin-left: 12px;
-
-    &:hover {
-      background-image: url("../img/chevron-right-white.svg");
-    }
+    position: relative;
+    background-image: url(../img/chevron-right-orange.svg);
+    background-size: 12px 13px;
+    background-position: right 10px center;
+    background-repeat: no-repeat;
+    padding-right: 26px
   }
 
   a {

@@ -111,7 +111,7 @@ html[data-theme="dark"] {
     background-color: var(--pst-color-surface);
 
     &::after {
-      filter: brightness(0.8) hue-rotate(180deg);
+      filter: invert(65%) sepia(11%) saturate(206%) hue-rotate(182deg) brightness(89%) contrast(85%);
     }
 
     &:hover {
@@ -194,9 +194,13 @@ a.btn {
 
 .with-right-arrow {
   margin-left: 12px;
+  background-image: url("../img/chevron-right-white.svg");
+  background-size: 14px 18px;
+  background-position: center right;
+  background-repeat: no-repeat;
 
   &:hover {
-    background-image: url("../img/chevron-right-white.svg");
+    background-repeat: no-repeat;
   }
 }
 
@@ -208,7 +212,7 @@ a.btn {
     display: block;
     position: fixed;
     bottom: 0;
-    background-color: $background-light;
+    background-color: var(--pst-color-background);
     min-height: 100px;
     width: 100%;
     border-top: 3px solid #ededee;
@@ -221,7 +225,7 @@ a.btn {
   }
 
   .gdpr-notice {
-    color: $muted-text;
+    color: var(--pst-color-text-muted);
     margin-top: 1.5625rem;
     text-align: left;
     max-width: 1440px;
@@ -235,14 +239,14 @@ a.btn {
     }
 
     .cookie-policy-link {
-      color: #343434;
+      color: var(--pst-color-text-muted);
     }
   }
 
   .close-button {
     appearance: none;
     background: transparent;
-    border: 1px solid $background-light;
+    border: 1px solid var(--pst-color-background);
     height: 1.3125rem;
     position: absolute;
     bottom: 42px;
@@ -262,6 +266,8 @@ a.btn {
     }
   }
 }
+
+
 
 // Version switcher
 .version-switcher {
@@ -284,7 +290,6 @@ a.btn {
   z-index: 250;
   float: left;
   min-width: 10rem;
-  padding: 0.5rem 0;
   font-size: 1rem;
   color: #212529;
   text-align: left;

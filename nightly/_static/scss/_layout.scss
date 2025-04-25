@@ -15,13 +15,14 @@
   }
 }
 
-// Sidebar positioning
-.bd-sidebar-primary {
-  top: 150px !important;
+.bd-main .bd-content .bd-article-container {
+  padding-left: 1rem !important;
+  padding-right: 0.1rem !important;
 }
 
-.bd-sidebar-secondary {
-  top: 150px !important;
+.bd-main .bd-content .bd-article-container .bd-article {
+  padding-left: 0 !important;
+  padding-top: 0 !important;
 }
 
 // Hide Home button on mobile

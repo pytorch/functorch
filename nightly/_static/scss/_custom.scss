@@ -59,3 +59,13 @@ h1, h2, h3, h4, h5, h6 {
     display: none;
   }
 }
+
+// Make left nav links more readable
+nav.bd-links li>a {
+  color: var(--pst-color-text-base) !important;
+}
+
+// Make right nav links more readable
+.toc-entry a.nav-link, .toc-entry a>code {
+  color: var(--pst-color-text-base) !important;
+}
