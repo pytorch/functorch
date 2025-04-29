@@ -96,7 +96,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git70d7638)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git7ce6f63)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -2067,18 +2067,19 @@ document.write(`
     <span class="n">seen_sources</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
 
     <span class="n">aot_autograd_arg_pos_to_source</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">static_input_indices</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="c1"># Collect the new inputs lifted by aotdispatch</span>
-    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">param_keys</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">param_keys</span><span class="p">):</span>
         <span class="k">assert</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">param_name_to_source</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> not found.&quot;</span>
         <span class="n">source</span> <span class="o">=</span> <span class="n">param_name_to_source</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
         <span class="k">assert</span> <span class="n">source</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen_sources</span><span class="p">,</span> <span class="n">source</span>
         <span class="n">seen_sources</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
         <span class="n">aot_autograd_arg_pos_to_source</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
+        <span class="n">static_input_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
 
     <span class="c1"># Collect the dynamo graph inputs</span>
     <span class="c1"># TODO(mlazos): Revisit if this is still needed. With Dynamo install ID</span>
     <span class="c1"># matched tensors back into the Fx graph, this might not be necessary.</span>
-    <span class="n">static_input_indices</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">pos</span><span class="p">,</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;placeholder&quot;</span><span class="p">)):</span>
         <span class="k">assert</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="s2">&quot;_dynamo_source&quot;</span><span class="p">)</span>
         <span class="n">source</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">_dynamo_source</span>
@@ -2087,16 +2088,22 @@ document.write(`
         <span class="n">aot_autograd_arg_pos_to_source</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
         <span class="n">source_name</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">name</span><span class="p">()</span> <span class="k">if</span> <span class="n">source</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
 
+        <span class="c1"># input[i] in dynamo is now:</span>
+        <span class="c1"># input[i + len(extra_params)] in AOT,</span>
+        <span class="c1"># where extra_params are the params/buffers that dynamo baked into</span>
+        <span class="c1"># the OutputGraph</span>
+        <span class="n">actual_pos</span> <span class="o">=</span> <span class="n">pos</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">param_keys</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="s2">&quot;tensor_dict&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_dict&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
             <span class="s2">&quot;_dynamo_static_input_type&quot;</span><span class="p">,</span> <span class="kc">None</span>
         <span class="p">):</span>
             <span class="n">static_inputs_log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                <span class="s2">&quot;Adding static input pos </span><span class="si">%s</span><span class="s2"> for source </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">source_name</span>
+                <span class="s2">&quot;Adding static input pos </span><span class="si">%s</span><span class="s2"> for source </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">actual_pos</span><span class="p">,</span> <span class="n">source_name</span>
             <span class="p">)</span>
-            <span class="n">static_input_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+            <span class="n">static_input_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">actual_pos</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">static_inputs_log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                <span class="s2">&quot;Non-static input pos </span><span class="si">%s</span><span class="s2"> for source </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">source_name</span>
+                <span class="s2">&quot;Non-static input pos </span><span class="si">%s</span><span class="s2"> for source </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">actual_pos</span><span class="p">,</span> <span class="n">source_name</span>
             <span class="p">)</span>
 
     <span class="k">assert</span> <span class="n">full_args_num</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">aot_autograd_arg_pos_to_source</span><span class="p">)</span>

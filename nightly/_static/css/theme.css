@@ -354,7 +354,7 @@ html[data-theme=dark]:hover .header-holder .main-menu ul li a.nav-dropdown-item 
 
 .bd-main .bd-content .bd-article-container .bd-article {
   padding-left: 0 !important;
-  padding-top: 0 !important;
+  padding-top: 1rem !important;
 }
 
 @media (max-width: 959px) {
