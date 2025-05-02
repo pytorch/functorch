@@ -96,7 +96,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git8136e0d)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+gitfdcfc6a)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -2819,8 +2819,14 @@ document.write(`
         <span class="p">]</span>
 
     <span class="n">recomputable_banned_nodes</span> <span class="o">=</span> <span class="n">get_recomputable_banned_nodes</span><span class="p">(</span><span class="n">banned_nodes</span><span class="p">)</span>
-    <span class="c1"># sort first by name, to ensure determinism when multiple nodes have same size</span>
-    <span class="n">recomputable_banned_nodes</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">recomputable_banned_nodes</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    <span class="n">must_save_nodes</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">i</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">recomputable_banned_nodes</span>
+        <span class="k">if</span> <span class="n">i</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;recompute&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span> <span class="o">==</span> <span class="n">CheckpointPolicy</span><span class="o">.</span><span class="n">MUST_SAVE</span>
+    <span class="p">]</span>
+    <span class="n">recomputable_banned_nodes</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">recomputable_banned_nodes</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">must_save_nodes</span>
+    <span class="p">]</span>
 
     <span class="c1"># default: runtime_optimized_saved_values</span>
     <span class="c1"># more aggressive: more_aggressive_saved_values</span>
@@ -2830,7 +2836,7 @@ document.write(`
         <span class="n">recomputable_banned_nodes</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">_size_of</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_recomputable_banned_nodes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">node_info</span><span class="o">.</span><span class="n">inputs</span>
+        <span class="k">return</span> <span class="n">node_info</span><span class="o">.</span><span class="n">inputs</span> <span class="o">+</span> <span class="n">must_save_nodes</span>
     <span class="n">memories_banned_nodes</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">get_normalized_size</span><span class="p">(</span><span class="n">_size_of</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">all_recomputable_banned_nodes</span>
     <span class="p">]</span>
