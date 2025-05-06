@@ -2053,6 +2053,15 @@ nav.bd-links li > a {
   color: var(--pst-color-text-base) !important;
 }
 
+.bd-sidebar-primary {
+  width: 18%;
+  padding: 1rem 1rem 1rem;
+}
+
+.bd-sidebar-secondary {
+  padding: 1rem 1rem 1rem;
+}
+
 .pytorch-call-to-action-links {
   padding-top: 0;
   display: -webkit-box;
