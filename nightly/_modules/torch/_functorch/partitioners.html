@@ -96,7 +96,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+gitd197228)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git9919d6b)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -2966,7 +2966,9 @@ document.write(`
     <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
 
-<span class="k">def</span> <span class="nf">_broadcast_rank0_decision</span><span class="p">(</span><span class="n">joint_graph</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_broadcast_rank0_decision</span><span class="p">(</span>
+    <span class="n">joint_graph</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Graph</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">]</span>
+<span class="p">):</span>
     <span class="c1"># use the same policy across different GPUs</span>
     <span class="kn">from</span> <span class="nn">torch._subclasses.fake_tensor</span> <span class="kn">import</span> <span class="n">unset_fake_temporarily</span>
 
@@ -3001,9 +3003,9 @@ document.write(`
             <span class="n">objects</span> <span class="o">=</span> <span class="p">[[</span><span class="n">x</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">saved_values</span><span class="p">]]</span>
             <span class="c1"># TODO: maybe use a different process group for this</span>
             <span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">broadcast_object_list</span><span class="p">(</span><span class="n">objects</span><span class="p">,</span> <span class="n">src</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">saved_values</span> <span class="o">=</span> <span class="n">objects</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">saved_values_names</span> <span class="o">=</span> <span class="n">objects</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">name_to_node</span> <span class="o">=</span> <span class="n">get_name_to_node</span><span class="p">(</span><span class="n">joint_graph</span><span class="p">)</span>
-            <span class="n">saved_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">name_to_node</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">saved_values</span><span class="p">]</span>
+            <span class="n">saved_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">name_to_node</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">saved_values_names</span><span class="p">]</span>
     <span class="k">return</span> <span class="n">saved_values</span>
 
 
@@ -3146,7 +3148,7 @@ document.write(`
         <span class="n">memory_budget</span><span class="o">=</span><span class="n">memory_budget</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">_broadcast_rank0_decision</span><span class="p">:</span>
-        <span class="n">saved_values</span> <span class="o">=</span> <span class="n">_broadcast_rank0_decision</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">)</span>
+        <span class="n">saved_values</span> <span class="o">=</span> <span class="n">_broadcast_rank0_decision</span><span class="p">(</span><span class="n">joint_graph</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">)</span>
     <span class="c1"># save_for_backward on tensors and stashes symints in autograd .ctx</span>
     <span class="n">saved_sym_nodes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">is_sym_node</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">))</span>
     <span class="n">saved_values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">n</span><span class="p">:</span> <span class="ow">not</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">saved_values</span><span class="p">))</span>
