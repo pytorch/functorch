@@ -1854,6 +1854,10 @@ a.btn {
   display: block;
 }
 
+.sidebar-heading {
+  padding-top: 14px;
+}
+
 @media screen and (min-width: 1200px) {
   .header-holder {
     height: var(--header-height-desktop);
@@ -2208,6 +2212,7 @@ nav.bd-links li > a {
 #tutorial-cards-container .card.tutorials-card a p.card-summary, #tutorial-cards-container .card.tutorials-card a p.tags {
   color: var(--pst-color-text-base);
   text-decoration: none;
+  width: 75%;
 }
 #tutorial-cards-container .card.tutorials-card a p.card-summary:hover, #tutorial-cards-container .card.tutorials-card a p.tags:hover {
   text-decoration: none;

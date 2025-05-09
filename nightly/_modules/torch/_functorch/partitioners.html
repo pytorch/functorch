@@ -96,7 +96,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git20e2ca3)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+gitab829ec)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1056,9 +1056,13 @@ document.write(`
 <span class="kn">import</span> <span class="nn">torch.distributed</span>
 <span class="kn">import</span> <span class="nn">torch.fx</span> <span class="k">as</span> <span class="nn">fx</span>
 <span class="kn">import</span> <span class="nn">torch.utils._pytree</span> <span class="k">as</span> <span class="nn">pytree</span>
+<span class="kn">from</span> <span class="nn">torch._dynamo.utils</span> <span class="kn">import</span> <span class="n">counters</span><span class="p">,</span> <span class="n">is_node_meta_valid</span>
 <span class="kn">from</span> <span class="nn">torch._functorch._activation_checkpointing.ac_logging_utils</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">create_structured_trace_for_min_cut_info</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="kn">from</span> <span class="nn">torch._inductor</span> <span class="kn">import</span> <span class="n">config</span> <span class="k">as</span> <span class="n">inductor_config</span>
+<span class="kn">from</span> <span class="nn">torch._logging</span> <span class="kn">import</span> <span class="n">trace_structured</span>
+<span class="kn">from</span> <span class="nn">torch._subclasses.fake_tensor</span> <span class="kn">import</span> <span class="n">extract_tensor_metadata</span>
 <span class="kn">from</span> <span class="nn">torch.fx.experimental._backward_state</span> <span class="kn">import</span> <span class="n">BackwardState</span>
 <span class="kn">from</span> <span class="nn">torch.fx.experimental.proxy_tensor</span> <span class="kn">import</span> <span class="n">is_sym_node</span><span class="p">,</span> <span class="n">py_sym_types</span>
 <span class="kn">from</span> <span class="nn">torch.fx.experimental.sym_node</span> <span class="kn">import</span> <span class="n">magic_methods</span><span class="p">,</span> <span class="n">method_to_operator</span>
@@ -1335,12 +1339,216 @@ document.write(`
             <span class="k">break</span>
 
 
+<span class="k">def</span> <span class="nf">calculate_tensor_size</span><span class="p">(</span><span class="n">tensor</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the size of a PyTorch tensor in megabytes (MB).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tensor (torch.Tensor): Input tensor</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        float: Memory size in MB</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Get number of elements and size per element</span>
+    <span class="n">num_elements</span> <span class="o">=</span> <span class="n">tensor</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span>
+    <span class="n">element_size</span> <span class="o">=</span> <span class="n">tensor</span><span class="o">.</span><span class="n">element_size</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="p">(</span><span class="n">num_elements</span> <span class="o">*</span> <span class="n">element_size</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">get_allowed_dtypes</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">dtype</span><span class="p">]:</span>
+    <span class="n">allowed_dtypes</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_inductor</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">post_grad_fusion_options</span><span class="p">[</span>
+        <span class="s2">&quot;activation_quantization_aten_pass&quot;</span>
+    <span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;allowed_dtypes&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.bfloat16&quot;</span><span class="p">)</span>
+    <span class="n">allowed_dtypes</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="nb">getattr</span><span class="p">(</span><span class="n">torch</span><span class="p">,</span> <span class="n">dtype</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">dtype</span> <span class="ow">in</span> <span class="n">allowed_dtypes</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">)</span>
+    <span class="p">]</span>
+    <span class="k">return</span> <span class="n">allowed_dtypes</span>
+
+
+<span class="k">def</span> <span class="nf">should_quantize</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="n">allowed_dtypes</span> <span class="o">=</span> <span class="n">get_allowed_dtypes</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_node_meta_valid</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">or</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">allowed_dtypes</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="c1"># calculate the size of the node</span>
+    <span class="n">size_in_mb</span> <span class="o">=</span> <span class="n">calculate_tensor_size</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">size_in_mb</span> <span class="o">&gt;=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_inductor</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">post_grad_fusion_options</span><span class="p">[</span>
+        <span class="s2">&quot;activation_quantization_aten_pass&quot;</span>
+    <span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;size_in_mb&quot;</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">get_quant_type</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span><span class="p">:</span>
+    <span class="n">quant_type</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_inductor</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">post_grad_fusion_options</span><span class="p">[</span>
+        <span class="s2">&quot;activation_quantization_aten_pass&quot;</span>
+    <span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;quant_type&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.float8_e5m2&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">torch</span><span class="p">,</span> <span class="n">quant_type</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+
+<span class="k">def</span> <span class="nf">quantize_activation_fw</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Graph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">fwd_outputs</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">quant_type</span> <span class="o">=</span> <span class="n">get_quant_type</span><span class="p">()</span>
+    <span class="n">node_to_quant</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fwd_outputs</span><span class="p">:</span>
+        <span class="c1"># check if the activation node is the node saved for quantization</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;saved_for_quantization&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+                <span class="n">quant_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+                    <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">quant_type</span><span class="p">),</span>
+                    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;quant_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
+                <span class="p">)</span>
+                <span class="n">quant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
+                    <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">quant_type</span>
+                <span class="p">)</span>
+                <span class="n">quant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
+                    <span class="n">quant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="n">node_to_quant</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">quant_node</span>
+    <span class="c1"># only update the return node args, and remain all other users unchanged</span>
+    <span class="n">output_updated_args</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+        <span class="n">node_to_quant</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">node_to_quant</span> <span class="k">else</span> <span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fwd_outputs</span>  <span class="c1"># type: ignore[union-attr]</span>
+    <span class="p">)</span>
+
+    <span class="n">output</span><span class="o">.</span><span class="n">update_arg</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">output_updated_args</span><span class="p">)</span>
+    <span class="n">counters</span><span class="p">[</span><span class="s2">&quot;inductor&quot;</span><span class="p">][</span><span class="s2">&quot;activation_quantization_fwd_aten_pass&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+
+<span class="k">def</span> <span class="nf">quantize_activation_bw</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Graph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">bw_inputs</span> <span class="o">=</span> <span class="p">[</span><span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">bw_inputs</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">is_node_meta_valid</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;saved_for_quantization&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;saved_for_quantization&quot;</span><span class="p">)</span>
+            <span class="n">dequant_type</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;dequant_type&quot;</span><span class="p">)</span>
+            <span class="c1"># dequantize the node</span>
+            <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+                <span class="n">dequant_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+                    <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">dequant_type</span><span class="p">),</span>
+                    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;dequant_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
+                <span class="p">)</span>
+                <span class="n">dequant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
+                    <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">dequant_type</span>
+                <span class="p">)</span>
+                <span class="n">dequant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
+                    <span class="n">dequant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="c1"># find the users of the node and replace them with the new node except the dequant_node</span>
+            <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="k">if</span> <span class="n">user</span> <span class="o">!=</span> <span class="n">dequant_node</span><span class="p">:</span>
+                    <span class="n">user</span><span class="o">.</span><span class="n">replace_input_with</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">dequant_node</span><span class="p">)</span>
+
+    <span class="n">counters</span><span class="p">[</span><span class="s2">&quot;inductor&quot;</span><span class="p">][</span><span class="s2">&quot;activation_quantization_bwd_aten_pass&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+
+<span class="k">def</span> <span class="nf">enable_activation_quantization</span><span class="p">(</span>
+    <span class="n">saved_values</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">],</span>
+    <span class="n">fwd_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span>
+    <span class="n">bwd_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span>
+    <span class="n">static_lifetime_input_nodes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">OrderedSet</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="p">(</span>
+        <span class="n">inductor_config</span><span class="o">.</span><span class="n">post_grad_fusion_options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="s2">&quot;activation_quantization_aten_pass&quot;</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="ow">is</span> <span class="kc">None</span>
+    <span class="p">):</span>
+        <span class="k">return</span>
+
+    <span class="n">static_input_names</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">static_lifetime_input_nodes</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">static_lifetime_input_nodes</span>
+        <span class="k">else</span> <span class="p">[]</span>
+    <span class="p">)</span>
+    <span class="n">saved_values_names</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">saved_values</span><span class="p">}</span>
+    <span class="n">fwd_module_outputs</span> <span class="o">=</span> <span class="n">fwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">bwd_module_inputs</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">bwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;placeholder&quot;</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fwd_module_outputs</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">saved_values_names</span> <span class="ow">and</span> <span class="n">should_quantize</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">static_input_names</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Skipping quantization of static input </span><span class="si">%s</span><span class="s2">: &quot;</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;saved_for_quantization&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;dequant_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span>
+            <span class="c1"># some of the fwd outputs and bwd inputs are not share the same object</span>
+            <span class="n">bwd_module_inputs</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;saved_for_quantization&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">bwd_module_inputs</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;dequant_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span>
+
+    <span class="n">trace_structured</span><span class="p">(</span>
+        <span class="s2">&quot;artifact&quot;</span><span class="p">,</span>
+        <span class="n">metadata_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;before_activation_quantization_fwd_aten_pass&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;encoding&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="n">payload_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">fwd_module</span><span class="o">.</span><span class="n">print_readable</span><span class="p">(</span>
+            <span class="n">print_output</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">include_stride</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_device</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="n">quantize_activation_fw</span><span class="p">(</span><span class="n">fwd_module</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
+
+    <span class="n">trace_structured</span><span class="p">(</span>
+        <span class="s2">&quot;artifact&quot;</span><span class="p">,</span>
+        <span class="n">metadata_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;after_activation_quantization_fwd_aten_pass&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;encoding&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="n">payload_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">fwd_module</span><span class="o">.</span><span class="n">print_readable</span><span class="p">(</span>
+            <span class="n">print_output</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">include_stride</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_device</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="n">quant_fwd_module_outputs</span> <span class="o">=</span> <span class="n">fwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># update the corresponding bwd_inputs due to the fwd_outputs quantization</span>
+    <span class="k">for</span> <span class="n">fwd_node</span> <span class="ow">in</span> <span class="n">quant_fwd_module_outputs</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s2">&quot;quant_&quot;</span> <span class="ow">in</span> <span class="n">fwd_node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="n">bwd_input</span> <span class="o">=</span> <span class="n">bwd_module_inputs</span><span class="p">[</span><span class="n">fwd_node</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;quant_&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)]</span>
+            <span class="k">with</span> <span class="n">bwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">bwd_input</span><span class="p">):</span>
+                <span class="n">quant_bwd_input</span> <span class="o">=</span> <span class="n">bwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">fwd_node</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">dequant_type</span> <span class="o">=</span> <span class="n">bwd_input</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;dequant_type&quot;</span><span class="p">]</span>
+            <span class="n">quant_bwd_input</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">fwd_node</span><span class="o">.</span><span class="n">meta</span><span class="p">)</span>
+            <span class="n">quant_bwd_input</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;saved_for_quantization&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">quant_bwd_input</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;dequant_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dequant_type</span>
+            <span class="n">bwd_input</span><span class="o">.</span><span class="n">replace_all_uses_with</span><span class="p">(</span><span class="n">quant_bwd_input</span><span class="p">)</span>
+            <span class="n">bwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">bwd_input</span><span class="p">)</span>
+
+    <span class="n">trace_structured</span><span class="p">(</span>
+        <span class="s2">&quot;artifact&quot;</span><span class="p">,</span>
+        <span class="n">metadata_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;before_activation_quantization_bwd_aten_pass&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;encoding&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="n">payload_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">bwd_module</span><span class="o">.</span><span class="n">print_readable</span><span class="p">(</span>
+            <span class="n">print_output</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">include_stride</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_device</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="n">quantize_activation_bw</span><span class="p">(</span><span class="n">bwd_module</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
+
+    <span class="n">trace_structured</span><span class="p">(</span>
+        <span class="s2">&quot;artifact&quot;</span><span class="p">,</span>
+        <span class="n">metadata_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;after_activation_quantization_bwd_aten_pass&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;encoding&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="n">payload_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">bwd_module</span><span class="o">.</span><span class="n">print_readable</span><span class="p">(</span>
+            <span class="n">print_output</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">include_stride</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_device</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+
+
 <span class="k">def</span> <span class="nf">_extract_fwd_bwd_modules</span><span class="p">(</span>
     <span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span>
     <span class="n">saved_values</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">],</span>
     <span class="n">saved_sym_nodes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">],</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">num_fwd_outputs</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">static_lifetime_input_nodes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">OrderedSet</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">]:</span>
     <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span>
         <span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span>
@@ -1444,6 +1652,9 @@ document.write(`
 
     <span class="n">fwd_module</span> <span class="o">=</span> <span class="n">fx</span><span class="o">.</span><span class="n">_lazy_graph_module</span><span class="o">.</span><span class="n">_make_graph_module</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">fwd_graph</span><span class="p">)</span>
     <span class="n">bwd_module</span> <span class="o">=</span> <span class="n">fx</span><span class="o">.</span><span class="n">_lazy_graph_module</span><span class="o">.</span><span class="n">_make_graph_module</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">bwd_graph</span><span class="p">)</span>
+    <span class="n">enable_activation_quantization</span><span class="p">(</span>
+        <span class="n">saved_values</span><span class="p">,</span> <span class="n">fwd_module</span><span class="p">,</span> <span class="n">bwd_module</span><span class="p">,</span> <span class="n">static_lifetime_input_nodes</span>
+    <span class="p">)</span>
     <span class="k">return</span> <span class="n">fwd_module</span><span class="p">,</span> <span class="n">bwd_module</span>
 
 
@@ -1453,6 +1664,7 @@ document.write(`
     <span class="o">*</span><span class="p">,</span>
     <span class="n">num_fwd_outputs</span><span class="p">,</span>
     <span class="n">static_lifetime_input_indices</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">static_lifetime_input_nodes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">OrderedSet</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Partitions the :attr:`joint_module` in a manner that closely resembles the</span>
@@ -1479,7 +1691,10 @@ document.write(`
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">has_recomputable_ops</span><span class="p">(</span><span class="n">joint_module</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">min_cut_rematerialization_partition</span><span class="p">(</span>
-            <span class="n">joint_module</span><span class="p">,</span> <span class="n">_joint_inputs</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span>
+            <span class="n">joint_module</span><span class="p">,</span>
+            <span class="n">_joint_inputs</span><span class="p">,</span>
+            <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">,</span>
+            <span class="n">static_lifetime_input_indices</span><span class="o">=</span><span class="n">static_lifetime_input_indices</span><span class="p">,</span>
         <span class="p">)</span>
     <span class="n">primal_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_primal</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
     <span class="n">fwd_seed_offset_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_fwd_seed_offset</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
@@ -1534,6 +1749,7 @@ document.write(`
         <span class="n">saved_values</span><span class="p">,</span>
         <span class="n">saved_sym_nodes</span><span class="o">=</span><span class="n">saved_sym_nodes</span><span class="p">,</span>
         <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">,</span>
+        <span class="n">static_lifetime_input_nodes</span><span class="o">=</span><span class="n">static_lifetime_input_nodes</span><span class="p">,</span>
     <span class="p">)</span></div>
 
 
@@ -3124,7 +3340,11 @@ document.write(`
     <span class="c1"># this case, send our graph over to the default partitioner.</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">node_info</span><span class="o">.</span><span class="n">required_bw_nodes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">default_partition</span><span class="p">(</span>
-            <span class="n">joint_module</span><span class="p">,</span> <span class="n">_joint_inputs</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span>
+            <span class="n">joint_module</span><span class="p">,</span>
+            <span class="n">_joint_inputs</span><span class="p">,</span>
+            <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">,</span>
+            <span class="n">static_lifetime_input_indices</span><span class="o">=</span><span class="n">static_lifetime_input_indices</span><span class="p">,</span>
+            <span class="n">static_lifetime_input_nodes</span><span class="o">=</span><span class="n">node_info</span><span class="o">.</span><span class="n">static_lifetime_input_nodes</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">):</span>
@@ -3159,6 +3379,7 @@ document.write(`
         <span class="n">saved_values</span><span class="p">,</span>
         <span class="n">saved_sym_nodes</span><span class="o">=</span><span class="n">saved_sym_nodes</span><span class="p">,</span>
         <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">,</span>
+        <span class="n">static_lifetime_input_nodes</span><span class="o">=</span><span class="n">node_info</span><span class="o">.</span><span class="n">static_lifetime_input_nodes</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="n">graph_has_recomputable_ops</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">graph_has_recomputable_rng_ops</span><span class="p">:</span>

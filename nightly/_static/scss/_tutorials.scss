@@ -152,6 +152,7 @@
       p.card-summary, p.tags {
         color: var(--pst-color-text-base);
         text-decoration: none;
+        width: 75%;
 
         &:hover {
           text-decoration: none;

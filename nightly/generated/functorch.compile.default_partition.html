@@ -98,7 +98,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git20e2ca3)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+gitab829ec)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1066,7 +1066,7 @@ document.write(`
 <h1>functorch.compile.default_partition<a class="headerlink" href="#functorch-compile-default-partition" title="Permalink to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="functorch.compile.default_partition">
-<span class="sig-prename descclassname"><span class="pre">functorch.compile.</span></span><span class="sig-name descname"><span class="pre">default_partition</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">joint_module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_joint_inputs</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_fwd_outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">static_lifetime_input_indices</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch/_functorch/partitioners.html#default_partition"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.compile.default_partition" title="Permalink to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">functorch.compile.</span></span><span class="sig-name descname"><span class="pre">default_partition</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">joint_module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_joint_inputs</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_fwd_outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">static_lifetime_input_indices</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">static_lifetime_input_nodes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch/_functorch/partitioners.html#default_partition"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#functorch.compile.default_partition" title="Permalink to this definition">#</a></dt>
 <dd><p>Partitions the <code class="xref py py-attr docutils literal notranslate"><span class="pre">joint_module</span></code> in a manner that closely resembles the
 behavior observed in the original <code class="docutils literal notranslate"><span class="pre">.forward()</span></code> and <code class="docutils literal notranslate"><span class="pre">.backward()</span></code> of the
 callable, i.e., the resulting forward graph contains those operators that
