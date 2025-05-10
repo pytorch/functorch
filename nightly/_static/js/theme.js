@@ -247,126 +247,106 @@ document.addEventListener('DOMContentLoaded', function() {
     $(".pytorch-call-to-action-links").hide();
   }
 });
-;// tutorial-tags-filter.js
-
-window.filterTags = {
-    bind: function() {
-      var options = {
-        valueNames: [{ data: ["tags"] }],
-        listClass: "list",
-        page: 5,
-        pagination: true
-      };
-
-      var tutorialList = new List("tutorial-cards", options);
-
-      function filterSelectedTags(cardTags, selectedTags) {
-        return cardTags.some(function(tag) {
-          return selectedTags.some(function(selectedTag) {
-            return selectedTag == tag;
-          });
-        });
-      }
-
-      function updateList() {
-        var selectedTags = [];
-
-        $(".selected").each(function() {
-          selectedTags.push($(this).data("tag"));
-        });
-
-        tutorialList.filter(function(item) {
-          var cardTags;
-
-          if (item.values().tags == null) {
-            cardTags = [""];
-          } else {
-            cardTags = item.values().tags.split(",");
-          }
-
-          if (selectedTags.length == 0) {
-            return true;
-          } else {
-            return filterSelectedTags(cardTags, selectedTags);
-          }
-        });
-      }
-
-      $(".filter-btn").on("click", function() {
-        if ($(this).data("tag") == "all") {
-          $(this).addClass("all-tag-selected");
-          $(".filter").removeClass("selected");
-        } else {
-          $(this).toggleClass("selected");
-          $("[data-tag='all']").removeClass("all-tag-selected");
-        }
-
-        // If no tags are selected then highlight the 'All' tag
-        if (!$(".selected")[0]) {
-          $("[data-tag='all']").addClass("all-tag-selected");
-        }
-
-        updateList();
-      });
-    }
-  };
-
+;$(document).ready(function() {
   // Build an array from each tag that's present
-  function initTutorialTagsFilter() {
-    var tagList = [];
+  var tagList = [];
 
-    // Collect all tags from all tutorial cards
-    $(".tutorials-card-container").each(function() {
-      var cardTags = $(this).data("tags").split(",").map(function(item) {
-        return item.trim();
-      });
-      // Add each tag to the tagList
-      tagList = tagList.concat(cardTags);
-    });
-
-    function unique(value, index, self) {
-      return self.indexOf(value) == index && value != "";
-    }
-
-    // Only return unique tags
-    var tags = tagList.sort().filter(unique);
-
-    // Add filter buttons to the top of the page for each tag
-    function createTagMenu() {
-        // Add the 'All' tag first if it's not already present
-        $(".tutorial-filter-menu").empty().append("<div class='tutorial-filter filter-btn all-tag-selected' data-tag='all'>All</div>");
-
-        // Then add the rest of the tags
-        tags.forEach(function(item) {
-          $(".tutorial-filter-menu").append(" <div class='tutorial-filter filter-btn filter' data-tag='" + item + "'>" + item + "</div>");
+  // Check if tutorial containers exist
+  if ($(".tutorials-card-container").length > 0) {
+    tagList = $(".tutorials-card-container").map(function() {
+      if ($(this).data("tags")) {
+        return $(this).data("tags").split(",").map(function(item) {
+          return item.trim();
         });
       }
-
-    createTagMenu();
-
-    // Remove hyphens if they are present in the filter buttons
-    $(".tutorial-filter").each(function() {
-      var tag = $(this).text();
-      $(this).html(tag.replace(/-/, ' '));
-    });
-
-    // Initialize the filter functionality
-    filterTags.bind();
-
-    // Jump back to top on pagination click
-    $(document).on("click", ".page", function() {
-      $('html, body').animate(
-        {scrollTop: $("#dropdown-filter-tags").position().top},
-        'slow'
-      );
-    });
+      return [];
+    }).get();
+  } else {
+    console.log("No tutorial card containers found");
   }
 
-  // Initialize when document is ready
-  $(document).ready(function() {
-    // Check if we have tutorial cards before trying to initialize
-    if ($(".tutorials-card-container").length > 0) {
-      // Extract tags and create filter buttons
-      initTutorialTagsFilter();
+  // Flatten the array of arrays
+  tagList = [].concat.apply([], tagList);
+
+  function unique(value, index, self) {
+    return self.indexOf(value) == index && value != "";
+  }
+
+  // Only return unique tags
+  var tags = tagList.sort().filter(unique);
+
+  console.log("Found tags:", tags);
+
+  // Add filter buttons to the top of the page for each tag
+  function createTagMenu() {
+    if (tags.length > 0) {
+      tags.forEach(function(item){
+        $(".tutorial-filter-menu").append(" <div class='tutorial-filter filter-btn filter' data-tag='" + item + "'>" + item + "</div>");
+      });
+    } else {
+      console.log("No tags found to create menu");
+    }
+  }
+
+  createTagMenu();
+
+// Add click handler for filter buttons
+$(".filter-btn").on("click", function() {
+  var selectedTag = $(this).data("tag");
+
+  // If "All" button is clicked, clear all selections and show everything
+  if (selectedTag === "all") {
+    $(".filter-btn").removeClass("selected");
+    $(".tutorials-card-container").show();
+    return;
+  }
+
+  // Toggle selected class
+  $(this).toggleClass("selected");
+
+  // Get all selected tags
+  var selectedTags = $(".filter-btn.selected").map(function() {
+    return $(this).data("tag");
+  }).get();
+
+  // Filter the tutorials
+  $(".tutorials-card-container").each(function() {
+    var cardTags = $(this).data("tags").split(",").map(function(tag) {
+      return tag.trim();
+    });
+
+    if (selectedTags.length === 0) {
+      // If no filters selected, show all
+      $(this).show();
+    } else {
+      // Show if card has ANY of the selected tags
+      var hasSelectedTag = cardTags.some(function(tag) {
+        return selectedTags.includes(tag);
+      });
+
+      if (hasSelectedTag) {
+        $(this).show();
+      } else {
+        $(this).hide();
+      }
     }
   });
+});
+
+
+
+// Remove hyphens if they are present in the filter buttons
+$(".tags").each(function(){
+  var tags = $(this).text().split(",");
+  tags.forEach(function(tag, i) {
+    tags[i] = tags[i].replace(/-/, ' ');
+  });
+  $(this).html(tags.join(", "));
+});
+
+// Remove hyphens if they are present in the card body
+$(".tutorial-filter").each(function(){
+  var tag = $(this).text();
+  $(this).html(tag.replace(/-/, ' '));
+});
+});

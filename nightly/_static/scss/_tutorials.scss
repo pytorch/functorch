@@ -122,9 +122,55 @@
 }
 
 #tutorial-cards-container {
+  .filter-btn {
+    color: var(--pst-color-text-base);
+    border: 1px solid var(--pst-color-border);
+    display: inline-block;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    margin-bottom: 5px;
+
+    &:hover {
+      border: 1px solid var(--pst-color-primary);
+      color: $pytorch-red;
+    }
+
+    &.selected {
+      background-color: var(--pst-color-primary);
+      border: 1px solid var(--pst-color-primary);
+      color: $light-text;
+    }
+  }
+
+  .all-tag-selected {
+    background-color: #979797;
+    color: $light-text;
+
+    &:hover {
+      border-color: #979797;
+      color: $light-text;
+    }
+  }
+
+  .pagination {
+    .page {
+      border: 1px solid #dee2e6;
+      padding: 0.5rem 0.75rem;
+    }
+
+    .active .page {
+      background-color: #dee2e6;
+    }
+  }
+
   #tutorial-cards {
     width: 100%;
   }
+
 
   .tutorials-nav {
     padding-left: 0;
@@ -230,10 +276,15 @@
         margin-bottom: 1.125rem;
         margin-top: 0;
         font-size: 1.125rem;
-        color: var(--sg-text-colorg);
+        color: var(--pst-color-text-base);
 
         @media screen and (min-width: 768px) {
           font-size: 1.5rem;
+        }
+        @media screen and (max-width: 767px) {
+          font-size: 0.8rem;
+          margin-bottom: 0.4rem;
+        }
       }
     }
 
@@ -252,6 +303,10 @@
       @media (min-width: 768px) and (max-width: 1239px) {
         width: 70%;
       }
+      @media screen and (max-width: 767px) {
+        font-size: 0.6rem;
+        line-height: 1rem;
+      }
     }
 
     p.tags {
@@ -261,10 +316,6 @@
       overflow: hidden;
     }
 
-    h4 {
-      color: var(--pst-color-text-base);
-      margin-bottom: 1.125rem;
-    }
 
     a {
       height: 100%;
@@ -336,52 +387,8 @@
   .tutorial-filter {
     cursor: pointer;
   }
-
-  .filter-btn {
-    color: var(--pst-color-text-base);
-    border: 1px solid var(--pst-color-border);
-    display: inline-block;
-    text-align: center;
-    white-space: nowrap;
-    vertical-align: middle;
-    padding: 0.375rem 0.75rem;
-    font-size: 1rem;
-    line-height: 1.5;
-    margin-bottom: 5px;
-
-    &:hover {
-      border: 1px solid $pytorch-red;
-      color: $pytorch-red;
-    }
-
-    &.selected {
-      background-color: $pytorch-red;
-      border: 1px solid $pytorch-red;
-      color: $light-text;
-    }
-  }
-
-  .all-tag-selected {
-    background-color: #979797;
-    color: $light-text;
-
-    &:hover {
-      border-color: #979797;
-      color: $light-text;
-    }
-  }
-
-  .pagination {
-    .page {
-      border: 1px solid #dee2e6;
-      padding: 0.5rem 0.75rem;
-    }
-
-    .active .page {
-      background-color: #dee2e6;
-    }
-  }
 }
+
 
 .tutorials-callout-container {
     padding-bottom: 50px;
@@ -434,7 +441,6 @@
         color: inherit;
       }
     }
-  }
 }
 
 .card-body {
