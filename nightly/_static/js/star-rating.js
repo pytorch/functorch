@@ -24,7 +24,7 @@
             if (value !== lastRating) {
                 console.log(`Sending rating for ${pageTitle} after 2.5s: ${value} (previous: ${lastRating})`);
                 // Push to dataLayer for GTM
-                window.dataLayer = [];
+                window.dataLayer = window.dataLayer || [];
                 window.dataLayer.push({
                     'event': 'star_rating',
                     'Rating': value,

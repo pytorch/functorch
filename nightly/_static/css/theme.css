@@ -2072,7 +2072,7 @@ nav.bd-links li > a {
   display: -ms-flexbox;
   display: flex;
   justify-content: space-around;
-  margin: 0 auto 1.5rem auto;
+  margin: 0px;
 }
 @media (min-width: 768px) and (max-width: 1239px) {
   .pytorch-call-to-action-links {

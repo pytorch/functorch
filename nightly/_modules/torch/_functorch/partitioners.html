@@ -65,6 +65,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
 <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css">
 <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+<meta property="og:image" content="../../../_static/img/pytorch_seo.png" />
 <link rel="stylesheet" href="../../../_static/webfonts/all.min.css">
 <meta http-equiv="Content-Security-Policy" content="style-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval' https://www.google.com https://fonts.googleapis.com;">
 <meta name="pytorch_project" content="">
@@ -98,7 +99,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git930de01)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git0cf61ca)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1361,6 +1362,163 @@ document.write(`
             <span class="k">break</span>
 
 
+<span class="k">def</span> <span class="nf">find_first_sym_node</span><span class="p">(</span>
+    <span class="n">fwd_module_outputs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">],</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">]]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">fwd_module_outputs</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">fwd_module_outputs</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">fwd_module_outputs</span><span class="p">[</span><span class="n">i</span><span class="p">]):</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">idx</span>
+
+
+<span class="k">def</span> <span class="nf">calculate_quantization_scaling</span><span class="p">(</span>
+    <span class="n">graph</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Graph</span><span class="p">,</span>
+    <span class="n">node</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">,</span>
+    <span class="nb">max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">57344.0</span><span class="p">,</span>
+    <span class="nb">min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-12</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+        <span class="n">abs_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">abs</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">node</span><span class="p">,),</span>
+        <span class="p">)</span>
+        <span class="n">abs_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">abs</span><span class="o">.</span><span class="n">default</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">])</span>
+        <span class="n">abs_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span><span class="n">abs_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">])</span>
+    <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">abs_node</span><span class="p">):</span>
+        <span class="n">amax_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">amax</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">abs_node</span><span class="p">,</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">amax_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">amax</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
+            <span class="n">abs_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="n">amax_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span><span class="n">amax_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">])</span>
+    <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">amax_node</span><span class="p">):</span>
+        <span class="n">amax_64_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">amax_node</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">amax_64_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
+            <span class="n">amax_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">float64</span>
+        <span class="p">)</span>
+        <span class="n">amax_64_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
+            <span class="n">amax_64_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+    <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">amax_64_node</span><span class="p">):</span>
+        <span class="n">clamp_min_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">clamp_min</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">amax_64_node</span><span class="p">,</span> <span class="nb">min</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">clamp_min_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">clamp_min</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
+            <span class="n">amax_64_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="nb">min</span>
+        <span class="p">)</span>
+        <span class="n">clamp_min_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
+            <span class="n">clamp_min_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+    <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">clamp_min_node</span><span class="p">):</span>
+        <span class="n">reciprocal_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">reciprocal</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">clamp_min_node</span><span class="p">,),</span>
+        <span class="p">)</span>
+        <span class="n">reciprocal_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">reciprocal</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
+            <span class="n">clamp_min_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">reciprocal_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
+            <span class="n">reciprocal_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+    <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">reciprocal_node</span><span class="p">):</span>
+        <span class="n">mul_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">mul</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">reciprocal_node</span><span class="p">,</span> <span class="nb">max</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">mul_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">mul</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span>
+            <span class="n">reciprocal_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="nb">max</span>
+        <span class="p">)</span>
+        <span class="n">mul_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span><span class="n">mul_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">])</span>
+    <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">mul_node</span><span class="p">):</span>
+        <span class="n">scale_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">mul_node</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;scale_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">scale_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
+            <span class="n">mul_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">float32</span>
+        <span class="p">)</span>
+        <span class="n">scale_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span><span class="n">scale_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">scale_node</span>
+
+
+<span class="k">def</span> <span class="nf">perform_quantization</span><span class="p">(</span>
+    <span class="n">graph</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Graph</span><span class="p">,</span>
+    <span class="n">node</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">,</span>
+    <span class="n">scale_node</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">,</span>
+    <span class="n">quant_type</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
+    <span class="n">clamp_min</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">clamp_max</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">:</span>
+    <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">scale_node</span><span class="p">):</span>
+        <span class="n">target_node_32</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">target_node_32</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">float32</span>
+        <span class="p">)</span>
+        <span class="n">target_node_32</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
+            <span class="n">target_node_32</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+    <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">target_node_32</span><span class="p">):</span>
+        <span class="n">scaled_target_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">mul</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">target_node_32</span><span class="p">,</span> <span class="n">scale_node</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">scaled_target_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">mul</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span>
+            <span class="n">target_node_32</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">scale_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">scaled_target_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
+            <span class="n">scaled_target_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+    <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">scaled_target_node</span><span class="p">):</span>
+        <span class="n">clamp_min_scaled_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">clamp_min</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">scaled_target_node</span><span class="p">,</span> <span class="n">clamp_min</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">clamp_min_scaled_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">clamp_min</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
+            <span class="n">scaled_target_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">clamp_min</span>
+        <span class="p">)</span>
+        <span class="n">clamp_min_scaled_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
+            <span class="n">clamp_min_scaled_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+    <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">clamp_min_scaled_node</span><span class="p">):</span>
+        <span class="n">clamp_max_scaled_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">clamp_max</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">clamp_min_scaled_node</span><span class="p">,</span> <span class="n">clamp_max</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">clamp_max_scaled_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">clamp_max</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
+            <span class="n">clamp_min_scaled_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">clamp_max</span>
+        <span class="p">)</span>
+        <span class="n">clamp_max_scaled_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
+            <span class="n">clamp_max_scaled_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+    <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">clamp_max_scaled_node</span><span class="p">):</span>
+        <span class="n">quant_activation_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">clamp_max_scaled_node</span><span class="p">,</span> <span class="n">quant_type</span><span class="p">),</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;quant_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">quant_activation_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span>
+            <span class="s2">&quot;val&quot;</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
+            <span class="n">clamp_max_scaled_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">quant_type</span>
+        <span class="p">)</span>
+        <span class="n">quant_activation_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
+            <span class="n">quant_activation_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">quant_activation_node</span>
+
+
 <span class="k">def</span> <span class="nf">calculate_tensor_size</span><span class="p">(</span><span class="n">tensor</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Calculate the size of a PyTorch tensor in megabytes (MB).</span>
@@ -1409,58 +1567,156 @@ document.write(`
     <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">torch</span><span class="p">,</span> <span class="n">quant_type</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
 
 
+<span class="k">def</span> <span class="nf">calculate_range</span><span class="p">(</span><span class="n">dtype</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the range of values for a given torch.dtype.</span>
+<span class="sd">    Args:</span>
+<span class="sd">        dtype (torch.dtype): The input dtype.</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple: A tuple containing the minimum and maximum values.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">dtype</span> <span class="o">==</span> <span class="n">torch</span><span class="o">.</span><span class="n">float8_e5m2</span><span class="p">:</span>
+        <span class="c1"># 8-bit floating-point format with e5m2 layout</span>
+        <span class="n">min_val</span> <span class="o">=</span> <span class="o">-</span><span class="mf">57344.0</span>
+        <span class="n">max_val</span> <span class="o">=</span> <span class="mf">57344.0</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported dtype: </span><span class="si">{</span><span class="n">dtype</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">min_val</span><span class="p">,</span> <span class="n">max_val</span>
+
+
 <span class="k">def</span> <span class="nf">quantize_activation_fw</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Graph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="n">output</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
     <span class="n">fwd_outputs</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="n">quant_type</span> <span class="o">=</span> <span class="n">get_quant_type</span><span class="p">()</span>
+    <span class="n">clamp_min</span><span class="p">,</span> <span class="n">clamp_max</span> <span class="o">=</span> <span class="n">calculate_range</span><span class="p">(</span><span class="n">quant_type</span><span class="p">)</span>
     <span class="n">node_to_quant</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="n">tensor_scale_nodes</span><span class="p">,</span> <span class="n">sym_scale_nodes</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fwd_outputs</span><span class="p">:</span>
         <span class="c1"># check if the activation node is the node saved for quantization</span>
         <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;saved_for_quantization&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
-            <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
-                <span class="n">quant_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
-                    <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
-                    <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">quant_type</span><span class="p">),</span>
-                    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;quant_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
+            <span class="c1"># case: use scaling</span>
+            <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">_inductor</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">post_grad_fusion_options</span><span class="p">[</span>
+                <span class="s2">&quot;activation_quantization_aten_pass&quot;</span>
+            <span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;use_scaling&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                <span class="c1"># calculating the scale</span>
+                <span class="n">scale_node</span> <span class="o">=</span> <span class="n">calculate_quantization_scaling</span><span class="p">(</span>
+                    <span class="n">graph</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">clamp_max</span><span class="p">,</span> <span class="mf">1e-12</span>
                 <span class="p">)</span>
-                <span class="n">quant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
-                    <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">quant_type</span>
+                <span class="c1"># converting to fp8</span>
+                <span class="n">quant_node</span> <span class="o">=</span> <span class="n">perform_quantization</span><span class="p">(</span>
+                    <span class="n">graph</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">scale_node</span><span class="p">,</span> <span class="n">quant_type</span><span class="p">,</span> <span class="n">clamp_min</span><span class="p">,</span> <span class="n">clamp_max</span>
                 <span class="p">)</span>
-                <span class="n">quant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
-                    <span class="n">quant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
-                <span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">scale_node</span><span class="p">):</span>
+                    <span class="n">tensor_scale_nodes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scale_node</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">sym_scale_nodes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scale_node</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># case: do not use scaling</span>
+                <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+                    <span class="n">quant_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+                        <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+                        <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">quant_type</span><span class="p">),</span>
+                        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;quant_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
+                    <span class="p">)</span>
+                    <span class="n">quant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span>
+                        <span class="s2">&quot;val&quot;</span>
+                    <span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
+                        <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">quant_type</span>
+                    <span class="p">)</span>
+                    <span class="n">quant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
+                        <span class="n">quant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+                    <span class="p">)</span>
             <span class="n">node_to_quant</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">quant_node</span>
     <span class="c1"># only update the return node args, and remain all other users unchanged</span>
-    <span class="n">output_updated_args</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+    <span class="n">output_updated_args</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">node_to_quant</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">node_to_quant</span> <span class="k">else</span> <span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fwd_outputs</span>  <span class="c1"># type: ignore[union-attr]</span>
-    <span class="p">)</span>
+    <span class="p">]</span>
+    <span class="c1"># add the scale nodes to the ouput find the first sym_node in the output</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">find_first_sym_node</span><span class="p">(</span><span class="n">output_updated_args</span><span class="p">)</span>
+    <span class="n">scale_nodes</span> <span class="o">=</span> <span class="n">tensor_scale_nodes</span> <span class="o">+</span> <span class="n">sym_scale_nodes</span>
+    <span class="k">if</span> <span class="n">scale_nodes</span><span class="p">:</span>
+        <span class="n">output_updated_args</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">output_updated_args</span><span class="p">[:</span><span class="n">idx</span><span class="p">]</span> <span class="o">+</span> <span class="n">scale_nodes</span> <span class="o">+</span> <span class="n">output_updated_args</span><span class="p">[</span><span class="n">idx</span><span class="p">:]</span>
+        <span class="p">)</span>
 
-    <span class="n">output</span><span class="o">.</span><span class="n">update_arg</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">output_updated_args</span><span class="p">)</span>
+    <span class="n">output</span><span class="o">.</span><span class="n">update_arg</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">output_updated_args</span><span class="p">))</span>
     <span class="n">counters</span><span class="p">[</span><span class="s2">&quot;inductor&quot;</span><span class="p">][</span><span class="s2">&quot;activation_quantization_fwd_aten_pass&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
 
 
 <span class="k">def</span> <span class="nf">quantize_activation_bw</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Graph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="n">bw_inputs</span> <span class="o">=</span> <span class="p">[</span><span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">==</span> <span class="s2">&quot;placeholder&quot;</span><span class="p">]</span>
+    <span class="n">activation_node</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">bw_inputs</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">is_node_meta_valid</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;saved_for_quantization&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;saved_for_quantization&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
             <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;saved_for_quantization&quot;</span><span class="p">)</span>
             <span class="n">dequant_type</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;dequant_type&quot;</span><span class="p">)</span>
             <span class="c1"># dequantize the node</span>
-            <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
-                <span class="n">dequant_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
-                    <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
-                    <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">dequant_type</span><span class="p">),</span>
-                    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;dequant_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
-                <span class="p">)</span>
-                <span class="n">dequant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
-                    <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">dequant_type</span>
-                <span class="p">)</span>
-                <span class="n">dequant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
-                    <span class="n">dequant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
-                <span class="p">)</span>
+            <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">_inductor</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">post_grad_fusion_options</span><span class="p">[</span>
+                <span class="s2">&quot;activation_quantization_aten_pass&quot;</span>
+            <span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;use_scaling&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                <span class="c1"># case: use scaling</span>
+                <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+                    <span class="c1"># find corresponding scale node</span>
+                    <span class="n">scale_name</span> <span class="o">=</span> <span class="s2">&quot;scale_&quot;</span> <span class="o">+</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;quant_&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                    <span class="n">scale_node</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+                        <span class="n">bwd_input</span>
+                        <span class="k">for</span> <span class="n">bwd_input</span> <span class="ow">in</span> <span class="n">bw_inputs</span>
+                        <span class="k">if</span> <span class="n">bwd_input</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">scale_name</span>
+                    <span class="p">)</span>
+                    <span class="n">activation_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+                        <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+                        <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">dequant_type</span><span class="p">),</span>
+                    <span class="p">)</span>
+                    <span class="n">activation_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span>
+                        <span class="s2">&quot;val&quot;</span>
+                    <span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
+                        <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">dequant_type</span>
+                    <span class="p">)</span>
+                    <span class="n">activation_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
+                        <span class="n">activation_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">scale_node</span><span class="p">):</span>
+                    <span class="n">divided_target_node_32</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+                        <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">div</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+                        <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">activation_node</span><span class="p">,</span> <span class="n">scale_node</span><span class="p">),</span>
+                    <span class="p">)</span>
+                    <span class="n">divided_target_node_32</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">div</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span>
+                        <span class="n">activation_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">scale_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+                    <span class="p">)</span>
+                    <span class="n">divided_target_node_32</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span>
+                        <span class="s2">&quot;tensor_meta&quot;</span>
+                    <span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span><span class="n">divided_target_node_32</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">])</span>
+                <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">divided_target_node_32</span><span class="p">):</span>
+                    <span class="n">dequant_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+                        <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+                        <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">divided_target_node_32</span><span class="p">,</span> <span class="n">dequant_type</span><span class="p">),</span>
+                    <span class="p">)</span>
+                    <span class="n">dequant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span>
+                        <span class="s2">&quot;val&quot;</span>
+                    <span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
+                        <span class="n">divided_target_node_32</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">dequant_type</span>
+                    <span class="p">)</span>
+                    <span class="n">dequant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
+                        <span class="n">dequant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+                    <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+                    <span class="n">dequant_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
+                        <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+                        <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">dequant_type</span><span class="p">),</span>
+                        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;dequant_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
+                    <span class="p">)</span>
+                    <span class="n">dequant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span>
+                        <span class="s2">&quot;val&quot;</span>
+                    <span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
+                        <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">dequant_type</span>
+                    <span class="p">)</span>
+                    <span class="n">dequant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
+                        <span class="n">dequant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
+                    <span class="p">)</span>
             <span class="c1"># find the users of the node and replace them with the new node except the dequant_node</span>
             <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
-                <span class="k">if</span> <span class="n">user</span> <span class="o">!=</span> <span class="n">dequant_node</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">user</span> <span class="o">!=</span> <span class="n">dequant_node</span> <span class="ow">and</span> <span class="n">user</span> <span class="o">!=</span> <span class="n">activation_node</span><span class="p">:</span>
                     <span class="n">user</span><span class="o">.</span><span class="n">replace_input_with</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">dequant_node</span><span class="p">)</span>
 
     <span class="n">counters</span><span class="p">[</span><span class="s2">&quot;inductor&quot;</span><span class="p">][</span><span class="s2">&quot;activation_quantization_bwd_aten_pass&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
@@ -1486,6 +1742,12 @@ document.write(`
         <span class="k">else</span> <span class="p">[]</span>
     <span class="p">)</span>
     <span class="n">saved_values_names</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">saved_values</span><span class="p">}</span>
+    <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">_inductor</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">post_grad_fusion_options</span><span class="p">[</span>
+        <span class="s2">&quot;activation_quantization_aten_pass&quot;</span>
+    <span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;exclude_primals&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="n">saved_values_names</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">saved_values</span> <span class="k">if</span> <span class="s2">&quot;primals&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span>
+        <span class="p">}</span>
     <span class="n">fwd_module_outputs</span> <span class="o">=</span> <span class="n">fwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="n">bwd_module_inputs</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">bwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;placeholder&quot;</span><span class="p">)</span>
@@ -1538,6 +1800,25 @@ document.write(`
             <span class="n">quant_bwd_input</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;dequant_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dequant_type</span>
             <span class="n">bwd_input</span><span class="o">.</span><span class="n">replace_all_uses_with</span><span class="p">(</span><span class="n">quant_bwd_input</span><span class="p">)</span>
             <span class="n">bwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">erase_node</span><span class="p">(</span><span class="n">bwd_input</span><span class="p">)</span>
+    <span class="c1"># update the bwd_inputs if quantization with scaling is used</span>
+    <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">_inductor</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">post_grad_fusion_options</span><span class="p">[</span>
+        <span class="s2">&quot;activation_quantization_aten_pass&quot;</span>
+    <span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;use_scaling&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="c1"># update the corresponding bwd input nodes find the last non-tangent node</span>
+        <span class="n">bwd_input_loc</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">bwd_module_inputs</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">bw_input</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">bwd_module_inputs</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_tangent</span><span class="p">(</span><span class="n">bw_input</span><span class="p">):</span>
+                <span class="n">bwd_input_loc</span> <span class="o">=</span> <span class="n">bw_input</span>
+                <span class="k">break</span>
+
+        <span class="n">scaled_fwd_module_outputs</span> <span class="o">=</span> <span class="n">fwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">fwd_node</span> <span class="ow">in</span> <span class="n">scaled_fwd_module_outputs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;scale_&quot;</span> <span class="ow">in</span> <span class="n">fwd_node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+                <span class="c1"># fwd node is a scale node</span>
+                <span class="k">with</span> <span class="n">bwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">bwd_input_loc</span><span class="p">):</span>
+                    <span class="n">scale_bwd_input</span> <span class="o">=</span> <span class="n">bwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">fwd_node</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                <span class="n">scale_bwd_input</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">fwd_node</span><span class="o">.</span><span class="n">meta</span><span class="p">)</span>
+                <span class="n">bwd_input_loc</span> <span class="o">=</span> <span class="n">scale_bwd_input</span>
 
     <span class="n">trace_structured</span><span class="p">(</span>
         <span class="s2">&quot;artifact&quot;</span><span class="p">,</span>

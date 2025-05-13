@@ -14,7 +14,7 @@ function openGitHubIssue() {
     var feedbackUrl = `${baseUrl}/issues/new?title=${issueTitle}&body=${issueBody}&labels=${labels}`;
 
     // Track event in Google Analytics
-    window.dataLayer = [];
+    window.dataLayer = window.dataLayer || [];
     window.dataLayer.push({
         'event': 'send_feedback',
         'page_title': pageTitle,
