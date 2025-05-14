@@ -167,22 +167,12 @@ a.btn {
 
 // Navigation arrows
 .with-down-orange-arrow {
-  padding-right: 2rem;
+  padding-right: .5rem;
   position: relative;
-  background: url("../img/chevron-down-orange.svg");
-  background-size: 14px 18px;
-  background-position: top 7px right 10px;
-  background-repeat: no-repeat;
 }
 
 .with-down-arrow {
-  padding-right: 2rem;
-  position: relative;
-  background-image: url("../img/chevron-down-black.svg");
-  background-size: 14px 18px;
-  background-position: top 7px right 10px;
-  background-repeat: no-repeat;
-
+  padding-right: .5rem;
   a {
     color: $dark-text;
   }
@@ -283,8 +273,8 @@ a.btn {
 
 // Navigation dropdown
 .resources-dropdown-menu {
-  left: -75px;
-  width: 300px;
+  left: -25px;
+  width: 250px;
   display: none;
   position: absolute;
   z-index: 250;
@@ -294,10 +284,12 @@ a.btn {
   color: #212529;
   text-align: left;
   list-style: none;
-  background-color: $light-text;
+  background-color: var(--header-background);
   background-clip: padding-box;
   border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 0.25rem;
+  border-top: 1px solid $light-text;
+  top: 40px;
+  padding: 20px 0;
 }
 
 .resources-dropdown:hover .resources-dropdown-menu {

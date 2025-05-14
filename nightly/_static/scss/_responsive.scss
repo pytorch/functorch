@@ -11,35 +11,14 @@
     max-width: 1140px;
   }
 
-  .header-holder .main-menu ul li a:hover {
-    color: $pytorch-red;
-  }
-
   .gcse-search-wrapper .fa-magnifying-glass {
     top: 0.7em;
   }
 }
 
 @media screen and (min-width: 960px) {
-  .header-holder .main-menu {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding-left: 110px;
-  }
-
   .main-menu-open-button {
     display: none;
-  }
-}
-
-@media screen and (min-width: 959px) {
-  .header-logo {
-    background-size: 108px 27px;
-    position: absolute;
-    height: 27px;
-    width: 108px;
-    float: none;
   }
 }
 
@@ -83,8 +62,8 @@
   }
 
   .docs-tutorials-resources {
-    padding-top: 5rem;
-    padding-bottom: 5rem;
+    padding-top: 1rem;
+    padding-bottom: 3rem;
 
     h2 {
       margin-bottom: 1.25rem;

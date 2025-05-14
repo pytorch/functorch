@@ -20,22 +20,24 @@
 
         isProcessing = true;
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-            if (value !== lastRating) {
-                console.log(`Sending rating for ${pageTitle} after 2.5s: ${value} (previous: ${lastRating})`);
-                // Push to dataLayer for GTM
-                window.dataLayer = window.dataLayer || [];
-                window.dataLayer.push({
-                    'event': 'star_rating',
-                    'Rating': value,
-                    'page_path': pagePath,
-                    'event_name': 'click',
-                    'event_category': 'Page Rating'
-                });
 
-                lastRating = value;
-            }
+        // Immediately push the click event with rating data
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({
+            'event': 'star_rating',
+            'Rating': value,
+            'page_path': pagePath,
+            'page_title': pageTitle,
+            'event_name': 'click',
+            'event_category': 'Page Rating'
+        });
+
+        console.log(`Sent rating for ${pageTitle}: ${value}`);
+        lastRating = value;
+
+        // Reset processing state after a short delay
+        debounceTimer = setTimeout(() => {
             isProcessing = false;
-        }, 1500);
+        }, 500);
     });
 })();

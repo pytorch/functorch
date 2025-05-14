@@ -62,7 +62,7 @@ article {
 // Docs, tutorials, resources section typography
 .docs-tutorials-resources {
   p {
-    color: #929292;
+    color: $light-text;
     font-size: 1rem;
     line-height: 1.5rem;
     letter-spacing: 0.22px;
@@ -74,7 +74,7 @@ article {
   }
   
   h2 {
-    font-size: 1.5rem;
+    font-size: 2rem;
     letter-spacing: -0.25px;
     text-transform: none;
     margin-bottom: 0.25rem;
@@ -97,58 +97,30 @@ article {
 
 // Navigation menu typography
 .header-holder .main-menu ul li {
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 18px;
+  color: $light-text;
   a {
-    color: $dark-text;
-    font-size: 1.2rem;
-    letter-spacing: 0;
-    line-height: 2.125rem;
     text-align: center;
     text-decoration: none;
+  }
     
-    @media screen and (min-width: 1200px) {
-      &:hover {
-        color: $pytorch-red;
-      }
-    }
-  }
-  
-  &.active a {
-    color: $dark-text;
-  }
-  
   a.nav-dropdown-item {
     display: block;
-    font-size: 1rem;
-    line-height: 1.3125rem;
     width: 100%;
-    padding: 0.25rem 1.5rem;
+    padding: 0.5rem 1.5rem;
     clear: both;
-    font-weight: 400;
-    color: #757575;
     text-align: left;
     background-color: transparent;
-    border-bottom: 1px solid $border-color;
+    line-height: 1.4em;
     cursor: pointer;
     
     p {
       margin-bottom: .5rem;
     }
-    
-    .dropdown-title {
-      font-size: 1.125rem;
-      color: #212529;
-      letter-spacing: 0;
-      line-height: 34px;
-    }
-    
+        
     &:hover {
-      background-color: $pytorch-red;
-      color: $light-text;
-      
-      .dropdown-title {
-        background-color: $pytorch-red;
-        color: $light-text;
-      }
     }
   }
 }

@@ -448,3 +448,8 @@
     text-decoration: none;
   }
 }
+
+// Hide generated gallery download link in each section
+.sphx-glr-download-link-note.admonition.note {
+  display: none;
+}

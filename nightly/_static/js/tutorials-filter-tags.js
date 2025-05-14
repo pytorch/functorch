@@ -1,6 +1,8 @@
 $(document).ready(function() {
   // Build an array from each tag that's present
   var tagList = [];
+  var tutorialsPerPage = 8;
+  var currentPage = 1;
 
   // Check if tutorial containers exist
   if ($(".tutorials-card-container").length > 0) {
@@ -50,60 +52,119 @@ $(document).ready(function() {
 
   createTagMenu();
 
-  // Show all tutorials by default (up to 8)
-  showTutorials(8);
+  // Create pagination controls
+  function createPagination(totalItems) {
+    var totalPages = Math.ceil(totalItems / tutorialsPerPage);
 
-  // Function to show a specific number of tutorials
-  function showTutorials(count) {
-    $(".tutorials-card-container").hide();
-    $(".tutorials-card-container").slice(0, count).show();
+    // Clear existing pagination
+    $(".tutorials-pagination").remove();
+
+    if (totalPages <= 1) return; // Don't show pagination if only one page
+
+    var paginationHtml = '<div class="tutorials-pagination">';
+    paginationHtml += '<button class="page-btn prev" disabled>&laquo; Prev</button>';
+
+    for (var i = 1; i <= totalPages; i++) {
+      var activeClass = i === currentPage ? 'active' : '';
+      paginationHtml += '<button class="page-btn page-number ' + activeClass + '" data-page="' + i + '">' + i + '</button>';
+    }
+
+    paginationHtml += '<button class="page-btn next">Next &raquo;</button>';
+    paginationHtml += '</div>';
+
+    // Append pagination after tutorials container
+    $(".tutorials-card-container").last().after(paginationHtml);
+
+    // Add event listeners
+    $(".page-btn.page-number").on("click", function() {
+      currentPage = parseInt($(this).data("page"));
+      showCurrentPage();
+    });
+
+    $(".page-btn.prev").on("click", function() {
+      if (currentPage > 1) {
+        currentPage--;
+        showCurrentPage();
+      }
+    });
+
+    $(".page-btn.next").on("click", function() {
+      if (currentPage < totalPages) {
+        currentPage++;
+        showCurrentPage();
+      }
+    });
   }
+
+  // Function to show current page of tutorials
+  function showCurrentPage() {
+    var visibleTutorials = $(".tutorials-card-container:visible");
+    var startIndex = (currentPage - 1) * tutorialsPerPage;
+    var endIndex = startIndex + tutorialsPerPage;
+
+    visibleTutorials.hide();
+    visibleTutorials.slice(startIndex, endIndex).show();
+
+    // Update pagination buttons
+    $(".page-btn.page-number").removeClass("active");
+    $(".page-btn.page-number[data-page='" + currentPage + "']").addClass("active");
+
+    // Enable/disable prev/next buttons
+    $(".page-btn.prev").prop("disabled", currentPage === 1);
+    $(".page-btn.next").prop("disabled", currentPage === Math.ceil(visibleTutorials.length / tutorialsPerPage));
+  }
+
+  // Show tutorials and initialize pagination
+  function filterAndShowTutorials() {
+    var selectedTags = $(".filter-btn.selected").map(function() {
+      return $(this).data("tag");
+    }).get();
+
+    // Reset to first page when filtering
+    currentPage = 1;
+
+    if (selectedTags.includes("all") || selectedTags.length === 0) {
+      // Show all tutorials
+      $(".tutorials-card-container").show();
+    } else {
+      // Filter by selected tags
+      $(".tutorials-card-container").each(function() {
+        var cardTags = $(this).data("tags").split(",").map(function(tag) {
+          return tag.trim();
+        });
+
+        var hasSelectedTag = cardTags.some(function(tag) {
+          return selectedTags.includes(tag);
+        });
+
+        $(this).toggle(hasSelectedTag);
+      });
+    }
+
+    // Create pagination based on visible tutorials
+    createPagination($(".tutorials-card-container:visible").length);
+    showCurrentPage();
+  }
+
+  // Initial display
+  filterAndShowTutorials();
 
   // Add click handler for filter buttons
   $(".filter-btn").on("click", function() {
     var selectedTag = $(this).data("tag");
 
-    // If "All" button is clicked, clear all selections and show everything
+    // If "All" button is clicked, clear all selections and select "All"
     if (selectedTag === "all") {
       $(".filter-btn").removeClass("selected");
       $(this).addClass("selected");
-      showTutorials(8); // Show 8 tutorials when "All" is selected
-      return;
+    } else {
+      // Remove "All" selection when other tags are clicked
+      $(".filter-btn[data-tag='all']").removeClass("selected");
+      // Toggle selected class
+      $(this).toggleClass("selected");
     }
 
-    // Remove "All" selection when other tags are clicked
-    $(".filter-btn[data-tag='all']").removeClass("selected");
-
-    // Toggle selected class
-    $(this).toggleClass("selected");
-
-    // Get all selected tags
-    var selectedTags = $(".filter-btn.selected").map(function() {
-      return $(this).data("tag");
-    }).get();
-
-    // Filter the tutorials
-    $(".tutorials-card-container").each(function() {
-      var cardTags = $(this).data("tags").split(",").map(function(tag) {
-        return tag.trim();
-      });
-
-      if (selectedTags.length === 0) {
-        // If no filters selected, show all
-        $(this).show();
-      } else {
-        // Show if card has ANY of the selected tags
-        var hasSelectedTag = cardTags.some(function(tag) {
-          return selectedTags.includes(tag);
-        });
-
-        if (hasSelectedTag) {
-          $(this).show();
-        } else {
-          $(this).hide();
-        }
-      }
-    });
+    filterAndShowTutorials();
   });
 
   // Remove hyphens if they are present in the filter buttons

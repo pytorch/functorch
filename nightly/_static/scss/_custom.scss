@@ -51,6 +51,12 @@ h1, h2, h3, h4, h5, h6 {
 
 .version {
   font-weight: 600;
+  text-decoration: none;
+  color: var(--pst-color-text-muted);
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 // Hide logo on mobile

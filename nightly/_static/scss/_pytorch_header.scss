@@ -19,8 +19,8 @@
   top: 0;
   width: 100%;
   z-index: 10001;
-  background-color: $light-text;
-  border-bottom: 1px solid $border-color;
+  background-color: var(--header-background);
+  border-bottom: 1px solid #333;
 
   @media screen and (min-width: 1200px) {
     height: var(--header-height-desktop);
@@ -51,7 +51,7 @@
 .header-logo {
   height: 23px;
   width: 93px;
-  background-image: url("../img/pytorch-logo-dark.svg");
+  background-image: url("../img/logo.svg");
   background-repeat: no-repeat;
   background-size: 93px 23px;
   display: block;
@@ -59,10 +59,10 @@
   z-index: 10;
 
   @media screen and (min-width: 959px) {
-    background-size: 108px 27px;
+    background-size: auto 24px;
     position: absolute;
-    height: 27px;
-    width: 108px;
+    height: 24px;
+    width: 103px;
     float: none;
   }
 }
@@ -114,8 +114,13 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    padding-left: 110px;
+    padding-left: 290px;
   }
+
+  @media screen and (min-width: 1130px) {
+    padding-left: 450px;
+  }
+
 
   ul {
     display: flex;
@@ -124,14 +129,14 @@
 
     li {
       display: inline-block;
-      margin-right: 26px;
+      margin-right: 30px;
       position: relative;
-      color: $dark-text;
+      color: $light-text;
 
       &.active:after {
         content: "•";
         bottom: -24px;
-        color: $dark-text;
+        color: $light-text;
         font-size: 1.375rem;
         left: 0;
         position: absolute;
@@ -140,7 +145,7 @@
       }
 
       &.active a {
-        color: $dark-text;
+        color: $light-text;
       }
 
       &.docs-active:after {
@@ -156,30 +161,43 @@
 
       &:last-of-type {
         margin-right: 0;
+        margin-left: 10px;
       }
 
       a {
-        color: $dark-text;
-        font-size: 1.2rem;
-        letter-spacing: 0;
+        color: $light-text;
+        font-size: 15px;
+        letter-spacing: 0.8px;
         line-height: 2.125rem;
         text-align: center;
         text-decoration: none;
-
-        &:hover {
-          color: $dark-text;
-
-          @media screen and (min-width: 1200px) {
-            color: $pytorch-red;
-          }
-        }
+        padding: 2em 0;
       }
     }
+    li.main-menu-item a.with-down-arrow span:after {
+      transform-origin: 0 0;
+      transition: transform .35s cubic-bezier(.52,.01,.16,1);
+      bottom: -3px;
+      -webkit-transition: -webkit-transform .3s ease-out, border-color .3s ease-out;
+      transition: transform .3s ease-out, border-color .3s ease-out;
+      position: absolute;
+      display: block;
+      bottom: 2px;
+      left: 0;
+      width: 100%;
+      -ms-transform: scaleX(0);
+      -webkit-transform: scaleX(0);
+      transform: scaleX(0);
+      border-top: 2px solid #ee4c2c;
+      content: "";
+      padding-bottom: inherit;
+    }
+    li.main-menu-item:hover a.with-down-arrow span:after {
+      backface-visibility: hidden;
+      -webkit-transform: scaleX(1);
+      transform: scaleX(1);
+    }
   }
-}
-
-.resources-dropdown-menu a.nav-dropdown-item:last-of-type {
-  border-bottom: none !important;
 }
 
 
@@ -219,6 +237,10 @@
         }
       }
     }
+  }
+
+  .resources-mobile-menu-title a:hover {
+    color: $light-text;
   }
 
   .container-fluid {
@@ -266,80 +288,35 @@
   }
 }
 
-// Dark mode styles for PyTorch header
-html[data-theme="dark"] {
-  .header-holder {
-    background-color: var(--pst-color-surface);
-    border-bottom: 1px solid var(--pst-color-border);
-  }
-
-  .header-logo {
-    background-image: url("../img/logo-white.svg");
-  }
-
-  .main-menu ul li {
-    color: var(--pst-color-text-base);
-
-    &.active:after {
-      color: var(--pst-color-text-base);
-    }
-
-    &.active a {
-      color: var(--pst-color-text-base);
-    }
-
-    a {
-      color: var(--pst-color-text-base);
-
-      &:hover {
-        color: $pytorch-blue;
-      }
-    }
-  }
-
-  .with-down-arrow {
-    background-image: url("../img/chevron-down-light.svg");
-
-    a {
-      color: var(--pst-color-text-base);
-    }
-  }
-
-  .resources-dropdown-menu {
-    background-color: var(--pst-color-surface);
-    border: 1px solid var(--pst-color-border);
-    color: var(--pst-color-text-base);
-  }
-
-  .main-menu-open-button i {
-    color: var(--pst-color-text-base);
-  }
-
-  .resources-dropdown-menu a.nav-dropdown-item {
-    color: var(--pst-color-text-muted);
-    border-bottom: none;
-
-    .dropdown-title {
-      color: var(--pst-color-text-muted);
-    }
-
-    p {
-      color: var(--pst-color-text-muted);
-    }
-    &:hover p {
-      color: var(--pst-color-text-base);
-    }
-  }
-  .header-holder .main-menu ul li a.nav-dropdown-item .dropdown-title {
-    color: var(--pst-color-text-muted);
-  }
-  &:hover .header-holder .main-menu ul li a.nav-dropdown-item .dropdown-title {
-    color: var(--pst-color-text-base);
-    background-color: transparent !important;
-  }
-}
-
 .header-holder .main-menu ul li a.nav-dropdown-item:hover,
 .header-holder .main-menu ul li a.nav-dropdown-item.active {
-    background-color: var(--pst-color-primary) !important;
+  color: $pytorch-red !important;
+}
+
+.header-holder .main-menu ul li .no-dropdown a:before {
+  transform: translateY(-50%);
+  top: 50%;
+  border-radius: 8px !important;
+  -webkit-border-radius: 8px !important;
+  box-shadow: none;
+  -webkit-transition: opacity .45s cubic-bezier(0.25,1,0.33,1), transform .45s cubic-bezier(0.25,1,0.33,1), border-color .45s cubic-bezier(0.25,1,0.33,1), color .45s cubic-bezier(0.25,1,0.33,1), background-color .45s cubic-bezier(0.25,1,0.33,1), box-shadow .45s cubic-bezier(0.25,1,0.33,1);
+  transition: opacity .45s cubic-bezier(0.25,1,0.33,1), transform .45s cubic-bezier(0.25,1,0.33,1), border-color .45s cubic-bezier(0.25,1,0.33,1), color .45s cubic-bezier(0.25,1,0.33,1), background-color .45s cubic-bezier(0.25,1,0.33,1), box-shadow .45s cubic-bezier(0.25,1,0.33,1);
+  display: block;
+  position: absolute;
+  left: -11px;
+  padding-bottom: 10px;
+  transform: translateY(-7px);
+  width: 170%;
+  height: 26px;
+  content: " ";
+  z-index: -1;
+  transition: opacity 0.2s;
+  transform: translateY(-50%);
+  top: 50%;
+  background-color: $pytorch-red !important;
+  padding: 17px;
+}
+
+.header-holder .main-menu ul li .no-dropdown {
+  margin-left: 5px;
 }
