@@ -418,6 +418,7 @@
       font-weight: 400;
       position: relative;
       letter-spacing: 0.25px;
+      cursor: pointer;
 
       @media screen and (min-width: 768px) {
         &:after {
@@ -432,8 +433,12 @@
           transition: width .250s ease-in-out;
         }
 
-        &:hover:after {
-            background-image: none !important;
+        &:hover {
+          border-bottom: none;
+
+          &:after {
+            width: 100%;
+          }
         }
       }
 
@@ -452,4 +457,46 @@
 // Hide generated gallery download link in each section
 .sphx-glr-download-link-note.admonition.note {
   display: none;
+}
+
+.tutorials-pagination {
+  margin: 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+
+  .page-btn {
+    color: var(--pst-color-text-base);
+    border: 1px solid var(--pst-color-border);
+    display: inline-block;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    background-color: var(--sg-background-color);
+    cursor: pointer;
+
+    &:hover:not([disabled]) {
+      border: 1px solid var(--pst-color-primary);
+      color: $pytorch-red;
+    }
+
+    &.active {
+      background-color: var(--pst-color-primary);
+      border: 1px solid var(--pst-color-primary);
+      color: $light-text;
+
+      &:hover {
+        color: $light-text
+      }
+    }
+
+    &[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
 }

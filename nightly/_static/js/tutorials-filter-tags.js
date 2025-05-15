@@ -98,11 +98,31 @@ $(document).ready(function() {
 
   // Function to show current page of tutorials
   function showCurrentPage() {
-    var visibleTutorials = $(".tutorials-card-container:visible");
+    var visibleTutorials = $(".tutorials-card-container").filter(function() {
+      // Check if this tutorial should be visible based on current filter
+      var selectedTags = $(".filter-btn.selected").map(function() {
+        return $(this).data("tag");
+      }).get();
+
+      if (selectedTags.includes("all") || selectedTags.length === 0) {
+        return true;
+      } else {
+        var cardTags = $(this).data("tags").split(",").map(function(tag) {
+          return tag.trim();
+        });
+
+        return cardTags.some(function(tag) {
+          return selectedTags.includes(tag);
+        });
+      }
+    });
+
+    // Hide all tutorials first
+    $(".tutorials-card-container").hide();
+
+    // Show only the ones for current page
     var startIndex = (currentPage - 1) * tutorialsPerPage;
     var endIndex = startIndex + tutorialsPerPage;
-
-    visibleTutorials.hide();
     visibleTutorials.slice(startIndex, endIndex).show();
 
     // Update pagination buttons
@@ -113,6 +133,7 @@ $(document).ready(function() {
     $(".page-btn.prev").prop("disabled", currentPage === 1);
     $(".page-btn.next").prop("disabled", currentPage === Math.ceil(visibleTutorials.length / tutorialsPerPage));
   }
+
 
   // Show tutorials and initialize pagination
   function filterAndShowTutorials() {

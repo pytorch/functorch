@@ -2416,6 +2416,11 @@ nav.bd-links li > a {
   width: 18%;
   padding: 1rem 1rem 1rem;
 }
+@media (max-width: 959.98px) {
+  .bd-sidebar-primary {
+    width: 75%;
+  }
+}
 
 .bd-sidebar-secondary {
   padding: 1rem 1rem 1rem;
@@ -2800,6 +2805,7 @@ nav.bd-links li > a {
   font-weight: 400;
   position: relative;
   letter-spacing: 0.25px;
+  cursor: pointer;
 }
 @media screen and (min-width: 768px) {
   .tutorials-callout-container .btn.callout-button:after {
@@ -2813,8 +2819,11 @@ nav.bd-links li > a {
     background-color: #de3412;
     transition: width 0.25s ease-in-out;
   }
+  .tutorials-callout-container .btn.callout-button:hover {
+    border-bottom: none;
+  }
   .tutorials-callout-container .btn.callout-button:hover:after {
-    background-image: none !important;
+    width: 100%;
   }
 }
 .tutorials-callout-container .btn.callout-button a {
@@ -2827,6 +2836,43 @@ nav.bd-links li > a {
 
 .sphx-glr-download-link-note.admonition.note {
   display: none;
+}
+
+.tutorials-pagination {
+  margin: 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.tutorials-pagination .page-btn {
+  color: var(--pst-color-text-base);
+  border: 1px solid var(--pst-color-border);
+  display: inline-block;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  padding: 0.375rem 0.75rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  background-color: var(--sg-background-color);
+  cursor: pointer;
+}
+.tutorials-pagination .page-btn:hover:not([disabled]) {
+  border: 1px solid var(--pst-color-primary);
+  color: #de3412;
+}
+.tutorials-pagination .page-btn.active {
+  background-color: var(--pst-color-primary);
+  border: 1px solid var(--pst-color-primary);
+  color: #ffffff;
+}
+.tutorials-pagination .page-btn.active:hover {
+  color: #ffffff;
+}
+.tutorials-pagination .page-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .m_54c44539 {
