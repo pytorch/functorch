@@ -101,7 +101,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git32b1baa)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git2618977)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1054,12 +1054,7 @@ document.write(`
               
   
 <div id="searchbox"></div>
-  <article class="bd-article"id="pytorch-article" itemscope="itemscope" itemtype="https://schema.org/Article" itemprop="articleBody">
-   <meta itemprop="headline" content="functorch.combine_state_for_ensemble">
-   <meta itemprop="description" content="PyTorch documentation">
-   <meta itemprop="datePublished" content="">
-   <meta itemprop="dateModified" content="">
-   <meta itemprop="author" content="PyTorch Contributors">
+  <article class="bd-article"id="pytorch-article">
    <!-- Hidden breadcrumb schema for SEO only -->
    <div style="display:none;" itemscope itemtype="https://schema.org/BreadcrumbList">
       
@@ -1447,17 +1442,23 @@ and/or the <cite>torch.func</cite> migration guide for more details
   </footer>
    <script type="application/ld+json">
       {
-        "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "functorch.combine_state_for_ensemble",
-        "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
-        "author": {
-          "@type": "Organization",
-          "name": "PyTorch Contributors"
-        },
-        "datePublished": "",
-        "dateModified": "",
-      }
+         "@context": "https://schema.org",
+         "@type": "Article",
+         "headline": "functorch.combine_state_for_ensemble",
+         "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
+         "author": {
+           "@type": "Organization",
+           "name": "PyTorch Contributors"
+         },
+         "image": "../_static/img/pytorch_seo.png",
+         "mainEntityOfPage": {
+           "@type": "WebPage",
+           "@id": "/generated/functorch.combine_state_for_ensemble.html"
+         },
+         "datePublished": "",
+         "dateModified": "",
+         "articleBody": "functorch.combine_state_for_ensemble# functorch.combine_state_for_ensemble(models) → func, params, buffers[source]# Prepares a list of torch.nn.Modules for ensembling with vmap(). Given a list of M nn.Modules of the same class, stacks all of their parameters and buffers together to make params and buffers. Each parameter and buffer in the result will have an additional dimension of size M. combine_state_for_ensemble() also returns func, a functional version of one of the models in models. One cannot directly run func(params, buffers, *args, **kwargs) directly, you probably want to use vmap(func, ...)(params, buffers, *args, **kwargs) Here’s an example of how to ensemble over a very simple model: num_models = 5 batch_size = 64 in_features, out_features = 3, 3 models = [torch.nn.Linear(in_features, out_features) for i in range(num_models)] data = torch.randn(batch_size, 3) fmodel, params, buffers = combine_state_for_ensemble(models) output = vmap(fmodel, (0, 0, None))(params, buffers, data) assert output.shape == (num_models, batch_size, out_features) Warning All of the modules being stacked together must be the same (except for the values of their parameters/buffers). For example, they should be in the same mode (training vs eval). This API is subject to change – we’re investigating better ways to create ensembles and would love your feedback how to improve this. Warning We’ve integrated functorch into PyTorch. As the final step of the integration, functorch.combine_state_for_ensemble is deprecated as of PyTorch 2.0 and will be deleted in a future version of PyTorch &gt;= 2.3. Please use torch.func.stack_module_state instead; see the PyTorch 2.0 release notes and/or the torch.func migration guide for more details https://pytorch.org/docs/main/func.migrating.html"
+       }
    </script>
 
   </body>

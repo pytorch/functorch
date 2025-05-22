@@ -101,7 +101,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git32b1baa)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git2618977)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1032,12 +1032,7 @@ document.write(`
               
   
 <div id="searchbox"></div>
-  <article class="bd-article"id="pytorch-article" itemscope="itemscope" itemtype="https://schema.org/Article" itemprop="articleBody">
-   <meta itemprop="headline" content="Install functorch">
-   <meta itemprop="description" content="PyTorch documentation">
-   <meta itemprop="datePublished" content="">
-   <meta itemprop="dateModified" content="">
-   <meta itemprop="author" content="PyTorch Contributors">
+  <article class="bd-article"id="pytorch-article">
    <!-- Hidden breadcrumb schema for SEO only -->
    <div style="display:none;" itemscope itemtype="https://schema.org/BreadcrumbList">
       
@@ -1405,17 +1400,23 @@ Please first install PyTorch and then run the following command:</p>
   </footer>
    <script type="application/ld+json">
       {
-        "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "Install functorch",
-        "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
-        "author": {
-          "@type": "Organization",
-          "name": "PyTorch Contributors"
-        },
-        "datePublished": "",
-        "dateModified": "",
-      }
+         "@context": "https://schema.org",
+         "@type": "Article",
+         "headline": "Install functorch",
+         "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
+         "author": {
+           "@type": "Organization",
+           "name": "PyTorch Contributors"
+         },
+         "image": "_static/img/pytorch_seo.png",
+         "mainEntityOfPage": {
+           "@type": "WebPage",
+           "@id": "/install.html"
+         },
+         "datePublished": "",
+         "dateModified": "",
+         "articleBody": "Install functorch# As of PyTorch 1.13, functorch is now included in the PyTorch binary and no longer requires the installation of a separate functorch package. That is, after installing PyTorch (instructions), you’ll be able to import functorch in your program. If you’re upgrading from an older version of functorch (functorch 0.1.x or 0.2.x), then you may need to uninstall functorch first via pip uninstall functorch. We’ve maintained backwards compatibility for pip install functorch: this command works for PyTorch 1.13 and will continue to work for the foreseeable future until we do a proper deprecation. This is helpful if you’re maintaining a library that supports multiple versions of PyTorch and/or functorch. Colab# Please see this colab for instructions. Nightly# Looking for the newest functorch features? Please download the latest nightly PyTorch binary (import functorch is included in nightly PyTorch binaries as of 09/21/2022). by following instructions here. Previous Versions# For PyTorch 1.11.x and PyTorch 1.12.x: Please first install PyTorch and then run the following command: pip install functorch"
+       }
    </script>
 
   </body>

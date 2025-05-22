@@ -101,7 +101,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git32b1baa)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git2618977)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1048,12 +1048,7 @@ document.write(`
               
   
 <div id="searchbox"></div>
-  <article class="bd-article"id="pytorch-article" itemscope="itemscope" itemtype="https://schema.org/Article" itemprop="articleBody">
-   <meta itemprop="headline" content="functorch.compile.memory_efficient_fusion">
-   <meta itemprop="description" content="PyTorch documentation">
-   <meta itemprop="datePublished" content="">
-   <meta itemprop="dateModified" content="">
-   <meta itemprop="author" content="PyTorch Contributors">
+  <article class="bd-article"id="pytorch-article">
    <!-- Hidden breadcrumb schema for SEO only -->
    <div style="display:none;" itemscope itemtype="https://schema.org/BreadcrumbList">
       
@@ -1426,17 +1421,23 @@ compiled with nvfuser.</p>
   </footer>
    <script type="application/ld+json">
       {
-        "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "functorch.compile.memory_efficient_fusion",
-        "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
-        "author": {
-          "@type": "Organization",
-          "name": "PyTorch Contributors"
-        },
-        "datePublished": "",
-        "dateModified": "",
-      }
+         "@context": "https://schema.org",
+         "@type": "Article",
+         "headline": "functorch.compile.memory_efficient_fusion",
+         "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
+         "author": {
+           "@type": "Organization",
+           "name": "PyTorch Contributors"
+         },
+         "image": "../_static/img/pytorch_seo.png",
+         "mainEntityOfPage": {
+           "@type": "WebPage",
+           "@id": "/generated/functorch.compile.memory_efficient_fusion.html"
+         },
+         "datePublished": "",
+         "dateModified": "",
+         "articleBody": "functorch.compile.memory_efficient_fusion# functorch.compile.memory_efficient_fusion(fn, **kwargs)[source]# Wrapper function over aot_function() and aot_module() to perform memory efficient fusion. It uses the min_cut_rematerialization_partition() partitioner to perform efficient recomputation. It uses NVFuser to compile the generated forward and backward graphs. Warning This API is experimental and likely to change. Parameters fn (Union[Callable, nn.Module]) – A Python function or a nn.Module that takes one ore more arguments. Must return one or more Tensors. **kwargs – Any other overrides you want to make to the settings Returns Returns a Callable or nn.Module that retains the eager behavior of the original fn, but whose forward and backward graphs have gone through recomputation optimizations, and the graphs have been compiled with nvfuser."
+       }
    </script>
 
   </body>

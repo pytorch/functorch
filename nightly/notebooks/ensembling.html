@@ -101,7 +101,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git32b1baa)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git2618977)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1032,12 +1032,7 @@ document.write(`
               
   
 <div id="searchbox"></div>
-  <article class="bd-article"id="pytorch-article" itemscope="itemscope" itemtype="https://schema.org/Article" itemprop="articleBody">
-   <meta itemprop="headline" content="Model ensembling">
-   <meta itemprop="description" content="PyTorch documentation">
-   <meta itemprop="datePublished" content="">
-   <meta itemprop="dateModified" content="">
-   <meta itemprop="author" content="PyTorch Contributors">
+  <article class="bd-article"id="pytorch-article">
    <!-- Hidden breadcrumb schema for SEO only -->
    <div style="display:none;" itemscope itemtype="https://schema.org/BreadcrumbList">
       
@@ -1547,17 +1542,23 @@ vmap(fmodel)(params, buffers, minibatches)
   </footer>
    <script type="application/ld+json">
       {
-        "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "Model ensembling",
-        "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
-        "author": {
-          "@type": "Organization",
-          "name": "PyTorch Contributors"
-        },
-        "datePublished": "",
-        "dateModified": "",
-      }
+         "@context": "https://schema.org",
+         "@type": "Article",
+         "headline": "Model ensembling",
+         "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
+         "author": {
+           "@type": "Organization",
+           "name": "PyTorch Contributors"
+         },
+         "image": "../_static/img/pytorch_seo.png",
+         "mainEntityOfPage": {
+           "@type": "WebPage",
+           "@id": "/notebooks/ensembling.html"
+         },
+         "datePublished": "",
+         "dateModified": "",
+         "articleBody": "Model ensembling# This example illustrates how to vectorize model ensembling using vmap. What is model ensembling?# Model ensembling combines the predictions from multiple models together. Traditionally this is done by running each model on some inputs separately and then combining the predictions. However, if you’re running models with the same architecture, then it may be possible to combine them together using vmap. vmap is a function transform that maps functions across dimensions of the input tensors. One of its use cases is eliminating for-loops and speeding them up through vectorization. Let’s demonstrate how to do this using an ensemble of simple MLPs. import torch import torch.nn as nn import torch.nn.functional as F from functools import partial torch.manual_seed(0); # Here&#39;s a simple MLP class SimpleMLP(nn.Module): def __init__(self): super().__init__() self.fc1 = nn.Linear(784, 128) self.fc2 = nn.Linear(128, 128) self.fc3 = nn.Linear(128, 10) def forward(self, x): x = x.flatten(1) x = self.fc1(x) x = F.relu(x) x = self.fc2(x) x = F.relu(x) x = self.fc3(x) return x Let’s generate a batch of dummy data and pretend that we’re working with an MNIST dataset. Thus, the dummy images are 28 by 28, and we have a minibatch of size 64. Furthermore, lets say we want to combine the predictions from 10 different models. device = &#39;cuda&#39; num_models = 10 data = torch.randn(100, 64, 1, 28, 28, device=device) targets = torch.randint(10, (6400,), device=device) models = [SimpleMLP().to(device) for _ in range(num_models)] We have a couple of options for generating predictions. Maybe we want to give each model a different randomized minibatch of data. Alternatively, maybe we want to run the same minibatch of data through each model (e.g. if we were testing the effect of different model initializations). Option 1: different minibatch for each model minibatches = data[:num_models] predictions_diff_minibatch_loop = [model(minibatch) for model, minibatch in zip(models, minibatches)] Option 2: Same minibatch minibatch = data[0] predictions2 = [model(minibatch) for model in models] Using vmap to vectorize the ensemble# Let’s use vmap to speed up the for-loop. We must first prepare the models for use with vmap. First, let’s combine the states of the model together by stacking each parameter. For example, model[i].fc1.weight has shape [784, 128]; we are going to stack the .fc1.weight of each of the 10 models to produce a big weight of shape [10, 784, 128]. functorch offers the ‘combine_state_for_ensemble’ convenience function to do that. It returns a stateless version of the model (fmodel) and stacked parameters and buffers. from functorch import combine_state_for_ensemble fmodel, params, buffers = combine_state_for_ensemble(models) [p.requires_grad_() for p in params]; Option 1: get predictions using a different minibatch for each model. By default, vmap maps a function across the first dimension of all inputs to the passed-in function. After using the combine..."
+       }
    </script>
 
   </body>

@@ -101,7 +101,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git32b1baa)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git2618977)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1054,12 +1054,7 @@ document.write(`
               
   
 <div id="searchbox"></div>
-  <article class="bd-article"id="pytorch-article" itemscope="itemscope" itemtype="https://schema.org/Article" itemprop="articleBody">
-   <meta itemprop="headline" content="functorch.functionalize">
-   <meta itemprop="description" content="PyTorch documentation">
-   <meta itemprop="datePublished" content="">
-   <meta itemprop="dateModified" content="">
-   <meta itemprop="author" content="PyTorch Contributors">
+  <article class="bd-article"id="pytorch-article">
    <!-- Hidden breadcrumb schema for SEO only -->
    <div style="display:none;" itemscope itemtype="https://schema.org/BreadcrumbList">
       
@@ -1568,17 +1563,23 @@ and/or the <cite>torch.func</cite> migration guide for more details
   </footer>
    <script type="application/ld+json">
       {
-        "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "functorch.functionalize",
-        "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
-        "author": {
-          "@type": "Organization",
-          "name": "PyTorch Contributors"
-        },
-        "datePublished": "",
-        "dateModified": "",
-      }
+         "@context": "https://schema.org",
+         "@type": "Article",
+         "headline": "functorch.functionalize",
+         "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
+         "author": {
+           "@type": "Organization",
+           "name": "PyTorch Contributors"
+         },
+         "image": "../_static/img/pytorch_seo.png",
+         "mainEntityOfPage": {
+           "@type": "WebPage",
+           "@id": "/generated/functorch.functionalize.html"
+         },
+         "datePublished": "",
+         "dateModified": "",
+         "articleBody": "functorch.functionalize# functorch.functionalize(func, *, remove=&#39;mutations&#39;)[source]# functionalize is a transform that can be used to remove (intermediate) mutations and aliasing from a function, while preserving the function’s semantics. functionalize(func) returns a new function with the same semantics as func, but with all intermediate mutations removed. Every inplace operation performed on an intermediate tensor: intermediate.foo_() gets replaced by its out-of-place equivalent: intermediate_updated = intermediate.foo(). functionalize is useful for shipping a pytorch program off to backends or compilers that aren’t able to easily represent mutations or aliasing operators. Parameters func (Callable) – A Python function that takes one or more arguments. remove (str) – An optional string argument, that takes on either the value ‘mutations’ or ‘mutations_and_views’. If ‘mutations’ is passed in then all mutating operators will be replaced with their non-mutating equivalents. If ‘mutations_and_views’ is passed in, then additionally, all aliasing operators will be replaced with their non-aliasing equivalents. Default: ‘mutations’. Returns Returns a new “functionalized” function. It takes the same inputs as func, and has the same behavior, but any mutations (and optionally aliasing) performed on intermediate tensors in the function will be removed. functionalize will also remove mutations (and views) that were performed on function inputs. However to preserve semantics, functionalize will “fix up” the mutations after the transform has finished running, by detecting if any tensor inputs “should have” been mutated, and copying the new data back to the inputs if necessary. Example: &gt;&gt;&gt; # xdoctest: +SKIP &gt;&gt;&gt; import torch &gt;&gt;&gt; from torch.fx.experimental.proxy_tensor import make_fx &gt;&gt;&gt; from torch.func import functionalize &gt;&gt;&gt; &gt;&gt;&gt; # A function that uses mutations and views, but only on intermediate tensors. &gt;&gt;&gt; def f(a): ... b = a + 1 ... c = b.view(-1) ... c.add_(1) ... return b ... &gt;&gt;&gt; inpt = torch.randn(2) &gt;&gt;&gt; &gt;&gt;&gt; out1 = f(inpt) &gt;&gt;&gt; out2 = functionalize(f)(inpt) &gt;&gt;&gt; &gt;&gt;&gt; # semantics are the same (outputs are equivalent) &gt;&gt;&gt; print(torch.allclose(out1, out2)) True &gt;&gt;&gt; &gt;&gt;&gt; f_traced = make_fx(f)(inpt) &gt;&gt;&gt; f_no_mutations_traced = make_fx(functionalize(f))(inpt) &gt;&gt;&gt; f_no_mutations_and_views_traced = make_fx(functionalize(f, remove=&#39;mutations_and_views&#39;))(inpt) &gt;&gt;&gt; &gt;&gt;&gt; print(f_traced.code) def forward(self, a_1): add = torch.ops.aten.add(a_1, 1); a_1 = None view = torch.ops.aten.view(add, [-1]) add_ = torch.ops.aten.add_(view, 1); view = None return add &gt;&gt;&gt; print(f_no_mutations_traced.code) def forward(self, a_1): add = torch.ops.aten.add(a_1, 1); a_1 = None view = torch.ops.aten.view(add, [-1]); add = None add_1 = torch.ops.aten.add(view, 1); view = None view_1 = torch.ops.aten.view(add_1, [2]); add_1 = None return view_1 &gt;&gt;&gt; print(f_no_mutations_and_views_traced.code) def forward(self, a_1): add = torch.ops.aten.add(a_1, 1); a_1 = None view_copy = torch.ops..."
+       }
    </script>
 
   </body>

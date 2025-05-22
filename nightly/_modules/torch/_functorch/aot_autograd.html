@@ -99,7 +99,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git32b1baa)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git2618977)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1022,12 +1022,7 @@ document.write(`
               
   
 <div id="searchbox"></div>
-  <article class="bd-article"id="pytorch-article" itemscope="itemscope" itemtype="https://schema.org/Article" itemprop="articleBody">
-   <meta itemprop="headline" content="torch._functorch.aot_autograd">
-   <meta itemprop="description" content="PyTorch documentation">
-   <meta itemprop="datePublished" content="">
-   <meta itemprop="dateModified" content="">
-   <meta itemprop="author" content="PyTorch Contributors">
+  <article class="bd-article"id="pytorch-article">
    <!-- Hidden breadcrumb schema for SEO only -->
    <div style="display:none;" itemscope itemtype="https://schema.org/BreadcrumbList">
       
@@ -3007,17 +3002,23 @@ document.write(`
   </footer>
    <script type="application/ld+json">
       {
-        "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "torch._functorch.aot_autograd",
-        "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
-        "author": {
-          "@type": "Organization",
-          "name": "PyTorch Contributors"
-        },
-        "datePublished": "",
-        "dateModified": "",
-      }
+         "@context": "https://schema.org",
+         "@type": "Article",
+         "headline": "torch._functorch.aot_autograd",
+         "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
+         "author": {
+           "@type": "Organization",
+           "name": "PyTorch Contributors"
+         },
+         "image": "../../../_static/img/pytorch_seo.png",
+         "mainEntityOfPage": {
+           "@type": "WebPage",
+           "@id": "/_modules/torch/_functorch/aot_autograd.html"
+         },
+         "datePublished": "",
+         "dateModified": "",
+         "articleBody": "Source code for torch._functorch.aot_autograd # mypy: ignore-errors import itertools from collections.abc import KeysView, Sequence from contextlib import contextmanager, nullcontext from functools import partial, wraps from typing import Any, Callable, NewType, Optional, Protocol, TypeVar from unittest.mock import patch import torch import torch._dynamo.logging import torch.nn as nn import torch.utils._pytree as pytree import torch.utils.dlpack from torch import Tensor from torch._decomp.decompositions_for_rng import PhiloxStateTracker, rng_decompositions from torch._dispatch.python import enable_python_dispatcher from torch._dynamo import compiled_autograd from torch._dynamo.utils import ( CompileEventLogger, dynamo_timed, preserve_rng_state, set_feature_use, ) from torch._guards import detect_fake_mode from torch._inductor.cudagraph_utils import BoxedDeviceIndex from torch._inductor.output_code import OutputCode from torch._inductor.utils import BoxedBool, InputType from torch._subclasses import FakeTensor, FakeTensorMode from torch.fx.experimental.proxy_tensor import ( _pytree_subclasses_that_lose_info, make_fx, ) from torch.fx.experimental.symbolic_shapes import ShapeEnv from torch.utils._python_dispatch import is_traceable_wrapper_subclass static_inputs_log = torch._logging.getArtifactLogger( __name__, &#34;cudagraph_static_inputs&#34; ) from . import config from ._aot_autograd.autograd_cache import ( # noqa: F401 AOTAutogradCache, autograd_cache_key, should_use_local_autograd_cache, should_use_remote_autograd_cache, ) from ._aot_autograd.collect_metadata_analysis import ( # noqa: F401 run_functionalized_fw_and_collect_metadata, ) from ._aot_autograd.functional_utils import ( # noqa: F401 _check_if_mutation_can_be_in_graph, are_all_mutations_hidden_from_autograd, are_all_mutations_under_no_grad_or_inference_mode, assert_functional_graph, from_fun, gen_alias_from_base, has_data_mutation, has_metadata_mutation, is_fun, sync_functional_tensor, to_fun, ) from ._aot_autograd.input_output_analysis import ( # noqa: F401 compute_overlapping_inputs, create_graph_signature, create_synthetic_base_metadata, remove_dupe_metadata, ) from ._aot_autograd.jit_compile_runtime_wrappers import ( # noqa: F401 aot_dispatch_autograd, aot_dispatch_base, aot_dispatch_export, ) from ._aot_autograd.logging_utils import ( # noqa: F401 callback_set, describe_input, format_guard_bug_msg, get_aot_compilation_context, get_aot_graph_name, get_graph_being_compiled, graph_being_compiled, model_name, nth_graph, set_model_name, setup_stacktrace_preservation_hooks, track_graph_compiling, ) from ._aot_autograd.runtime_wrappers import ( # noqa: F401 AOTDedupeWrapper, AOTSyntheticBaseWrapper, ) from ._aot_autograd.schemas import ( # noqa: F401 AOTConfig, BackwardSignature, FQN, GraphInputName, GraphOutputName, GraphSignature, InputAliasInfo, MutationType, OutputAliasInfo, OutputType, SubclassCreationMeta, SubclassMeta, TensorAlias, ViewAndMutationMeta, ) from ._aot_autograd.subclass_ut..."
+       }
    </script>
 
   </body>

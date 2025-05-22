@@ -101,7 +101,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git32b1baa)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git2618977)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1032,12 +1032,7 @@ document.write(`
               
   
 <div id="searchbox"></div>
-  <article class="bd-article"id="pytorch-article" itemscope="itemscope" itemtype="https://schema.org/Article" itemprop="articleBody">
-   <meta itemprop="headline" content="Whirlwind Tour">
-   <meta itemprop="description" content="PyTorch documentation">
-   <meta itemprop="datePublished" content="">
-   <meta itemprop="dateModified" content="">
-   <meta itemprop="author" content="PyTorch Contributors">
+  <article class="bd-article"id="pytorch-article">
    <!-- Hidden breadcrumb schema for SEO only -->
    <div style="display:none;" itemscope itemtype="https://schema.org/BreadcrumbList">
       
@@ -1582,17 +1577,23 @@ with respect to <code class="docutils literal notranslate"><span class="pre">x</
   </footer>
    <script type="application/ld+json">
       {
-        "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "Whirlwind Tour",
-        "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
-        "author": {
-          "@type": "Organization",
-          "name": "PyTorch Contributors"
-        },
-        "datePublished": "",
-        "dateModified": "",
-      }
+         "@context": "https://schema.org",
+         "@type": "Article",
+         "headline": "Whirlwind Tour",
+         "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
+         "author": {
+           "@type": "Organization",
+           "name": "PyTorch Contributors"
+         },
+         "image": "../_static/img/pytorch_seo.png",
+         "mainEntityOfPage": {
+           "@type": "WebPage",
+           "@id": "/notebooks/whirlwind_tour.html"
+         },
+         "datePublished": "",
+         "dateModified": "",
+         "articleBody": "Whirlwind Tour# What is functorch?# functorch is a library for JAX-like composable function transforms in PyTorch. A “function transform” is a higher-order function that accepts a numerical function and returns a new function that computes a different quantity. functorch has auto-differentiation transforms (grad(f) returns a function that computes the gradient of f), a vectorization/batching transform (vmap(f) returns a function that computes f over batches of inputs), and others. These function transforms can compose with each other arbitrarily. For example, composing vmap(grad(f)) computes a quantity called per-sample-gradients that stock PyTorch cannot efficiently compute today. Furthermore, we also provide an experimental compilation transform in the functorch.compile namespace. Our compilation transform, named AOT (ahead-of-time) Autograd, returns to you an FX graph (that optionally contains a backward pass), of which compilation via various backends is one path you can take. Why composable function transforms?# There are a number of use cases that are tricky to do in PyTorch today: computing per-sample-gradients (or other per-sample quantities) running ensembles of models on a single machine efficiently batching together tasks in the inner-loop of MAML efficiently computing Jacobians and Hessians efficiently computing batched Jacobians and Hessians Composing vmap, grad, vjp, and jvp transforms allows us to express the above without designing a separate subsystem for each. What are the transforms?# grad (gradient computation)# grad(func) is our gradient computation transform. It returns a new function that computes the gradients of func. It assumes func returns a single-element Tensor and by default it computes the gradients of the output of func w.r.t. to the first input. import torch from functorch import grad x = torch.randn([]) cos_x = grad(lambda x: torch.sin(x))(x) assert torch.allclose(cos_x, x.cos()) # Second-order gradients neg_sin_x = grad(grad(lambda x: torch.sin(x)))(x) assert torch.allclose(neg_sin_x, -x.sin()) vmap (auto-vectorization)# Note: vmap imposes restrictions on the code that it can be used on. For more details, please read its docstring. vmap(func)(*inputs) is a transform that adds a dimension to all Tensor operations in func. vmap(func) returns a new function that maps func over some dimension (default: 0) of each Tensor in inputs. vmap is useful for hiding batch dimensions: one can write a function func that runs on examples and then lift it to a function that can take batches of examples with vmap(func), leading to a simpler modeling experience: import torch from functorch import vmap batch_size, feature_size = 3, 5 weights = torch.randn(feature_size, requires_grad=True) def model(feature_vec): # Very simple linear model with activation assert feature_vec.dim() == 1 return feature_vec.dot(weights).relu() examples = torch.randn(batch_size, feature_size) result = vmap(model)(examples) When composed with grad, vmap..."
+       }
    </script>
 
   </body>

@@ -101,7 +101,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git32b1baa)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git2618977)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1048,12 +1048,7 @@ document.write(`
               
   
 <div id="searchbox"></div>
-  <article class="bd-article"id="pytorch-article" itemscope="itemscope" itemtype="https://schema.org/Article" itemprop="articleBody">
-   <meta itemprop="headline" content="functorch.compile.aot_function">
-   <meta itemprop="description" content="PyTorch documentation">
-   <meta itemprop="datePublished" content="">
-   <meta itemprop="dateModified" content="">
-   <meta itemprop="author" content="PyTorch Contributors">
+  <article class="bd-article"id="pytorch-article">
    <!-- Hidden breadcrumb schema for SEO only -->
    <div style="display:none;" itemscope itemtype="https://schema.org/BreadcrumbList">
       
@@ -1456,17 +1451,23 @@ will print the forward and backward graphs of the function <code class="docutils
   </footer>
    <script type="application/ld+json">
       {
-        "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "functorch.compile.aot_function",
-        "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
-        "author": {
-          "@type": "Organization",
-          "name": "PyTorch Contributors"
-        },
-        "datePublished": "",
-        "dateModified": "",
-      }
+         "@context": "https://schema.org",
+         "@type": "Article",
+         "headline": "functorch.compile.aot_function",
+         "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
+         "author": {
+           "@type": "Organization",
+           "name": "PyTorch Contributors"
+         },
+         "image": "../_static/img/pytorch_seo.png",
+         "mainEntityOfPage": {
+           "@type": "WebPage",
+           "@id": "/generated/functorch.compile.aot_function.html"
+         },
+         "datePublished": "",
+         "dateModified": "",
+         "articleBody": "functorch.compile.aot_function# functorch.compile.aot_function(fn, fw_compiler, bw_compiler=None, partition_fn=&lt;function default_partition&gt;, decompositions=None, num_params_buffers=0, keep_inference_input_mutations=False, inference_compiler=None, *, dynamic=False, enable_log=True)[source]# Traces the forward and backward graph of fn using torch dispatch mechanism, and then compiles the generated forward and backward graphs through fw_compiler and bw_compiler. aot_function() traces the forward and backward graph ahead of time, and generates a joint forward and backward graph. partition_fn is then used to separate out forward and backward graphs. The partitioner function can be used to perform optimizations such as recomputation. One can set decompositions dictionary to decompose the operators into a sequence of core or simpler operators supported by the backend compilers. Warning This API is experimental and likely to change. Parameters fn (Callable) – A Python function that takes one ore more arguments. Must return one or more Tensors. fw_compiler (Callable) – A Python function that accepts an Fx graph with Aten ops and input args, and returns a Callable that semantically is equivalent to the input Fx graph. bw_compiler (Optional[Callable]) – A Python function that accepts an Fx graph with Aten ops and input args, and returns a Callable that semantically is equivalent to the input Fx graph. Default: None (when None, it defaults to the fw_compiler) partition_fn (Callable) – A Python function that takes a joint forward and backward graph, and partitions it into separate forward and backward graphs. decompositions (Dict) – A dictionary to define the decomposition of larger Aten ops into simpler or core Aten ops. inference_compiler (Optional[Callable]) – A Python function that accepts an Fx graph with Aten ops and input args, and returns a Callable that semantically is equivalent to the input Fx graph. inference_compiler is invoked if no autograd is needed. Default: None (when None, it defaults to the fw_compiler) Returns Returns a Callable that retains the eager behavior of the original fn, but with forward and backward graph compiled via fw_compile and bw_compile. A simple example usage of aot_function() is as follows. This example will print the forward and backward graphs of the function fn &gt;&gt;&gt; fn = lambda x : x.sin().cos() &gt;&gt;&gt; def print_compile_fn(fx_module, args): &gt;&gt;&gt; print(fx_module) &gt;&gt;&gt; return fx_module &gt;&gt;&gt; aot_fn = aot_function(fn, print_compile_fn) &gt;&gt;&gt; x = torch.randn(4, 5, requires_grad=True) &gt;&gt;&gt; aot_fn(x)"
+       }
    </script>
 
   </body>

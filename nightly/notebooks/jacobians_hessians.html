@@ -101,7 +101,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git32b1baa)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git2618977)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1032,12 +1032,7 @@ document.write(`
               
   
 <div id="searchbox"></div>
-  <article class="bd-article"id="pytorch-article" itemscope="itemscope" itemtype="https://schema.org/Article" itemprop="articleBody">
-   <meta itemprop="headline" content="Jacobians, Hessians, hvp, vhp, and more: composing functorch transforms">
-   <meta itemprop="description" content="PyTorch documentation">
-   <meta itemprop="datePublished" content="">
-   <meta itemprop="dateModified" content="">
-   <meta itemprop="author" content="PyTorch Contributors">
+  <article class="bd-article"id="pytorch-article">
    <!-- Hidden breadcrumb schema for SEO only -->
    <div style="display:none;" itemscope itemtype="https://schema.org/BreadcrumbList">
       
@@ -1823,17 +1818,23 @@ Indeed, under the hood, <code class="docutils literal notranslate"><span class="
   </footer>
    <script type="application/ld+json">
       {
-        "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "Jacobians, Hessians, hvp, vhp, and more: composing functorch transforms",
-        "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
-        "author": {
-          "@type": "Organization",
-          "name": "PyTorch Contributors"
-        },
-        "datePublished": "",
-        "dateModified": "",
-      }
+         "@context": "https://schema.org",
+         "@type": "Article",
+         "headline": "Jacobians, Hessians, hvp, vhp, and more: composing functorch transforms",
+         "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
+         "author": {
+           "@type": "Organization",
+           "name": "PyTorch Contributors"
+         },
+         "image": "../_static/img/pytorch_seo.png",
+         "mainEntityOfPage": {
+           "@type": "WebPage",
+           "@id": "/notebooks/jacobians_hessians.html"
+         },
+         "datePublished": "",
+         "dateModified": "",
+         "articleBody": "Jacobians, Hessians, hvp, vhp, and more: composing functorch transforms# Computing jacobians or hessians are useful in a number of non-traditional deep learning models. It is difficult (or annoying) to compute these quantities efficiently using a standard autodiff system like PyTorch Autograd; functorch provides ways of computing various higher-order autodiff quantities efficiently. Computing the Jacobian# import torch import torch.nn as nn import torch.nn.functional as F from functools import partial _ = torch.manual_seed(0) Let’s start with a function that we’d like to compute the jacobian of. This is a simple linear function with non-linear activation. def predict(weight, bias, x): return F.linear(x, weight, bias).tanh() Let’s add some dummy data: a weight, a bias, and a feature vector x. D = 16 weight = torch.randn(D, D) bias = torch.randn(D) x = torch.randn(D) # feature vector Let’s think of predict as a function that maps the input x from $R^D -&gt; R^D$. PyTorch Autograd computes vector-Jacobian products. In order to compute the full Jacobian of this $R^D -&gt; R^D$ function, we would have to compute it row-by-row by using a different unit vector each time. def compute_jac(xp): jacobian_rows = [torch.autograd.grad(predict(weight, bias, xp), xp, vec)[0] for vec in unit_vectors] return torch.stack(jacobian_rows) xp = x.clone().requires_grad_() unit_vectors = torch.eye(D) jacobian = compute_jac(xp) print(jacobian.shape) print(jacobian[0]) # show first row torch.Size([16, 16]) tensor([-0.5956, -0.6096, -0.1326, -0.2295, 0.4490, 0.3661, -0.1672, -1.1190, 0.1705, -0.6683, 0.1851, 0.1630, 0.0634, 0.6547, 0.5908, -0.1308]) Instead of computing the jacobian row-by-row, we can use vmap to get rid of the for-loop and vectorize the computation. We can’t directly apply vmap to PyTorch Autograd; instead, functorch provides a vjp transform: from functorch import vmap, vjp _, vjp_fn = vjp(partial(predict, weight, bias), x) ft_jacobian, = vmap(vjp_fn)(unit_vectors) # lets confirm both methods compute the same result assert torch.allclose(ft_jacobian, jacobian) In future tutorial a composition of reverse-mode AD and vmap will give us per-sample-gradients. In this tutorial, composing reverse-mode AD and vmap gives us Jacobian computation! Various compositions of vmap and autodiff transforms can give us different interesting quantities. functorch provides jacrev as a convenience function that performs the vmap-vjp composition to compute jacobians. jacrev accepts an argnums argument that says which argument we would like to compute Jacobians with respect to. from functorch import jacrev ft_jacobian = jacrev(predict, argnums=2)(weight, bias, x) # confirm assert torch.allclose(ft_jacobian, jacobian) Let’s compare the performance of the two ways to compute the jacobian. The functorch version is much faster (and becomes even faster the more outputs there are). In general, we expect that vectorization via vmap can help eliminate overhead and give better utilization of..."
+       }
    </script>
 
   </body>

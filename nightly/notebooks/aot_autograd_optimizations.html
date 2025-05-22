@@ -101,7 +101,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git32b1baa)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git2618977)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1032,12 +1032,7 @@ document.write(`
               
   
 <div id="searchbox"></div>
-  <article class="bd-article"id="pytorch-article" itemscope="itemscope" itemtype="https://schema.org/Article" itemprop="articleBody">
-   <meta itemprop="headline" content="AOT Autograd - How to use and optimize?">
-   <meta itemprop="description" content="PyTorch documentation">
-   <meta itemprop="datePublished" content="">
-   <meta itemprop="dateModified" content="">
-   <meta itemprop="author" content="PyTorch Contributors">
+  <article class="bd-article"id="pytorch-article">
    <!-- Hidden breadcrumb schema for SEO only -->
    <div style="display:none;" itemscope itemtype="https://schema.org/BreadcrumbList">
       
@@ -1662,17 +1657,23 @@ AOT_Recomp, Fwd = 712.2249767417088 us, Bwd = 791.4606417762116 us
   </footer>
    <script type="application/ld+json">
       {
-        "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "AOT Autograd - How to use and optimize?",
-        "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
-        "author": {
-          "@type": "Organization",
-          "name": "PyTorch Contributors"
-        },
-        "datePublished": "",
-        "dateModified": "",
-      }
+         "@context": "https://schema.org",
+         "@type": "Article",
+         "headline": "AOT Autograd - How to use and optimize?",
+         "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
+         "author": {
+           "@type": "Organization",
+           "name": "PyTorch Contributors"
+         },
+         "image": "../_static/img/pytorch_seo.png",
+         "mainEntityOfPage": {
+           "@type": "WebPage",
+           "@id": "/notebooks/aot_autograd_optimizations.html"
+         },
+         "datePublished": "",
+         "dateModified": "",
+         "articleBody": "AOT Autograd - How to use and optimize?# Background# In this tutorial, we will learn how to use AOT Autograd to speedup training of deep learning models. For background, AOT Autograd is a toolkit to assist developers in accelerating training on PyTorch. Broadly, it has two key features AOT Autograd traces the forward and backward graph ahead of time. Presence of forward and backward graph ahead of time facilitates joint graph optimizations such as recomputation or activation checkpointing. AOT Autograd provides simple mechanisms to compile the extracted forward and backward graphs through deep learning compilers, such as NVFuser, NNC, TVM and others. What will you learn?# In this tutorial, we will look at how AOT Autograd can be used, in conjunction with backend compilers, to accelerate the training of PyTorch models. More specifically, you will learn How to use AOT Autograd? How AOT Autograd uses backend compilers to perform operation fusion? How AOT Autograd enables training-specific optimizations such as Recomputation? So, lets get started. Setup# Let’s setup a simple model. import torch def fn(a, b, c, d): x = a + b + c + d return x.cos().cos() # Test that it works a, b, c, d = [torch.randn(2, 4, requires_grad=True) for _ in range(4)] ref = fn(a, b, c, d) loss = ref.sum() loss.backward() Use AOT Autograd# Now, lets use AOT Autograd and look at the extracted forward and backward graphs. Internally, AOT uses __torch_dispatch__ based tracing mechanism to extract forward and backward graphs, and wraps them in torch.Fx GraphModule containers. Note that AOT Autograd tracing is different from the usual Fx symbolic tracing. AOT Autograd uses Fx GraphModule just to represent the traced graphs (and not for tracing). AOT Autograd then sends these forward and backward graphs to the user supplied compilers. So, lets write a compiler that just prints the graph. from functorch.compile import aot_function # The compiler_fn is called after the forward and backward graphs are extracted. # Here, we just print the code in the compiler_fn. Return of this function is a callable. def compiler_fn(fx_module: torch.fx.GraphModule, _): print(fx_module.code) return fx_module # Pass on the compiler_fn to the aot_function API aot_print_fn = aot_function(fn, fw_compiler=compiler_fn, bw_compiler=compiler_fn) # Run the aot_print_fn once to trigger the compilation and print the graphs cloned_inputs = [x.clone().detach().requires_grad_(True) for x in (a, b, c, d)] cloned_a, cloned_b, cloned_c, cloned_d = cloned_inputs res = aot_print_fn(cloned_a, cloned_b, cloned_c, cloned_d) res.sum().backward() assert torch.allclose(ref, res) def forward(self, primals_1, primals_2, primals_3, primals_4): add = torch.ops.aten.add(primals_1, primals_2); primals_1 = primals_2 = None add_1 = torch.ops.aten.add(add, primals_3); add = primals_3 = None add_2 = torch.ops.aten.add(add_1, primals_4); add_1 = primals_4 = None cos = torch.ops.aten.cos(add_2) cos_1 = torch.ops.aten.cos(cos) return [co..."
+       }
    </script>
 
   </body>
