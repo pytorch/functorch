@@ -99,7 +99,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git2618977)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git31f3ee0)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1427,7 +1427,7 @@ document.write(`
         <span class="n">scale_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
             <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
             <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">mul_node</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
-            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;scale_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;fp8_scale_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
         <span class="p">)</span>
         <span class="n">scale_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">(</span>
             <span class="n">mul_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">float32</span>
@@ -1492,7 +1492,7 @@ document.write(`
         <span class="n">quant_activation_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
             <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
             <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">clamp_max_scaled_node</span><span class="p">,</span> <span class="n">quant_type</span><span class="p">),</span>
-            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;quant_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;fp8_quant_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
         <span class="p">)</span>
         <span class="n">quant_activation_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span>
             <span class="s2">&quot;val&quot;</span>
@@ -1561,13 +1561,8 @@ document.write(`
 <span class="sd">    Returns:</span>
 <span class="sd">        tuple: A tuple containing the minimum and maximum values.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">dtype</span> <span class="o">==</span> <span class="n">torch</span><span class="o">.</span><span class="n">float8_e5m2</span><span class="p">:</span>
-        <span class="c1"># 8-bit floating-point format with e5m2 layout</span>
-        <span class="n">min_val</span> <span class="o">=</span> <span class="o">-</span><span class="mf">57344.0</span>
-        <span class="n">max_val</span> <span class="o">=</span> <span class="mf">57344.0</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported dtype: </span><span class="si">{</span><span class="n">dtype</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">min_val</span><span class="p">,</span> <span class="n">max_val</span>
+    <span class="n">info</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">info</span><span class="o">.</span><span class="n">min</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">max</span>
 
 
 <span class="k">def</span> <span class="nf">quantize_activation_fw</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Graph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -1583,7 +1578,7 @@ document.write(`
             <span class="c1"># case: use scaling</span>
             <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">_inductor</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">post_grad_fusion_options</span><span class="p">[</span>
                 <span class="s2">&quot;activation_quantization_aten_pass&quot;</span>
-            <span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;use_scaling&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;use_scaling&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
                 <span class="c1"># calculating the scale</span>
                 <span class="n">scale_node</span> <span class="o">=</span> <span class="n">calculate_quantization_scaling</span><span class="p">(</span>
                     <span class="n">graph</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">clamp_max</span><span class="p">,</span> <span class="mf">1e-12</span>
@@ -1602,7 +1597,7 @@ document.write(`
                     <span class="n">quant_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
                         <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
                         <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">quant_type</span><span class="p">),</span>
-                        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;quant_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
+                        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;fp8_quant_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
                     <span class="p">)</span>
                     <span class="n">quant_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span>
                         <span class="s2">&quot;val&quot;</span>
@@ -1643,12 +1638,13 @@ document.write(`
                 <span class="c1"># case: use scaling</span>
                 <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
                     <span class="c1"># find corresponding scale node</span>
-                    <span class="n">scale_name</span> <span class="o">=</span> <span class="s2">&quot;scale_&quot;</span> <span class="o">+</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;quant_&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                    <span class="n">scale_name</span> <span class="o">=</span> <span class="s2">&quot;fp8_scale_&quot;</span> <span class="o">+</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;fp8_quant_&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
                     <span class="n">scale_node</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
                         <span class="n">bwd_input</span>
                         <span class="k">for</span> <span class="n">bwd_input</span> <span class="ow">in</span> <span class="n">bw_inputs</span>
                         <span class="k">if</span> <span class="n">bwd_input</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">scale_name</span>
                     <span class="p">)</span>
+                <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">scale_node</span><span class="p">):</span>
                     <span class="n">activation_node</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
                         <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">prims</span><span class="o">.</span><span class="n">convert_element_type</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
                         <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">dequant_type</span><span class="p">),</span>
@@ -1661,7 +1657,7 @@ document.write(`
                     <span class="n">activation_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;tensor_meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_tensor_metadata</span><span class="p">(</span>
                         <span class="n">activation_node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;val&quot;</span><span class="p">]</span>
                     <span class="p">)</span>
-                <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">scale_node</span><span class="p">):</span>
+                <span class="k">with</span> <span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">activation_node</span><span class="p">):</span>
                     <span class="n">divided_target_node_32</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">call_function</span><span class="p">(</span>
                         <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">div</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
                         <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">activation_node</span><span class="p">,</span> <span class="n">scale_node</span><span class="p">),</span>
@@ -1773,11 +1769,22 @@ document.write(`
         <span class="p">),</span>
     <span class="p">)</span>
 
+    <span class="n">trace_structured</span><span class="p">(</span>
+        <span class="s2">&quot;artifact&quot;</span><span class="p">,</span>
+        <span class="n">metadata_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;before_activation_quantization_bwd_aten_pass&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;encoding&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="n">payload_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">bwd_module</span><span class="o">.</span><span class="n">print_readable</span><span class="p">(</span>
+            <span class="n">print_output</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">include_stride</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_device</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+
     <span class="n">quant_fwd_module_outputs</span> <span class="o">=</span> <span class="n">fwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="c1"># update the corresponding bwd_inputs due to the fwd_outputs quantization</span>
     <span class="k">for</span> <span class="n">fwd_node</span> <span class="ow">in</span> <span class="n">quant_fwd_module_outputs</span><span class="p">:</span>
-        <span class="k">if</span> <span class="s2">&quot;quant_&quot;</span> <span class="ow">in</span> <span class="n">fwd_node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
-            <span class="n">bwd_input</span> <span class="o">=</span> <span class="n">bwd_module_inputs</span><span class="p">[</span><span class="n">fwd_node</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;quant_&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="s2">&quot;fp8_quant_&quot;</span> <span class="ow">in</span> <span class="n">fwd_node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="n">bwd_input</span> <span class="o">=</span> <span class="n">bwd_module_inputs</span><span class="p">[</span><span class="n">fwd_node</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;fp8_quant_&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)]</span>
             <span class="k">with</span> <span class="n">bwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">bwd_input</span><span class="p">):</span>
                 <span class="n">quant_bwd_input</span> <span class="o">=</span> <span class="n">bwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">fwd_node</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
             <span class="n">dequant_type</span> <span class="o">=</span> <span class="n">bwd_input</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;dequant_type&quot;</span><span class="p">]</span>
@@ -1789,33 +1796,23 @@ document.write(`
     <span class="c1"># update the bwd_inputs if quantization with scaling is used</span>
     <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">_inductor</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">post_grad_fusion_options</span><span class="p">[</span>
         <span class="s2">&quot;activation_quantization_aten_pass&quot;</span>
-    <span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;use_scaling&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+    <span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;use_scaling&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="n">quant_bwd_module_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">bwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;placeholder&quot;</span><span class="p">))</span>
         <span class="c1"># update the corresponding bwd input nodes find the last non-tangent node</span>
-        <span class="n">bwd_input_loc</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">bwd_module_inputs</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="k">for</span> <span class="n">bw_input</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">bwd_module_inputs</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+        <span class="n">bwd_input_loc</span> <span class="o">=</span> <span class="n">quant_bwd_module_inputs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">bw_input</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">quant_bwd_module_inputs</span><span class="p">):</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_tangent</span><span class="p">(</span><span class="n">bw_input</span><span class="p">):</span>
                 <span class="n">bwd_input_loc</span> <span class="o">=</span> <span class="n">bw_input</span>
                 <span class="k">break</span>
 
         <span class="n">scaled_fwd_module_outputs</span> <span class="o">=</span> <span class="n">fwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="k">for</span> <span class="n">fwd_node</span> <span class="ow">in</span> <span class="n">scaled_fwd_module_outputs</span><span class="p">:</span>
-            <span class="k">if</span> <span class="s2">&quot;scale_&quot;</span> <span class="ow">in</span> <span class="n">fwd_node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;fp8_scale_&quot;</span> <span class="ow">in</span> <span class="n">fwd_node</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
                 <span class="c1"># fwd node is a scale node</span>
                 <span class="k">with</span> <span class="n">bwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">inserting_after</span><span class="p">(</span><span class="n">bwd_input_loc</span><span class="p">):</span>
                     <span class="n">scale_bwd_input</span> <span class="o">=</span> <span class="n">bwd_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">fwd_node</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
                 <span class="n">scale_bwd_input</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">fwd_node</span><span class="o">.</span><span class="n">meta</span><span class="p">)</span>
                 <span class="n">bwd_input_loc</span> <span class="o">=</span> <span class="n">scale_bwd_input</span>
-
-    <span class="n">trace_structured</span><span class="p">(</span>
-        <span class="s2">&quot;artifact&quot;</span><span class="p">,</span>
-        <span class="n">metadata_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;before_activation_quantization_bwd_aten_pass&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;encoding&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
-        <span class="p">},</span>
-        <span class="n">payload_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">bwd_module</span><span class="o">.</span><span class="n">print_readable</span><span class="p">(</span>
-            <span class="n">print_output</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">include_stride</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_device</span><span class="o">=</span><span class="kc">True</span>
-        <span class="p">),</span>
-    <span class="p">)</span>
 
     <span class="n">quantize_activation_bw</span><span class="p">(</span><span class="n">bwd_module</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
 
