@@ -2226,6 +2226,18 @@ a.btn {
   padding-top: 14px;
 }
 
+.prototype-banner {
+  background-color: var(--pst-color-surface);
+  border-left: 3px solid var(--pst-color-primary);
+  color: var(--pst-color-text-base);
+  font-size: 0.9em;
+  margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+}
+.prototype-banner i {
+  margin-right: 0.5rem;
+}
+
 @media screen and (min-width: 1200px) {
   .header-holder {
     height: var(--header-height-desktop);
@@ -2424,6 +2436,10 @@ nav.bd-links li > a {
 
 .bd-sidebar-secondary {
   padding: 1rem 1rem 1rem;
+}
+
+html[data-theme=dark] .highlight {
+  background: transparent;
 }
 
 .pytorch-call-to-action-links {
@@ -3042,7 +3058,6 @@ html[data-theme=dark] {
 
 .card-prerequisites:hover {
   transition: none;
-  border: var(--sd-color-card-border) !important;
 }
 .card-prerequisites:hover:after {
   transition: none;

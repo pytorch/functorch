@@ -305,3 +305,16 @@ a.btn {
 .sidebar-heading {
   padding-top: 14px
 }
+
+.prototype-banner {
+  background-color: var(--pst-color-surface);
+  border-left: 3px solid var(--pst-color-primary);
+  color: var(--pst-color-text-base);
+  font-size: 0.9em;
+  margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+
+  i {
+    margin-right: 0.5rem;
+  }
+}
