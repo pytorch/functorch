@@ -99,7 +99,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git7ba6fb6)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git53ecb81)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1349,7 +1349,7 @@ document.write(`
 
 
 <span class="k">def</span> <span class="nf">find_first_sym_node</span><span class="p">(</span>
-    <span class="n">fwd_module_outputs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">],</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">]]</span>
+    <span class="n">fwd_module_outputs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">],</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">]],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
     <span class="n">idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">fwd_module_outputs</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">fwd_module_outputs</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
@@ -2942,16 +2942,16 @@ document.write(`
     <span class="kn">import</span> <span class="nn">pydot</span>
 
     <span class="n">dot_format</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">nx_pydot</span><span class="o">.</span><span class="n">to_pydot</span><span class="p">(</span><span class="n">nx_graph</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">()</span>
-    <span class="n">dot_graph</span> <span class="o">=</span> <span class="n">pydot</span><span class="o">.</span><span class="n">graph_from_dot_data</span><span class="p">(</span><span class="n">dot_format</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">dot_graph</span> <span class="o">=</span> <span class="n">pydot</span><span class="o">.</span><span class="n">graph_from_dot_data</span><span class="p">(</span><span class="n">dot_format</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># type: ignore[index]</span>
     <span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">dot_graph</span><span class="o">.</span><span class="n">get_edges</span><span class="p">():</span>
         <span class="n">weight</span> <span class="o">=</span> <span class="n">nx_graph</span><span class="p">[</span><span class="n">edge</span><span class="o">.</span><span class="n">get_source</span><span class="p">()][</span><span class="n">edge</span><span class="o">.</span><span class="n">get_destination</span><span class="p">()][</span><span class="s2">&quot;capacity&quot;</span><span class="p">]</span>
         <span class="c1"># Set edge label to weight</span>
-        <span class="n">edge</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">weight</span><span class="p">))</span>
+        <span class="n">edge</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">weight</span><span class="p">))</span>  <span class="c1"># type: ignore[union-attr]</span>
         <span class="c1"># Color edges with weight &#39;inf&#39; as red</span>
         <span class="k">if</span> <span class="n">weight</span> <span class="o">==</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">):</span>
-            <span class="n">edge</span><span class="o">.</span><span class="n">set_color</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">)</span>
+            <span class="n">edge</span><span class="o">.</span><span class="n">set_color</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">)</span>  <span class="c1"># type: ignore[union-attr]</span>
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Visualizing the failed graph to min_cut_failed.svg&quot;</span><span class="p">)</span>
-    <span class="n">dot_graph</span><span class="o">.</span><span class="n">write_svg</span><span class="p">(</span><span class="s2">&quot;min_cut_failed.svg&quot;</span><span class="p">)</span>
+    <span class="n">dot_graph</span><span class="o">.</span><span class="n">write_svg</span><span class="p">(</span><span class="s2">&quot;min_cut_failed.svg&quot;</span><span class="p">)</span>  <span class="c1"># type: ignore[union-attr]</span>
 
 
 <span class="k">def</span> <span class="nf">get_default_op_list</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">OpTypes</span><span class="p">:</span>
