@@ -99,7 +99,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+gitdbec08b)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git7485ef0)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -2100,7 +2100,7 @@ document.write(`
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">cnt</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="n">itemgetter</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
 
 
-<span class="nd">@functools</span><span class="o">.</span><span class="n">lru_cache</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+<span class="nd">@functools</span><span class="o">.</span><span class="n">cache</span>
 <span class="k">def</span> <span class="nf">pointwise_ops</span><span class="p">():</span>
     <span class="n">ops</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">attr_name</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="p">):</span>
@@ -3062,6 +3062,7 @@ document.write(`
         <span class="n">aten</span><span class="o">.</span><span class="n">as_strided</span><span class="p">,</span>
         <span class="n">aten</span><span class="o">.</span><span class="n">permute</span><span class="p">,</span>
         <span class="n">aten</span><span class="o">.</span><span class="n">select</span><span class="p">,</span>
+        <span class="n">aten</span><span class="o">.</span><span class="n">split</span><span class="p">,</span>
     <span class="p">]</span>
     <span class="n">view_ops</span> <span class="o">=</span> <span class="n">recomputable_view_ops</span>
     <span class="n">default_recomputable_ops</span> <span class="o">+=</span> <span class="p">[</span>
