@@ -99,7 +99,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+gitd7e657d)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git38410cf)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -2070,6 +2070,12 @@ document.write(`
 <span class="sd">        aot_autograd_arg_pos_to_source: used to dedup params and their guards</span>
 <span class="sd">        static_input_indices: used to identify static inputs for cudagraphs</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Note [Assumption on Dynamo Metadata]</span>
+    <span class="c1"># This function assumes a graph module from dynamo provides `dynamo_compiled_id`,</span>
+    <span class="c1"># _param_name_to_source, and every placeholder node has `_dynamo_source` attributes.</span>
+    <span class="c1"># When gm is modified (e.g., DDPOptimizer via split_module), metadata needs to</span>
+    <span class="c1"># be propagated in order to be recognized as a dynamo graph</span>
+
     <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">)</span> <span class="ow">and</span> <span class="s2">&quot;dynamo_compile_id&quot;</span> <span class="ow">in</span> <span class="n">mod</span><span class="o">.</span><span class="n">meta</span><span class="p">):</span>
         <span class="c1"># graph was not captured by dynamo</span>
         <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="p">[]</span>
@@ -2103,7 +2109,10 @@ document.write(`
     <span class="k">for</span> <span class="n">pos</span><span class="p">,</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;placeholder&quot;</span><span class="p">)):</span>
         <span class="k">assert</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="s2">&quot;_dynamo_source&quot;</span><span class="p">)</span>
         <span class="n">source</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">_dynamo_source</span>
-        <span class="k">assert</span> <span class="n">source</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen_sources</span><span class="p">,</span> <span class="n">source</span>
+        <span class="c1"># `source`` specifies the source from user code. ddp optimizer may have</span>
+        <span class="c1"># intermediate values becoming submodule placeholders which does not</span>
+        <span class="c1"># have a source</span>
+        <span class="k">assert</span> <span class="n">source</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">source</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen_sources</span><span class="p">,</span> <span class="n">source</span>
         <span class="n">seen_sources</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
         <span class="n">aot_autograd_arg_pos_to_source</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
         <span class="n">source_name</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">name</span><span class="p">()</span> <span class="k">if</span> <span class="n">source</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
