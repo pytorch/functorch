@@ -99,7 +99,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git03023f1)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git5dd9652)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1049,6 +1049,7 @@ document.write(`
 <span></span><span class="c1"># mypy: allow-untyped-defs</span>
 <span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">functools</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
 <span class="kn">import</span> <span class="nn">heapq</span>
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">logging</span>
@@ -1249,6 +1250,10 @@ document.write(`
             <span class="n">env</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">InvalidNode</span>  <span class="c1"># type: ignore[assignment]</span>
             <span class="k">continue</span>
 
+        <span class="k">if</span> <span class="n">_must_be_in_forward</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">and</span> <span class="n">subgraph</span> <span class="o">!=</span> <span class="s2">&quot;forward&quot;</span><span class="p">:</span>
+            <span class="n">env</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">InvalidNode</span>  <span class="c1"># type: ignore[assignment]</span>
+            <span class="k">continue</span>
+
         <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">env</span><span class="p">:</span>
             <span class="c1"># Node must be one of our inputs. (Any member of env which wasn&#39;t an</span>
             <span class="c1"># input to start must have been created by this loop and won&#39;t be in</span>
@@ -1322,8 +1327,16 @@ document.write(`
     <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;partitioner_tag&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;is_backward&quot;</span>
 
 
+<span class="k">def</span> <span class="nf">_has_tag_must_be_in_forward</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;partitioner_tag&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;must_be_in_forward&quot;</span>
+
+
 <span class="k">def</span> <span class="nf">_has_tag_must_be_in_backward</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
     <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;partitioner_tag&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;must_be_in_backward&quot;</span>
+
+
+<span class="k">def</span> <span class="nf">_must_be_in_forward</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">_has_tag_must_be_in_forward</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">_must_be_in_backward</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -2513,6 +2526,25 @@ document.write(`
             <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CheckpointPolicy</span><span class="o">.</span><span class="n">MUST_SAVE</span>
 
 
+<span class="k">def</span> <span class="nf">force_save_bw_mutation_src</span><span class="p">(</span><span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="c1"># If we have mutations of the same primal in forward and backward,</span>
+    <span class="c1"># We must not recompute the source of mutation to not apply twice.</span>
+    <span class="n">has_mutation_in_bw</span><span class="p">:</span> <span class="n">OrderedSet</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedSet</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="o">==</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">copy_</span><span class="o">.</span><span class="n">default</span>
+            <span class="ow">and</span> <span class="n">_has_tag_must_be_in_backward</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="n">has_mutation_in_bw</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="o">==</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">copy_</span><span class="o">.</span><span class="n">default</span>
+            <span class="ow">and</span> <span class="n">_has_tag_must_be_in_forward</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">has_mutation_in_bw</span>
+        <span class="p">):</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CheckpointPolicy</span><span class="o">.</span><span class="n">MUST_SAVE</span>
+
+
 <span class="k">def</span> <span class="nf">cleanup_recompute_tags</span><span class="p">(</span><span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    If there are two consecutive checkpointed blocks with no operator in</span>
@@ -3510,7 +3542,8 @@ document.write(`
         <span class="c1"># We only consider the name and order of nodes. A more robust way</span>
         <span class="c1"># would be to check the hash of the whole graph (disregarding input shapes),</span>
         <span class="c1"># this is is a reasonable first-order approximation.</span>
-        <span class="n">inputs</span> <span class="o">=</span> <span class="nb">hash</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">joint_graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
+        <span class="n">node_str</span> <span class="o">=</span> <span class="s2">&quot;/&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">joint_graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span>
+        <span class="n">inputs</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">node_str</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
         <span class="n">all_inputs</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">get_world_size</span><span class="p">())]</span>
         <span class="k">with</span> <span class="n">no_dispatch</span><span class="p">(),</span> <span class="n">unset_fake_temporarily</span><span class="p">():</span>
             <span class="c1"># TODO: maybe use a different process group?</span>
@@ -3585,6 +3618,7 @@ document.write(`
         <span class="n">joint_module</span> <span class="o">=</span> <span class="n">cleanup_recompute_tags</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">unsafe_allow_optimization_of_collectives</span><span class="p">:</span>
         <span class="n">force_save_collectives</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
+    <span class="n">force_save_bw_mutation_src</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">classify_nodes</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">static_lifetime_input_indices</span><span class="p">):</span>
         <span class="n">name_to_node</span> <span class="o">=</span> <span class="n">get_name_to_node</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
@@ -4012,7 +4046,7 @@ document.write(`
          },
          "datePublished": "",
          "dateModified": "",
-         "articleBody": "Source code for torch._functorch.partitioners # mypy: allow-untyped-defs import copy import functools import heapq import itertools import logging import math import operator import os import os.path from collections import defaultdict from dataclasses import dataclass, replace from typing import Any, Callable, Optional, TYPE_CHECKING, Union import torch import torch._inductor.inductor_prims import torch.distributed import torch.fx as fx import torch.utils._pytree as pytree from torch._dynamo.utils import counters, is_node_meta_valid from torch._functorch._activation_checkpointing.ac_logging_utils import ( create_structured_trace_for_min_cut_info, ) from torch._inductor import config as inductor_config from torch._logging import trace_structured from torch._subclasses.fake_tensor import extract_tensor_metadata from torch.fx.experimental._backward_state import BackwardState from torch.fx.experimental.proxy_tensor import is_sym_node, py_sym_types from torch.fx.experimental.sym_node import magic_methods, method_to_operator from torch.fx.experimental.symbolic_shapes import ( find_symbol_binding_fx_nodes, free_symbols, hint_int, is_symbol_binding_fx_node, statically_known_false, statically_known_true, ) from torch.fx.passes import graph_drawer from torch.utils._ordered_set import OrderedSet from torch.utils.checkpoint import CheckpointPolicy from . import config from ._activation_checkpointing.graph_info_provider import GraphInfoProvider from ._activation_checkpointing.knapsack import ( dp_knapsack, greedy_knapsack, ilp_knapsack, ) from ._activation_checkpointing.knapsack_evaluator import KnapsackEvaluator from ._aot_autograd.logging_utils import get_aot_graph_name from ._aot_autograd.utils import get_cuda_generator_meta_val, is_with_effects from .compile_utils import fx_graph_cse, get_aten_target, raise_getitems if TYPE_CHECKING: import sympy AOT_PARTITIONER_DEBUG: bool = config.debug_partitioner log: logging.Logger = logging.getLogger(__name__) aten = torch.ops.aten prims = torch.ops.prims @dataclass class OpTypes: &#34;&#34;&#34;Class for keeping track of different operator categories&#34;&#34;&#34; fusible_ops: OrderedSet[Callable] compute_intensive_ops: OrderedSet[Callable] random_ops: OrderedSet[Callable] view_ops: OrderedSet[Callable] recomputable_ops: OrderedSet[Callable] def is_fusible(self, node: fx.Node): return get_aten_target(node) in self.fusible_ops def is_compute_intensive(self, node: fx.Node): return get_aten_target(node) in self.compute_intensive_ops def is_random(self, node: fx.Node): return get_aten_target(node) in self.random_ops def is_view(self, node: fx.Node): return get_aten_target(node) in self.view_ops def is_recomputable(self, node: fx.Node): return get_aten_target(node) in self.recomputable_ops @dataclass class NodeInfo: # Be careful about iterating over these explicitly, as their order may not # be deterministic inputs: list[fx.Node] _required_fw_nodes: OrderedSet[fx.Node] required_bw_nodes: OrderedSet[fx.Node] unclaimed_nodes: OrderedSet[fx...."
+         "articleBody": "Source code for torch._functorch.partitioners # mypy: allow-untyped-defs import copy import functools import hashlib import heapq import itertools import logging import math import operator import os import os.path from collections import defaultdict from dataclasses import dataclass, replace from typing import Any, Callable, Optional, TYPE_CHECKING, Union import torch import torch._inductor.inductor_prims import torch.distributed import torch.fx as fx import torch.utils._pytree as pytree from torch._dynamo.utils import counters, is_node_meta_valid from torch._functorch._activation_checkpointing.ac_logging_utils import ( create_structured_trace_for_min_cut_info, ) from torch._inductor import config as inductor_config from torch._logging import trace_structured from torch._subclasses.fake_tensor import extract_tensor_metadata from torch.fx.experimental._backward_state import BackwardState from torch.fx.experimental.proxy_tensor import is_sym_node, py_sym_types from torch.fx.experimental.sym_node import magic_methods, method_to_operator from torch.fx.experimental.symbolic_shapes import ( find_symbol_binding_fx_nodes, free_symbols, hint_int, is_symbol_binding_fx_node, statically_known_false, statically_known_true, ) from torch.fx.passes import graph_drawer from torch.utils._ordered_set import OrderedSet from torch.utils.checkpoint import CheckpointPolicy from . import config from ._activation_checkpointing.graph_info_provider import GraphInfoProvider from ._activation_checkpointing.knapsack import ( dp_knapsack, greedy_knapsack, ilp_knapsack, ) from ._activation_checkpointing.knapsack_evaluator import KnapsackEvaluator from ._aot_autograd.logging_utils import get_aot_graph_name from ._aot_autograd.utils import get_cuda_generator_meta_val, is_with_effects from .compile_utils import fx_graph_cse, get_aten_target, raise_getitems if TYPE_CHECKING: import sympy AOT_PARTITIONER_DEBUG: bool = config.debug_partitioner log: logging.Logger = logging.getLogger(__name__) aten = torch.ops.aten prims = torch.ops.prims @dataclass class OpTypes: &#34;&#34;&#34;Class for keeping track of different operator categories&#34;&#34;&#34; fusible_ops: OrderedSet[Callable] compute_intensive_ops: OrderedSet[Callable] random_ops: OrderedSet[Callable] view_ops: OrderedSet[Callable] recomputable_ops: OrderedSet[Callable] def is_fusible(self, node: fx.Node): return get_aten_target(node) in self.fusible_ops def is_compute_intensive(self, node: fx.Node): return get_aten_target(node) in self.compute_intensive_ops def is_random(self, node: fx.Node): return get_aten_target(node) in self.random_ops def is_view(self, node: fx.Node): return get_aten_target(node) in self.view_ops def is_recomputable(self, node: fx.Node): return get_aten_target(node) in self.recomputable_ops @dataclass class NodeInfo: # Be careful about iterating over these explicitly, as their order may not # be deterministic inputs: list[fx.Node] _required_fw_nodes: OrderedSet[fx.Node] required_bw_nodes: OrderedSet[fx.Node] unclaimed_nodes:..."
        }
    </script>
 
