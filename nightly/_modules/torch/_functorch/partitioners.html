@@ -99,7 +99,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git5dd9652)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git3dd872e)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1250,10 +1250,6 @@ document.write(`
             <span class="n">env</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">InvalidNode</span>  <span class="c1"># type: ignore[assignment]</span>
             <span class="k">continue</span>
 
-        <span class="k">if</span> <span class="n">_must_be_in_forward</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">and</span> <span class="n">subgraph</span> <span class="o">!=</span> <span class="s2">&quot;forward&quot;</span><span class="p">:</span>
-            <span class="n">env</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">InvalidNode</span>  <span class="c1"># type: ignore[assignment]</span>
-            <span class="k">continue</span>
-
         <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">env</span><span class="p">:</span>
             <span class="c1"># Node must be one of our inputs. (Any member of env which wasn&#39;t an</span>
             <span class="c1"># input to start must have been created by this loop and won&#39;t be in</span>
@@ -1327,16 +1323,8 @@ document.write(`
     <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;partitioner_tag&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;is_backward&quot;</span>
 
 
-<span class="k">def</span> <span class="nf">_has_tag_must_be_in_forward</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-    <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;partitioner_tag&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;must_be_in_forward&quot;</span>
-
-
 <span class="k">def</span> <span class="nf">_has_tag_must_be_in_backward</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
     <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;partitioner_tag&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;must_be_in_backward&quot;</span>
-
-
-<span class="k">def</span> <span class="nf">_must_be_in_forward</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-    <span class="k">return</span> <span class="n">_has_tag_must_be_in_forward</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">_must_be_in_backward</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -2526,25 +2514,6 @@ document.write(`
             <span class="n">node</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CheckpointPolicy</span><span class="o">.</span><span class="n">MUST_SAVE</span>
 
 
-<span class="k">def</span> <span class="nf">force_save_bw_mutation_src</span><span class="p">(</span><span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="c1"># If we have mutations of the same primal in forward and backward,</span>
-    <span class="c1"># We must not recompute the source of mutation to not apply twice.</span>
-    <span class="n">has_mutation_in_bw</span><span class="p">:</span> <span class="n">OrderedSet</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedSet</span><span class="p">()</span>
-    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">):</span>
-        <span class="k">if</span> <span class="p">(</span>
-            <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="o">==</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">copy_</span><span class="o">.</span><span class="n">default</span>
-            <span class="ow">and</span> <span class="n">_has_tag_must_be_in_backward</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
-        <span class="p">):</span>
-            <span class="n">has_mutation_in_bw</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-
-        <span class="k">if</span> <span class="p">(</span>
-            <span class="n">node</span><span class="o">.</span><span class="n">target</span> <span class="o">==</span> <span class="n">torch</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">aten</span><span class="o">.</span><span class="n">copy_</span><span class="o">.</span><span class="n">default</span>
-            <span class="ow">and</span> <span class="n">_has_tag_must_be_in_forward</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
-            <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">has_mutation_in_bw</span>
-        <span class="p">):</span>
-            <span class="n">node</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;recompute&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CheckpointPolicy</span><span class="o">.</span><span class="n">MUST_SAVE</span>
-
-
 <span class="k">def</span> <span class="nf">cleanup_recompute_tags</span><span class="p">(</span><span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    If there are two consecutive checkpointed blocks with no operator in</span>
@@ -3618,7 +3587,6 @@ document.write(`
         <span class="n">joint_module</span> <span class="o">=</span> <span class="n">cleanup_recompute_tags</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">unsafe_allow_optimization_of_collectives</span><span class="p">:</span>
         <span class="n">force_save_collectives</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
-    <span class="n">force_save_bw_mutation_src</span><span class="p">(</span><span class="n">joint_module</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">classify_nodes</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">static_lifetime_input_indices</span><span class="p">):</span>
         <span class="n">name_to_node</span> <span class="o">=</span> <span class="n">get_name_to_node</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">)</span>
