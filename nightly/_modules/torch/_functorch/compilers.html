@@ -99,7 +99,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git3dd872e)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git85df746)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1198,13 +1198,13 @@ document.write(`
         <span class="k">def</span> <span class="nf">check</span><span class="p">(</span><span class="n">nv</span><span class="p">,</span> <span class="n">rv</span><span class="p">,</span> <span class="n">desc</span><span class="p">):</span>
             <span class="k">assert</span> <span class="nb">callable</span><span class="p">(</span><span class="n">desc</span><span class="p">)</span>
             <span class="k">assert</span> <span class="n">nv</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">rv</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">desc</span><span class="p">()</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">nv</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">rv</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="k">assert</span> <span class="p">(</span>
-                <span class="n">subst_symint_tuple</span><span class="p">(</span><span class="n">nv</span><span class="o">.</span><span class="n">size</span><span class="p">())</span> <span class="o">==</span> <span class="n">rv</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
-            <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">desc</span><span class="p">()</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">nv</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="si">}</span><span class="s2"> aka </span><span class="si">{</span><span class="n">subst_symint_tuple</span><span class="p">(</span><span class="n">nv</span><span class="o">.</span><span class="n">size</span><span class="p">())</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">rv</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">assert</span> <span class="n">subst_symint_tuple</span><span class="p">(</span><span class="n">nv</span><span class="o">.</span><span class="n">size</span><span class="p">())</span> <span class="o">==</span> <span class="n">rv</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">desc</span><span class="p">()</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">nv</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="si">}</span><span class="s2"> aka </span><span class="si">{</span><span class="n">subst_symint_tuple</span><span class="p">(</span><span class="n">nv</span><span class="o">.</span><span class="n">size</span><span class="p">())</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">rv</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
             <span class="n">same_strides</span> <span class="o">=</span> <span class="n">check_significant_strides</span><span class="p">(</span><span class="n">nv</span><span class="p">,</span> <span class="n">rv</span><span class="p">)</span>
-            <span class="k">assert</span> <span class="p">(</span>
-                <span class="n">same_strides</span>
-            <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">desc</span><span class="p">()</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">nv</span><span class="o">.</span><span class="n">stride</span><span class="p">()</span><span class="si">}</span><span class="s2"> aka </span><span class="si">{</span><span class="n">subst_symint_tuple</span><span class="p">(</span><span class="n">nv</span><span class="o">.</span><span class="n">stride</span><span class="p">())</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">rv</span><span class="o">.</span><span class="n">stride</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">assert</span> <span class="n">same_strides</span><span class="p">,</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">desc</span><span class="p">()</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">nv</span><span class="o">.</span><span class="n">stride</span><span class="p">()</span><span class="si">}</span><span class="s2"> aka </span><span class="si">{</span><span class="n">subst_symint_tuple</span><span class="p">(</span><span class="n">nv</span><span class="o">.</span><span class="n">stride</span><span class="p">())</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">rv</span><span class="o">.</span><span class="n">stride</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
 
         <span class="n">r</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">run_node</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
         <span class="k">if</span> <span class="s2">&quot;val&quot;</span> <span class="ow">in</span> <span class="n">n</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
@@ -1533,7 +1533,6 @@ document.write(`
   </div>
 </div>
 
-
 <div class="prev-next-area">
 </div>
 
@@ -1550,7 +1549,8 @@ document.write(`
   <p class="theme-version">
     Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.15.4.
   </p>
-</div></div>
+</div>
+</div>
   
 </div>
                 </footer>

@@ -101,7 +101,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git3dd872e)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git85df746)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1121,7 +1121,7 @@ if no autograd is needed. Default: None
 </dl>
 <p>A simple example usage of <a class="reference internal" href="#functorch.compile.aot_function" title="functorch.compile.aot_function"><code class="xref py py-func docutils literal notranslate"><span class="pre">aot_function()</span></code></a> is as follows. This example
 will print the forward and backward graphs of the function <code class="docutils literal notranslate"><span class="pre">fn</span></code></p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">fn</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span> <span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">sin</span><span class="p">()</span><span class="o">.</span><span class="n">cos</span><span class="p">()</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">fn</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">sin</span><span class="p">()</span><span class="o">.</span><span class="n">cos</span><span class="p">()</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">print_compile_fn</span><span class="p">(</span><span class="n">fx_module</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="nb">print</span><span class="p">(</span><span class="n">fx_module</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="k">return</span> <span class="n">fx_module</span>
@@ -1175,7 +1175,6 @@ will print the forward and backward graphs of the function <code class="docutils
   </div>
 </div>
 
-
 <div class="prev-next-area">
     <a class="left-prev"
        href="../aot_autograd.html"
@@ -1210,7 +1209,8 @@ will print the forward and backward graphs of the function <code class="docutils
   <p class="theme-version">
     Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.15.4.
   </p>
-</div></div>
+</div>
+</div>
   
 </div>
                 </footer>
@@ -1462,7 +1462,7 @@ will print the forward and backward graphs of the function <code class="docutils
          },
          "datePublished": "",
          "dateModified": "",
-         "articleBody": "functorch.compile.aot_function# functorch.compile.aot_function(fn, fw_compiler, bw_compiler=None, partition_fn=&lt;function default_partition&gt;, decompositions=None, num_params_buffers=0, keep_inference_input_mutations=False, inference_compiler=None, *, dynamic=False, enable_log=True)[source]# Traces the forward and backward graph of fn using torch dispatch mechanism, and then compiles the generated forward and backward graphs through fw_compiler and bw_compiler. aot_function() traces the forward and backward graph ahead of time, and generates a joint forward and backward graph. partition_fn is then used to separate out forward and backward graphs. The partitioner function can be used to perform optimizations such as recomputation. One can set decompositions dictionary to decompose the operators into a sequence of core or simpler operators supported by the backend compilers. Warning This API is experimental and likely to change. Parameters fn (Callable) – A Python function that takes one ore more arguments. Must return one or more Tensors. fw_compiler (Callable) – A Python function that accepts an Fx graph with Aten ops and input args, and returns a Callable that semantically is equivalent to the input Fx graph. bw_compiler (Optional[Callable]) – A Python function that accepts an Fx graph with Aten ops and input args, and returns a Callable that semantically is equivalent to the input Fx graph. Default: None (when None, it defaults to the fw_compiler) partition_fn (Callable) – A Python function that takes a joint forward and backward graph, and partitions it into separate forward and backward graphs. decompositions (Dict) – A dictionary to define the decomposition of larger Aten ops into simpler or core Aten ops. inference_compiler (Optional[Callable]) – A Python function that accepts an Fx graph with Aten ops and input args, and returns a Callable that semantically is equivalent to the input Fx graph. inference_compiler is invoked if no autograd is needed. Default: None (when None, it defaults to the fw_compiler) Returns Returns a Callable that retains the eager behavior of the original fn, but with forward and backward graph compiled via fw_compile and bw_compile. A simple example usage of aot_function() is as follows. This example will print the forward and backward graphs of the function fn &gt;&gt;&gt; fn = lambda x : x.sin().cos() &gt;&gt;&gt; def print_compile_fn(fx_module, args): &gt;&gt;&gt; print(fx_module) &gt;&gt;&gt; return fx_module &gt;&gt;&gt; aot_fn = aot_function(fn, print_compile_fn) &gt;&gt;&gt; x = torch.randn(4, 5, requires_grad=True) &gt;&gt;&gt; aot_fn(x)"
+         "articleBody": "functorch.compile.aot_function# functorch.compile.aot_function(fn, fw_compiler, bw_compiler=None, partition_fn=&lt;function default_partition&gt;, decompositions=None, num_params_buffers=0, keep_inference_input_mutations=False, inference_compiler=None, *, dynamic=False, enable_log=True)[source]# Traces the forward and backward graph of fn using torch dispatch mechanism, and then compiles the generated forward and backward graphs through fw_compiler and bw_compiler. aot_function() traces the forward and backward graph ahead of time, and generates a joint forward and backward graph. partition_fn is then used to separate out forward and backward graphs. The partitioner function can be used to perform optimizations such as recomputation. One can set decompositions dictionary to decompose the operators into a sequence of core or simpler operators supported by the backend compilers. Warning This API is experimental and likely to change. Parameters fn (Callable) – A Python function that takes one ore more arguments. Must return one or more Tensors. fw_compiler (Callable) – A Python function that accepts an Fx graph with Aten ops and input args, and returns a Callable that semantically is equivalent to the input Fx graph. bw_compiler (Optional[Callable]) – A Python function that accepts an Fx graph with Aten ops and input args, and returns a Callable that semantically is equivalent to the input Fx graph. Default: None (when None, it defaults to the fw_compiler) partition_fn (Callable) – A Python function that takes a joint forward and backward graph, and partitions it into separate forward and backward graphs. decompositions (Dict) – A dictionary to define the decomposition of larger Aten ops into simpler or core Aten ops. inference_compiler (Optional[Callable]) – A Python function that accepts an Fx graph with Aten ops and input args, and returns a Callable that semantically is equivalent to the input Fx graph. inference_compiler is invoked if no autograd is needed. Default: None (when None, it defaults to the fw_compiler) Returns Returns a Callable that retains the eager behavior of the original fn, but with forward and backward graph compiled via fw_compile and bw_compile. A simple example usage of aot_function() is as follows. This example will print the forward and backward graphs of the function fn &gt;&gt;&gt; fn = lambda x: x.sin().cos() &gt;&gt;&gt; def print_compile_fn(fx_module, args): &gt;&gt;&gt; print(fx_module) &gt;&gt;&gt; return fx_module &gt;&gt;&gt; aot_fn = aot_function(fn, print_compile_fn) &gt;&gt;&gt; x = torch.randn(4, 5, requires_grad=True) &gt;&gt;&gt; aot_fn(x)"
        }
    </script>
 

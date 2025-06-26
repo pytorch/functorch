@@ -101,7 +101,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git3dd872e)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git85df746)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1108,9 +1108,11 @@ of a model.</p>
 <span class="n">model</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
 <span class="n">func</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="n">make_functional</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
 
+
 <span class="k">def</span> <span class="nf">compute_loss</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
     <span class="n">y</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">mse_loss</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+
 
 <span class="n">grad_weights</span> <span class="o">=</span> <span class="n">grad</span><span class="p">(</span><span class="n">compute_loss</span><span class="p">)(</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 </pre></div>
@@ -1187,7 +1189,6 @@ and/or the <cite>torch.func</cite> migration guide for more details
   </div>
 </div>
 
-
 <div class="prev-next-area">
     <a class="left-prev"
        href="functorch.functionalize.html"
@@ -1222,7 +1223,8 @@ and/or the <cite>torch.func</cite> migration guide for more details
   <p class="theme-version">
     Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.15.4.
   </p>
-</div></div>
+</div>
+</div>
   
 </div>
                 </footer>

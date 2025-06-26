@@ -99,7 +99,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git3dd872e)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git85df746)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1502,8 +1502,7 @@ document.write(`
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">gm</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span>
         <span class="n">example_inputs</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">InputType</span><span class="p">],</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-        <span class="o">...</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span> <span class="o">...</span>
 
 
 <span class="c1"># TODO: bikeshed on this name</span>
@@ -1685,13 +1684,14 @@ document.write(`
     <span class="c1"># If any saved tensor hooks are active, we **don&#39;t** want to trace them.</span>
     <span class="c1"># Instead, we&#39;ll let them run at runtime, around the custom autograd.Function</span>
     <span class="c1"># that we generate in torch.compile.</span>
-    <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">set_multithreading_enabled</span><span class="p">(</span>
-        <span class="kc">False</span>
-    <span class="p">),</span> <span class="n">preserve_rng_state</span><span class="p">(),</span> <span class="p">(</span>
-        <span class="n">fake_mode</span>
-    <span class="p">),</span> <span class="p">(</span>
-        <span class="n">python_dispatcher_mode</span>
-    <span class="p">),</span> <span class="n">PhiloxStateTracker</span><span class="p">(),</span> <span class="n">torch</span><span class="o">.</span><span class="n">_dynamo</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">_disable_saved_tensors_hooks_during_tracing</span><span class="p">():</span>
+    <span class="k">with</span> <span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">set_multithreading_enabled</span><span class="p">(</span><span class="kc">False</span><span class="p">),</span>
+        <span class="n">preserve_rng_state</span><span class="p">(),</span>
+        <span class="n">fake_mode</span><span class="p">,</span>
+        <span class="n">python_dispatcher_mode</span><span class="p">,</span>
+        <span class="n">PhiloxStateTracker</span><span class="p">(),</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">_dynamo</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">_disable_saved_tensors_hooks_during_tracing</span><span class="p">(),</span>
+    <span class="p">):</span>
         <span class="kn">from</span> <span class="nn">torch._library.fake_class_registry</span> <span class="kn">import</span> <span class="p">(</span>
             <span class="n">FakeScriptObject</span><span class="p">,</span>
             <span class="n">maybe_to_fake_obj</span><span class="p">,</span>
@@ -1804,7 +1804,7 @@ document.write(`
         <span class="k">if</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">assert</span> <span class="ow">not</span> <span class="n">req_subclass_dispatch</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
 <span class="s2">torch.compile is currently being used with tensor subclass inputs:</span>
-<span class="si">{</span><span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">x</span><span class="p">))</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">fake_flat_args</span><span class="p">])</span><span class="si">}</span><span class="s2">. We are attempting to a compile a graph with two graph outputs</span>
+<span class="si">{</span><span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">x</span><span class="p">))</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">fake_flat_args</span><span class="p">])</span><span class="si">}</span><span class="s2">. We are attempting to a compile a graph with two graph outputs</span>
 <span class="s2">that alias one another, which is currently unsupported in the subclass use case. If you run into this,</span>
 <span class="s2">please file a github issue&quot;&quot;&quot;</span>
 
@@ -1947,7 +1947,7 @@ document.write(`
 <span class="sd">    A simple example usage of :func:`aot_function` is as follows. This example</span>
 <span class="sd">    will print the forward and backward graphs of the function ``fn``</span>
 
-<span class="sd">        &gt;&gt;&gt; fn = lambda x : x.sin().cos()</span>
+<span class="sd">        &gt;&gt;&gt; fn = lambda x: x.sin().cos()</span>
 <span class="sd">        &gt;&gt;&gt; def print_compile_fn(fx_module, args):</span>
 <span class="sd">        &gt;&gt;&gt;     print(fx_module)</span>
 <span class="sd">        &gt;&gt;&gt;     return fx_module</span>
@@ -2473,9 +2473,7 @@ document.write(`
             <span class="n">output_gradients</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">grad</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">gradients</span><span class="p">):</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">a</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">:</span>
-                    <span class="k">assert</span> <span class="p">(</span>
-                        <span class="n">grad</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-                    <span class="p">),</span> <span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+                    <span class="k">assert</span> <span class="n">grad</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
 <span class="s2">Found a parameter that did not receive a gradient.</span>
 <span class="s2">&quot;This is most likely a bug, but if this needs to be supported please comment on this Github issue:</span>
 <span class="s2">https://github.com/pytorch/pytorch/issues/101192</span>
@@ -2588,7 +2586,9 @@ document.write(`
     <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">debug_assert</span><span class="p">:</span>
         <span class="c1"># Smoke test that after partitioning, we can run the forward without any calling convention changes.</span>
         <span class="n">fw_module</span><span class="p">,</span> <span class="n">_bw_module</span> <span class="o">=</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">default_partition</span><span class="p">(</span>  <span class="c1"># noqa: F821</span>
-            <span class="n">fx_g</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_infos</span><span class="p">)</span>  <span class="c1"># noqa: F821</span>
+            <span class="n">fx_g</span><span class="p">,</span>
+            <span class="n">args</span><span class="p">,</span>
+            <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_infos</span><span class="p">),</span>  <span class="c1"># noqa: F821</span>
         <span class="p">)</span>
         <span class="c1"># Attempt to run the fw_module with the original user inputs</span>
         <span class="n">fake_mode</span> <span class="o">=</span> <span class="n">detect_fake_mode</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
@@ -2825,7 +2825,6 @@ document.write(`
   </div>
 </div>
 
-
 <div class="prev-next-area">
 </div>
 
@@ -2842,7 +2841,8 @@ document.write(`
   <p class="theme-version">
     Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.15.4.
   </p>
-</div></div>
+</div>
+</div>
   
 </div>
                 </footer>

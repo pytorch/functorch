@@ -101,7 +101,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git3dd872e)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.8.0a0+git85df746)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1132,7 +1132,7 @@ specified by <code class="docutils literal notranslate"><span class="pre">out_di
 <p>One example of using <a class="reference internal" href="#functorch.vmap" title="functorch.vmap"><code class="xref py py-func docutils literal notranslate"><span class="pre">vmap()</span></code></a> is to compute batched dot products. PyTorch
 doesn’t provide a batched <code class="docutils literal notranslate"><span class="pre">torch.dot</span></code> API; instead of unsuccessfully
 rummaging through docs, use <a class="reference internal" href="#functorch.vmap" title="functorch.vmap"><code class="xref py py-func docutils literal notranslate"><span class="pre">vmap()</span></code></a> to construct a new function.</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">torch</span><span class="o">.</span><span class="n">dot</span>                            <span class="c1"># [D], [D] -&gt; []</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">torch</span><span class="o">.</span><span class="n">dot</span>  <span class="c1"># [D], [D] -&gt; []</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">batched_dot</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">dot</span><span class="p">)</span>  <span class="c1"># [N, D], [N, D] -&gt; [N]</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">batched_dot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
@@ -1144,7 +1144,7 @@ model authoring experience.</p>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">weights</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">feature_size</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="go">&gt;&gt;&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">model</span><span class="p">(</span><span class="n">feature_vec</span><span class="p">):</span>
-<span class="gp">&gt;&gt;&gt; </span>    <span class="c1"># Very simple linear model with activation</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Very simple linear model with activation</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="k">return</span> <span class="n">feature_vec</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span><span class="o">.</span><span class="n">relu</span><span class="p">()</span>
 <span class="go">&gt;&gt;&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">examples</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">feature_size</span><span class="p">)</span>
@@ -1160,7 +1160,7 @@ we can vectorize the whole computation, computing the Jacobian in a single
 call to <code class="docutils literal notranslate"><span class="pre">autograd.grad</span></code>.</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Setup</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">N</span> <span class="o">=</span> <span class="mi">5</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">y</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">I_N</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
@@ -1177,43 +1177,49 @@ call to <code class="docutils literal notranslate"><span class="pre">autograd.gr
 </pre></div>
 </div>
 <p><a class="reference internal" href="#functorch.vmap" title="functorch.vmap"><code class="xref py py-func docutils literal notranslate"><span class="pre">vmap()</span></code></a> can also be nested, producing an output with multiple batched dimensions</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">torch</span><span class="o">.</span><span class="n">dot</span>                            <span class="c1"># [D], [D] -&gt; []</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">batched_dot</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">dot</span><span class="p">))</span>  <span class="c1"># [N1, N0, D], [N1, N0, D] -&gt; [N1, N0]</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">torch</span><span class="o">.</span><span class="n">dot</span>  <span class="c1"># [D], [D] -&gt; []</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">batched_dot</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">torch</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">dot</span><span class="p">)</span>
+<span class="gp">... </span><span class="p">)</span>  <span class="c1"># [N1, N0, D], [N1, N0, D] -&gt; [N1, N0]</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">batched_dot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="c1"># tensor of size [2, 3]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">batched_dot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>  <span class="c1"># tensor of size [2, 3]</span>
 </pre></div>
 </div>
 <p>If the inputs are not batched along the first dimension, <code class="docutils literal notranslate"><span class="pre">in_dims</span></code> specifies
 the dimension that each inputs are batched along as</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">torch</span><span class="o">.</span><span class="n">dot</span>                            <span class="c1"># [N], [N] -&gt; []</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">torch</span><span class="o">.</span><span class="n">dot</span>  <span class="c1"># [N], [N] -&gt; []</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">batched_dot</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">dot</span><span class="p">,</span> <span class="n">in_dims</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># [N, D], [N, D] -&gt; [D]</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">batched_dot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>   <span class="c1"># output is [5] instead of [2] if batched along the 0th dimension</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">batched_dot</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">x</span><span class="p">,</span> <span class="n">y</span>
+<span class="gp">... </span><span class="p">)</span>  <span class="c1"># output is [5] instead of [2] if batched along the 0th dimension</span>
 </pre></div>
 </div>
 <p>If there are multiple inputs each of which is batched along different dimensions,
 <code class="docutils literal notranslate"><span class="pre">in_dims</span></code> must be a tuple with the batch dimension for each input as</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">torch</span><span class="o">.</span><span class="n">dot</span>                            <span class="c1"># [D], [D] -&gt; []</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">torch</span><span class="o">.</span><span class="n">dot</span>  <span class="c1"># [D], [D] -&gt; []</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">batched_dot</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">dot</span><span class="p">,</span> <span class="n">in_dims</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>  <span class="c1"># [N, D], [D] -&gt; [N]</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">batched_dot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="c1"># second arg doesn&#39;t have a batch dim because in_dim[1] was None</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">batched_dot</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">x</span><span class="p">,</span> <span class="n">y</span>
+<span class="gp">... </span><span class="p">)</span>  <span class="c1"># second arg doesn&#39;t have a batch dim because in_dim[1] was None</span>
 </pre></div>
 </div>
 <p>If the input is a Python struct, <code class="docutils literal notranslate"><span class="pre">in_dims</span></code> must be a tuple containing a struct
 matching the shape of the input:</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="nb">dict</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="nb">dict</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">],</span> <span class="nb">dict</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">])</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="nb">dict</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="nb">dict</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">],</span> <span class="nb">dict</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">])</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">input</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">y</span><span class="p">}</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">batched_dot</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">in_dims</span><span class="o">=</span><span class="p">({</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">input</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="n">y</span><span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">batched_dot</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">in_dims</span><span class="o">=</span><span class="p">({</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},))</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">batched_dot</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>By default, the output is batched along the first dimension. However, it can be batched
 along any dimension by using <code class="docutils literal notranslate"><span class="pre">out_dims</span></code></p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">batched_pow</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">out_dims</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">batched_pow</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="c1"># [5, 2]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">batched_pow</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>  <span class="c1"># [5, 2]</span>
 </pre></div>
 </div>
 <p>For any function that uses kwargs, the returned function will not batch the kwargs but will
@@ -1224,7 +1230,7 @@ accept kwargs</p>
 <span class="go">&gt;&gt;&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">batched_pow</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">batched_pow</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">x</span> <span class="o">*</span> <span class="mi">4</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">batched_pow</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">x</span><span class="p">)</span> <span class="c1"># scale is not batched, output has shape [2, 2, 5]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">batched_pow</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">x</span><span class="p">)</span>  <span class="c1"># scale is not batched, output has shape [2, 2, 5]</span>
 </pre></div>
 </div>
 <div class="admonition note">
@@ -1286,7 +1292,6 @@ and/or the <cite>torch.func</cite> migration guide for more details
   </div>
 </div>
 
-
 <div class="prev-next-area">
     <a class="left-prev"
        href="../functorch.html"
@@ -1321,7 +1326,8 @@ and/or the <cite>torch.func</cite> migration guide for more details
   <p class="theme-version">
     Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.15.4.
   </p>
-</div></div>
+</div>
+</div>
   
 </div>
                 </footer>

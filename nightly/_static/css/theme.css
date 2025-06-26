@@ -32,6 +32,78 @@ html[data-theme=dark] {
   --pst-color-table-row-hover-bg: #711B09;
 }
 
+.error-404-container {
+  min-height: 70vh;
+  padding-top: 100px;
+  padding-bottom: 100px;
+}
+
+.error-404-title {
+  font-family: Montserrat;
+  text-transform: none;
+  font-size: 250px;
+  line-height: 250px;
+  font-weight: 400;
+  margin-bottom: 20px;
+  color: #444;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.error-404-subtitle {
+  font-family: Montserrat;
+  font-size: 54px;
+  line-height: 64px;
+  font-weight: 300;
+  margin-bottom: 30px;
+  color: var(--pst-color-text-base);
+}
+
+.error-404-text {
+  font-size: 18px;
+  line-height: 28px;
+  margin-bottom: 40px;
+  color: var(--pst-color-text-base);
+}
+
+.error-404-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.error-404-button {
+  background-color: var(--pst-color-primary);
+  border-color: var(--pst-color-primary);
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: 400;
+  text-decoration: none;
+  color: white !important;
+}
+
+.error-404-button:hover,
+.error-404-button:active,
+.error-404-button:visited {
+  color: white !important;
+}
+
+.error-404-issue-button {
+  background-color: #333;
+  border-color: #333;
+}
+
+@media only screen and (max-width: 690px) {
+  .error-404-title {
+    font-size: 150px;
+    line-height: 150px;
+  }
+  .error-404-subtitle {
+    font-size: 32px;
+    line-height: 36px;
+  }
+}
 /* PyTorch top nav bar */
 .container-fluid,
 .header-container-wrapper {
