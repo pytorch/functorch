@@ -99,7 +99,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git9620994)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git6c42afe)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -3537,7 +3537,7 @@ document.write(`
     <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
 
-<span class="k">def</span> <span class="nf">_broadcast_rank0_decision</span><span class="p">(</span>
+<span class="k">def</span> <span class="nf">_sync_decision_cross_ranks</span><span class="p">(</span>
     <span class="n">joint_graph</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Graph</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">]</span>
 <span class="p">):</span>
     <span class="c1"># use the same policy across different GPUs</span>
@@ -3573,11 +3573,48 @@ document.write(`
     <span class="p">):</span>
         <span class="k">with</span> <span class="n">no_dispatch</span><span class="p">(),</span> <span class="n">unset_fake_temporarily</span><span class="p">():</span>
             <span class="n">objects</span> <span class="o">=</span> <span class="p">[[</span><span class="n">x</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">saved_values</span><span class="p">]]</span>
-            <span class="c1"># TODO: maybe use a different process group for this</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">broadcast_object_list</span><span class="p">(</span><span class="n">objects</span><span class="p">,</span> <span class="n">src</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">saved_values_names</span> <span class="o">=</span> <span class="n">objects</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">saved_ops_names_all_ranks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">[]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">get_world_size</span><span class="p">())</span>
+            <span class="p">]</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">all_gather_object</span><span class="p">(</span><span class="n">saved_ops_names_all_ranks</span><span class="p">,</span> <span class="n">objects</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
             <span class="n">name_to_node</span> <span class="o">=</span> <span class="n">get_name_to_node</span><span class="p">(</span><span class="n">joint_graph</span><span class="p">)</span>
-            <span class="n">saved_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">name_to_node</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">saved_values_names</span><span class="p">]</span>
+            <span class="n">saved_sizes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">saved_ops_with_sizes</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">saved_ops_names</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">saved_ops_names_all_ranks</span><span class="p">):</span>
+                <span class="n">saved_nodes</span> <span class="o">=</span> <span class="p">[</span><span class="n">name_to_node</span><span class="p">[</span><span class="n">op_name</span><span class="p">]</span> <span class="k">for</span> <span class="n">op_name</span> <span class="ow">in</span> <span class="n">saved_ops_names</span><span class="p">]</span>
+                <span class="n">saved_size</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">saved_nodes</span><span class="p">:</span>
+                    <span class="n">size_of_node</span> <span class="o">=</span> <span class="n">_size_of</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+                    <span class="n">saved_size</span> <span class="o">+=</span> <span class="n">size_of_node</span>
+                    <span class="k">if</span> <span class="n">idx</span> <span class="o">==</span> <span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">get_rank</span><span class="p">():</span>
+                        <span class="n">saved_ops_with_sizes</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">size_of_node</span>
+                <span class="n">saved_ops_with_sizes</span><span class="p">[</span><span class="s2">&quot;total size&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">saved_size</span>
+                <span class="n">saved_sizes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">saved_size</span><span class="p">)</span>
+
+            <span class="n">saved_sizes_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span>
+                <span class="n">saved_sizes</span><span class="p">,</span>
+                <span class="n">device</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">distributed_c10d</span><span class="o">.</span><span class="n">_get_object_coll_device</span><span class="p">(),</span>
+            <span class="p">)</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">all_reduce</span><span class="p">(</span>
+                <span class="n">saved_sizes_tensor</span><span class="p">,</span> <span class="n">op</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">distributed</span><span class="o">.</span><span class="n">distributed_c10d</span><span class="o">.</span><span class="n">ReduceOp</span><span class="o">.</span><span class="n">MAX</span>
+            <span class="p">)</span>
+
+            <span class="n">picked_rank_idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">saved_sizes_tensor</span><span class="p">)</span><span class="o">.</span><span class="n">item</span><span class="p">())</span>
+            <span class="n">sync_decision_cross_ranks_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;picked_rank_idx=</span><span class="si">{</span><span class="n">picked_rank_idx</span><span class="si">}</span><span class="s2">, saved_nodes of current rank=</span><span class="si">{</span><span class="n">saved_ops_with_sizes</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">trace_structured</span><span class="p">(</span>
+                <span class="s2">&quot;artifact&quot;</span><span class="p">,</span>
+                <span class="n">metadata_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;aot_joint_graph_sync_decision_cross_ranks&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;encoding&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
+                <span class="p">},</span>
+                <span class="n">payload_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">sync_decision_cross_ranks_str</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">saved_values</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">name_to_node</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">saved_ops_names_all_ranks</span><span class="p">[</span><span class="n">picked_rank_idx</span><span class="p">]</span>
+            <span class="p">]</span>
+
     <span class="k">return</span> <span class="n">saved_values</span>
 
 
@@ -3724,8 +3761,8 @@ document.write(`
         <span class="n">node_info</span><span class="p">,</span>
         <span class="n">memory_budget</span><span class="o">=</span><span class="n">memory_budget</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">_broadcast_rank0_decision</span><span class="p">:</span>
-        <span class="n">saved_values</span> <span class="o">=</span> <span class="n">_broadcast_rank0_decision</span><span class="p">(</span><span class="n">joint_graph</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">_sync_decision_cross_ranks</span><span class="p">:</span>
+        <span class="n">saved_values</span> <span class="o">=</span> <span class="n">_sync_decision_cross_ranks</span><span class="p">(</span><span class="n">joint_graph</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">)</span>
     <span class="c1"># save_for_backward on tensors and stashes symints in autograd .ctx</span>
     <span class="n">saved_sym_nodes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">is_sym_node</span><span class="p">,</span> <span class="n">saved_values</span><span class="p">))</span>
     <span class="n">saved_values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">n</span><span class="p">:</span> <span class="ow">not</span> <span class="n">is_sym_node</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">saved_values</span><span class="p">))</span>
