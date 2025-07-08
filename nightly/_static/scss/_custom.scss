@@ -99,3 +99,9 @@ nav.bd-links li>a {
 html[data-theme="dark"] .highlight {
   background: transparent;
 }
+
+
+h1[id], h2[id], h3[id], h4[id], h5[id], h6[id] {
+  scroll-margin-top: 150px !important;
+  scroll-padding-top: 150px !important;
+}
