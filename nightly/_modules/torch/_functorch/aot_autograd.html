@@ -99,7 +99,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git752f202)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git7599beb)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -2648,6 +2648,7 @@ document.write(`
     <span class="n">pre_dispatch</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="c1"># If None, `dynamic_shapes` will be infered from inputs, but the inferred result might be wrong.</span>
     <span class="n">dynamic_shapes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">ViewAndMutationMeta</span><span class="p">,</span> <span class="n">pytree</span><span class="o">.</span><span class="n">TreeSpec</span><span class="p">,</span> <span class="n">pytree</span><span class="o">.</span><span class="n">TreeSpec</span><span class="p">]:</span>
     <span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span> <span class="ow">or</span> <span class="p">{}</span>
@@ -2686,7 +2687,7 @@ document.write(`
         <span class="c1"># For now there&#39;s no use case involving keeping input mutations in the graph</span>
         <span class="c1"># (which we can only do in the inference case anyway).</span>
         <span class="c1"># We can add this later if we need to.</span>
-        <span class="n">keep_inference_input_mutations</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">keep_inference_input_mutations</span><span class="o">=</span><span class="n">keep_input_mutations</span><span class="p">,</span>
         <span class="n">dynamic_shapes</span><span class="o">=</span><span class="n">dynamic_shapes</span><span class="p">,</span>
         <span class="n">aot_autograd_arg_pos_to_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">is_export</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
