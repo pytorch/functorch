@@ -99,7 +99,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git7444deb)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git5aee022)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1589,7 +1589,7 @@ document.write(`
     <span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;skip_dynamo_guards&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">size_in_mb</span> <span class="o">&gt;=</span> <span class="n">size_threshold</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="c1"># case 1: we alway quantize tensors with dynamic shapes</span>
+        <span class="c1"># case 1: we always quantize tensors with dynamic shapes</span>
         <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">_inductor</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">post_grad_fusion_options</span><span class="p">[</span>
             <span class="s2">&quot;activation_quantization_aten_pass&quot;</span>
         <span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;quantize_dynamic_shape&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
@@ -1597,7 +1597,7 @@ document.write(`
                 <span class="n">size_in_mb</span> <span class="o">&gt;=</span> <span class="n">size_threshold</span>
             <span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">statically_known_false</span><span class="p">(</span><span class="n">size_in_mb</span> <span class="o">&gt;=</span> <span class="n">size_threshold</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># case 2: we alway not quantize tensors with dynamic shapes</span>
+            <span class="c1"># case 2: we always not quantize tensors with dynamic shapes</span>
             <span class="k">return</span> <span class="n">statically_known_true</span><span class="p">(</span><span class="n">size_in_mb</span> <span class="o">&gt;=</span> <span class="n">size_threshold</span><span class="p">)</span>
 
 
@@ -1668,7 +1668,7 @@ document.write(`
     <span class="n">output_updated_args</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">node_to_quant</span><span class="p">[</span><span class="n">node</span><span class="p">]</span> <span class="k">if</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">node_to_quant</span> <span class="k">else</span> <span class="n">node</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">fwd_outputs</span>
     <span class="p">]</span>
-    <span class="c1"># add the scale nodes to the ouput find the first sym_node in the output</span>
+    <span class="c1"># add the scale nodes to the output find the first sym_node in the output</span>
     <span class="n">idx</span> <span class="o">=</span> <span class="n">find_first_sym_node</span><span class="p">(</span><span class="n">output_updated_args</span><span class="p">)</span>
     <span class="n">scale_nodes</span> <span class="o">=</span> <span class="n">tensor_scale_nodes</span> <span class="o">+</span> <span class="n">sym_scale_nodes</span>
     <span class="k">if</span> <span class="n">scale_nodes</span><span class="p">:</span>
@@ -2170,7 +2170,7 @@ document.write(`
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This pass finds the first bwd node in the graph (by looking at users of</span>
 <span class="sd">    tangents) and then reorders the graph by walking from this node to all the</span>
-<span class="sd">    way to the end of the graph. At each op in this traveral, we insert this op</span>
+<span class="sd">    way to the end of the graph. At each op in this traversal, we insert this op</span>
 <span class="sd">    in a new graph and try to bring only the relevant subgraph from the other</span>
 <span class="sd">    non-bwd edges relevant for this op. This closely mimics the behavior of</span>
 <span class="sd">    autograd engine.</span>
@@ -2440,7 +2440,7 @@ document.write(`
         <span class="n">get_device</span><span class="p">(</span><span class="n">node_pair</span><span class="p">[</span><span class="s2">&quot;fwd&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">node_pair</span> <span class="ow">in</span> <span class="n">recomputable_rng_ops_map</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
     <span class="p">)</span>
     <span class="n">devices</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cpu&quot;</span><span class="p">))</span>
-    <span class="c1"># multiple cuda devices wont work with cudagraphs anyway,</span>
+    <span class="c1"># multiple cuda devices won&#39;t work with cudagraphs anyway,</span>
     <span class="c1"># fallback to non graphsafe rng checkpointing</span>
     <span class="n">multi_cuda_devices</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">devices</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span>
 

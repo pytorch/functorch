@@ -99,7 +99,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git7444deb)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git5aee022)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1441,7 +1441,7 @@ document.write(`
 <span class="c1">#</span>
 <span class="c1"># We view every forward output when creating out tangent tensors to handle the problematic</span>
 <span class="c1"># case in which a subclass does extra aliasing between graph outputs/inputs in a way that</span>
-<span class="c1"># is not visible above the sublass.</span>
+<span class="c1"># is not visible above the subclass.</span>
 <span class="c1">#</span>
 <span class="c1"># Ordinarily, when constructing the joint function that we want to trace in AOTAutograd,</span>
 <span class="c1"># we&#39;re guaranteed that the tangent tensors that we pass</span>
@@ -1948,7 +1948,7 @@ document.write(`
 <span class="sd">        This API is experimental and likely to change.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        fn (Callable): A Python function that takes one ore more arguments. Must</span>
+<span class="sd">        fn (Callable): A Python function that takes one or more arguments. Must</span>
 <span class="sd">            return one or more Tensors.</span>
 <span class="sd">        fw_compiler (Callable): A Python function that accepts an Fx graph with</span>
 <span class="sd">            Aten ops and input args, and returns a Callable that semantically is</span>
@@ -2336,7 +2336,7 @@ document.write(`
     <span class="c1"># Your module can return multiple outputs, so you must specify which output the loss is.</span>
     <span class="n">output_loss_index</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">pre_dispatch</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="c1"># If None, will be infered from inputs and mod.graph.nodes if mod is a graph module, but the inferred result might be wrong.</span>
+    <span class="c1"># If None, will be inferred from inputs and mod.graph.nodes if mod is a graph module, but the inferred result might be wrong.</span>
     <span class="n">dynamic_shapes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">GraphSignature</span><span class="p">]:</span>
@@ -2535,7 +2535,7 @@ document.write(`
     <span class="o">*</span><span class="p">,</span>
     <span class="n">trace_joint</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
     <span class="c1"># It looks like the main consequence of this API is that for dynamic shapes,</span>
-    <span class="c1"># it will assume that parms/buffers are static.</span>
+    <span class="c1"># it will assume that params/buffers are static.</span>
     <span class="c1"># With the new inferred dynamic shapes API, maybe this doesn&#39;t matter?</span>
     <span class="n">num_params_buffers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="n">decompositions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -2646,7 +2646,7 @@ document.write(`
     <span class="c1"># We don&#39;t know this info at trace time though, so we need to make it an explicit config.</span>
     <span class="n">no_tangents</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">pre_dispatch</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="c1"># If None, `dynamic_shapes` will be infered from inputs, but the inferred result might be wrong.</span>
+    <span class="c1"># If None, `dynamic_shapes` will be inferred from inputs, but the inferred result might be wrong.</span>
     <span class="n">dynamic_shapes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>

@@ -101,7 +101,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git7444deb)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git5aee022)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1117,7 +1117,7 @@ graphs.</p>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>fn</strong> (<em>Union</em><em>[</em><em>Callable</em><em>, </em><em>nn.Module</em><em>]</em>) – A Python function or a <code class="docutils literal notranslate"><span class="pre">nn.Module</span></code>
-that takes one ore more arguments. Must return one or more Tensors.</p></li>
+that takes one or more arguments. Must return one or more Tensors.</p></li>
 <li><p><strong>**kwargs</strong> – Any other overrides you want to make to the settings</p></li>
 </ul>
 </dd>
@@ -1460,7 +1460,7 @@ compiled with nvfuser.</p>
          },
          "datePublished": "",
          "dateModified": "",
-         "articleBody": "functorch.compile.memory_efficient_fusion# functorch.compile.memory_efficient_fusion(fn, **kwargs)[source]# Wrapper function over aot_function() and aot_module() to perform memory efficient fusion. It uses the min_cut_rematerialization_partition() partitioner to perform efficient recomputation. It uses NVFuser to compile the generated forward and backward graphs. Warning This API is experimental and likely to change. Parameters fn (Union[Callable, nn.Module]) – A Python function or a nn.Module that takes one ore more arguments. Must return one or more Tensors. **kwargs – Any other overrides you want to make to the settings Returns Returns a Callable or nn.Module that retains the eager behavior of the original fn, but whose forward and backward graphs have gone through recomputation optimizations, and the graphs have been compiled with nvfuser."
+         "articleBody": "functorch.compile.memory_efficient_fusion# functorch.compile.memory_efficient_fusion(fn, **kwargs)[source]# Wrapper function over aot_function() and aot_module() to perform memory efficient fusion. It uses the min_cut_rematerialization_partition() partitioner to perform efficient recomputation. It uses NVFuser to compile the generated forward and backward graphs. Warning This API is experimental and likely to change. Parameters fn (Union[Callable, nn.Module]) – A Python function or a nn.Module that takes one or more arguments. Must return one or more Tensors. **kwargs – Any other overrides you want to make to the settings Returns Returns a Callable or nn.Module that retains the eager behavior of the original fn, but whose forward and backward graphs have gone through recomputation optimizations, and the graphs have been compiled with nvfuser."
        }
    </script>
 
