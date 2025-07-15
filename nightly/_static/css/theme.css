@@ -507,6 +507,29 @@ body.search-page .bd-main .bd-content #search-results {
   overflow: visible !important;
 }
 
+.bd-sidebar-primary, .bd-sidebar-secondary {
+  position: sticky !important;
+  height: calc(100vh - var(--header-height-desktop) - 60px) !important;
+  overflow-y: auto !important;
+  top: calc(var(--header-height-desktop) + 60px) !important;
+}
+@media (max-width: 1200px) {
+  .bd-sidebar-primary, .bd-sidebar-secondary {
+    height: calc(100vh - var(--header-height) - 60px) !important;
+    top: calc(var(--header-height) + 60px) !important;
+  }
+}
+
+.bd-header {
+  position: sticky !important;
+  z-index: 100;
+}
+
+.bd-main .bd-content {
+  height: auto;
+  overflow: visible;
+}
+
 .bd-footer {
   display: none !important;
 }

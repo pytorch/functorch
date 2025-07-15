@@ -124,3 +124,27 @@ body.search-page {
   max-height: none !important;
   overflow: visible !important;
 }
+
+.bd-sidebar-primary, .bd-sidebar-secondary {
+  position: sticky !important;
+  height: calc(100vh - var(--header-height-desktop) - 60px) !important;
+  overflow-y: auto !important;
+  top: calc(var(--header-height-desktop) + 60px) !important;
+
+  @media (max-width: 1200px) {
+    height: calc(100vh - var(--header-height) - 60px) !important;
+    top: calc(var(--header-height) + 60px) !important;
+  }
+}
+
+// Ensure the bd-header stays fixed below the PyTorch header
+.bd-header {
+  position: sticky !important;
+  z-index: 100;
+}
+
+// Ensure the main content area scrolls independently
+.bd-main .bd-content {
+  height: auto;
+  overflow: visible;
+}
