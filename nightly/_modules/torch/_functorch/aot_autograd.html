@@ -99,7 +99,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git7e433d5)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git651b4a6)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1076,6 +1076,7 @@ document.write(`
   <h1>Source code for torch._functorch.aot_autograd</h1><div class="highlight"><pre>
 <span></span><span class="c1"># mypy: ignore-errors</span>
 
+<span class="kn">import</span> <span class="nn">contextlib</span>
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">KeysView</span><span class="p">,</span> <span class="n">Sequence</span>
 <span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span><span class="p">,</span> <span class="n">nullcontext</span>
@@ -2254,9 +2255,30 @@ document.write(`
         <span class="n">full_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fake_mode</span><span class="p">,</span> <span class="n">shape_env</span><span class="p">,</span> <span class="n">ignore_shape_env</span>
     <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">dispatch_and_compile</span><span class="p">():</span>
-        <span class="n">functional_call</span> <span class="o">=</span> <span class="n">create_functional_call</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">params_spec</span><span class="p">,</span> <span class="n">params_len</span><span class="p">)</span>
-        <span class="k">with</span> <span class="n">compiled_autograd</span><span class="o">.</span><span class="n">_disable</span><span class="p">():</span>
+    <span class="k">with</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">ExitStack</span><span class="p">()</span> <span class="k">as</span> <span class="n">stack</span><span class="p">:</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="c1"># We only care if the forward will return an OutputCode.</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fw_compiler</span><span class="p">,</span> <span class="n">SerializableAOTDispatchCompiler</span><span class="p">):</span>
+                <span class="n">local</span> <span class="o">=</span> <span class="n">should_use_local_autograd_cache</span><span class="p">()</span>
+                <span class="n">remote</span> <span class="o">=</span> <span class="n">should_use_remote_autograd_cache</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">local</span> <span class="ow">or</span> <span class="n">remote</span><span class="p">:</span>
+                    <span class="n">set_feature_use</span><span class="p">(</span><span class="s2">&quot;aot_autograd_remote_cache&quot;</span><span class="p">,</span> <span class="n">remote</span><span class="p">)</span>
+                    <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">AOTAutogradCache</span><span class="o">.</span><span class="n">try_load</span><span class="p">(</span>
+                        <span class="n">mod</span><span class="p">,</span>
+                        <span class="n">fake_flat_args</span><span class="p">,</span>
+                        <span class="n">aot_config</span><span class="p">,</span>
+                        <span class="n">cudagraphs</span><span class="p">,</span>
+                        <span class="n">boxed_forward_device_index</span><span class="p">,</span>
+                        <span class="n">local</span><span class="p">,</span>
+                        <span class="n">remote</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="k">if</span> <span class="n">compiled_fn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="k">break</span>
+
+            <span class="n">functional_call</span> <span class="o">=</span> <span class="n">create_functional_call</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">params_spec</span><span class="p">,</span> <span class="n">params_len</span><span class="p">)</span>
+
+            <span class="n">stack</span><span class="o">.</span><span class="n">enter_context</span><span class="p">(</span><span class="n">compiled_autograd</span><span class="o">.</span><span class="n">_disable</span><span class="p">())</span>
+
             <span class="n">compiled_fn</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">create_aot_dispatcher_function</span><span class="p">(</span>
                 <span class="n">functional_call</span><span class="p">,</span>
                 <span class="n">fake_flat_args</span><span class="p">,</span>
@@ -2264,28 +2286,7 @@ document.write(`
                 <span class="n">fake_mode</span><span class="p">,</span>
                 <span class="n">shape_env</span><span class="p">,</span>
             <span class="p">)</span>
-        <span class="k">return</span> <span class="n">compiled_fn</span>
-
-    <span class="c1"># We only care if the forward will return an OutputCode.</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fw_compiler</span><span class="p">,</span> <span class="n">SerializableAOTDispatchCompiler</span><span class="p">):</span>
-        <span class="n">local</span> <span class="o">=</span> <span class="n">should_use_local_autograd_cache</span><span class="p">()</span>
-        <span class="n">remote</span> <span class="o">=</span> <span class="n">should_use_remote_autograd_cache</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">local</span> <span class="ow">or</span> <span class="n">remote</span><span class="p">:</span>
-            <span class="n">set_feature_use</span><span class="p">(</span><span class="s2">&quot;aot_autograd_remote_cache&quot;</span><span class="p">,</span> <span class="n">remote</span><span class="p">)</span>
-            <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">AOTAutogradCache</span><span class="o">.</span><span class="n">load</span><span class="p">(</span>
-                <span class="n">dispatch_and_compile</span><span class="p">,</span>
-                <span class="n">mod</span><span class="p">,</span>
-                <span class="n">fake_flat_args</span><span class="p">,</span>
-                <span class="n">aot_config</span><span class="p">,</span>
-                <span class="n">cudagraphs</span><span class="p">,</span>
-                <span class="n">boxed_forward_device_index</span><span class="p">,</span>
-                <span class="n">local</span><span class="p">,</span>
-                <span class="n">remote</span><span class="p">,</span>
-            <span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">dispatch_and_compile</span><span class="p">()</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">compiled_fn</span> <span class="o">=</span> <span class="n">dispatch_and_compile</span><span class="p">()</span>
+            <span class="k">break</span>
 
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">_dynamo</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">GmWrapper</span><span class="p">):</span>
         <span class="c1"># This function is called by the flatten_graph_inputs wrapper, which boxes</span>
@@ -3056,7 +3057,7 @@ document.write(`
          },
          "datePublished": "",
          "dateModified": "",
-         "articleBody": "Source code for torch._functorch.aot_autograd # mypy: ignore-errors import itertools from collections.abc import KeysView, Sequence from contextlib import contextmanager, nullcontext from functools import partial, wraps from typing import Any, Callable, NewType, Optional, Protocol, TypeVar from unittest.mock import patch import torch import torch._dynamo.logging import torch.nn as nn import torch.utils._pytree as pytree import torch.utils.dlpack from torch import Tensor from torch._decomp.decompositions_for_rng import PhiloxStateTracker, rng_decompositions from torch._dispatch.python import enable_python_dispatcher from torch._dynamo import compiled_autograd from torch._dynamo.utils import ( CompileEventLogger, dynamo_timed, preserve_rng_state, set_feature_use, ) from torch._guards import detect_fake_mode from torch._inductor.cudagraph_utils import BoxedDeviceIndex from torch._inductor.output_code import OutputCode from torch._inductor.utils import BoxedBool, InputType from torch._subclasses import FakeTensor, FakeTensorMode from torch.fx.experimental.proxy_tensor import ( _pytree_subclasses_that_lose_info, make_fx, ) from torch.fx.experimental.symbolic_shapes import ShapeEnv from torch.utils._python_dispatch import is_traceable_wrapper_subclass static_inputs_log = torch._logging.getArtifactLogger( __name__, &#34;cudagraph_static_inputs&#34; ) from . import config from ._aot_autograd.autograd_cache import ( # noqa: F401 AOTAutogradCache, autograd_cache_key, should_use_local_autograd_cache, should_use_remote_autograd_cache, ) from ._aot_autograd.collect_metadata_analysis import ( # noqa: F401 run_functionalized_fw_and_collect_metadata, ) from ._aot_autograd.functional_utils import ( # noqa: F401 _check_if_mutation_can_be_in_graph, are_all_mutations_hidden_from_autograd, are_all_mutations_under_no_grad_or_inference_mode, assert_functional_graph, from_fun, gen_alias_from_base, has_data_mutation, has_metadata_mutation, is_fun, sync_functional_tensor, to_fun, ) from ._aot_autograd.input_output_analysis import ( # noqa: F401 compute_overlapping_inputs, create_graph_signature, create_synthetic_base_metadata, remove_dupe_metadata, ) from ._aot_autograd.jit_compile_runtime_wrappers import ( # noqa: F401 aot_dispatch_autograd, aot_dispatch_base, aot_dispatch_export, ) from ._aot_autograd.logging_utils import ( # noqa: F401 callback_set, describe_input, format_guard_bug_msg, get_aot_compilation_context, get_aot_graph_name, get_graph_being_compiled, graph_being_compiled, model_name, nth_graph, set_model_name, setup_stacktrace_preservation_hooks, track_graph_compiling, ) from ._aot_autograd.runtime_wrappers import ( # noqa: F401 AOTDedupeWrapper, AOTSyntheticBaseWrapper, ) from ._aot_autograd.schemas import ( # noqa: F401 AOTConfig, BackwardSignature, FQN, GraphInputName, GraphOutputName, GraphSignature, InputAliasInfo, MutationType, OutputAliasInfo, OutputType, SubclassCreationMeta, SubclassMeta, TensorAlias, ViewAndMutationMeta, ) from ._aot_autograd.subclass_ut..."
+         "articleBody": "Source code for torch._functorch.aot_autograd # mypy: ignore-errors import contextlib import itertools from collections.abc import KeysView, Sequence from contextlib import contextmanager, nullcontext from functools import partial, wraps from typing import Any, Callable, NewType, Optional, Protocol, TypeVar from unittest.mock import patch import torch import torch._dynamo.logging import torch.nn as nn import torch.utils._pytree as pytree import torch.utils.dlpack from torch import Tensor from torch._decomp.decompositions_for_rng import PhiloxStateTracker, rng_decompositions from torch._dispatch.python import enable_python_dispatcher from torch._dynamo import compiled_autograd from torch._dynamo.utils import ( CompileEventLogger, dynamo_timed, preserve_rng_state, set_feature_use, ) from torch._guards import detect_fake_mode from torch._inductor.cudagraph_utils import BoxedDeviceIndex from torch._inductor.output_code import OutputCode from torch._inductor.utils import BoxedBool, InputType from torch._subclasses import FakeTensor, FakeTensorMode from torch.fx.experimental.proxy_tensor import ( _pytree_subclasses_that_lose_info, make_fx, ) from torch.fx.experimental.symbolic_shapes import ShapeEnv from torch.utils._python_dispatch import is_traceable_wrapper_subclass static_inputs_log = torch._logging.getArtifactLogger( __name__, &#34;cudagraph_static_inputs&#34; ) from . import config from ._aot_autograd.autograd_cache import ( # noqa: F401 AOTAutogradCache, autograd_cache_key, should_use_local_autograd_cache, should_use_remote_autograd_cache, ) from ._aot_autograd.collect_metadata_analysis import ( # noqa: F401 run_functionalized_fw_and_collect_metadata, ) from ._aot_autograd.functional_utils import ( # noqa: F401 _check_if_mutation_can_be_in_graph, are_all_mutations_hidden_from_autograd, are_all_mutations_under_no_grad_or_inference_mode, assert_functional_graph, from_fun, gen_alias_from_base, has_data_mutation, has_metadata_mutation, is_fun, sync_functional_tensor, to_fun, ) from ._aot_autograd.input_output_analysis import ( # noqa: F401 compute_overlapping_inputs, create_graph_signature, create_synthetic_base_metadata, remove_dupe_metadata, ) from ._aot_autograd.jit_compile_runtime_wrappers import ( # noqa: F401 aot_dispatch_autograd, aot_dispatch_base, aot_dispatch_export, ) from ._aot_autograd.logging_utils import ( # noqa: F401 callback_set, describe_input, format_guard_bug_msg, get_aot_compilation_context, get_aot_graph_name, get_graph_being_compiled, graph_being_compiled, model_name, nth_graph, set_model_name, setup_stacktrace_preservation_hooks, track_graph_compiling, ) from ._aot_autograd.runtime_wrappers import ( # noqa: F401 AOTDedupeWrapper, AOTSyntheticBaseWrapper, ) from ._aot_autograd.schemas import ( # noqa: F401 AOTConfig, BackwardSignature, FQN, GraphInputName, GraphOutputName, GraphSignature, InputAliasInfo, MutationType, OutputAliasInfo, OutputType, SubclassCreationMeta, SubclassMeta, TensorAlias, ViewAndMutationMeta, ) from ._aot_au..."
        }
    </script>
 
