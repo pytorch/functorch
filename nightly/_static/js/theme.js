@@ -219,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function() {
       var tutorialUrlArray = $("#tutorial-type").text().split('/');
       tutorialUrlArray[0] = tutorialUrlArray[0] + "_source"
 
-      var githubLink = "https://github.com/pytorch/tutorials/blob/master/" + tutorialUrlArray.join("/") + ".py";
+      var githubLink = "https://github.com/pytorch/tutorials/blob/main/" + tutorialUrlArray.join("/") + ".py";
 
       // Find the notebook download link by checking for .ipynb extension
       var notebookLinks = $(".reference.download");

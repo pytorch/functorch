@@ -465,6 +465,13 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
+  flex-wrap: wrap;
+
+  @media screen and (max-width: 576px) {
+    gap: 3px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+  }
 
   .page-btn {
     color: var(--pst-color-text-base);
@@ -478,6 +485,11 @@
     line-height: 1.5;
     background-color: var(--sg-background-color);
     cursor: pointer;
+
+    @media screen and (max-width: 576px) {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.875rem;
+    }
 
     &:hover:not([disabled]) {
       border: 1px solid var(--pst-color-primary);
