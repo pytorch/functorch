@@ -102,8 +102,9 @@
   }
 
   .gsc-results-wrapper-overlay {
-    top: 150px !important;
-    height: calc(100% - 148px) !important;
+    top: 50px !important;
+    overflow-y: scroll !important;
+    overflow-x: scroll !important;
   }
 }
 

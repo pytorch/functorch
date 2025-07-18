@@ -316,29 +316,43 @@ table.gsc-search-box td {
   display: none !important;
 }
 
-// Google search results styling
-.gsc-results-wrapper-overlay {
-  z-index: 10000 !important;
-  position: fixed !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: 75% !important;
-  max-width: 900px !important;
-  top: 160px !important;
-  height: calc(100% - 148px) !important;
-  pointer-events: auto !important;
-  background-color: var(--pst-color-background) !important;
-  border: 1px solid var(--pst-color-border) !important;
+// Fix for search results in mobile sidebar
+@media (max-width: 720px) {
+    .gsc-results-wrapper-overlay {
+      position: fixed !important;
+      width: 80vw !important;
+      margin-top: 40px !important;
+      left: 0vw !important;
+      right: auto !important;
+      height: 80vh !important;
+      z-index: 100000 !important;
+      overflow-y: auto !important;
+      overflow-x: auto !important;
+      transform: none !important;
+    }
 
-  @media (max-width: 1200px) {
-    top: 150px !important;
-    height: calc(100% - 148px) !important;
-  }
+    .gsc-modal-background-image {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 9999 !important;
+    }
+}
+
+.gs-promotion .gs-visibleUrl,
+.gs-webResult .gs-visibleUrl {
+  color: var(--sd-color-secondary-bg-text) !important;
 }
 
 .gsc-modal-background-image {
   position: fixed !important;
   z-index: 1000 !important;
+  width: 100% !important;
+  height: 100% !important;
+  top: 0 !important;
+  left: 0 !important;
 }
 
 // Results styling
@@ -367,7 +381,6 @@ table.gsc-search-box td {
 }
 
 .gs-visibleUrl {
-  color: var(--pst-color-success) !important;
   font-size: 0.85rem !important;
 }
 
@@ -383,13 +396,6 @@ table.gsc-search-box td {
   }
 }
 
-// Result container styling
-.gsc-webResult.gsc-result {
-  border-bottom: 1px solid var(--pst-color-border) !important;
-  padding: 1rem 0 !important;
-  margin-bottom: 0 !important;
-  border-left: none;
-}
 
 .gsc-table-result {
   font-family: var(--pst-font-family-base) !important;
@@ -423,11 +429,6 @@ table.gsc-search-box td {
   border-radius: 3px !important;
   font-size: 0.75rem !important;
   margin-right: 0.5rem !important;
-}
-
-// Results wrapper styling
-.gsc-resultsRoot {
-  width: 100% !important;
 }
 
 // "Search for X on Google" link
@@ -490,6 +491,15 @@ body.gsc-overflow-hidden {
   }
 }
 
+body.gsc-overflow-hidden .gsc-results-wrapper-overlay {
+  position: fixed !important;
+  z-index: 10000 !important;
+  max-width: 1000px;
+  left: 50%;
+  right: auto !important;
+  transform: translate(-50%);
+}
+
 // Version switcher
 .version-switcher__menu {
   max-height: 300px;
@@ -524,10 +534,6 @@ html[data-theme="dark"] {
       color: inherit !important;
       font-weight: bold !important;
     }
-  }
-
-  .gs-visibleUrl {
-    color: #F4A623 !important;
   }
 
   .gsc-cursor-page {
@@ -797,4 +803,21 @@ body.search-page.gsc-overflow-hidden .footer-article-item .feedback-send {
 //Don't disply X cancel button for google search.
 .gsst_a {
   display: none !important;
+}
+
+
+// Fix for mobile search input scrolling issue
+.gsc-input input,
+.search-container input {
+  // Prevent iOS zoom on focus
+  font-size: 16px !important;
+
+  // Prevent scroll behavior changes
+  position: relative;
+  z-index: 10;
+
+  // Prevent scroll jumps
+  &:focus {
+    transform: translateY(0);
+  }
 }

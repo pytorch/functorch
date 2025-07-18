@@ -124,3 +124,64 @@ body.search-page {
   max-height: none !important;
   overflow: visible !important;
 }
+
+// Ensure search results don't have restricted height
+.bd-sidebar-primary, .bd-sidebar-secondary {
+  height: calc(100vh - var(--header-height-desktop) - 60px) !important;
+  top: calc(var(--header-height-desktop) + 60px) !important;
+
+  @media (max-width: 1200px) {
+    height: calc(100vh - var(--header-height) - 60px) !important;
+    top: calc(var(--header-height) + 60px) !important;
+  }
+
+  @media (max-width: 767px) {
+    max-height: none !important;
+  }
+}
+
+
+// Match code cell output styling to tutorials for myst-nb
+div[class^="codecell"] {
+  margin-bottom: 1rem;
+
+  pre {
+    border: 1px solid var(--pst-color-border);
+    border-radius: 0px;
+    padding: 0.5rem;
+    overflow-x: auto;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+.cell_output pre {
+  background-color: var(--sg-script-pre);
+}
+
+// Add "Out:" label to myst-nb output cells
+.cell_output::before {
+  content: "Out:";
+  line-height: 1.4;
+  padding-top: 10px;
+  display: block;
+}
+
+
+// Style for output text for myst-nb
+.output_area pre {
+  margin-bottom: 0;
+  color: var(--pst-color-text-base);
+}
+
+div.cell > div.cell_input {
+  border-left-color: none !important;
+  border: 1px solid var(--pst-color-border);
+  border-radius: 0 !important;
+  padding-left: 0;
+  padding-right: 0;
+  background-color: transparent;
+}
