@@ -241,6 +241,14 @@ document.addEventListener('DOMContentLoaded', function() {
       $("#google-colab-link").wrap("<a href=" + colabLink + " data-behavior='call-to-action-event' data-response='Run in Google Colab' target='_blank'/>");
       $("#download-notebook-link").wrap("<a href=" + notebookLink + " data-behavior='call-to-action-event' data-response='Download Notebook'/>");
       $("#github-view-link").wrap("<a href=" + githubLink + " data-behavior='call-to-action-event' data-response='View on Github' target='_blank'/>");
+
+      // Hide the original download links and signature
+      $(".sphx-glr-footer").hide();
+      $(".sphx-glr-signature").hide();
+
+      // show the sphnx-glr-timing
+      $(".sphx-glr-timing").show();
+
   } else {
       $(".pytorch-call-to-action-links").hide();
   }
