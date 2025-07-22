@@ -33,9 +33,8 @@ document.addEventListener('DOMContentLoaded', function() {
       // Hide the original download links and signature
       $(".sphx-glr-footer").hide();
       $(".sphx-glr-signature").hide();
-
-      // show the sphnx-glr-timing
-      $(".sphx-glr-timing").show();
+      $(".sphx-glr-footer, .sphx-glr-download").hide();
+      $(".sphx-glr-signature").hide();
 
   } else {
       $(".pytorch-call-to-action-links").hide();
