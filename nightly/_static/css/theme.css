@@ -30,6 +30,7 @@ html[data-theme=dark] {
   --bs-btn-focus-box-shadow: #F2765D;
   --pst-color-accent: transparent !important;
   --pst-color-table-row-hover-bg: #711B09;
+  --sg-script-pre: #2e2e22;
 }
 
 .error-404-container {
@@ -527,7 +528,6 @@ div[class^=codecell] {
   margin-bottom: 1rem;
 }
 div[class^=codecell] pre {
-  border: 1px solid var(--pst-color-border);
   border-radius: 0px;
   padding: 0.5rem;
   overflow-x: auto;
@@ -560,6 +560,14 @@ div.cell > div.cell_input {
   padding-left: 0;
   padding-right: 0;
   background-color: transparent;
+}
+
+.cell_output .output.text_plain, .cell_output .output.stream {
+  border: none;
+}
+
+.cell_output .output.stderr {
+  border: none;
 }
 
 .bd-footer {
