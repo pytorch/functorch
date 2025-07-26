@@ -102,7 +102,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+gita53db90)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+gitc89fa88)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1127,6 +1127,7 @@ document.write(`
     <span class="n">ilp_knapsack</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">._activation_checkpointing.knapsack_evaluator</span> <span class="kn">import</span> <span class="n">KnapsackEvaluator</span>
+<span class="kn">from</span> <span class="nn">._aot_autograd.descriptors</span> <span class="kn">import</span> <span class="n">AOTOutput</span><span class="p">,</span> <span class="n">SavedForBackwardsAOTOutput</span>
 <span class="kn">from</span> <span class="nn">._aot_autograd.logging_utils</span> <span class="kn">import</span> <span class="n">get_aot_graph_name</span>
 <span class="kn">from</span> <span class="nn">._aot_autograd.utils</span> <span class="kn">import</span> <span class="n">get_cuda_generator_meta_val</span><span class="p">,</span> <span class="n">is_with_effects</span>
 <span class="kn">from</span> <span class="nn">.compile_utils</span> <span class="kn">import</span> <span class="n">fx_graph_cse</span><span class="p">,</span> <span class="n">get_aten_target</span><span class="p">,</span> <span class="n">raise_getitems</span>
@@ -1254,6 +1255,7 @@ document.write(`
     <span class="n">joint_graph</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">Graph</span><span class="p">,</span>
     <span class="n">inputs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">],</span>
     <span class="n">outputs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">],</span>
+    <span class="n">outputs_descs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">AOTOutput</span><span class="p">],</span>
     <span class="n">subgraph</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">fx</span><span class="o">.</span><span class="n">Graph</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -1318,7 +1320,8 @@ document.write(`
             <span class="n">output_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">env</span><span class="p">[</span><span class="n">x</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">output_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-    <span class="n">new_graph</span><span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">output_values</span><span class="p">))</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">new_graph</span><span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">output_values</span><span class="p">))</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;desc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">outputs_descs</span>
 
     <span class="n">new_graph</span><span class="o">.</span><span class="n">eliminate_dead_code</span><span class="p">()</span>
     <span class="n">new_graph</span><span class="o">.</span><span class="n">lint</span><span class="p">()</span>
@@ -1378,13 +1381,20 @@ document.write(`
 
 <span class="k">def</span> <span class="nf">_extract_fwd_bwd_outputs</span><span class="p">(</span>
     <span class="n">joint_module</span><span class="p">:</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">num_fwd_outputs</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">],</span> <span class="nb">list</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">]]:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">],</span> <span class="nb">list</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">],</span> <span class="nb">list</span><span class="p">[</span><span class="n">AOTOutput</span><span class="p">],</span> <span class="nb">list</span><span class="p">[</span><span class="n">AOTOutput</span><span class="p">]]:</span>
     <span class="n">outputs</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">arg_tree_leaves</span><span class="p">(</span>
         <span class="o">*</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">args</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">))</span>
     <span class="p">)</span>
+    <span class="n">outputs_descs</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">arg_tree_leaves</span><span class="p">(</span>
+        <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">)))</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="s2">&quot;desc&quot;</span><span class="p">,</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
     <span class="n">fwd_outputs</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[:</span><span class="n">num_fwd_outputs</span><span class="p">]</span>
     <span class="n">bwd_outputs</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="n">num_fwd_outputs</span><span class="p">:]</span>
-    <span class="k">return</span> <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span>
+    <span class="n">fwd_outputs_descs</span> <span class="o">=</span> <span class="n">outputs_descs</span><span class="p">[:</span><span class="n">num_fwd_outputs</span><span class="p">]</span>
+    <span class="n">bwd_outputs_descs</span> <span class="o">=</span> <span class="n">outputs_descs</span><span class="p">[</span><span class="n">num_fwd_outputs</span><span class="p">:]</span>
+    <span class="k">return</span> <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span><span class="p">,</span> <span class="n">fwd_outputs_descs</span><span class="p">,</span> <span class="n">bwd_outputs_descs</span>
 
 
 <span class="k">def</span> <span class="nf">_remove_by_name</span><span class="p">(</span><span class="n">saved_values</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">],</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
@@ -1906,8 +1916,8 @@ document.write(`
     <span class="n">num_fwd_outputs</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">static_lifetime_input_nodes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">OrderedSet</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">]:</span>
-    <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span>
-        <span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span>
+    <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span><span class="p">,</span> <span class="n">fwd_outputs_descs</span><span class="p">,</span> <span class="n">bwd_outputs_descs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span>
     <span class="p">)</span>
     <span class="n">placeholders</span> <span class="o">=</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">find_nodes</span><span class="p">(</span><span class="n">op</span><span class="o">=</span><span class="s2">&quot;placeholder&quot;</span><span class="p">)</span>
     <span class="n">primal_inputs</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_primal</span><span class="p">,</span> <span class="n">placeholders</span><span class="p">)]</span>
@@ -1920,6 +1930,7 @@ document.write(`
         <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span>
         <span class="n">saved_sym_nodes</span> <span class="o">+</span> <span class="n">saved_values</span> <span class="o">+</span> <span class="n">tangent_inputs</span> <span class="o">+</span> <span class="n">bwd_seed_offset_inputs</span><span class="p">,</span>
         <span class="n">bwd_outputs</span><span class="p">,</span>
+        <span class="n">bwd_outputs_descs</span><span class="p">,</span>
         <span class="s2">&quot;backward&quot;</span><span class="p">,</span>
     <span class="p">)</span>
 
@@ -1993,6 +2004,11 @@ document.write(`
         <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span>
         <span class="n">primal_inputs</span> <span class="o">+</span> <span class="n">fwd_seed_offset_inputs</span><span class="p">,</span>
         <span class="n">fwd_outputs</span> <span class="o">+</span> <span class="n">saved_values</span> <span class="o">+</span> <span class="n">saved_sym_nodes</span><span class="p">,</span>
+        <span class="n">fwd_outputs_descs</span>
+        <span class="o">+</span> <span class="p">[</span>
+            <span class="n">SavedForBackwardsAOTOutput</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">saved_values</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">saved_sym_nodes</span><span class="p">))</span>
+        <span class="p">],</span>
         <span class="s2">&quot;forward&quot;</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">bwd_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span>
@@ -2003,6 +2019,7 @@ document.write(`
         <span class="o">+</span> <span class="n">bwd_seed_offset_inputs</span>
         <span class="o">+</span> <span class="n">backward_state_inputs</span><span class="p">,</span>
         <span class="n">bwd_outputs</span><span class="p">,</span>
+        <span class="n">bwd_outputs_descs</span><span class="p">,</span>
         <span class="s2">&quot;backward&quot;</span><span class="p">,</span>
     <span class="p">)</span>
 
@@ -2055,11 +2072,11 @@ document.write(`
     <span class="n">primal_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_primal</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
     <span class="n">fwd_seed_offset_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">_is_fwd_seed_offset</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
     <span class="n">inputs</span> <span class="o">=</span> <span class="n">primal_inputs</span> <span class="o">+</span> <span class="n">fwd_seed_offset_inputs</span>
-    <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span>
-        <span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span>
+    <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span><span class="p">,</span> <span class="n">fwd_outputs_descs</span><span class="p">,</span> <span class="n">bwd_outputs_descs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span>
     <span class="p">)</span>
     <span class="n">forward_only_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span>
-        <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">fwd_outputs</span><span class="p">,</span> <span class="s2">&quot;forward&quot;</span>
+        <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">fwd_outputs_descs</span><span class="p">,</span> <span class="s2">&quot;forward&quot;</span>
     <span class="p">)</span>
     <span class="n">forward_node_names</span> <span class="o">=</span> <span class="n">OrderedSet</span><span class="p">(</span>
         <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">forward_only_graph</span><span class="o">.</span><span class="n">nodes</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s2">&quot;output&quot;</span>
@@ -3477,7 +3494,7 @@ document.write(`
             <span class="c1"># if idx in all_recomputable_banned_nodes:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">dont_ban</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">all_recomputable_banned_nodes</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
-            <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>  <span class="c1"># noqa: B036</span>
                 <span class="k">pass</span>
 
         <span class="k">assert</span> <span class="n">dont_ban</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">all_recomputable_banned_nodes</span><span class="p">)</span>
@@ -3730,14 +3747,14 @@ document.write(`
             <span class="nb">filter</span><span class="p">(</span><span class="n">_is_fwd_seed_offset</span><span class="p">,</span> <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span>
         <span class="p">)</span>
         <span class="n">inputs</span> <span class="o">=</span> <span class="n">primal_inputs</span> <span class="o">+</span> <span class="n">fwd_seed_offset_inputs</span>
-        <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span> <span class="o">=</span> <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span>
-            <span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span>
+        <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">bwd_outputs</span><span class="p">,</span> <span class="n">fwd_outputs_descs</span><span class="p">,</span> <span class="n">bwd_outputs_descs</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">_extract_fwd_bwd_outputs</span><span class="p">(</span><span class="n">joint_module</span><span class="p">,</span> <span class="n">num_fwd_outputs</span><span class="o">=</span><span class="n">num_fwd_outputs</span><span class="p">)</span>
         <span class="p">)</span>
         <span class="n">required_bw_nodes</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
             <span class="n">o</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">bwd_outputs</span> <span class="k">if</span> <span class="n">o</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">o</span><span class="o">.</span><span class="n">op</span> <span class="o">!=</span> <span class="s2">&quot;output&quot;</span>
         <span class="p">)</span>
         <span class="n">forward_only_graph</span> <span class="o">=</span> <span class="n">_extract_graph_with_inputs_outputs</span><span class="p">(</span>
-            <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">fwd_outputs</span><span class="p">,</span> <span class="s2">&quot;forward&quot;</span>
+            <span class="n">joint_module</span><span class="o">.</span><span class="n">graph</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">fwd_outputs</span><span class="p">,</span> <span class="n">fwd_outputs_descs</span><span class="p">,</span> <span class="s2">&quot;forward&quot;</span>
         <span class="p">)</span>
         <span class="n">required_fw_nodes</span><span class="p">:</span> <span class="n">OrderedSet</span><span class="p">[</span><span class="n">fx</span><span class="o">.</span><span class="n">Node</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedSet</span><span class="p">(</span>
             <span class="n">name_to_node</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
@@ -4139,7 +4156,7 @@ document.write(`
          },
          "datePublished": "",
          "dateModified": "",
-         "articleBody": "Source code for torch._functorch.partitioners # mypy: allow-untyped-defs import copy import functools import hashlib import heapq import itertools import logging import math import operator import os import os.path from collections import defaultdict from dataclasses import dataclass, replace from typing import Any, Callable, Optional, TYPE_CHECKING, Union import torch import torch._inductor.inductor_prims import torch.distributed import torch.fx as fx import torch.utils._pytree as pytree from torch._dynamo.utils import counters, is_node_meta_valid from torch._functorch._activation_checkpointing.ac_logging_utils import ( create_structured_trace_for_min_cut_info, ) from torch._inductor import config as inductor_config from torch._logging import trace_structured from torch._subclasses.fake_tensor import extract_tensor_metadata from torch.fx.experimental._backward_state import BackwardState from torch.fx.experimental.proxy_tensor import is_sym_node, py_sym_types from torch.fx.experimental.sym_node import magic_methods, method_to_operator from torch.fx.experimental.symbolic_shapes import ( find_symbol_binding_fx_nodes, free_symbols, hint_int, is_symbol_binding_fx_node, statically_known_false, statically_known_true, ) from torch.fx.passes import graph_drawer from torch.utils._ordered_set import OrderedSet from torch.utils.checkpoint import CheckpointPolicy from . import config from ._activation_checkpointing.graph_info_provider import GraphInfoProvider from ._activation_checkpointing.knapsack import ( dp_knapsack, greedy_knapsack, ilp_knapsack, ) from ._activation_checkpointing.knapsack_evaluator import KnapsackEvaluator from ._aot_autograd.logging_utils import get_aot_graph_name from ._aot_autograd.utils import get_cuda_generator_meta_val, is_with_effects from .compile_utils import fx_graph_cse, get_aten_target, raise_getitems if TYPE_CHECKING: import sympy AOT_PARTITIONER_DEBUG: bool = config.debug_partitioner log: logging.Logger = logging.getLogger(__name__) aten = torch.ops.aten prims = torch.ops.prims @dataclass class OpTypes: &#34;&#34;&#34;Class for keeping track of different operator categories&#34;&#34;&#34; fusible_ops: OrderedSet[Callable] compute_intensive_ops: OrderedSet[Callable] random_ops: OrderedSet[Callable] view_ops: OrderedSet[Callable] recomputable_ops: OrderedSet[Callable] def is_fusible(self, node: fx.Node): return get_aten_target(node) in self.fusible_ops def is_compute_intensive(self, node: fx.Node): return get_aten_target(node) in self.compute_intensive_ops def is_random(self, node: fx.Node): return get_aten_target(node) in self.random_ops def is_view(self, node: fx.Node): return get_aten_target(node) in self.view_ops def is_recomputable(self, node: fx.Node): return get_aten_target(node) in self.recomputable_ops @dataclass class NodeInfo: # Be careful about iterating over these explicitly, as their order may not # be deterministic inputs: list[fx.Node] _required_fw_nodes: OrderedSet[fx.Node] required_bw_nodes: OrderedSet[fx.Node] unclaimed_nodes:..."
+         "articleBody": "Source code for torch._functorch.partitioners # mypy: allow-untyped-defs import copy import functools import hashlib import heapq import itertools import logging import math import operator import os import os.path from collections import defaultdict from dataclasses import dataclass, replace from typing import Any, Callable, Optional, TYPE_CHECKING, Union import torch import torch._inductor.inductor_prims import torch.distributed import torch.fx as fx import torch.utils._pytree as pytree from torch._dynamo.utils import counters, is_node_meta_valid from torch._functorch._activation_checkpointing.ac_logging_utils import ( create_structured_trace_for_min_cut_info, ) from torch._inductor import config as inductor_config from torch._logging import trace_structured from torch._subclasses.fake_tensor import extract_tensor_metadata from torch.fx.experimental._backward_state import BackwardState from torch.fx.experimental.proxy_tensor import is_sym_node, py_sym_types from torch.fx.experimental.sym_node import magic_methods, method_to_operator from torch.fx.experimental.symbolic_shapes import ( find_symbol_binding_fx_nodes, free_symbols, hint_int, is_symbol_binding_fx_node, statically_known_false, statically_known_true, ) from torch.fx.passes import graph_drawer from torch.utils._ordered_set import OrderedSet from torch.utils.checkpoint import CheckpointPolicy from . import config from ._activation_checkpointing.graph_info_provider import GraphInfoProvider from ._activation_checkpointing.knapsack import ( dp_knapsack, greedy_knapsack, ilp_knapsack, ) from ._activation_checkpointing.knapsack_evaluator import KnapsackEvaluator from ._aot_autograd.descriptors import AOTOutput, SavedForBackwardsAOTOutput from ._aot_autograd.logging_utils import get_aot_graph_name from ._aot_autograd.utils import get_cuda_generator_meta_val, is_with_effects from .compile_utils import fx_graph_cse, get_aten_target, raise_getitems if TYPE_CHECKING: import sympy AOT_PARTITIONER_DEBUG: bool = config.debug_partitioner log: logging.Logger = logging.getLogger(__name__) aten = torch.ops.aten prims = torch.ops.prims @dataclass class OpTypes: &#34;&#34;&#34;Class for keeping track of different operator categories&#34;&#34;&#34; fusible_ops: OrderedSet[Callable] compute_intensive_ops: OrderedSet[Callable] random_ops: OrderedSet[Callable] view_ops: OrderedSet[Callable] recomputable_ops: OrderedSet[Callable] def is_fusible(self, node: fx.Node): return get_aten_target(node) in self.fusible_ops def is_compute_intensive(self, node: fx.Node): return get_aten_target(node) in self.compute_intensive_ops def is_random(self, node: fx.Node): return get_aten_target(node) in self.random_ops def is_view(self, node: fx.Node): return get_aten_target(node) in self.view_ops def is_recomputable(self, node: fx.Node): return get_aten_target(node) in self.recomputable_ops @dataclass class NodeInfo: # Be careful about iterating over these explicitly, as their order may not # be deterministic inputs: list[fx.Node] _required_fw_nodes..."
        }
    </script>
 

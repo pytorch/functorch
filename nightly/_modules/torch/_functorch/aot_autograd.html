@@ -102,7 +102,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+gita53db90)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+gitc89fa88)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1105,6 +1105,7 @@ document.write(`
 <span class="kn">from</span> <span class="nn">torch._inductor.cudagraph_utils</span> <span class="kn">import</span> <span class="n">BoxedDeviceIndex</span>
 <span class="kn">from</span> <span class="nn">torch._inductor.utils</span> <span class="kn">import</span> <span class="n">BoxedBool</span>
 <span class="kn">from</span> <span class="nn">torch._subclasses</span> <span class="kn">import</span> <span class="n">FakeTensor</span><span class="p">,</span> <span class="n">FakeTensorMode</span>
+<span class="kn">from</span> <span class="nn">torch.export._tree_utils</span> <span class="kn">import</span> <span class="n">reorder_kwargs</span>
 <span class="kn">from</span> <span class="nn">torch.fx.experimental.proxy_tensor</span> <span class="kn">import</span> <span class="n">make_fx</span>
 <span class="kn">from</span> <span class="nn">torch.fx.experimental.symbolic_shapes</span> <span class="kn">import</span> <span class="n">ShapeEnv</span>
 
@@ -1121,6 +1122,12 @@ document.write(`
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">._aot_autograd.collect_metadata_analysis</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># noqa: F401</span>
     <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">._aot_autograd.descriptors</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">AOTInput</span><span class="p">,</span>
+    <span class="n">BufferAOTInput</span><span class="p">,</span>
+    <span class="n">ParamAOTInput</span><span class="p">,</span>
+    <span class="n">PlainAOTInput</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">._aot_autograd.frontend_utils</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">_detect_attribute_assignment</span><span class="p">,</span>
@@ -1182,6 +1189,7 @@ document.write(`
 <span class="kn">from</span> <span class="nn">._aot_autograd.schemas</span> <span class="kn">import</span> <span class="p">(</span>  <span class="c1"># noqa: F401</span>
     <span class="n">AOTConfig</span><span class="p">,</span>
     <span class="n">AOTDispatchCompiler</span><span class="p">,</span>
+    <span class="n">AOTGraphCapture</span><span class="p">,</span>
     <span class="n">AOTState</span><span class="p">,</span>
     <span class="n">BackwardSignature</span><span class="p">,</span>
     <span class="n">FakifiedFlatArgs</span><span class="p">,</span>
@@ -1190,6 +1198,7 @@ document.write(`
     <span class="n">GraphOutputName</span><span class="p">,</span>
     <span class="n">GraphSignature</span><span class="p">,</span>
     <span class="n">InputAliasInfo</span><span class="p">,</span>
+    <span class="n">JointWithDescriptors</span><span class="p">,</span>
     <span class="n">MutationType</span><span class="p">,</span>
     <span class="n">OutputAliasInfo</span><span class="p">,</span>
     <span class="n">OutputType</span><span class="p">,</span>
@@ -1218,6 +1227,7 @@ document.write(`
     <span class="n">normalize_as_list</span><span class="p">,</span>
     <span class="n">partial_flatten_asdict</span><span class="p">,</span>
     <span class="n">root_module_when_exporting_non_strict</span><span class="p">,</span>
+    <span class="n">simple_wraps</span><span class="p">,</span>
     <span class="n">strict_zip</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">.partitioners</span> <span class="kn">import</span> <span class="n">default_partition</span>
@@ -1528,6 +1538,7 @@ document.write(`
     <span class="n">stack</span><span class="p">:</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">ExitStack</span><span class="p">,</span>
     <span class="n">flat_fn</span><span class="p">,</span>
     <span class="n">fake_flat_args</span><span class="p">:</span> <span class="n">FakifiedFlatArgs</span><span class="p">,</span>
+    <span class="n">flat_args_descs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">AOTInput</span><span class="p">],</span>
     <span class="n">aot_config</span><span class="p">:</span> <span class="n">AOTConfig</span><span class="p">,</span>
     <span class="n">fake_mode</span><span class="p">:</span> <span class="n">FakeTensorMode</span><span class="p">,</span>
     <span class="n">shape_env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ShapeEnv</span><span class="p">],</span>
@@ -1634,6 +1645,7 @@ document.write(`
             <span class="k">with</span> <span class="n">dynamo_timed_ctx</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span>
                 <span class="n">fw_metadata</span> <span class="o">=</span> <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">(</span>
                     <span class="n">flat_fn</span><span class="p">,</span>
+                    <span class="n">flat_args_descs</span><span class="o">=</span><span class="n">flat_args_descs</span><span class="p">,</span>
                     <span class="n">static_input_indices</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">static_input_indices</span><span class="p">,</span>
                     <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
                     <span class="n">is_train</span><span class="o">=</span><span class="n">needs_autograd</span><span class="p">,</span>
@@ -1680,6 +1692,7 @@ document.write(`
                 <span class="k">if</span> <span class="n">req_subclass_dispatch</span><span class="p">:</span>
                     <span class="n">fw_metadata</span> <span class="o">=</span> <span class="n">run_functionalized_fw_and_collect_metadata</span><span class="p">(</span>
                         <span class="n">flat_fn</span><span class="p">,</span>
+                        <span class="n">flat_args_descs</span><span class="o">=</span><span class="n">flat_args_descs</span><span class="p">,</span>
                         <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
                         <span class="n">is_train</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                         <span class="n">pre_dispatch</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">pre_dispatch</span><span class="p">,</span>
@@ -1692,6 +1705,7 @@ document.write(`
                         <span class="n">num_intermediate_bases</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span><span class="p">,</span>
                         <span class="n">keep_input_mutations</span><span class="o">=</span><span class="n">aot_config</span><span class="o">.</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
                         <span class="n">traced_tangents</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">traced_tangents</span><span class="p">,</span>
+                        <span class="n">traced_tangents_descs</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">traced_tangents_descs</span><span class="p">,</span>
                         <span class="n">subclass_inp_meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">subclass_inp_meta</span><span class="p">,</span>
                         <span class="n">subclass_fw_graph_out_meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">subclass_fw_graph_out_meta</span><span class="p">,</span>
                         <span class="n">subclass_tangent_meta</span><span class="o">=</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">subclass_tangent_meta</span><span class="p">,</span>
@@ -1759,6 +1773,7 @@ document.write(`
     <span class="k">return</span> <span class="n">AOTState</span><span class="p">(</span>
         <span class="n">needs_autograd</span><span class="o">=</span><span class="n">needs_autograd</span><span class="p">,</span>
         <span class="n">flat_args</span><span class="o">=</span><span class="n">_dup_fake_script_obj</span><span class="p">(</span><span class="n">fake_flat_args</span><span class="p">),</span>
+        <span class="n">flat_args_descs</span><span class="o">=</span><span class="n">flat_args_descs</span><span class="p">,</span>
         <span class="n">fw_metadata</span><span class="o">=</span><span class="n">fw_metadata</span><span class="p">,</span>
         <span class="c1"># Packaging this just for later use</span>
         <span class="n">aot_config</span><span class="o">=</span><span class="n">aot_config</span><span class="p">,</span>
@@ -1866,9 +1881,20 @@ document.write(`
             <span class="n">fake_flat_args</span><span class="p">:</span> <span class="n">FakifiedFlatArgs</span> <span class="o">=</span> <span class="n">process_inputs</span><span class="p">(</span>
                 <span class="n">flat_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fake_mode</span><span class="p">,</span> <span class="n">shape_env</span>
             <span class="p">)</span>
+            <span class="c1"># TODO: We actually could use the pytree path to make better descs.</span>
+            <span class="c1"># Also, the descs here are bad if you do aot_module.</span>
+            <span class="n">fake_flat_args_descs</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">PlainAOTInput</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">fake_flat_args</span><span class="p">))</span>
+            <span class="p">]</span>
             <span class="k">with</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">ExitStack</span><span class="p">()</span> <span class="k">as</span> <span class="n">stack</span><span class="p">:</span>
                 <span class="n">aot_state</span> <span class="o">=</span> <span class="n">create_aot_state</span><span class="p">(</span>
-                    <span class="n">stack</span><span class="p">,</span> <span class="n">flat_fn</span><span class="p">,</span> <span class="n">fake_flat_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fake_mode</span><span class="p">,</span> <span class="n">shape_env</span>
+                    <span class="n">stack</span><span class="p">,</span>
+                    <span class="n">flat_fn</span><span class="p">,</span>
+                    <span class="n">fake_flat_args</span><span class="p">,</span>
+                    <span class="n">fake_flat_args_descs</span><span class="p">,</span>
+                    <span class="n">aot_config</span><span class="p">,</span>
+                    <span class="n">fake_mode</span><span class="p">,</span>
+                    <span class="n">shape_env</span><span class="p">,</span>
                 <span class="p">)</span>
                 <span class="n">aot_graph_capture</span> <span class="o">=</span> <span class="n">aot_stage1_graph_capture</span><span class="p">(</span><span class="n">aot_state</span><span class="p">,</span> <span class="n">flat_fn</span><span class="p">)</span>
                 <span class="n">compiled_fn</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">aot_stage2_compile</span><span class="p">(</span><span class="n">aot_state</span><span class="p">,</span> <span class="n">aot_graph_capture</span><span class="p">)</span>
@@ -1936,43 +1962,81 @@ document.write(`
 <span class="k">def</span> <span class="nf">prepare_aot_module_simplified</span><span class="p">(</span>
     <span class="n">mod</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
     <span class="n">args</span><span class="p">,</span>
-    <span class="n">fw_compiler</span><span class="p">:</span> <span class="n">AOTDispatchCompiler</span><span class="p">,</span>
-    <span class="n">bw_compiler</span><span class="p">:</span> <span class="n">AOTDispatchCompiler</span><span class="p">,</span>
+    <span class="n">kwargs</span><span class="p">,</span>
+    <span class="n">fw_compiler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AOTDispatchCompiler</span><span class="p">],</span>
+    <span class="n">bw_compiler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AOTDispatchCompiler</span><span class="p">],</span>
     <span class="n">partition_fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
     <span class="n">decompositions</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
     <span class="n">keep_inference_input_mutations</span><span class="p">,</span>
-    <span class="n">inference_compiler</span><span class="p">:</span> <span class="n">AOTDispatchCompiler</span><span class="p">,</span>
+    <span class="n">inference_compiler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AOTDispatchCompiler</span><span class="p">],</span>
     <span class="n">boxed_forward_device_index</span><span class="p">:</span> <span class="n">BoxedDeviceIndex</span><span class="p">,</span>
     <span class="n">ignore_shape_env</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+    <span class="n">flatten</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
 <span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">flatten</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">kwargs</span> <span class="ow">is</span> <span class="kc">None</span>
+    <span class="k">elif</span> <span class="n">kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+
     <span class="c1"># TODO: There&#39;s something a bit suspicious here; typically simplified</span>
     <span class="c1"># module shouldn&#39;t actually have any parameters...</span>
-    <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">named_parameters</span><span class="p">(</span><span class="n">remove_duplicate</span><span class="o">=</span><span class="kc">False</span><span class="p">)),</span>
-        <span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">named_buffers</span><span class="p">(</span><span class="n">remove_duplicate</span><span class="o">=</span><span class="kc">False</span><span class="p">)),</span>
-    <span class="p">}</span>
-    <span class="n">params_flat</span><span class="p">,</span> <span class="n">params_spec</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_flatten</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
-    <span class="n">params_flat</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">params_flat</span><span class="p">)</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">named_parameters</span><span class="p">(</span><span class="n">remove_duplicate</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+    <span class="n">buffers</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">named_buffers</span><span class="p">(</span><span class="n">remove_duplicate</span><span class="o">=</span><span class="kc">False</span><span class="p">)))</span>
+
+    <span class="n">params_flat</span><span class="p">,</span> <span class="n">params_spec</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span> <span class="nb">list</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
     <span class="n">params_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">params_flat</span><span class="p">)</span>
 
-    <span class="n">full_args</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="c1"># First, the params</span>
-    <span class="n">full_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">params_flat</span><span class="p">)</span>
+    <span class="n">buffers_flat</span><span class="p">,</span> <span class="n">buffers_spec</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">buffers</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span> <span class="nb">list</span><span class="p">(</span><span class="n">buffers</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">buffers_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">buffers_flat</span><span class="p">)</span>
 
+    <span class="n">params_buffers</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">params</span><span class="p">,</span> <span class="o">**</span><span class="n">buffers</span><span class="p">}</span>
+    <span class="n">params_buffers_flat</span> <span class="o">=</span> <span class="n">params_flat</span> <span class="o">+</span> <span class="n">buffers_flat</span>
+    <span class="n">params_buffers_spec</span> <span class="o">=</span> <span class="n">params_spec</span> <span class="o">+</span> <span class="n">buffers_spec</span>
+
+    <span class="c1"># Take a break to figure what we&#39;re doing with the module</span>
+
+    <span class="c1"># NB: This doesn&#39;t change the in/out convention, except adding the</span>
+    <span class="c1"># parameters as explicit arguments</span>
+    <span class="n">functional_call</span> <span class="o">=</span> <span class="n">create_functional_call</span><span class="p">(</span>
+        <span class="n">mod</span><span class="p">,</span> <span class="n">params_buffers_spec</span><span class="p">,</span> <span class="n">params_len</span> <span class="o">+</span> <span class="n">buffers_len</span><span class="p">,</span> <span class="n">strict_out_tuple</span><span class="o">=</span><span class="ow">not</span> <span class="n">flatten</span>
+    <span class="p">)</span>
+
+    <span class="n">full_args</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">params_flat</span><span class="p">,</span> <span class="o">*</span><span class="n">buffers_flat</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">]</span>
+    <span class="n">in_spec</span><span class="p">,</span> <span class="n">out_spec</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">flatten</span><span class="p">:</span>
+        <span class="n">functional_call</span><span class="p">,</span> <span class="n">out_spec</span> <span class="o">=</span> <span class="n">create_tree_flattened_fn</span><span class="p">(</span>
+            <span class="n">functional_call</span><span class="p">,</span> <span class="n">full_args</span><span class="p">,</span> <span class="n">kwargs</span>
+        <span class="p">)</span>
+        <span class="n">full_args</span><span class="p">,</span> <span class="n">in_spec</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_flatten</span><span class="p">((</span><span class="n">full_args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">))</span>
+
+    <span class="k">del</span> <span class="n">kwargs</span>
+
+    <span class="c1"># OK, set up the descs</span>
+
+    <span class="n">full_args_descs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">full_args_descs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">ParamAOTInput</span><span class="p">(</span><span class="n">fqn</span><span class="p">)</span> <span class="k">for</span> <span class="n">fqn</span> <span class="ow">in</span> <span class="n">params_spec</span><span class="p">)</span>
+    <span class="n">full_args_descs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">BufferAOTInput</span><span class="p">(</span><span class="n">fqn</span><span class="p">)</span> <span class="k">for</span> <span class="n">fqn</span> <span class="ow">in</span> <span class="n">buffers_spec</span><span class="p">)</span>
+    <span class="c1"># TODO: it would be better to put pytree information in here</span>
+    <span class="n">full_args_descs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+        <span class="n">PlainAOTInput</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">full_args</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">full_args_descs</span><span class="p">))</span>
+    <span class="p">)</span>
+
+    <span class="c1"># TODO: These tracing_context fields should become unnecessary once we</span>
+    <span class="c1"># always maintain sources on all arguments</span>
     <span class="k">if</span> <span class="n">tracing_context</span> <span class="o">:=</span> <span class="n">torch</span><span class="o">.</span><span class="n">_guards</span><span class="o">.</span><span class="n">TracingContext</span><span class="o">.</span><span class="n">try_get</span><span class="p">():</span>
-        <span class="n">tracing_context</span><span class="o">.</span><span class="n">params_flat</span> <span class="o">=</span> <span class="n">params_flat</span>
+        <span class="c1"># NB: TracingContext misnames this, the &quot;params&quot; here also contains</span>
+        <span class="c1"># buffers</span>
+        <span class="n">tracing_context</span><span class="o">.</span><span class="n">params_flat</span> <span class="o">=</span> <span class="n">params_buffers_flat</span>
         <span class="p">(</span>
             <span class="n">tracing_context</span><span class="o">.</span><span class="n">params_flat_unwrap_subclasses</span><span class="p">,</span>
             <span class="n">tracing_context</span><span class="o">.</span><span class="n">params_unwrapped_to_flat_index</span><span class="p">,</span>
-        <span class="p">)</span> <span class="o">=</span> <span class="n">unwrap_tensor_subclasses_with_indices_to_original</span><span class="p">(</span><span class="n">params_flat</span><span class="p">)</span>
+        <span class="p">)</span> <span class="o">=</span> <span class="n">unwrap_tensor_subclasses_with_indices_to_original</span><span class="p">(</span><span class="n">params_buffers_flat</span><span class="p">)</span>
 
-    <span class="c1"># Next, the input args</span>
-    <span class="n">full_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
-
+    <span class="c1"># TODO: Might be nice to hold on to the Dynamo source here in full_args_descs!</span>
     <span class="p">(</span>
         <span class="n">aot_autograd_arg_pos_to_source</span><span class="p">,</span>
         <span class="n">static_input_indices</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">=</span> <span class="n">_try_get_metadata_from_dynamo</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="nb">len</span><span class="p">(</span><span class="n">full_args</span><span class="p">))</span>
+    <span class="p">)</span> <span class="o">=</span> <span class="n">_try_get_metadata_from_dynamo</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">params_buffers</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="nb">len</span><span class="p">(</span><span class="n">full_args</span><span class="p">))</span>
 
     <span class="n">dynamic_shapes</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">full_args</span><span class="p">:</span>
@@ -1986,7 +2050,7 @@ document.write(`
         <span class="n">inference_compiler</span><span class="o">=</span><span class="n">inference_compiler</span><span class="p">,</span>
         <span class="n">partition_fn</span><span class="o">=</span><span class="n">partition_fn</span><span class="p">,</span>
         <span class="n">decompositions</span><span class="o">=</span><span class="n">decompositions</span><span class="p">,</span>
-        <span class="n">num_params_buffers</span><span class="o">=</span><span class="n">params_len</span><span class="p">,</span>
+        <span class="n">num_params_buffers</span><span class="o">=</span><span class="n">params_len</span> <span class="o">+</span> <span class="n">buffers_len</span><span class="p">,</span>
         <span class="n">aot_id</span><span class="o">=</span><span class="nb">next</span><span class="p">(</span><span class="n">AOT_COUNTER</span><span class="p">),</span>
         <span class="n">keep_inference_input_mutations</span><span class="o">=</span><span class="n">keep_inference_input_mutations</span><span class="p">,</span>
         <span class="n">dynamic_shapes</span><span class="o">=</span><span class="n">dynamic_shapes</span><span class="p">,</span>
@@ -1999,18 +2063,23 @@ document.write(`
         <span class="n">precompile_backend_id</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="s2">&quot;_backend_id&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
     <span class="p">)</span>
     <span class="n">fake_mode</span><span class="p">,</span> <span class="n">shape_env</span> <span class="o">=</span> <span class="n">construct_fake_mode</span><span class="p">(</span><span class="n">full_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">)</span>
+    <span class="c1"># NB: full_args_descs not needed here, fake_flat_args is 1:1 with full_args</span>
     <span class="n">fake_flat_args</span> <span class="o">=</span> <span class="n">process_inputs</span><span class="p">(</span>
         <span class="n">full_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fake_mode</span><span class="p">,</span> <span class="n">shape_env</span><span class="p">,</span> <span class="n">ignore_shape_env</span>
     <span class="p">)</span>
-    <span class="n">functional_call</span> <span class="o">=</span> <span class="n">create_functional_call</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">params_spec</span><span class="p">,</span> <span class="n">params_len</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="p">(</span>
         <span class="n">functional_call</span><span class="p">,</span>
-        <span class="n">params_flat</span><span class="p">,</span>
+        <span class="n">params_buffers_flat</span><span class="p">,</span>
+        <span class="n">params_spec</span><span class="p">,</span>
+        <span class="n">buffers_spec</span><span class="p">,</span>
         <span class="n">fake_flat_args</span><span class="p">,</span>
+        <span class="n">full_args_descs</span><span class="p">,</span>
         <span class="n">aot_config</span><span class="p">,</span>
         <span class="n">fake_mode</span><span class="p">,</span>
         <span class="n">shape_env</span><span class="p">,</span>
+        <span class="n">in_spec</span><span class="p">,</span>
+        <span class="n">out_spec</span><span class="p">,</span>
     <span class="p">)</span>
 
 
@@ -2050,14 +2119,20 @@ document.write(`
     <span class="k">with</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">ExitStack</span><span class="p">()</span> <span class="k">as</span> <span class="n">stack</span><span class="p">:</span>
         <span class="p">(</span>
             <span class="n">functional_call</span><span class="p">,</span>
-            <span class="n">params_flat</span><span class="p">,</span>
+            <span class="n">params_buffers_flat</span><span class="p">,</span>
+            <span class="n">_params_spec</span><span class="p">,</span>
+            <span class="n">_buffers_spec</span><span class="p">,</span>
             <span class="n">fake_flat_args</span><span class="p">,</span>
+            <span class="n">full_args_descs</span><span class="p">,</span>
             <span class="n">aot_config</span><span class="p">,</span>
             <span class="n">fake_mode</span><span class="p">,</span>
             <span class="n">shape_env</span><span class="p">,</span>
+            <span class="n">_in_spec</span><span class="p">,</span>
+            <span class="n">_out_spec</span><span class="p">,</span>
         <span class="p">)</span> <span class="o">=</span> <span class="n">prepare_aot_module_simplified</span><span class="p">(</span>
             <span class="n">mod</span><span class="p">,</span>
             <span class="n">args</span><span class="p">,</span>
+            <span class="kc">None</span><span class="p">,</span>
             <span class="n">fw_compiler</span><span class="p">,</span>
             <span class="n">bw_compiler</span><span class="p">,</span>
             <span class="n">partition_fn</span><span class="p">,</span>
@@ -2066,6 +2141,7 @@ document.write(`
             <span class="n">inference_compiler</span><span class="p">,</span>
             <span class="n">boxed_forward_device_index</span><span class="p">,</span>
             <span class="n">ignore_shape_env</span><span class="p">,</span>
+            <span class="n">flatten</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="n">compiled_fn</span> <span class="o">=</span> <span class="kc">None</span>
@@ -2091,6 +2167,7 @@ document.write(`
                 <span class="n">stack</span><span class="p">,</span>
                 <span class="n">functional_call</span><span class="p">,</span>
                 <span class="n">fake_flat_args</span><span class="p">,</span>
+                <span class="n">full_args_descs</span><span class="p">,</span>
                 <span class="n">aot_config</span><span class="p">,</span>
                 <span class="n">fake_mode</span><span class="p">,</span>
                 <span class="n">shape_env</span><span class="p">,</span>
@@ -2105,7 +2182,7 @@ document.write(`
         <span class="c1"># https://github.com/pytorch/pytorch/pull/122535/files#r1560096481</span>
         <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="n">runtime_args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">]):</span>
             <span class="n">flat_args</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="n">flat_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">params_flat</span><span class="p">)</span>
+            <span class="n">flat_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">params_buffers_flat</span><span class="p">)</span>
             <span class="n">flat_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">runtime_args</span><span class="p">)</span>
             <span class="n">runtime_args</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
             <span class="k">return</span> <span class="n">compiled_fn</span><span class="p">(</span><span class="n">flat_args</span><span class="p">)</span>
@@ -2118,7 +2195,7 @@ document.write(`
         <span class="c1"># NB: GraphModule/nn.Module rely on the non-boxed calling convention here</span>
         <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="o">*</span><span class="n">runtime_args</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">]):</span>
             <span class="n">full_args</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="n">full_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">params_flat</span><span class="p">)</span>
+            <span class="n">full_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">params_buffers_flat</span><span class="p">)</span>
             <span class="n">full_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">runtime_args</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">compiled_fn</span><span class="p">(</span><span class="n">full_args</span><span class="p">)</span>
 
@@ -2128,6 +2205,158 @@ document.write(`
     <span class="n">forward</span><span class="o">.</span><span class="n">named_buffers</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">named_buffers</span>
 
     <span class="k">return</span> <span class="n">forward</span>
+
+
+<span class="k">def</span> <span class="nf">aot_export_joint_with_descriptors</span><span class="p">(</span>
+    <span class="n">stack</span><span class="p">:</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">ExitStack</span><span class="p">,</span>
+    <span class="n">mod</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+    <span class="n">args</span><span class="p">,</span>
+    <span class="n">kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">decompositions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">keep_inference_input_mutations</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">ignore_shape_env</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JointWithDescriptors</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This API captures the joint graph for an nn.Module.  However, unlike</span>
+<span class="sd">    aot_export_joint_simple or aot_export_module(trace_joint=True), the</span>
+<span class="sd">    calling convention of the produced joint graph follows no fixed positional</span>
+<span class="sd">    schema; for example, you cannot rely on the second argument of the traced</span>
+<span class="sd">    joint graph to correspond to the second argument of the module you traced.</span>
+<span class="sd">    However, the inputs and outputs of the traced graph are schematized</span>
+<span class="sd">    with **descriptors**, annotated on meta[&#39;desc&#39;] on the placeholder and</span>
+<span class="sd">    return FX nodes, which you can use to determine the meaning of arguments.</span>
+
+<span class="sd">    The major benefit of using this export rather than aot_export_joint_simple</span>
+<span class="sd">    is that we have feature parity with all situations that torch.compile</span>
+<span class="sd">    supports (via aot_module_simplified), including handling for more</span>
+<span class="sd">    complicated cases such as multiple differentiable outputs, input mutations</span>
+<span class="sd">    that must be handled outside of the graph, tensor subclasses, etc.</span>
+
+<span class="sd">    What can you do with one of these joint graphs with descriptors?  The</span>
+<span class="sd">    motivating use case (autoparallel) involves taking the joint graph, doing</span>
+<span class="sd">    optimizations on it, and then turning it back into a callable so it can be</span>
+<span class="sd">    torch.compile&#39;d at a later point in time.  This cannot be done as a</span>
+<span class="sd">    traditional torch.compile joint graph pass for two reasons:</span>
+
+<span class="sd">        1. The sharding of parameters must be decided before parameter</span>
+<span class="sd">           initialization / checkpoint load, far before torch.compile would</span>
+<span class="sd">           ordinarily run.</span>
+
+<span class="sd">        2. We need to change the meaning of parameters (e.g., we might replace</span>
+<span class="sd">           a replicated parameter with a sharded version of it, changing its</span>
+<span class="sd">           input size).  torch.compile is ordinarily semantics preserving, and</span>
+<span class="sd">           not allowed to change the meaning of inputs.</span>
+
+<span class="sd">    Some descriptors can be quite exotic, so we recommend thinking carefully</span>
+<span class="sd">    if there is a safe fallback you can apply to descriptors you don&#39;t understand.</span>
+<span class="sd">    For example, you should have some way to handle not finding a particular</span>
+<span class="sd">    input exactly as is in the final FX graph inputs.</span>
+
+<span class="sd">    Note: When using this API, you must create and enter an ExitStack context</span>
+<span class="sd">    manager, which will be passed into this function.  This context manager</span>
+<span class="sd">    must remain active if you call the compile function to finish compilation.</span>
+<span class="sd">    (TODO: We may relax this requirement by having AOTAutograd keep track of</span>
+<span class="sd">    how to reconstruct all the context managers at a later point in time.)</span>
+
+<span class="sd">    NB: You&#39;re not obligated to do a /full/ compile in stage2; instead you can</span>
+<span class="sd">    leave the forward/backward compilers unspecified in which case the</span>
+<span class="sd">    partitioned FX graphs will directly run.  The overall autograd Function</span>
+<span class="sd">    can be allowed in graph so you can reprocess it in the context of a</span>
+<span class="sd">    (potentially larger) compiled region later.</span>
+
+<span class="sd">    NB: These APIs do NOT hit cache, as we only ever cache the final compile results,</span>
+<span class="sd">    not the intermediate export result.</span>
+
+<span class="sd">    NB: If the passed nn.Module has parameters and buffers on it, we will</span>
+<span class="sd">    generate extra implicit parameter/buffer arguments and assign ParamAOTInput</span>
+<span class="sd">    and BufferAOTInput descriptors to them.  However, if you generate the input</span>
+<span class="sd">    nn.Module from a mechanism like Dynamo, you will NOT get these descriptors</span>
+<span class="sd">    (because Dynamo will already have taken care of lifting the parameters/buffers</span>
+<span class="sd">    into arguments!)  In that case, it would be necessary to analyze the Sources</span>
+<span class="sd">    of the inputs to determine if inputs are parameters and their FQNs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="kn">from</span> <span class="nn">torch._dynamo.backends.debugging</span> <span class="kn">import</span> <span class="n">boxed_nop</span>
+
+    <span class="p">(</span>
+        <span class="n">functional_call</span><span class="p">,</span>
+        <span class="n">_params_buffers_flat</span><span class="p">,</span>
+        <span class="n">params_spec</span><span class="p">,</span>
+        <span class="n">buffers_spec</span><span class="p">,</span>
+        <span class="n">fake_flat_args</span><span class="p">,</span>
+        <span class="n">full_args_descs</span><span class="p">,</span>
+        <span class="n">aot_config</span><span class="p">,</span>
+        <span class="n">fake_mode</span><span class="p">,</span>
+        <span class="n">shape_env</span><span class="p">,</span>
+        <span class="n">in_spec</span><span class="p">,</span>
+        <span class="n">out_spec</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">=</span> <span class="n">prepare_aot_module_simplified</span><span class="p">(</span>
+        <span class="n">mod</span><span class="p">,</span>
+        <span class="n">args</span><span class="p">,</span>
+        <span class="n">kwargs</span><span class="p">,</span>
+        <span class="n">boxed_nop</span><span class="p">,</span>
+        <span class="n">boxed_nop</span><span class="p">,</span>
+        <span class="n">default_partition</span><span class="p">,</span>
+        <span class="n">decompositions</span><span class="p">,</span>
+        <span class="n">keep_inference_input_mutations</span><span class="p">,</span>
+        <span class="kc">None</span><span class="p">,</span>
+        <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ignore_shape_env</span><span class="p">,</span>
+        <span class="n">flatten</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># TODO: Maybe this should be in create_aot_state?  Not sure, that would</span>
+    <span class="c1"># increase its scope</span>
+    <span class="n">stack</span><span class="o">.</span><span class="n">enter_context</span><span class="p">(</span><span class="n">compiled_autograd</span><span class="o">.</span><span class="n">_disable</span><span class="p">())</span>
+
+    <span class="n">aot_state</span> <span class="o">=</span> <span class="n">create_aot_state</span><span class="p">(</span>
+        <span class="n">stack</span><span class="p">,</span>
+        <span class="n">functional_call</span><span class="p">,</span>
+        <span class="n">fake_flat_args</span><span class="p">,</span>
+        <span class="n">full_args_descs</span><span class="p">,</span>
+        <span class="n">aot_config</span><span class="p">,</span>
+        <span class="n">fake_mode</span><span class="p">,</span>
+        <span class="n">shape_env</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># NB: no cache lookup!</span>
+    <span class="n">aot_graph_capture</span> <span class="o">=</span> <span class="n">aot_stage1_graph_capture</span><span class="p">(</span><span class="n">aot_state</span><span class="p">,</span> <span class="n">functional_call</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">out_spec</span><span class="o">.</span><span class="n">spec</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+    <span class="k">return</span> <span class="n">JointWithDescriptors</span><span class="p">(</span>
+        <span class="n">_aot_state</span><span class="o">=</span><span class="n">aot_state</span><span class="p">,</span>
+        <span class="n">_aot_graph_capture</span><span class="o">=</span><span class="n">aot_graph_capture</span><span class="p">,</span>
+        <span class="n">params_spec</span><span class="o">=</span><span class="n">params_spec</span><span class="p">,</span>
+        <span class="n">buffers_spec</span><span class="o">=</span><span class="n">buffers_spec</span><span class="p">,</span>
+        <span class="n">in_spec</span><span class="o">=</span><span class="n">in_spec</span><span class="p">,</span>
+        <span class="n">out_spec</span><span class="o">=</span><span class="n">out_spec</span><span class="o">.</span><span class="n">spec</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">aot_compile_joint_with_descriptors</span><span class="p">(</span><span class="n">jd</span><span class="p">:</span> <span class="n">JointWithDescriptors</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">callable</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Companion function for aot_export_joint_with_descriptors which compiles the joint</span>
+<span class="sd">    graph into a callable function that follows a standard calling convention.</span>
+<span class="sd">    params_flat all are arguments.</span>
+
+<span class="sd">    Note: We do NOT instantiate the module; this gives you the flexibility to subclass it and</span>
+<span class="sd">    customize its behavior without having to worry about FQN rebinding.</span>
+
+<span class="sd">    TODO: Consider if we should allow_in_graph the result by default.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">compiled_fn</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">aot_stage2_compile</span><span class="p">(</span><span class="n">jd</span><span class="o">.</span><span class="n">_aot_state</span><span class="p">,</span> <span class="n">jd</span><span class="o">.</span><span class="n">_aot_graph_capture</span><span class="p">)</span>
+
+    <span class="c1"># Cribbed from torch/export/pt2_archive/_package.py</span>
+    <span class="nd">@simple_wraps</span><span class="p">(</span><span class="n">compiled_fn</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">unflattened_compiled_fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">flat_inputs</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_flatten</span><span class="p">((</span><span class="n">args</span><span class="p">,</span> <span class="n">reorder_kwargs</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">jd</span><span class="o">.</span><span class="n">in_spec</span><span class="p">)))[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c1"># TODO: do I need to filter? I hope not!</span>
+        <span class="n">flat_outputs</span> <span class="o">=</span> <span class="n">compiled_fn</span><span class="p">(</span><span class="n">flat_inputs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_unflatten</span><span class="p">(</span><span class="n">flat_outputs</span><span class="p">,</span> <span class="n">jd</span><span class="o">.</span><span class="n">out_spec</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">unflattened_compiled_fn</span>
 
 
 <span class="k">def</span> <span class="nf">aot_export_module</span><span class="p">(</span>
@@ -2507,12 +2736,15 @@ document.write(`
     <span class="k">else</span><span class="p">:</span>
         <span class="n">shape_env</span> <span class="o">=</span> <span class="n">fake_mode</span><span class="o">.</span><span class="n">shape_env</span>
     <span class="n">fake_flat_args</span> <span class="o">=</span> <span class="n">process_inputs</span><span class="p">(</span><span class="n">flat_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">,</span> <span class="n">fake_mode</span><span class="p">,</span> <span class="n">shape_env</span><span class="p">)</span>
+    <span class="c1"># TODO: Improve the descs here with pytree information</span>
+    <span class="n">fake_flat_args_descs</span> <span class="o">=</span> <span class="p">[</span><span class="n">PlainAOTInput</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">fake_flat_args</span><span class="p">))]</span>
 
     <span class="k">with</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">ExitStack</span><span class="p">()</span> <span class="k">as</span> <span class="n">stack</span><span class="p">:</span>
         <span class="n">aot_state</span> <span class="o">=</span> <span class="n">create_aot_state</span><span class="p">(</span>
             <span class="n">stack</span><span class="p">,</span>
             <span class="n">flat_fn</span><span class="p">,</span>
             <span class="n">fake_flat_args</span><span class="p">,</span>
+            <span class="n">fake_flat_args_descs</span><span class="p">,</span>
             <span class="n">aot_config</span><span class="p">,</span>
             <span class="n">fake_mode</span><span class="p">,</span>
             <span class="n">shape_env</span><span class="p">,</span>
@@ -2769,7 +3001,7 @@ document.write(`
          },
          "datePublished": "",
          "dateModified": "",
-         "articleBody": "Source code for torch._functorch.aot_autograd # mypy: ignore-errors import contextlib import itertools from contextlib import nullcontext from functools import wraps from typing import Any, Callable, Optional from unittest.mock import patch import torch import torch._dynamo.logging import torch.nn as nn import torch.utils._pytree as pytree import torch.utils.dlpack from torch import Tensor from torch._decomp.decompositions_for_rng import PhiloxStateTracker, rng_decompositions from torch._dispatch.python import enable_python_dispatcher from torch._dynamo import compiled_autograd from torch._dynamo.utils import ( CompileEventLogger, dynamo_timed, preserve_rng_state, set_feature_use, ) from torch._guards import detect_fake_mode from torch._inductor.cudagraph_utils import BoxedDeviceIndex from torch._inductor.utils import BoxedBool from torch._subclasses import FakeTensor, FakeTensorMode from torch.fx.experimental.proxy_tensor import make_fx from torch.fx.experimental.symbolic_shapes import ShapeEnv static_inputs_log = torch._logging.getArtifactLogger( __name__, &#34;cudagraph_static_inputs&#34; ) from . import config from ._aot_autograd.autograd_cache import ( # noqa: F401 AOTAutogradCache, autograd_cache_key, should_use_local_autograd_cache, should_use_remote_autograd_cache, ) from ._aot_autograd.collect_metadata_analysis import ( # noqa: F401 run_functionalized_fw_and_collect_metadata, ) from ._aot_autograd.frontend_utils import ( _detect_attribute_assignment, _try_get_metadata_from_dynamo, construct_fake_mode, process_inputs, ) from ._aot_autograd.functional_utils import ( # noqa: F401 _check_if_mutation_can_be_in_graph, are_all_mutations_hidden_from_autograd, are_all_mutations_under_no_grad_or_inference_mode, assert_functional_graph, from_fun, gen_alias_from_base, has_data_mutation, has_metadata_mutation, is_fun, sync_functional_tensor, to_fun, ) from ._aot_autograd.graph_capture_wrappers import ( # noqa: F401 aot_dispatch_subclass, create_functional_call, create_functionalized_fn, create_functionalized_rng_ops_wrapper, create_joint, fn_input_mutations_to_outputs, fn_prepped_for_autograd, ) from ._aot_autograd.graph_compile import ( # noqa: F401 aot_stage1_graph_capture, aot_stage2_compile, aot_stage2_export, ) from ._aot_autograd.input_output_analysis import ( # noqa: F401 compute_overlapping_inputs, create_graph_signature, create_synthetic_base_metadata, remove_dupe_metadata, ) from ._aot_autograd.logging_utils import ( # noqa: F401 callback_set, describe_input, format_guard_bug_msg, get_aot_compilation_context, get_aot_graph_name, get_graph_being_compiled, graph_being_compiled, model_name, nth_graph, set_model_name, setup_stacktrace_preservation_hooks, track_graph_compiling, ) from ._aot_autograd.runtime_wrappers import ( # noqa: F401 AOTDedupeWrapper, AOTSyntheticBaseWrapper, ) from ._aot_autograd.schemas import ( # noqa: F401 AOTConfig, AOTDispatchCompiler, AOTState, BackwardSignature, FakifiedFlatArgs, FQN, GraphInputName, GraphOutputName, Grap..."
+         "articleBody": "Source code for torch._functorch.aot_autograd # mypy: ignore-errors import contextlib import itertools from contextlib import nullcontext from functools import wraps from typing import Any, Callable, Optional from unittest.mock import patch import torch import torch._dynamo.logging import torch.nn as nn import torch.utils._pytree as pytree import torch.utils.dlpack from torch import Tensor from torch._decomp.decompositions_for_rng import PhiloxStateTracker, rng_decompositions from torch._dispatch.python import enable_python_dispatcher from torch._dynamo import compiled_autograd from torch._dynamo.utils import ( CompileEventLogger, dynamo_timed, preserve_rng_state, set_feature_use, ) from torch._guards import detect_fake_mode from torch._inductor.cudagraph_utils import BoxedDeviceIndex from torch._inductor.utils import BoxedBool from torch._subclasses import FakeTensor, FakeTensorMode from torch.export._tree_utils import reorder_kwargs from torch.fx.experimental.proxy_tensor import make_fx from torch.fx.experimental.symbolic_shapes import ShapeEnv static_inputs_log = torch._logging.getArtifactLogger( __name__, &#34;cudagraph_static_inputs&#34; ) from . import config from ._aot_autograd.autograd_cache import ( # noqa: F401 AOTAutogradCache, autograd_cache_key, should_use_local_autograd_cache, should_use_remote_autograd_cache, ) from ._aot_autograd.collect_metadata_analysis import ( # noqa: F401 run_functionalized_fw_and_collect_metadata, ) from ._aot_autograd.descriptors import ( AOTInput, BufferAOTInput, ParamAOTInput, PlainAOTInput, ) from ._aot_autograd.frontend_utils import ( _detect_attribute_assignment, _try_get_metadata_from_dynamo, construct_fake_mode, process_inputs, ) from ._aot_autograd.functional_utils import ( # noqa: F401 _check_if_mutation_can_be_in_graph, are_all_mutations_hidden_from_autograd, are_all_mutations_under_no_grad_or_inference_mode, assert_functional_graph, from_fun, gen_alias_from_base, has_data_mutation, has_metadata_mutation, is_fun, sync_functional_tensor, to_fun, ) from ._aot_autograd.graph_capture_wrappers import ( # noqa: F401 aot_dispatch_subclass, create_functional_call, create_functionalized_fn, create_functionalized_rng_ops_wrapper, create_joint, fn_input_mutations_to_outputs, fn_prepped_for_autograd, ) from ._aot_autograd.graph_compile import ( # noqa: F401 aot_stage1_graph_capture, aot_stage2_compile, aot_stage2_export, ) from ._aot_autograd.input_output_analysis import ( # noqa: F401 compute_overlapping_inputs, create_graph_signature, create_synthetic_base_metadata, remove_dupe_metadata, ) from ._aot_autograd.logging_utils import ( # noqa: F401 callback_set, describe_input, format_guard_bug_msg, get_aot_compilation_context, get_aot_graph_name, get_graph_being_compiled, graph_being_compiled, model_name, nth_graph, set_model_name, setup_stacktrace_preservation_hooks, track_graph_compiling, ) from ._aot_autograd.runtime_wrappers import ( # noqa: F401 AOTDedupeWrapper, AOTSyntheticBaseWrapper, ) from ._aot_autograd...."
        }
    </script>
 
