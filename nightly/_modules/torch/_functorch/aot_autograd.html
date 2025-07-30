@@ -102,7 +102,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+gitf02b783)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git70d2e9b)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1972,6 +1972,8 @@ document.write(`
     <span class="n">boxed_forward_device_index</span><span class="p">:</span> <span class="n">BoxedDeviceIndex</span><span class="p">,</span>
     <span class="n">ignore_shape_env</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
     <span class="n">flatten</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">force_non_lazy_backward_lowering</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">):</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">flatten</span><span class="p">:</span>
         <span class="k">assert</span> <span class="n">kwargs</span> <span class="ow">is</span> <span class="kc">None</span>
@@ -2061,6 +2063,7 @@ document.write(`
         <span class="n">cache_info</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">ignore_shape_env</span><span class="o">=</span><span class="n">ignore_shape_env</span><span class="p">,</span>
         <span class="n">precompile_backend_id</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="s2">&quot;_backend_id&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="n">force_non_lazy_backward_lowering</span><span class="o">=</span><span class="n">force_non_lazy_backward_lowering</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">fake_mode</span><span class="p">,</span> <span class="n">shape_env</span> <span class="o">=</span> <span class="n">construct_fake_mode</span><span class="p">(</span><span class="n">full_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">)</span>
     <span class="c1"># NB: full_args_descs not needed here, fake_flat_args is 1:1 with full_args</span>
@@ -2304,6 +2307,12 @@ document.write(`
         <span class="kc">None</span><span class="p">,</span>
         <span class="n">ignore_shape_env</span><span class="p">,</span>
         <span class="n">flatten</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="c1"># Without this, we will attempt to &quot;compile&quot; the backward lazily</span>
+        <span class="c1"># at runtime, but this is pointless because it&#39;s just boxed_nop,</span>
+        <span class="c1"># it&#39;s trivial.  But this will get Inductor confused about scoping</span>
+        <span class="c1"># Metric(s) {&#39;is_forward&#39;} have already been set in the current</span>
+        <span class="c1"># context.</span>
+        <span class="n">force_non_lazy_backward_lowering</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="c1"># TODO: Maybe this should be in create_aot_state?  Not sure, that would</span>
@@ -2350,6 +2359,7 @@ document.write(`
 
     <span class="c1"># Cribbed from torch/export/pt2_archive/_package.py</span>
     <span class="nd">@simple_wraps</span><span class="p">(</span><span class="n">compiled_fn</span><span class="p">)</span>
+    <span class="nd">@torch</span><span class="o">.</span><span class="n">_dynamo</span><span class="o">.</span><span class="n">nonstrict_trace</span>  <span class="c1"># allow recursive compilation</span>
     <span class="k">def</span> <span class="nf">unflattened_compiled_fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">flat_inputs</span> <span class="o">=</span> <span class="n">pytree</span><span class="o">.</span><span class="n">tree_flatten</span><span class="p">((</span><span class="n">args</span><span class="p">,</span> <span class="n">reorder_kwargs</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">jd</span><span class="o">.</span><span class="n">in_spec</span><span class="p">)))[</span><span class="mi">0</span><span class="p">]</span>
         <span class="c1"># TODO: do I need to filter? I hope not!</span>
