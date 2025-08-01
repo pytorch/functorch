@@ -65,6 +65,28 @@
 <link rel="canonical" href="/notebooks/per_sample_grads.html" crossorigin="anonymous">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
+<script>
+  if (window.location.hostname === 'docs.pytorch.org' || window.location.hostname === 'docs-preview.pytorch.org') {
+    const script = document.createElement('script');
+    script.src = 'https://cmp.osano.com/16A0DbT9yDNIaQkvZ/31b1b91a-e0b6-47ea-bde2-7f2bd13dbe5c/osano.js?variant=one';
+    document.head.appendChild(script);
+  }
+</script>
+<script>
+  // Cookie banner for non-LF projects.
+  document.addEventListener('DOMContentLoaded', function() {
+    // Hide cookie banner on local environments
+    if (window.location.hostname === 'localhost' ||
+        window.location.hostname === '0.0.0.0' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.startsWith('192.168.')) {
+      const banner = document.querySelector('.cookie-banner-wrapper');
+      if (banner) {
+        banner.style.display = 'none';
+      }
+    }
+  });
+</script>
 <link rel="stylesheet" type="text/css" href="../_static/css/theme.css" crossorigin="anonymous">
 <script type="text/javascript" src="../_static/js/theme.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -104,7 +126,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git6c7f88c)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+giteb853e2)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1634,21 +1656,17 @@ ft_compute_sample_grad(params, buffers, data, targets)
 
 
        </div>
-
-  <div class="cookie-banner-wrapper">
-  <div class="container">
-    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
-    <img class="close-button" src="../_static/img/pytorch-x.svg">
-  </div>
-</div>
  </footer>
-   
-  <footer class="bd-footer"><div class="cookie-banner-wrapper">
+
+<div class="cookie-banner-wrapper">
   <div class="container">
     <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
     <img class="close-button" src="../_static/img/pytorch-x.svg">
   </div>
 </div>
+
+   
+  <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
   
     <div class="footer-items__start">
@@ -1693,18 +1711,20 @@ ft_compute_sample_grad(params, buffers, data, targets)
          "@type": "Article",
          "headline": "Per-sample-gradients",
          "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
+         "url": "/notebooks/per_sample_grads.html",
          "author": {
            "@type": "Organization",
-           "name": "PyTorch Contributors"
+           "name": "PyTorch Contributors",
+           "url": "https://pytorch.org"
          },
          "image": "../_static/img/pytorch_seo.png",
          "mainEntityOfPage": {
            "@type": "WebPage",
            "@id": "/notebooks/per_sample_grads.html"
          },
-         "datePublished": "",
+        "datePublished": "",
          "dateModified": "",
-         "articleBody": "Per-sample-gradients# What is it?# Per-sample-gradient computation is computing the gradient for each and every sample in a batch of data. It is a useful quantity in differential privacy, meta-learning, and optimization research. import torch import torch.nn as nn import torch.nn.functional as F from functools import partial torch.manual_seed(0); # Here&#39;s a simple CNN and loss function: class SimpleCNN(nn.Module): def __init__(self): super().__init__() self.conv1 = nn.Conv2d(1, 32, 3, 1) self.conv2 = nn.Conv2d(32, 64, 3, 1) self.fc1 = nn.Linear(9216, 128) self.fc2 = nn.Linear(128, 10) def forward(self, x): x = self.conv1(x) x = F.relu(x) x = self.conv2(x) x = F.relu(x) x = F.max_pool2d(x, 2) x = torch.flatten(x, 1) x = self.fc1(x) x = F.relu(x) x = self.fc2(x) x = F.log_softmax(x, dim=1) output = x return output def loss_fn(predictions, targets): return F.nll_loss(predictions, targets) Let’s generate a batch of dummy data and pretend that we’re working with an MNIST dataset. The dummy images are 28 by 28 and we use a minibatch of size 64. device = &#39;cuda&#39; num_models = 10 batch_size = 64 data = torch.randn(batch_size, 1, 28, 28, device=device) targets = torch.randint(10, (64,), device=device) In regular model training, one would forward the minibatch through the model, and then call .backward() to compute gradients. This would generate an ‘average’ gradient of the entire mini-batch: model = SimpleCNN().to(device=device) predictions = model(data) # move the entire mini-batch through the model loss = loss_fn(predictions, targets) loss.backward() # back propagate the &#39;average&#39; gradient of this mini-batch In contrast to the above approach, per-sample-gradient computation is equivalent to: for each individual sample of the data, perform a forward and a backward pass to get an individual (per-sample) gradient. def compute_grad(sample, target): sample = sample.unsqueeze(0) # prepend batch dimension for processing target = target.unsqueeze(0) prediction = model(sample) loss = loss_fn(prediction, target) return torch.autograd.grad(loss, list(model.parameters())) def compute_sample_grads(data, targets): &#34;&#34;&#34; manually process each sample with per sample gradient &#34;&#34;&#34; sample_grads = [compute_grad(data[i], targets[i]) for i in range(batch_size)] sample_grads = zip(*sample_grads) sample_grads = [torch.stack(shards) for shards in sample_grads] return sample_grads per_sample_grads = compute_sample_grads(data, targets) sample_grads[0] is the per-sample-grad for model.conv1.weight. model.conv1.weight.shape is [32, 1, 3, 3]; notice how there is one gradient, per sample, in the batch for a total of 64. print(per_sample_grads[0].shape) torch.Size([64, 32, 1, 3, 3]) Per-sample-grads, the efficient way, using functorch# We can compute per-sample-gradients efficiently by using function transforms. First, let’s create a stateless functional version of model by using functorch.make_functional_with_buffers. This will separate state (the parameters) from the model and turn t..."
+         "articleBody": "Per-sample-gradients# What is it?# Per-sample-gradient computation is computing the gradient for each and every sample in a batch of data. It is a useful quantity in differential privacy, meta-learning, and optimization research. import torch import torch.nn as nn import torch.nn.functional as F from functools import partial torch.manual_seed(0); # Here&#39;s a simple CNN and loss function: class SimpleCNN(nn.Module): def __init__(self): super().__init__() self.conv1 = nn.Conv2d(1, 32, 3, 1) self.conv2 = nn.Conv2d(32, 64, 3, 1) self.fc1 = nn.Linear(9216, 128) self.fc2 = nn.Linear(128, 10) def forward(self, x): x = self.conv1(x) x = F.relu(x) x = self.conv2(x) x = F.relu(x) x = F.max_pool2d(x, 2) x = torch.flatten(x, 1) x = self.fc1(x) x = F.relu(x) x = self.fc2(x) x = F.log_softmax(x, dim=1) output = x return output def loss_fn(predictions, targets): return F.nll_loss(predictions, targets) Let’s generate a batch of dummy data and pretend that we’re working with an MNIST dataset. The dummy images are 28 by 28 and we use a minibatch of size 64. device = &#39;cuda&#39; num_models = 10 batch_size = 64 data = torch.randn(batch_size, 1, 28, 28, device=device) targets = torch.randint(10, (64,), device=device) In regular model training, one would forward the minibatch through the model, and then call .backward() to compute gradients. This would generate an ‘average’ gradient of the entire mini-batch: model = SimpleCNN().to(device=device) predictions = model(data) # move the entire mini-batch through the model loss = loss_fn(predictions, targets) loss.backward() # back propagate the &#39;average&#39; gradient of this mini-batch In contrast to the above approach, per-sample-gradient computation is equivalent to: for each individual sample of the data, perform a forward and a backward pass to get an individual (per-sample) gradient. def compute_grad(sample, target): sample = sample.unsqueeze(0) # prepend batch dimension for processing target = target.unsqueeze(0) prediction = model(sample) loss = loss_fn(prediction, target) return torch.autograd.grad(loss, list(model.parameters())) def compute_sample_grads(data, targets): \&#34;\&#34;\&#34; manually process each sample with per sample gradient \&#34;\&#34;\&#34; sample_grads = [compute_grad(data[i], targets[i]) for i in range(batch_size)] sample_grads = zip(*sample_grads) sample_grads = [torch.stack(shards) for shards in sample_grads] return sample_grads per_sample_grads = compute_sample_grads(data, targets) sample_grads[0] is the per-sample-grad for model.conv1.weight. model.conv1.weight.shape is [32, 1, 3, 3]; notice how there is one gradient, per sample, in the batch for a total of 64. print(per_sample_grads[0].shape) torch.Size([64, 32, 1, 3, 3]) Per-sample-grads, the efficient way, using functorch# We can compute per-sample-gradients efficiently by using function transforms. First, let’s create a stateless functional version of model by using functorch.make_functional_with_buffers. This will separate state (the parameters) from the model and turn t..."
        }
    </script>
 

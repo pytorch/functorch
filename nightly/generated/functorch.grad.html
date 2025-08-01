@@ -65,6 +65,28 @@
 <link rel="canonical" href="/generated/functorch.grad.html" crossorigin="anonymous">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
+<script>
+  if (window.location.hostname === 'docs.pytorch.org' || window.location.hostname === 'docs-preview.pytorch.org') {
+    const script = document.createElement('script');
+    script.src = 'https://cmp.osano.com/16A0DbT9yDNIaQkvZ/31b1b91a-e0b6-47ea-bde2-7f2bd13dbe5c/osano.js?variant=one';
+    document.head.appendChild(script);
+  }
+</script>
+<script>
+  // Cookie banner for non-LF projects.
+  document.addEventListener('DOMContentLoaded', function() {
+    // Hide cookie banner on local environments
+    if (window.location.hostname === 'localhost' ||
+        window.location.hostname === '0.0.0.0' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.startsWith('192.168.')) {
+      const banner = document.querySelector('.cookie-banner-wrapper');
+      if (banner) {
+        banner.style.display = 'none';
+      }
+    }
+  });
+</script>
 <link rel="stylesheet" type="text/css" href="../_static/css/theme.css" crossorigin="anonymous">
 <script type="text/javascript" src="../_static/js/theme.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -104,7 +126,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git6c7f88c)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+giteb853e2)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1482,21 +1504,17 @@ and/or the <cite>torch.func</cite> migration guide for more details
 
 
        </div>
-
-  <div class="cookie-banner-wrapper">
-  <div class="container">
-    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
-    <img class="close-button" src="../_static/img/pytorch-x.svg">
-  </div>
-</div>
  </footer>
-   
-  <footer class="bd-footer"><div class="cookie-banner-wrapper">
+
+<div class="cookie-banner-wrapper">
   <div class="container">
     <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
     <img class="close-button" src="../_static/img/pytorch-x.svg">
   </div>
 </div>
+
+   
+  <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
   
     <div class="footer-items__start">
@@ -1541,16 +1559,18 @@ and/or the <cite>torch.func</cite> migration guide for more details
          "@type": "Article",
          "headline": "functorch.grad",
          "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
+         "url": "/generated/functorch.grad.html",
          "author": {
            "@type": "Organization",
-           "name": "PyTorch Contributors"
+           "name": "PyTorch Contributors",
+           "url": "https://pytorch.org"
          },
          "image": "../_static/img/pytorch_seo.png",
          "mainEntityOfPage": {
            "@type": "WebPage",
            "@id": "/generated/functorch.grad.html"
          },
-         "datePublished": "",
+        "datePublished": "",
          "dateModified": "",
          "articleBody": "functorch.grad# functorch.grad(func, argnums=0, has_aux=False)[source]# grad operator helps computing gradients of func with respect to the input(s) specified by argnums. This operator can be nested to compute higher-order gradients. Parameters func (Callable) – A Python function that takes one or more arguments. Must return a single-element Tensor. If specified has_aux equals True, function can return a tuple of single-element Tensor and other auxiliary objects: (output, aux). argnums (int or Tuple[int]) – Specifies arguments to compute gradients with respect to. argnums can be single integer or tuple of integers. Default: 0. has_aux (bool) – Flag indicating that func returns a tensor and other auxiliary objects: (output, aux). Default: False. Returns Function to compute gradients with respect to its inputs. By default, the output of the function is the gradient tensor(s) with respect to the first argument. If specified has_aux equals True, tuple of gradients and output auxiliary objects is returned. If argnums is a tuple of integers, a tuple of output gradients with respect to each argnums value is returned. Example of using grad: &gt;&gt;&gt; # xdoctest: +SKIP &gt;&gt;&gt; from torch.func import grad &gt;&gt;&gt; x = torch.randn([]) &gt;&gt;&gt; cos_x = grad(lambda x: torch.sin(x))(x) &gt;&gt;&gt; assert torch.allclose(cos_x, x.cos()) &gt;&gt;&gt; &gt;&gt;&gt; # Second-order gradients &gt;&gt;&gt; neg_sin_x = grad(grad(lambda x: torch.sin(x)))(x) &gt;&gt;&gt; assert torch.allclose(neg_sin_x, -x.sin()) When composed with vmap, grad can be used to compute per-sample-gradients: &gt;&gt;&gt; # xdoctest: +SKIP &gt;&gt;&gt; from torch.func import grad, vmap &gt;&gt;&gt; batch_size, feature_size = 3, 5 &gt;&gt;&gt; &gt;&gt;&gt; def model(weights, feature_vec): &gt;&gt;&gt; # Very simple linear model with activation &gt;&gt;&gt; assert feature_vec.dim() == 1 &gt;&gt;&gt; return feature_vec.dot(weights).relu() &gt;&gt;&gt; &gt;&gt;&gt; def compute_loss(weights, example, target): &gt;&gt;&gt; y = model(weights, example) &gt;&gt;&gt; return ((y - target) ** 2).mean() # MSELoss &gt;&gt;&gt; &gt;&gt;&gt; weights = torch.randn(feature_size, requires_grad=True) &gt;&gt;&gt; examples = torch.randn(batch_size, feature_size) &gt;&gt;&gt; targets = torch.randn(batch_size) &gt;&gt;&gt; inputs = (weights, examples, targets) &gt;&gt;&gt; grad_weight_per_example = vmap(grad(compute_loss), in_dims=(None, 0, 0))( ... *inputs ... ) Example of using grad with has_aux and argnums: &gt;&gt;&gt; # xdoctest: +SKIP &gt;&gt;&gt; from torch.func import grad &gt;&gt;&gt; def my_loss_func(y, y_pred): &gt;&gt;&gt; loss_per_sample = (0.5 * y_pred - y) ** 2 &gt;&gt;&gt; loss = loss_per_sample.mean() &gt;&gt;&gt; return loss, (y_pred, loss_per_sample) &gt;&gt;&gt; &gt;&gt;&gt; fn = grad(my_loss_func, argnums=(0, 1), has_aux=True) &gt;&gt;&gt; y_true = torch.rand(4) &gt;&gt;&gt; y_preds = torch.rand(4, requires_grad=True) &gt;&gt;&gt; out = fn(y_true, y_preds) &gt;&gt;&gt; # &gt; output is ((grads w.r.t y_true, grads w.r.t y_preds), (y_pred, loss_per_sample)) Note Using PyTorch torch.no_grad together with grad. Case 1: Using torch.no_grad inside a function: &gt;&gt;&gt; # xdoctest: +SKIP &gt;&gt;&gt; def f(x): &gt;&gt;&gt; with torch.no_grad(): &gt;&gt;&gt; c = x ** 2 &gt;&gt;&gt; return x - c In this case, grad(f)(x) will respect the inner torch.no_grad. Case 2: Using gr..."
        }

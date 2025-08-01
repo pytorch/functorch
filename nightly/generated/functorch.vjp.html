@@ -65,6 +65,28 @@
 <link rel="canonical" href="/generated/functorch.vjp.html" crossorigin="anonymous">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
+<script>
+  if (window.location.hostname === 'docs.pytorch.org' || window.location.hostname === 'docs-preview.pytorch.org') {
+    const script = document.createElement('script');
+    script.src = 'https://cmp.osano.com/16A0DbT9yDNIaQkvZ/31b1b91a-e0b6-47ea-bde2-7f2bd13dbe5c/osano.js?variant=one';
+    document.head.appendChild(script);
+  }
+</script>
+<script>
+  // Cookie banner for non-LF projects.
+  document.addEventListener('DOMContentLoaded', function() {
+    // Hide cookie banner on local environments
+    if (window.location.hostname === 'localhost' ||
+        window.location.hostname === '0.0.0.0' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.startsWith('192.168.')) {
+      const banner = document.querySelector('.cookie-banner-wrapper');
+      if (banner) {
+        banner.style.display = 'none';
+      }
+    }
+  });
+</script>
 <link rel="stylesheet" type="text/css" href="../_static/css/theme.css" crossorigin="anonymous">
 <script type="text/javascript" src="../_static/js/theme.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -104,7 +126,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git6c7f88c)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+giteb853e2)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1483,21 +1505,17 @@ and/or the <cite>torch.func</cite> migration guide for more details
 
 
        </div>
-
-  <div class="cookie-banner-wrapper">
-  <div class="container">
-    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
-    <img class="close-button" src="../_static/img/pytorch-x.svg">
-  </div>
-</div>
  </footer>
-   
-  <footer class="bd-footer"><div class="cookie-banner-wrapper">
+
+<div class="cookie-banner-wrapper">
   <div class="container">
     <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
     <img class="close-button" src="../_static/img/pytorch-x.svg">
   </div>
 </div>
+
+   
+  <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
   
     <div class="footer-items__start">
@@ -1542,18 +1560,20 @@ and/or the <cite>torch.func</cite> migration guide for more details
          "@type": "Article",
          "headline": "functorch.vjp",
          "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
+         "url": "/generated/functorch.vjp.html",
          "author": {
            "@type": "Organization",
-           "name": "PyTorch Contributors"
+           "name": "PyTorch Contributors",
+           "url": "https://pytorch.org"
          },
          "image": "../_static/img/pytorch_seo.png",
          "mainEntityOfPage": {
            "@type": "WebPage",
            "@id": "/generated/functorch.vjp.html"
          },
-         "datePublished": "",
+        "datePublished": "",
          "dateModified": "",
-         "articleBody": "functorch.vjp# functorch.vjp(func, *primals, has_aux=False)[source]# Standing for the vector-Jacobian product, returns a tuple containing the results of func applied to primals and a function that, when given cotangents, computes the reverse-mode Jacobian of func with respect to primals times cotangents. Parameters func (Callable) – A Python function that takes one or more arguments. Must return one or more Tensors. primals (Tensors) – Positional arguments to func that must all be Tensors. The returned function will also be computing the derivative with respect to these arguments has_aux (bool) – Flag indicating that func returns a (output, aux) tuple where the first element is the output of the function to be differentiated and the second element is other auxiliary objects that will not be differentiated. Default: False. Returns Returns a (output, vjp_fn) tuple containing the output of func applied to primals and a function that computes the vjp of func with respect to all primals using the cotangents passed to the returned function. If has_aux is True, then instead returns a (output, vjp_fn, aux) tuple. The returned vjp_fn function will return a tuple of each VJP. When used in simple cases, vjp() behaves the same as grad() &gt;&gt;&gt; x = torch.randn([5]) &gt;&gt;&gt; f = lambda x: x.sin().sum() &gt;&gt;&gt; (_, vjpfunc) = torch.func.vjp(f, x) &gt;&gt;&gt; grad = vjpfunc(torch.tensor(1.0))[0] &gt;&gt;&gt; assert torch.allclose(grad, torch.func.grad(f)(x)) However, vjp() can support functions with multiple outputs by passing in the cotangents for each of the outputs &gt;&gt;&gt; x = torch.randn([5]) &gt;&gt;&gt; f = lambda x: (x.sin(), x.cos()) &gt;&gt;&gt; (_, vjpfunc) = torch.func.vjp(f, x) &gt;&gt;&gt; vjps = vjpfunc((torch.ones([5]), torch.ones([5]))) &gt;&gt;&gt; assert torch.allclose(vjps[0], x.cos() + -x.sin()) vjp() can even support outputs being Python structs &gt;&gt;&gt; x = torch.randn([5]) &gt;&gt;&gt; f = lambda x: {&#34;first&#34;: x.sin(), &#34;second&#34;: x.cos()} &gt;&gt;&gt; (_, vjpfunc) = torch.func.vjp(f, x) &gt;&gt;&gt; cotangents = {&#34;first&#34;: torch.ones([5]), &#34;second&#34;: torch.ones([5])} &gt;&gt;&gt; vjps = vjpfunc(cotangents) &gt;&gt;&gt; assert torch.allclose(vjps[0], x.cos() + -x.sin()) The function returned by vjp() will compute the partials with respect to each of the primals &gt;&gt;&gt; x, y = torch.randn([5, 4]), torch.randn([4, 5]) &gt;&gt;&gt; (_, vjpfunc) = torch.func.vjp(torch.matmul, x, y) &gt;&gt;&gt; cotangents = torch.randn([5, 5]) &gt;&gt;&gt; vjps = vjpfunc(cotangents) &gt;&gt;&gt; assert len(vjps) == 2 &gt;&gt;&gt; assert torch.allclose(vjps[0], torch.matmul(cotangents, y.transpose(0, 1))) &gt;&gt;&gt; assert torch.allclose(vjps[1], torch.matmul(x.transpose(0, 1), cotangents)) primals are the positional arguments for f. All kwargs use their default value &gt;&gt;&gt; x = torch.randn([5]) &gt;&gt;&gt; def f(x, scale=4.): &gt;&gt;&gt; return x * scale &gt;&gt;&gt; &gt;&gt;&gt; (_, vjpfunc) = torch.func.vjp(f, x) &gt;&gt;&gt; vjps = vjpfunc(torch.ones_like(x)) &gt;&gt;&gt; assert torch.allclose(vjps[0], torch.full(x.shape, 4.0)) Note Using PyTorch torch.no_grad together with vjp. Case 1: Using torch.no_grad inside a function: &gt;&gt;&gt; def f(x): &gt;&gt;&gt; with torch.no_grad(): &gt;&gt;&gt; c = x ** 2 &gt;&gt;&gt; r..."
+         "articleBody": "functorch.vjp# functorch.vjp(func, *primals, has_aux=False)[source]# Standing for the vector-Jacobian product, returns a tuple containing the results of func applied to primals and a function that, when given cotangents, computes the reverse-mode Jacobian of func with respect to primals times cotangents. Parameters func (Callable) – A Python function that takes one or more arguments. Must return one or more Tensors. primals (Tensors) – Positional arguments to func that must all be Tensors. The returned function will also be computing the derivative with respect to these arguments has_aux (bool) – Flag indicating that func returns a (output, aux) tuple where the first element is the output of the function to be differentiated and the second element is other auxiliary objects that will not be differentiated. Default: False. Returns Returns a (output, vjp_fn) tuple containing the output of func applied to primals and a function that computes the vjp of func with respect to all primals using the cotangents passed to the returned function. If has_aux is True, then instead returns a (output, vjp_fn, aux) tuple. The returned vjp_fn function will return a tuple of each VJP. When used in simple cases, vjp() behaves the same as grad() &gt;&gt;&gt; x = torch.randn([5]) &gt;&gt;&gt; f = lambda x: x.sin().sum() &gt;&gt;&gt; (_, vjpfunc) = torch.func.vjp(f, x) &gt;&gt;&gt; grad = vjpfunc(torch.tensor(1.0))[0] &gt;&gt;&gt; assert torch.allclose(grad, torch.func.grad(f)(x)) However, vjp() can support functions with multiple outputs by passing in the cotangents for each of the outputs &gt;&gt;&gt; x = torch.randn([5]) &gt;&gt;&gt; f = lambda x: (x.sin(), x.cos()) &gt;&gt;&gt; (_, vjpfunc) = torch.func.vjp(f, x) &gt;&gt;&gt; vjps = vjpfunc((torch.ones([5]), torch.ones([5]))) &gt;&gt;&gt; assert torch.allclose(vjps[0], x.cos() + -x.sin()) vjp() can even support outputs being Python structs &gt;&gt;&gt; x = torch.randn([5]) &gt;&gt;&gt; f = lambda x: {\&#34;first\&#34;: x.sin(), \&#34;second\&#34;: x.cos()} &gt;&gt;&gt; (_, vjpfunc) = torch.func.vjp(f, x) &gt;&gt;&gt; cotangents = {\&#34;first\&#34;: torch.ones([5]), \&#34;second\&#34;: torch.ones([5])} &gt;&gt;&gt; vjps = vjpfunc(cotangents) &gt;&gt;&gt; assert torch.allclose(vjps[0], x.cos() + -x.sin()) The function returned by vjp() will compute the partials with respect to each of the primals &gt;&gt;&gt; x, y = torch.randn([5, 4]), torch.randn([4, 5]) &gt;&gt;&gt; (_, vjpfunc) = torch.func.vjp(torch.matmul, x, y) &gt;&gt;&gt; cotangents = torch.randn([5, 5]) &gt;&gt;&gt; vjps = vjpfunc(cotangents) &gt;&gt;&gt; assert len(vjps) == 2 &gt;&gt;&gt; assert torch.allclose(vjps[0], torch.matmul(cotangents, y.transpose(0, 1))) &gt;&gt;&gt; assert torch.allclose(vjps[1], torch.matmul(x.transpose(0, 1), cotangents)) primals are the positional arguments for f. All kwargs use their default value &gt;&gt;&gt; x = torch.randn([5]) &gt;&gt;&gt; def f(x, scale=4.): &gt;&gt;&gt; return x * scale &gt;&gt;&gt; &gt;&gt;&gt; (_, vjpfunc) = torch.func.vjp(f, x) &gt;&gt;&gt; vjps = vjpfunc(torch.ones_like(x)) &gt;&gt;&gt; assert torch.allclose(vjps[0], torch.full(x.shape, 4.0)) Note Using PyTorch torch.no_grad together with vjp. Case 1: Using torch.no_grad inside a function: &gt;&gt;&gt; def f(x): &gt;&gt;&gt; with torch.no_grad(): &gt;&gt;&gt; c = x ** 2 &gt;&gt;&gt; r..."
        }
    </script>
 

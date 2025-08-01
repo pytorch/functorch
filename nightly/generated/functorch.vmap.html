@@ -65,6 +65,28 @@
 <link rel="canonical" href="/generated/functorch.vmap.html" crossorigin="anonymous">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
+<script>
+  if (window.location.hostname === 'docs.pytorch.org' || window.location.hostname === 'docs-preview.pytorch.org') {
+    const script = document.createElement('script');
+    script.src = 'https://cmp.osano.com/16A0DbT9yDNIaQkvZ/31b1b91a-e0b6-47ea-bde2-7f2bd13dbe5c/osano.js?variant=one';
+    document.head.appendChild(script);
+  }
+</script>
+<script>
+  // Cookie banner for non-LF projects.
+  document.addEventListener('DOMContentLoaded', function() {
+    // Hide cookie banner on local environments
+    if (window.location.hostname === 'localhost' ||
+        window.location.hostname === '0.0.0.0' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.startsWith('192.168.')) {
+      const banner = document.querySelector('.cookie-banner-wrapper');
+      if (banner) {
+        banner.style.display = 'none';
+      }
+    }
+  });
+</script>
 <link rel="stylesheet" type="text/css" href="../_static/css/theme.css" crossorigin="anonymous">
 <script type="text/javascript" src="../_static/js/theme.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -104,7 +126,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git6c7f88c)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+giteb853e2)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1542,21 +1564,17 @@ and/or the <cite>torch.func</cite> migration guide for more details
 
 
        </div>
-
-  <div class="cookie-banner-wrapper">
-  <div class="container">
-    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
-    <img class="close-button" src="../_static/img/pytorch-x.svg">
-  </div>
-</div>
  </footer>
-   
-  <footer class="bd-footer"><div class="cookie-banner-wrapper">
+
+<div class="cookie-banner-wrapper">
   <div class="container">
     <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
     <img class="close-button" src="../_static/img/pytorch-x.svg">
   </div>
 </div>
+
+   
+  <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
   
     <div class="footer-items__start">
@@ -1601,16 +1619,18 @@ and/or the <cite>torch.func</cite> migration guide for more details
          "@type": "Article",
          "headline": "functorch.vmap",
          "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
+         "url": "/generated/functorch.vmap.html",
          "author": {
            "@type": "Organization",
-           "name": "PyTorch Contributors"
+           "name": "PyTorch Contributors",
+           "url": "https://pytorch.org"
          },
          "image": "../_static/img/pytorch_seo.png",
          "mainEntityOfPage": {
            "@type": "WebPage",
            "@id": "/generated/functorch.vmap.html"
          },
-         "datePublished": "",
+        "datePublished": "",
          "dateModified": "",
          "articleBody": "functorch.vmap# functorch.vmap(func, in_dims=0, out_dims=0, randomness=&#39;error&#39;, *, chunk_size=None)[source]# vmap is the vectorizing map; vmap(func) returns a new function that maps func over some dimension of the inputs. Semantically, vmap pushes the map into PyTorch operations called by func, effectively vectorizing those operations. vmap is useful for handling batch dimensions: one can write a function func that runs on examples and then lift it to a function that can take batches of examples with vmap(func). vmap can also be used to compute batched gradients when composed with autograd. Note torch.vmap() is aliased to torch.func.vmap() for convenience. Use whichever one you’d like. Parameters func (function) – A Python function that takes one or more arguments. Must return one or more Tensors. in_dims (int or nested structure) – Specifies which dimension of the inputs should be mapped over. in_dims should have a structure like the inputs. If the in_dim for a particular input is None, then that indicates there is no map dimension. Default: 0. out_dims (int or Tuple[int]) – Specifies where the mapped dimension should appear in the outputs. If out_dims is a Tuple, then it should have one element per output. Default: 0. randomness (str) – Specifies whether the randomness in this vmap should be the same or different across batches. If ‘different’, the randomness for each batch will be different. If ‘same’, the randomness will be the same across batches. If ‘error’, any calls to random functions will error. Default: ‘error’. WARNING: this flag only applies to random PyTorch operations and does not apply to Python’s random module or numpy randomness. chunk_size (None or int) – If None (default), apply a single vmap over inputs. If not None, then compute the vmap chunk_size samples at a time. Note that chunk_size=1 is equivalent to computing the vmap with a for-loop. If you run into memory issues computing the vmap, please try a non-None chunk_size. Returns Returns a new “batched” function. It takes the same inputs as func, except each input has an extra dimension at the index specified by in_dims. It takes returns the same outputs as func, except each output has an extra dimension at the index specified by out_dims. One example of using vmap() is to compute batched dot products. PyTorch doesn’t provide a batched torch.dot API; instead of unsuccessfully rummaging through docs, use vmap() to construct a new function. &gt;&gt;&gt; torch.dot # [D], [D] -&gt; [] &gt;&gt;&gt; batched_dot = torch.func.vmap(torch.dot) # [N, D], [N, D] -&gt; [N] &gt;&gt;&gt; x, y = torch.randn(2, 5), torch.randn(2, 5) &gt;&gt;&gt; batched_dot(x, y) vmap() can be helpful in hiding batch dimensions, leading to a simpler model authoring experience. &gt;&gt;&gt; batch_size, feature_size = 3, 5 &gt;&gt;&gt; weights = torch.randn(feature_size, requires_grad=True) &gt;&gt;&gt; &gt;&gt;&gt; def model(feature_vec): &gt;&gt;&gt; # Very simple linear model with activation &gt;&gt;&gt; return feature_vec.dot(weights).relu() &gt;&gt;&gt; &gt;&gt;&gt; examples = torch.randn(batch_size, feature_siz..."
        }

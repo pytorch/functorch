@@ -64,6 +64,28 @@
 <link rel="canonical" href="/notebooks/minifier.html" crossorigin="anonymous">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
+<script>
+  if (window.location.hostname === 'docs.pytorch.org' || window.location.hostname === 'docs-preview.pytorch.org') {
+    const script = document.createElement('script');
+    script.src = 'https://cmp.osano.com/16A0DbT9yDNIaQkvZ/31b1b91a-e0b6-47ea-bde2-7f2bd13dbe5c/osano.js?variant=one';
+    document.head.appendChild(script);
+  }
+</script>
+<script>
+  // Cookie banner for non-LF projects.
+  document.addEventListener('DOMContentLoaded', function() {
+    // Hide cookie banner on local environments
+    if (window.location.hostname === 'localhost' ||
+        window.location.hostname === '0.0.0.0' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.startsWith('192.168.')) {
+      const banner = document.querySelector('.cookie-banner-wrapper');
+      if (banner) {
+        banner.style.display = 'none';
+      }
+    }
+  });
+</script>
 <link rel="stylesheet" type="text/css" href="../_static/css/theme.css" crossorigin="anonymous">
 <script type="text/javascript" src="../_static/js/theme.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -103,7 +125,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git6c7f88c)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+giteb853e2)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1618,21 +1640,17 @@ with torch.jit.fuser(&quot;fuser2&quot;):
 
 
        </div>
-
-  <div class="cookie-banner-wrapper">
-  <div class="container">
-    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
-    <img class="close-button" src="../_static/img/pytorch-x.svg">
-  </div>
-</div>
  </footer>
-   
-  <footer class="bd-footer"><div class="cookie-banner-wrapper">
+
+<div class="cookie-banner-wrapper">
   <div class="container">
     <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
     <img class="close-button" src="../_static/img/pytorch-x.svg">
   </div>
 </div>
+
+   
+  <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
   
     <div class="footer-items__start">
@@ -1677,18 +1695,20 @@ with torch.jit.fuser(&quot;fuser2&quot;):
          "@type": "Article",
          "headline": "Using the Minifier",
          "description": "PyTorch Documentation. Explore PyTorch, an open-source machine learning library that accelerates the path from research prototyping to production deployment. Discover tutorials, API references, and guides to help you build and deploy deep learning models efficiently.",
+         "url": "/notebooks/minifier.html",
          "author": {
            "@type": "Organization",
-           "name": "PyTorch Contributors"
+           "name": "PyTorch Contributors",
+           "url": "https://pytorch.org"
          },
          "image": "../_static/img/pytorch_seo.png",
          "mainEntityOfPage": {
            "@type": "WebPage",
            "@id": "/notebooks/minifier.html"
          },
-         "datePublished": "",
+        "datePublished": "",
          "dateModified": "",
-         "articleBody": "Using the Minifier# We have a pretty convenient test case minifier with this interface def minifier(fail_f: fx.GraphModule, inps, module_fails): &#34;&#34;&#34; Minimizes a FX graph with given inputs, such that the resulting FX graph still returns True for module_fails. Does 2 main strategies: 1. Truncates suffix: Removes some suffix from the graph and sets a new output. 2. Delta Debugging: Tries replacing half of the graph with inputs. If fails, tries replacing quarter of the graph, etc. &gt;&gt;&gt; failing_function = fx.symbolic_trace(f) &gt;&gt;&gt; minimize(failing_function, [torch.randn(5)], lambda fx_g, inps: fx_g(*inps)) note: module_fails returns True if it fails. ... Specifically, it takes your FX graph, and tries to minify it with the following 4 strategies (while checking that the resulting graph still returns True for module_fails), until it can’t minify it anymore. Truncates Suffix: Given a FX graph, it tries to remove some suffix from the graph. For example, given this: def f(a): b = x * 2 c = b + 3 d = c / 4 return d It might try truncating the suffix, and get def f(a): b = x * 2 c = b + 3 return c It tries this in a binary search manner, trying to remove the last 1/2, then 3/4, 1/4 then 7/8, 5/8, 3/8… Delta Debugging: Of course, removing the suffix isn’t always sufficient to minify a graph. What if the error is caused by the first instruction? So, we take an approach inspired by delta debugging - we try removing intermediate nodes of the graph. Unlike with suffixes, there are still dependencies on the removed nodes. So, instead of removing them entirely, we promote them to inputs. For example, given the above example: def f(a): b = x * 2 c = b + 3 d = c / 4 return d We might remove a middle node (say, c, in this case). def f(a, c): b = x * 2 d = c / 4 return d Finally, there are 2 auxiliary strategies - eliminating dead code and removing unused inputs. These are somewhat self-explanatory. So, let’s take a look at a toy example. Let’s pretend that our graph fails if it has a “multiply” in it. Let’s create a failing graph. import torch import torch.fx as fx from functorch.compile import minifier def failing_f(x, y): y = torch.ops.aten.div(x, y) x = torch.ops.aten.add(x, 3) x = torch.ops.aten.mul(x, y) return torch.ops.aten.sub(x, y) inps = [torch.randn(3), torch.randn(3)] def pass_checker(fx_g, inps): return (torch.ops.aten.mul in {i.target for i in fx_g.graph.nodes}) min_f, inps = minifier(fx.symbolic_trace(failing_f), inps, pass_checker) [W OperatorEntry.cpp:133] Warning: Overriding a previously registered kernel for the same operator and the same dispatch key operator: aten::multiply.Tensor(Tensor self, Tensor other) -&gt; (Tensor) registered at aten/src/ATen/RegisterSchema.cpp:6 dispatch key: FuncTorchBatched previous kernel: registered at aten/src/ATen/RegisterCompositeImplicitAutograd.cpp:10338 new kernel: registered at /fsx/users/chilli/work/functorch/functorch/csrc/BatchRulesDecompositions.cpp:108 (function registerKernel) Started off with 7 nodes #####..."
+         "articleBody": "Using the Minifier# We have a pretty convenient test case minifier with this interface def minifier(fail_f: fx.GraphModule, inps, module_fails): \&#34;\&#34;\&#34; Minimizes a FX graph with given inputs, such that the resulting FX graph still returns True for module_fails. Does 2 main strategies: 1. Truncates suffix: Removes some suffix from the graph and sets a new output. 2. Delta Debugging: Tries replacing half of the graph with inputs. If fails, tries replacing quarter of the graph, etc. &gt;&gt;&gt; failing_function = fx.symbolic_trace(f) &gt;&gt;&gt; minimize(failing_function, [torch.randn(5)], lambda fx_g, inps: fx_g(*inps)) note: module_fails returns True if it fails. ... Specifically, it takes your FX graph, and tries to minify it with the following 4 strategies (while checking that the resulting graph still returns True for module_fails), until it can’t minify it anymore. Truncates Suffix: Given a FX graph, it tries to remove some suffix from the graph. For example, given this: def f(a): b = x * 2 c = b + 3 d = c / 4 return d It might try truncating the suffix, and get def f(a): b = x * 2 c = b + 3 return c It tries this in a binary search manner, trying to remove the last 1/2, then 3/4, 1/4 then 7/8, 5/8, 3/8… Delta Debugging: Of course, removing the suffix isn’t always sufficient to minify a graph. What if the error is caused by the first instruction? So, we take an approach inspired by delta debugging - we try removing intermediate nodes of the graph. Unlike with suffixes, there are still dependencies on the removed nodes. So, instead of removing them entirely, we promote them to inputs. For example, given the above example: def f(a): b = x * 2 c = b + 3 d = c / 4 return d We might remove a middle node (say, c, in this case). def f(a, c): b = x * 2 d = c / 4 return d Finally, there are 2 auxiliary strategies - eliminating dead code and removing unused inputs. These are somewhat self-explanatory. So, let’s take a look at a toy example. Let’s pretend that our graph fails if it has a “multiply” in it. Let’s create a failing graph. import torch import torch.fx as fx from functorch.compile import minifier def failing_f(x, y): y = torch.ops.aten.div(x, y) x = torch.ops.aten.add(x, 3) x = torch.ops.aten.mul(x, y) return torch.ops.aten.sub(x, y) inps = [torch.randn(3), torch.randn(3)] def pass_checker(fx_g, inps): return (torch.ops.aten.mul in {i.target for i in fx_g.graph.nodes}) min_f, inps = minifier(fx.symbolic_trace(failing_f), inps, pass_checker) [W OperatorEntry.cpp:133] Warning: Overriding a previously registered kernel for the same operator and the same dispatch key operator: aten::multiply.Tensor(Tensor self, Tensor other) -&gt; (Tensor) registered at aten/src/ATen/RegisterSchema.cpp:6 dispatch key: FuncTorchBatched previous kernel: registered at aten/src/ATen/RegisterCompositeImplicitAutograd.cpp:10338 new kernel: registered at /fsx/users/chilli/work/functorch/functorch/csrc/BatchRulesDecompositions.cpp:108 (function registerKernel) Started off with 7 nodes #####..."
        }
    </script>
 
