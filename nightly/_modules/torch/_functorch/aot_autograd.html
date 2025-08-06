@@ -124,7 +124,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git5e0fc2c)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git6a82da3)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1738,10 +1738,15 @@ document.write(`
 
     <span class="k">if</span> <span class="n">fw_metadata</span><span class="o">.</span><span class="n">num_intermediate_bases</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">assert</span> <span class="ow">not</span> <span class="n">req_subclass_dispatch</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
-<span class="s2">torch.compile is currently being used with tensor subclass inputs:</span>
-<span class="si">{</span><span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">x</span><span class="p">))</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">fake_flat_args</span><span class="p">])</span><span class="si">}</span><span class="s2">. We are attempting to a compile a graph with two graph outputs</span>
-<span class="s2">that alias one another, which is currently unsupported in the subclass use case. If you run into this,</span>
-<span class="s2">please file a github issue&quot;&quot;&quot;</span>
+<span class="s2">torch.compile is currently being used with tensor subclass inputs.</span>
+<span class="s2">We are attempting to a compile a graph with two graph outputs</span>
+<span class="s2">that alias one another, specifically output indices:</span>
+
+<span class="s2">    </span><span class="si">{</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nb">enumerate</span><span class="p">(</span><span class="n">fw_metadata</span><span class="o">.</span><span class="n">output_info</span><span class="p">)</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">x</span><span class="o">.</span><span class="n">output_type</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">OutputType</span><span class="o">.</span><span class="n">alias_of_intermediate</span><span class="p">]</span><span class="si">}</span>
+
+<span class="s2">ANY output aliasing (even for regular tensors) is currently unsupported if</span>
+<span class="s2">there are any subclass outputs. If you run into this, please file a github</span>
+<span class="s2">issue&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">is_export</span><span class="p">:</span>
         <span class="c1"># aot_export: ban input metadata mutations for now to keep shared code paths simpler.</span>
