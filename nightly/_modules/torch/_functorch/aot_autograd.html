@@ -124,7 +124,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git6a82da3)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+git5cedc5a)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -2255,6 +2255,8 @@ document.write(`
     <span class="n">decompositions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">keep_inference_input_mutations</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">ignore_shape_env</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">fw_compiler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AOTDispatchCompiler</span><span class="p">]</span> <span class="o">=</span> <span class="n">boxed_nop_preserve_node_meta</span><span class="p">,</span>
+    <span class="n">bw_compiler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AOTDispatchCompiler</span><span class="p">]</span> <span class="o">=</span> <span class="n">boxed_nop_preserve_node_meta</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JointWithDescriptors</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This API captures the joint graph for an nn.Module.  However, unlike</span>
@@ -2332,8 +2334,8 @@ document.write(`
         <span class="n">mod</span><span class="p">,</span>
         <span class="n">args</span><span class="p">,</span>
         <span class="n">kwargs</span><span class="p">,</span>
-        <span class="n">boxed_nop_preserve_node_meta</span><span class="p">,</span>
-        <span class="n">boxed_nop_preserve_node_meta</span><span class="p">,</span>
+        <span class="n">fw_compiler</span><span class="p">,</span>
+        <span class="n">bw_compiler</span><span class="p">,</span>
         <span class="n">default_partition</span><span class="p">,</span>
         <span class="n">decompositions</span><span class="p">,</span>
         <span class="n">keep_inference_input_mutations</span><span class="p">,</span>
