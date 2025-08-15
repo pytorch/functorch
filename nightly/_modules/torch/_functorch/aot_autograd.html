@@ -124,7 +124,7 @@
    fbq('track', 'PageView');
 </script>
 <script>
-   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+gita06ec54)');
+   document.documentElement.setAttribute('data-version', 'nightly (2.9.0a0+gitdc194a3)');
  </script>
 <noscript>
    <img height="1" width="1" src="https://www.facebook.com/tr?id=243028289693773&ev=PageView&noscript=1"/>
@@ -1773,6 +1773,7 @@ document.write(`
                 <span class="p">]</span>
             <span class="p">)</span>
             <span class="o">!=</span> <span class="mi">0</span>
+            <span class="ow">and</span> <span class="n">aot_config</span><span class="o">.</span><span class="n">export_trace_joint</span>
         <span class="p">):</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
@@ -2549,6 +2550,7 @@ document.write(`
             <span class="n">no_tangents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">pre_dispatch</span><span class="o">=</span><span class="n">pre_dispatch</span><span class="p">,</span>
             <span class="n">dynamic_shapes</span><span class="o">=</span><span class="n">dynamic_shapes</span><span class="p">,</span>
+            <span class="n">trace_joint</span><span class="o">=</span><span class="n">trace_joint</span><span class="p">,</span>
             <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span>
         <span class="p">)</span>
 
@@ -2651,6 +2653,7 @@ document.write(`
             <span class="n">func</span><span class="p">,</span>
             <span class="n">args</span><span class="p">,</span>
             <span class="n">decompositions</span><span class="o">=</span><span class="n">decompositions</span><span class="p">,</span>
+            <span class="n">trace_joint</span><span class="o">=</span><span class="n">trace_joint</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">in_spec</span><span class="p">,</span> <span class="n">_kw_in_spec</span> <span class="o">=</span> <span class="n">in_spec</span><span class="o">.</span><span class="n">children_specs</span>
     <span class="c1"># At this point, we can just directly return the (joint or inference graph) that we traced.</span>
@@ -2732,6 +2735,8 @@ document.write(`
     <span class="c1"># If None, `dynamic_shapes` will be inferred from inputs, but the inferred result might be wrong.</span>
     <span class="n">dynamic_shapes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">keep_input_mutations</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="c1"># Under export, configures whether we are getting inference or training IR</span>
+    <span class="n">trace_joint</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">,</span> <span class="n">ViewAndMutationMeta</span><span class="p">,</span> <span class="n">pytree</span><span class="o">.</span><span class="n">TreeSpec</span><span class="p">,</span> <span class="n">pytree</span><span class="o">.</span><span class="n">TreeSpec</span><span class="p">]:</span>
     <span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span> <span class="ow">or</span> <span class="p">{}</span>
@@ -2776,6 +2781,7 @@ document.write(`
         <span class="n">is_export</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">no_tangents</span><span class="o">=</span><span class="n">no_tangents</span><span class="p">,</span>
         <span class="n">pre_dispatch</span><span class="o">=</span><span class="n">pre_dispatch</span><span class="p">,</span>
+        <span class="n">export_trace_joint</span><span class="o">=</span><span class="n">trace_joint</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="n">fake_mode</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">fake_mode</span><span class="p">,</span> <span class="n">shape_env</span> <span class="o">=</span> <span class="n">construct_fake_mode</span><span class="p">(</span><span class="n">flat_args</span><span class="p">,</span> <span class="n">aot_config</span><span class="p">)</span>
